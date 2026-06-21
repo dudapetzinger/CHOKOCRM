@@ -2,7 +2,7 @@
 
 CRM web inteligente para os representantes comerciais da **Chokolaten** (chocolates artesanais, Pomerode/SC), integrado ao ERP da Senior Sistemas.
 
-Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Universitário – Católica de Santa Catarina, em parceria com a Chokolaten.
+Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Universitário - Católica de Santa Catarina, em parceria com a Chokolaten.
 
 ## O problema
 
@@ -22,4 +22,4 @@ React.js · Node.js + Express · PostgreSQL · WhatsApp Business API
 
 ## Autora
 
-Eduarda Petzinger Rodrigues — Engenharia de Software, Católica SC
+Eduarda Petzinger Rodrigues - Engenharia de Software, Católica SC
