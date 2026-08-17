@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChokoCRM — Painel de indicadores</title>
+<link rel="stylesheet" href="css/estilo.css">
+<style>
+/* Estilos exclusivos desta tela (painel.html) — extensões visuais que não
+   fazem parte do inventário compartilhado de css/estilo.css, pois
+   dependem de conteúdo específico do painel do gestor (UC13, UC14, UC15).
+   Apenas CSS puro, sem bibliotecas de gráfico. */
+
+/* Rótulo simples, no mesmo estilo de ".campo label", para o filtro de período */
+.filtro-rotulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texto);
+  margin: 0 0 8px 0;
+}
+
+/* Pílulas de filtro de período lado a lado, com espaçamento uniforme */
+.filtro-periodo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* Grade 2x2 de indicadores (KPIs) */
+.grade-kpi {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.kpi {
+  text-align: center;
+  padding: 8px 4px;
+}
+
+.kpi-valor {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--marrom-900);
+  margin: 0 0 2px 0;
+}
+
+.kpi-rotulo {
+  font-size: 12px;
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+/* Barra segmentada de distribuição de clientes por cor: cada segmento
+   cresce proporcionalmente à contagem de clientes (flex-grow inline,
+   definido no HTML — apenas CSS, sem biblioteca de gráfico). */
+.barra-distribuicao {
+  display: flex;
+  height: 16px;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.barra-distribuicao span {
+  display: block;
+}
+
+.barra-distribuicao .seg-verde { background-color: var(--verde); }
+.barra-distribuicao .seg-amarelo { background-color: var(--amarelo); }
+.barra-distribuicao .seg-laranja { background-color: var(--laranja); }
+.barra-distribuicao .seg-vermelho { background-color: var(--vermelho); }
+
+/* Legenda da barra: pílulas já existentes (.badge-pilula), apenas com quebra
+   de linha habilitada para caber na largura mobile */
+.legenda-distribuicao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* O card de alerta reaproveita .card + .aviso-atencao (destaque vermelho);
+   o título herda a cor do alerta em vez do marrom padrão de .card-titulo */
+.aviso-atencao .card-titulo {
+  color: inherit;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="topo">
+    <h1>Painel de indicadores</h1>
+  </header>
+
+  <main class="conteudo">
+
+    <section aria-label="Filtro de período">
+      <p class="filtro-rotulo">Período de análise</p>
+      <div class="filtro-periodo" role="group" aria-label="Selecionar período de análise dos indicadores">
+        <a href="painel.html" class="badge-pilula ativo" aria-current="true">30 dias</a>
+        <a href="painel.html" class="badge-pilula">90 dias</a>
+        <a href="painel.html" class="badge-pilula">Ano</a>
+      </div>
+    </section>
+
+    <section class="card aviso-atencao" role="alert" aria-labelledby="titulo-alerta">
+      <h2 id="titulo-alerta" class="card-titulo">⚠️ Alerta de produção</h2>
+      <p>Estoque de trufas baixo com demanda alta prevista — avaliar produção.</p>
+    </section>
+
+    <section class="card" aria-labelledby="titulo-kpis">
+      <h2 id="titulo-kpis" class="card-titulo">Indicadores</h2>
+      <div class="grade-kpi">
+        <div class="kpi">
+          <p class="kpi-valor">24</p>
+          <p class="kpi-rotulo">Visitas no mês</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi-valor">96%</p>
+          <p class="kpi-rotulo">Taxa de registro</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi-valor">62%</p>
+          <p class="kpi-rotulo">Conversão em vendas</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi-valor">2</p>
+          <p class="kpi-rotulo">Clientes inativos</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="titulo-distribuicao">
+      <h2 id="titulo-distribuicao" class="card-titulo">Distribuição de clientes por cor</h2>
+      <div class="barra-distribuicao" role="img" aria-label="3 clientes verdes, 2 amarelos, 2 laranjas e 2 vermelhos, de um total de 9 clientes ativos">
+        <span class="seg-verde" style="flex-grow:3"></span>
+        <span class="seg-amarelo" style="flex-grow:2"></span>
+        <span class="seg-laranja" style="flex-grow:2"></span>
+        <span class="seg-vermelho" style="flex-grow:2"></span>
+      </div>
+      <div class="legenda-distribuicao">
+        <span class="badge-pilula"><span class="badge-verde"></span>Verde: 3</span>
+        <span class="badge-pilula"><span class="badge-amarelo"></span>Amarelo: 2</span>
+        <span class="badge-pilula"><span class="badge-laranja"></span>Laranja: 2</span>
+        <span class="badge-pilula"><span class="badge-vermelho"></span>Vermelho: 2</span>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="titulo-epoca">
+      <h2 id="titulo-epoca" class="card-titulo">Época do ano: Dia dos Pais (09/ago)</h2>
+      <p>
+        Sugestão sazonal: reforçar a oferta de caixas presenteáveis e linhas de
+        chocolate ao leite e amargo, categorias com maior volume de vendas no
+        período do Dia dos Pais no ano anterior. Priorizar contato com os
+        clientes classificados em verde e amarelo nesta janela.
+      </p>
+    </section>
+
+  </main>
+
+  <nav class="nav-inferior">
+    <a href="clientes.html"><span class="icone">👥</span>Clientes</a>
+    <a href="agenda.html"><span class="icone">🗓️</span>Agenda</a>
+    <a href="checkin.html"><span class="icone">📍</span>Check-in</a>
+    <a href="painel.html" class="ativo"><span class="icone">📊</span>Painel</a>
+  </nav>
+
+</div>
+</body>
+</html>
