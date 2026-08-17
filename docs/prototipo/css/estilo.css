@@ -1,0 +1,475 @@
+/* ChokoCRM — Protótipo navegável (Etapa 1)
+   Folha de estilo única, compartilhada por todas as telas do protótipo.
+   HTML/CSS estático, sem frameworks e sem CDN.
+   Mobile-first — largura de referência 390px, container centralizado max-width 480px. */
+
+/* ==========================================================================
+   1. Tokens de design
+   ========================================================================== */
+:root {
+  --marrom-900: #3E2723; --marrom-700: #5D4037; --marrom-100: #D7CCC8;
+  --creme: #FAF3E9; --branco: #FFFFFF; --texto: #2B2118; --texto-suave: #7A6A5D;
+  --verde: #2E7D32; --amarelo: #F9A825; --laranja: #EF6C00; --vermelho: #C62828;
+  --raio: 12px; --sombra: 0 1px 4px rgba(62,39,35,.12);
+}
+
+/* ==========================================================================
+   2. Reset mínimo e base
+   ========================================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background-color: var(--marrom-100);
+  color: var(--texto);
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p, ul, ol, figure {
+  margin: 0 0 12px 0;
+}
+
+a {
+  color: var(--marrom-700);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Container mobile-first: centraliza o "app" em telas largas, sem exceder 480px */
+.container {
+  max-width: 480px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background-color: var(--creme);
+  position: relative;
+  box-shadow: var(--sombra);
+  overflow-x: hidden;
+}
+
+/* Área de conteúdo das telas internas: reserva espaço para a .nav-inferior fixa */
+.conteudo {
+  padding: 16px 16px 96px;
+}
+
+/* ==========================================================================
+   3. Barra superior (.topo)
+   Barra marrom fixa no topo, com o título da tela e, opcionalmente,
+   uma ação (link/botão) à direita. Uso:
+   <header class="topo"><h1>Título</h1></header>
+   <header class="topo"><h1>Título</h1><a class="topo-acao" href="...">Ação</a></header>
+   ========================================================================== */
+.topo {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 16px;
+  background-color: var(--marrom-900);
+  color: var(--branco);
+}
+
+.topo h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topo-acao {
+  flex-shrink: 0;
+  color: var(--branco);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topo-acao:hover, .topo-acao:focus-visible {
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   4. Navegação inferior (.nav-inferior)
+   Barra fixa com 4 atalhos das telas internas: Clientes, Agenda, Check-in, Painel.
+   Não aparece na tela de login. Uso:
+   <nav class="nav-inferior">
+     <a href="clientes.html" class="ativo"><span class="icone">👥</span>Clientes</a>
+     <a href="agenda.html"><span class="icone">🗓️</span>Agenda</a>
+     <a href="checkin.html"><span class="icone">📍</span>Check-in</a>
+     <a href="painel.html"><span class="icone">📊</span>Painel</a>
+   </nav>
+   A classe "ativo" no link marca a aba correspondente à tela atual.
+   ========================================================================== */
+.nav-inferior {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  max-width: 480px;
+  margin: 0 auto;
+  background-color: var(--branco);
+  border-top: 1px solid var(--marrom-100);
+  box-shadow: 0 -1px 4px rgba(62, 39, 35, .1);
+}
+
+.nav-inferior a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 4px 10px;
+  font-size: 11px;
+  color: var(--texto-suave);
+  text-decoration: none;
+  text-align: center;
+}
+
+.nav-inferior a .icone {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.nav-inferior a.ativo {
+  color: var(--marrom-900);
+  font-weight: 700;
+  box-shadow: inset 0 2px 0 var(--marrom-900);
+}
+
+/* ==========================================================================
+   5. Cartões (.card)
+   ========================================================================== */
+.card {
+  background-color: var(--branco);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card-titulo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--marrom-900);
+  margin: 0 0 12px 0;
+}
+
+/* ==========================================================================
+   6. Botões
+   ========================================================================== */
+.btn-primario,
+.btn-secundario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: var(--raio);
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  text-align: center;
+}
+
+.btn-primario {
+  background-color: var(--marrom-900);
+  color: var(--branco);
+}
+
+.btn-primario:hover,
+.btn-primario:focus-visible {
+  background-color: var(--marrom-700);
+}
+
+.btn-secundario {
+  background-color: transparent;
+  color: var(--marrom-900);
+  border-color: var(--marrom-700);
+}
+
+.btn-secundario:hover,
+.btn-secundario:focus-visible {
+  background-color: var(--marrom-100);
+}
+
+/* ==========================================================================
+   7. Campos de formulário (.campo)
+   Estrutura: label + input/select/textarea empilhados.
+   <div class="campo">
+     <label for="id">Rótulo</label>
+     <input id="id" type="text">
+     <p class="campo-ajuda">Texto de apoio opcional</p>
+   </div>
+   ========================================================================== */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.campo label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--marrom-100);
+  border-radius: var(--raio);
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--texto);
+  background-color: var(--branco);
+}
+
+.campo textarea {
+  resize: vertical;
+  min-height: 88px;
+}
+
+.campo input:focus,
+.campo select:focus,
+.campo textarea:focus {
+  outline: none;
+  border-color: var(--marrom-700);
+}
+
+.campo-ajuda {
+  font-size: 12px;
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+/* ==========================================================================
+   8. Selos de classificação por cor (.badge-*)
+   Ponto de 12px de diâmetro — a cor indica a classificação do cliente
+   (verde/amarelo/laranja/vermelho, ver docs/casos-de-uso.md, UC05).
+   Uso isolado (ex.: dentro de .item-lista):
+     <span class="badge-verde" aria-label="Verde"></span>
+   ========================================================================== */
+.badge-verde,
+.badge-amarelo,
+.badge-laranja,
+.badge-vermelho {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.badge-verde { background-color: var(--verde); }
+.badge-amarelo { background-color: var(--amarelo); }
+.badge-laranja { background-color: var(--laranja); }
+.badge-vermelho { background-color: var(--vermelho); }
+
+/* Variante pílula: o ponto de cor acompanhado de um rótulo textual,
+   usada em filtros e legendas. Uso:
+     <span class="badge-pilula"><span class="badge-verde"></span> Verde</span>
+   Adicionar "ativo" para marcar o filtro selecionado. */
+.badge-pilula {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background-color: var(--branco);
+  border: 1px solid var(--marrom-100);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.badge-pilula.ativo {
+  background-color: var(--marrom-100);
+  border-color: var(--marrom-700);
+}
+
+/* ==========================================================================
+   9. Listas (.lista / .item-lista)
+   .lista é o contêiner (cartão) que agrupa itens; .item-lista é cada linha,
+   com avatar de iniciais, nome, cidade e badge de cor à direita. Uso:
+   <div class="lista">
+     <a class="item-lista" href="cliente.html">
+       <span class="avatar">EP</span>
+       <span class="info">
+         <span class="nome">Empório Pomerode</span>
+         <span class="cidade">Pomerode</span>
+       </span>
+       <span class="badge-verde" aria-label="Verde"></span>
+     </a>
+   </div>
+   ========================================================================== */
+.lista {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--branco);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.item-lista {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--marrom-100);
+}
+
+.item-lista:last-child {
+  border-bottom: none;
+}
+
+.item-lista:hover,
+.item-lista:focus-visible {
+  background-color: var(--creme);
+}
+
+.item-lista .avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  background-color: var(--marrom-100);
+  color: var(--marrom-900);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.item-lista .info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.item-lista .info .nome {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-lista .info .cidade {
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   10. Auxiliares diversos (rodapé do protótipo, etiquetas, avisos)
+   Componentes auxiliares, disponíveis para reuso pelas demais telas do
+   protótipo.
+   ========================================================================== */
+.etiqueta {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background-color: var(--marrom-100);
+  color: var(--marrom-900);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.aviso {
+  padding: 12px 14px;
+  border-radius: var(--raio);
+  background-color: var(--creme);
+  border: 1px solid var(--marrom-100);
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+.aviso-atencao {
+  background-color: #FDECEA;
+  border-color: var(--vermelho);
+  color: var(--vermelho);
+}
+
+.rodape-prototipo {
+  text-align: center;
+  font-size: 12px;
+  color: var(--texto-suave);
+  margin-top: 24px;
+}
+
+/* ==========================================================================
+   11. Tela de login
+   Cabeçalho de marca (logotipo textual, sem imagens) e área central,
+   usados apenas em login.html — não é a mesma coisa que .topo, pois a tela
+   de login não tem barra de navegação nem título de seção interna.
+   ========================================================================== */
+.tela-login {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 32px 20px 40px;
+}
+
+.marca {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.marca-logo {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--marrom-900);
+  letter-spacing: -.01em;
+  margin: 0 0 6px 0;
+}
+
+.marca-logo span {
+  color: var(--laranja);
+}
+
+.marca-slogan {
+  font-size: 13px;
+  color: var(--texto-suave);
+  margin: 0;
+}
