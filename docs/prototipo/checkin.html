@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChokoCRM — Check-in de visita</title>
+<link rel="stylesheet" href="css/estilo.css">
+<style>
+  /* Componentes desta tela que não fazem parte dos estilos compartilhados
+     de estilo.css, por dependerem do conteúdo específico desta tela — em
+     especial o alternador "Sim/Não". Implementado com radio inputs
+     ocultos + rótulos estilizados como segmentos (sem necessidade de
+     JavaScript). */
+  .campo-alternador {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .rotulo-alternador {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--texto);
+  }
+
+  .alternador {
+    display: flex;
+    gap: 8px;
+  }
+
+  .alternador-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .alternador-opcao {
+    flex: 1;
+    text-align: center;
+    padding: 10px 12px;
+    border-radius: var(--raio);
+    border: 1.5px solid var(--marrom-100);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--texto-suave);
+    background-color: var(--branco);
+    cursor: pointer;
+  }
+
+  .alternador-input:checked + .alternador-opcao {
+    background-color: var(--marrom-900);
+    border-color: var(--marrom-900);
+    color: var(--branco);
+  }
+
+  .alternador-input:focus-visible + .alternador-opcao {
+    outline: 2px solid var(--marrom-700);
+    outline-offset: 2px;
+  }
+
+  /* Realce do campo obrigatório em estado inválido, para reforçar
+     visualmente o bloco de aviso da simulação de validação abaixo. */
+  .campo-invalido textarea {
+    border-color: var(--vermelho);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="topo">
+    <h1>Check-in de visita</h1>
+  </header>
+
+  <main class="conteudo">
+
+    <p class="campo-ajuda" style="margin-bottom: 6px;">Cliente selecionado</p>
+    <div class="lista">
+      <div class="item-lista">
+        <span class="avatar">EP</span>
+        <span class="info">
+          <span class="nome">Empório Pomerode</span>
+          <span class="cidade">Pomerode</span>
+        </span>
+        <span class="badge-verde" aria-label="Verde"></span>
+      </div>
+    </div>
+
+    <section class="card" aria-labelledby="titulo-checkin">
+      <h2 id="titulo-checkin" class="card-titulo">Dados da visita</h2>
+
+      <div class="campo">
+        <label for="data-hora">Data e hora da visita</label>
+        <input type="text" id="data-hora" name="data-hora" value="08/08/2026 14:30">
+        <p class="campo-ajuda">Preenchida automaticamente pelo sistema; pode ser ajustada manualmente pelo representante.</p>
+      </div>
+
+      <div class="campo">
+        <label for="contato">Contato atendido</label>
+        <select id="contato" name="contato">
+          <option value="" selected>Não informado</option>
+          <option value="marta-weber">Marta Weber</option>
+          <option value="joao-siewert">João Siewert</option>
+        </select>
+        <p class="campo-ajuda">Opcional.</p>
+      </div>
+
+      <div class="campo-alternador">
+        <label class="rotulo-alternador" id="lbl-venda">Houve venda?</label>
+        <div class="alternador" role="radiogroup" aria-labelledby="lbl-venda">
+          <input type="radio" id="venda-sim" name="houve-venda" value="sim" class="alternador-input" checked>
+          <label for="venda-sim" class="alternador-opcao">Sim</label>
+          <input type="radio" id="venda-nao" name="houve-venda" value="nao" class="alternador-input">
+          <label for="venda-nao" class="alternador-opcao">Não</label>
+        </div>
+      </div>
+
+      <div class="campo campo-invalido">
+        <label for="descricao">Descrição da conversa *</label>
+        <textarea id="descricao" name="descricao" rows="4" placeholder="Resumo da conversa e dos combinados com o cliente..." aria-required="true" aria-invalid="true"></textarea>
+        <p class="campo-ajuda">Obrigatório — o check-in não é salvo sem descrição.</p>
+      </div>
+
+      <!-- Simulação estática da exceção E1 do UC07: tentativa de salvar o
+           check-in sem informar a descrição da visita. Este protótipo não
+           executa validação real (é HTML/CSS estático); o bloco abaixo
+           ilustra a mensagem que o sistema exibiria nesse caso. -->
+      <div class="aviso aviso-atencao" role="alert">
+        <strong>Não foi possível salvar o check-in.</strong> A descrição é obrigatória.
+      </div>
+
+      <a class="btn-primario" href="cliente.html">Salvar check-in</a>
+    </section>
+
+  </main>
+
+  <nav class="nav-inferior">
+    <a href="clientes.html"><span class="icone">👥</span>Clientes</a>
+    <a href="agenda.html"><span class="icone">🗓️</span>Agenda</a>
+    <a href="checkin.html" class="ativo"><span class="icone">📍</span>Check-in</a>
+    <a href="painel.html"><span class="icone">📊</span>Painel</a>
+  </nav>
+
+</div>
+</body>
+</html>

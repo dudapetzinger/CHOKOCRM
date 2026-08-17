@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChokoCRM — Agenda do dia</title>
+<link rel="stylesheet" href="css/estilo.css">
+<style>
+  /* Item de agenda: linha com avatar, nome/cidade, dias sem visita, badge de
+     cor e um botão de ação próprio ("Check-in"), além do link para a ficha
+     do cliente. Não reaproveita ".item-lista" porque cada linha
+     tem duas ações — abrir ficha (UC06) e registrar check-in (UC07) —, o que
+     exigiria aninhar um elemento interativo dentro de outro (<a> dentro de
+     <a>), inválido em HTML. Por isso este componente próprio desta tela. */
+  .agenda-lista {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--branco);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .agenda-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--marrom-100);
+  }
+
+  .agenda-item:last-child {
+    border-bottom: none;
+  }
+
+  .agenda-item-link {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .agenda-item-link:hover,
+  .agenda-item-link:focus-visible {
+    text-decoration: underline;
+  }
+
+  .agenda-item .avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 50%;
+    background-color: var(--marrom-100);
+    color: var(--marrom-900);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .agenda-item .info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .agenda-item .info .nome {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--texto);
+  }
+
+  .agenda-item .info .dias {
+    font-size: 13px;
+    color: var(--texto-suave);
+  }
+
+  .agenda-item [class^="badge-"] {
+    flex-shrink: 0;
+  }
+
+  .agenda-item .btn-checkin {
+    flex-shrink: 0;
+    width: auto;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="topo">
+    <h1>Agenda do dia</h1>
+  </header>
+
+  <main class="conteudo">
+
+    <p>
+      Clientes com visita atrasada ou prevista para hoje, priorizados pela
+      cor de classificação — vermelho e laranja antes de amarelo e verde.
+    </p>
+
+    <h2 class="card-titulo">Atrasadas</h2>
+    <div class="agenda-lista">
+
+      <div class="agenda-item">
+        <a class="agenda-item-link" href="cliente.html">
+          <span class="avatar">MC</span>
+          <span class="info">
+            <span class="nome">Mercado Central Joinville</span>
+            <span class="dias">Joinville · 12 dias de atraso</span>
+          </span>
+          <span class="badge-vermelho" aria-label="Vermelho"></span>
+        </a>
+        <a class="btn-secundario btn-checkin" href="checkin.html">Check-in</a>
+      </div>
+
+      <div class="agenda-item">
+        <a class="agenda-item-link" href="cliente.html">
+          <span class="avatar">AS</span>
+          <span class="info">
+            <span class="nome">Armazém São Bento</span>
+            <span class="dias">São Bento do Sul · 8 dias de atraso</span>
+          </span>
+          <span class="badge-vermelho" aria-label="Vermelho"></span>
+        </a>
+        <a class="btn-secundario btn-checkin" href="checkin.html">Check-in</a>
+      </div>
+
+    </div>
+
+    <h2 class="card-titulo">Hoje</h2>
+    <div class="agenda-lista">
+
+      <div class="agenda-item">
+        <a class="agenda-item-link" href="cliente.html">
+          <span class="avatar">DJ</span>
+          <span class="info">
+            <span class="nome">Doceria Jaraguá</span>
+            <span class="dias">Jaraguá do Sul · 20 dias sem visita</span>
+          </span>
+          <span class="badge-laranja" aria-label="Laranja"></span>
+        </a>
+        <a class="btn-secundario btn-checkin" href="checkin.html">Check-in</a>
+      </div>
+
+      <div class="agenda-item">
+        <a class="agenda-item-link" href="cliente.html">
+          <span class="avatar">CB</span>
+          <span class="info">
+            <span class="nome">Café Blumenau</span>
+            <span class="dias">Blumenau · 15 dias sem visita</span>
+          </span>
+          <span class="badge-amarelo" aria-label="Amarelo"></span>
+        </a>
+        <a class="btn-secundario btn-checkin" href="checkin.html">Check-in</a>
+      </div>
+
+    </div>
+
+  </main>
+
+  <nav class="nav-inferior">
+    <a href="clientes.html"><span class="icone">👥</span>Clientes</a>
+    <a href="agenda.html" class="ativo"><span class="icone">🗓️</span>Agenda</a>
+    <a href="checkin.html"><span class="icone">📍</span>Check-in</a>
+    <a href="painel.html"><span class="icone">📊</span>Painel</a>
+  </nav>
+
+</div>
+</body>
+</html>
