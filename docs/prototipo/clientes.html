@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChokoCRM — Clientes</title>
+<link rel="stylesheet" href="css/estilo.css">
+<style>
+  /* Estilos específicos desta tela: barra de filtros por cor e botão
+     flutuante "+ Novo cliente". Componentes compartilhados ficam em
+     css/estilo.css. */
+
+  /* Barra de filtros: pílulas de cor viram <button>, pois esta é uma busca
+     e filtro apenas decorativos (protótipo estático, sem JS de lógica). */
+  .filtro-cores {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 2px 6px;
+    margin-bottom: 4px;
+  }
+
+  .filtro-cores .badge-pilula {
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  /* Botão flutuante "+ Novo cliente": o wrapper replica a técnica de
+     centralização de .nav-inferior (max-width 480px + margin auto) para
+     acompanhar o .container também em telas largas; pointer-events isola
+     apenas o botão, deixando o resto da faixa "clicável através dela". */
+  .flutuante-wrap {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 74px;
+    max-width: 480px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 16px;
+    z-index: 15;
+    pointer-events: none;
+  }
+
+  .botao-flutuante {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 20px;
+    background-color: var(--laranja);
+    color: var(--branco);
+    font-size: 14px;
+    font-weight: 700;
+    box-shadow: 0 3px 10px rgba(62, 39, 35, .3);
+    cursor: pointer;
+  }
+
+  .botao-flutuante:hover,
+  .botao-flutuante:focus-visible {
+    background-color: #C95F00;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="topo">
+    <h1>Clientes</h1>
+  </header>
+
+  <main class="conteudo">
+
+    <div class="campo">
+      <label for="busca">Buscar cliente</label>
+      <input type="search" id="busca" name="busca" placeholder="Nome ou cidade">
+    </div>
+
+    <div class="filtro-cores" role="group" aria-label="Filtrar por cor de classificação">
+      <button type="button" class="badge-pilula ativo">Todas</button>
+      <button type="button" class="badge-pilula"><span class="badge-verde"></span> Verde</button>
+      <button type="button" class="badge-pilula"><span class="badge-amarelo"></span> Amarelo</button>
+      <button type="button" class="badge-pilula"><span class="badge-laranja"></span> Laranja</button>
+      <button type="button" class="badge-pilula"><span class="badge-vermelho"></span> Vermelho</button>
+    </div>
+
+    <div class="lista">
+      <a class="item-lista" href="cliente.html">
+        <span class="avatar">EP</span>
+        <span class="info">
+          <span class="nome">Empório Pomerode</span>
+          <span class="cidade">Pomerode</span>
+        </span>
+        <span class="badge-verde" aria-label="Verde"></span>
+      </a>
+      <a class="item-lista" href="cliente.html">
+        <span class="avatar">CB</span>
+        <span class="info">
+          <span class="nome">Café Blumenau</span>
+          <span class="cidade">Blumenau</span>
+        </span>
+        <span class="badge-amarelo" aria-label="Amarelo"></span>
+      </a>
+      <a class="item-lista" href="cliente.html">
+        <span class="avatar">DJ</span>
+        <span class="info">
+          <span class="nome">Doceria Jaraguá</span>
+          <span class="cidade">Jaraguá do Sul</span>
+        </span>
+        <span class="badge-laranja" aria-label="Laranja"></span>
+      </a>
+      <a class="item-lista" href="cliente.html">
+        <span class="avatar">MC</span>
+        <span class="info">
+          <span class="nome">Mercado Central Joinville</span>
+          <span class="cidade">Joinville</span>
+        </span>
+        <span class="badge-vermelho" aria-label="Vermelho"></span>
+      </a>
+      <a class="item-lista" href="cliente.html">
+        <span class="avatar">PV</span>
+        <span class="info">
+          <span class="nome">Padaria Vale Europeu</span>
+          <span class="cidade">Timbó</span>
+        </span>
+        <span class="badge-verde" aria-label="Verde"></span>
+      </a>
+      <a class="item-lista" href="cliente.html">
+        <span class="avatar">CE</span>
+        <span class="info">
+          <span class="nome">Cafeteria Estrada Bonita</span>
+          <span class="cidade">Joinville</span>
+        </span>
+        <span class="badge-amarelo" aria-label="Amarelo"></span>
+      </a>
+      <a class="item-lista" href="cliente.html">
+        <span class="avatar">EC</span>
+        <span class="info">
+          <span class="nome">Empório do Chocolate</span>
+          <span class="cidade">Blumenau</span>
+        </span>
+        <span class="badge-laranja" aria-label="Laranja"></span>
+      </a>
+      <a class="item-lista" href="cliente.html">
+        <span class="avatar">CR</span>
+        <span class="info">
+          <span class="nome">Confeitaria Rota das Cachoeiras</span>
+          <span class="cidade">Corupá</span>
+        </span>
+        <span class="badge-verde" aria-label="Verde"></span>
+      </a>
+      <a class="item-lista" href="cliente.html">
+        <span class="avatar">AS</span>
+        <span class="info">
+          <span class="nome">Armazém São Bento</span>
+          <span class="cidade">São Bento do Sul</span>
+        </span>
+        <span class="badge-vermelho" aria-label="Vermelho"></span>
+      </a>
+    </div>
+
+  </main>
+
+  <div class="flutuante-wrap">
+    <button type="button" class="botao-flutuante">+ Novo cliente</button>
+  </div>
+
+  <nav class="nav-inferior">
+    <a href="clientes.html" class="ativo"><span class="icone">👥</span>Clientes</a>
+    <a href="agenda.html"><span class="icone">🗓️</span>Agenda</a>
+    <a href="checkin.html"><span class="icone">📍</span>Check-in</a>
+    <a href="painel.html"><span class="icone">📊</span>Painel</a>
+  </nav>
+
+</div>
+</body>
+</html>

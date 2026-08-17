@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChokoCRM — Empório Pomerode</title>
+<link rel="stylesheet" href="css/estilo.css">
+<style>
+  /* Estilos específicos desta tela: linhas de dado do cabeçalho do
+     cliente, bloco de contato, cartão de insight e a linha do tempo de
+     visitas. Componentes compartilhados ficam em css/estilo.css. */
+
+  .cliente-cabecalho-nome {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cliente-info {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    color: var(--texto-suave);
+  }
+
+  .contato {
+    margin-bottom: 12px;
+  }
+
+  .contato:last-child {
+    margin-bottom: 0;
+  }
+
+  .contato-nome {
+    margin: 0 0 2px 0;
+  }
+
+  .contato-cargo {
+    margin: 0;
+    font-size: 14px;
+    color: var(--texto-suave);
+  }
+
+  /* Cartão de insight: destaque à esquerda na cor laranja, reaproveitando
+     os tokens de cor já definidos em :root. */
+  .insight-card {
+    background-color: var(--creme);
+    border: 1px solid var(--marrom-100);
+    border-left: 4px solid var(--laranja);
+    border-radius: var(--raio);
+    padding: 12px 14px;
+  }
+
+  .insight-titulo {
+    margin: 0 0 4px 0;
+    font-weight: 700;
+    color: var(--marrom-900);
+  }
+
+  .insight-card p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Variante do .etiqueta (estilo.css) para marcar "houve venda" na timeline. */
+  .etiqueta-venda {
+    background-color: var(--verde);
+    color: var(--branco);
+  }
+
+  /* Linha do tempo: lista com marcador circular e linha vertical conectando
+     os eventos, construída só com CSS (sem biblioteca de timeline). */
+  .linha-do-tempo {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .evento-visita {
+    position: relative;
+    margin-left: 5px;
+    padding: 0 0 16px 20px;
+    border-left: 2px solid var(--marrom-100);
+  }
+
+  .evento-visita:last-child {
+    padding-bottom: 0;
+    border-left-color: transparent;
+  }
+
+  .evento-visita::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 3px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--marrom-700);
+  }
+
+  .evento-data {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-weight: 700;
+    color: var(--marrom-900);
+    margin: 0 0 4px 0;
+  }
+
+  .evento-descricao {
+    margin: 0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="topo">
+    <h1>Empório Pomerode</h1>
+    <a class="topo-acao" href="clientes.html">Voltar</a>
+  </header>
+
+  <main class="conteudo">
+
+    <section class="card" aria-labelledby="titulo-cliente">
+      <h2 id="titulo-cliente" class="card-titulo cliente-cabecalho-nome">
+        Empório Pomerode
+        <span class="badge-verde" aria-label="Verde"></span>
+      </h2>
+      <p class="cliente-info">Pomerode</p>
+      <p class="cliente-info">Telefone: (47) 3395-1122</p>
+      <p class="cliente-info">E-mail: contato@emporiopomerode.com.br</p>
+    </section>
+
+    <section class="card">
+      <h2 class="card-titulo">Contatos</h2>
+      <div class="contato">
+        <p class="contato-nome"><strong>Marta Weber</strong> <span class="etiqueta">Principal</span></p>
+        <p class="contato-cargo">Compradora</p>
+      </div>
+      <div class="contato">
+        <p class="contato-nome"><strong>João Siewert</strong></p>
+        <p class="contato-cargo">Proprietário</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-titulo">Recorrência de visitas</h2>
+      <p>A cada <strong>15 dias</strong> — <a href="#">alterar</a></p>
+      <p class="campo-ajuda">Alterar a recorrência exige justificativa registrada.</p>
+    </section>
+
+    <section class="card">
+      <h2 class="card-titulo">Dados do ERP</h2>
+      <p class="aviso">Dados simulados — integração com o provedor de ERP ainda não está disponível.</p>
+      <p>Última venda: <strong>28/07/2026 — R$ 1.840,00</strong></p>
+      <p>Volume de compras (90 dias): <strong>R$ 5.120,00</strong></p>
+      <p>Estoque estimado: <strong>Baixo</strong></p>
+    </section>
+
+    <section class="card">
+      <h2 class="card-titulo">Insights</h2>
+      <div class="insight-card">
+        <p class="insight-titulo">Dia dos Pais amanhã</p>
+        <p>Sugerir kit presente.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-titulo">Histórico de visitas</h2>
+      <ol class="linha-do-tempo">
+        <li class="evento-visita">
+          <p class="evento-data">28/07/2026 <span class="etiqueta etiqueta-venda">Houve venda</span></p>
+          <p class="evento-descricao">Reposição de barras 70% e apresentação da linha sazonal.</p>
+        </li>
+        <li class="evento-visita">
+          <p class="evento-data">10/07/2026 <span class="etiqueta etiqueta-venda">Houve venda</span></p>
+          <p class="evento-descricao">Fechou pedido extra de trufas recheadas para o fim de semana.</p>
+        </li>
+        <li class="evento-visita">
+          <p class="evento-data">22/06/2026</p>
+          <p class="evento-descricao">Visita de relacionamento, sem pedido fechado nesta passagem.</p>
+        </li>
+      </ol>
+    </section>
+
+    <a class="btn-primario" href="checkin.html">Fazer check-in</a>
+
+  </main>
+
+  <nav class="nav-inferior">
+    <a href="clientes.html" class="ativo"><span class="icone">👥</span>Clientes</a>
+    <a href="agenda.html"><span class="icone">🗓️</span>Agenda</a>
+    <a href="checkin.html"><span class="icone">📍</span>Check-in</a>
+    <a href="painel.html"><span class="icone">📊</span>Painel</a>
+  </nav>
+
+</div>
+</body>
+</html>
