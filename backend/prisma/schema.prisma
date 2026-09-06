@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  REPRESENTANTE
+  GESTOR
+}
+
+model User {
+  id              String                @id @default(uuid())
+  nome            String
+  email           String                @unique
+  senhaHash       String                @map("senha_hash")
+  role            Role
+  criadoEm        DateTime              @default(now()) @map("criado_em")
+  visits          Visit[]
+  scheduleChanges VisitScheduleChange[]
+  stockMessages   StockMessage[]
+
+  @@map("users")
+}
+
+model Client {
+  id              String                @id @default(uuid())
+  razaoSocial     String                @map("razao_social")
+  nomeFantasia    String                @map("nome_fantasia")
+  cnpj            String                @unique
+  cidade          String
+  endereco        String
+  telefone        String
+  email           String
+  erpId           String?               @map("erp_id")
+  recorrenciaDias Int                   @default(15) @map("recorrencia_dias")
+  ativo           Boolean               @default(true)
+  criadoEm        DateTime              @default(now()) @map("criado_em")
+  contacts        Contact[]
+  visits          Visit[]
+  scheduleChanges VisitScheduleChange[]
+  stockMessages   StockMessage[]
+
+  @@map("clients")
+}
+
+model Contact {
+  id        String  @id @default(uuid())
+  clientId  String  @map("client_id")
+  client    Client  @relation(fields: [clientId], references: [id])
+  nome      String
+  cargo     String
+  telefone  String
+  email     String
+  principal Boolean @default(false)
+  visits    Visit[]
+
+  @@map("contacts")
+}
+
+model Visit {
+  id         String   @id @default(uuid())
+  clientId   String   @map("client_id")
+  client     Client   @relation(fields: [clientId], references: [id])
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id])
+  contactId  String?  @map("contact_id")
+  contact    Contact? @relation(fields: [contactId], references: [id])
+  dataHora   DateTime @map("data_hora")
+  descricao  String
+  houveVenda Boolean  @map("houve_venda")
+
+  @@map("visits")
+}
+
+model VisitScheduleChange {
+  id                  String   @id @default(uuid())
+  clientId            String   @map("client_id")
+  client              Client   @relation(fields: [clientId], references: [id])
+  userId              String   @map("user_id")
+  user                User     @relation(fields: [userId], references: [id])
+  recorrenciaAnterior Int      @map("recorrencia_anterior")
+  recorrenciaNova     Int      @map("recorrencia_nova")
+  justificativa       String
+  data                DateTime
+
+  @@map("visit_schedule_changes")
+}
+
+model StockMessage {
+  id              String         @id @default(uuid())
+  clientId        String         @map("client_id")
+  client          Client         @relation(fields: [clientId], references: [id])
+  userId          String         @map("user_id")
+  user            User           @relation(fields: [userId], references: [id])
+  eventoSazonalId String?        @map("evento_sazonal")
+  eventoSazonal   SeasonalEvent? @relation(fields: [eventoSazonalId], references: [id])
+  textoFinal      String         @map("texto_final")
+  dataGeracao     DateTime       @map("data_geracao")
+
+  @@map("stock_messages")
+}
+
+model SeasonalEvent {
+  id                String         @id @default(uuid())
+  nome              String
+  dataInicio        DateTime       @map("data_inicio") @db.Date
+  dataFim           DateTime       @map("data_fim") @db.Date
+  produtosSugeridos String[]       @map("produtos_sugeridos")
+  stockMessages     StockMessage[]
+
+  @@map("seasonal_events")
+}
