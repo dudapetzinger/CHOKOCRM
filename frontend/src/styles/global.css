@@ -1,0 +1,550 @@
+/* ChokoCRM — estilos globais do frontend.
+   Tokens de cor, raio e sombra e componentes básicos herdados do protótipo
+   navegável (Etapa 1), ver docs/prototipo/css/estilo.css.
+   Mobile-first — largura de referência 390px, container centralizado
+   max-width 480px. */
+
+/* ==========================================================================
+   1. Tokens de design
+   ========================================================================== */
+:root {
+  --marrom-900: #3e2723;
+  --marrom-700: #5d4037;
+  --marrom-100: #d7ccc8;
+  --creme: #faf3e9;
+  --branco: #ffffff;
+  --texto: #2b2118;
+  --texto-suave: #7a6a5d;
+  --verde: #2e7d32;
+  --amarelo: #f9a825;
+  --laranja: #ef6c00;
+  --vermelho: #c62828;
+  --raio: 12px;
+  --sombra: 0 1px 4px rgba(62, 39, 35, 0.12);
+}
+
+/* ==========================================================================
+   2. Reset mínimo e base
+   ========================================================================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  background-color: var(--marrom-100);
+  color: var(--texto);
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0 0 12px 0;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Container mobile-first: centraliza o "app" em telas largas, sem exceder 480px */
+.container {
+  max-width: 480px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background-color: var(--creme);
+  position: relative;
+  box-shadow: var(--sombra);
+  overflow-x: hidden;
+}
+
+/* Área de conteúdo das telas internas */
+.conteudo {
+  padding: 16px;
+}
+
+/* ==========================================================================
+   3. Barra superior (.topo)
+   ========================================================================== */
+.topo {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 16px;
+  background-color: var(--marrom-900);
+  color: var(--branco);
+}
+
+.topo h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topo-acao {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--branco);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.topo-acao:hover,
+.topo-acao:focus-visible {
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   4. Cartões (.card)
+   ========================================================================== */
+.card {
+  background-color: var(--branco);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card-titulo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--marrom-900);
+  margin: 0 0 12px 0;
+}
+
+/* ==========================================================================
+   5. Botões
+   ========================================================================== */
+.btn-primario,
+.btn-secundario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: var(--raio);
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  text-align: center;
+}
+
+.btn-primario {
+  background-color: var(--marrom-900);
+  color: var(--branco);
+}
+
+.btn-primario:hover,
+.btn-primario:focus-visible {
+  background-color: var(--marrom-700);
+}
+
+.btn-primario:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-secundario {
+  background-color: transparent;
+  color: var(--marrom-900);
+  border-color: var(--marrom-700);
+}
+
+.btn-secundario:hover,
+.btn-secundario:focus-visible {
+  background-color: var(--marrom-100);
+}
+
+/* ==========================================================================
+   6. Campos de formulário (.campo)
+   ========================================================================== */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.campo label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.campo input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--marrom-100);
+  border-radius: var(--raio);
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--texto);
+  background-color: var(--branco);
+}
+
+.campo input:focus {
+  outline: none;
+  border-color: var(--marrom-700);
+}
+
+/* ==========================================================================
+   7. Avisos (.aviso)
+   ========================================================================== */
+.aviso {
+  padding: 12px 14px;
+  border-radius: var(--raio);
+  background-color: var(--creme);
+  border: 1px solid var(--marrom-100);
+  font-size: 13px;
+  color: var(--texto-suave);
+  margin: 0 0 16px 0;
+}
+
+.aviso-atencao {
+  background-color: #fdecea;
+  border-color: var(--vermelho);
+  color: var(--vermelho);
+}
+
+/* ==========================================================================
+   8. Tela de login
+   Cabeçalho de marca (logotipo textual, sem imagens) e área central.
+   ========================================================================== */
+.tela-login {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 32px 20px 40px;
+}
+
+.marca {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.marca-logo {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--marrom-900);
+  letter-spacing: -0.01em;
+  margin: 0 0 6px 0;
+}
+
+.marca-logo span {
+  color: var(--laranja);
+}
+
+.marca-slogan {
+  font-size: 13px;
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+/* ==========================================================================
+   9. Listas (.lista / .item-lista)
+   Cartão que agrupa linhas de itens (ex.: lista de clientes), cada uma com
+   avatar de iniciais, nome e cidade. Ver docs/prototipo/css/estilo.css.
+   ========================================================================== */
+.lista {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--branco);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.item-lista {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--marrom-100);
+}
+
+.item-lista:last-child {
+  border-bottom: none;
+}
+
+.item-lista:hover,
+.item-lista:focus-visible {
+  background-color: var(--creme);
+}
+
+.item-lista .avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  background-color: var(--marrom-100);
+  color: var(--marrom-900);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.item-lista .info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.item-lista .info .nome {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-lista .info .cidade {
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   10. Botão flutuante ("+ Novo cliente")
+   Réplica do botão flutuante do protótipo (docs/prototipo/clientes.html),
+   ajustado para esta tela sem navegação inferior (bottom menor).
+   ========================================================================== */
+.conteudo-com-flutuante {
+  padding-bottom: 88px;
+}
+
+.flutuante-wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 16px;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.botao-flutuante {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 20px;
+  background-color: var(--laranja);
+  color: var(--branco);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 3px 10px rgba(62, 39, 35, 0.3);
+  cursor: pointer;
+}
+
+.botao-flutuante:hover,
+.botao-flutuante:focus-visible {
+  background-color: #c95f00;
+}
+
+/* ==========================================================================
+   11. Etiquetas (.etiqueta)
+   Rótulo neutro (sem cor de classificação — badges de cor são da Etapa 4).
+   Uso: identificar o contato principal na ficha do cliente.
+   ========================================================================== */
+.etiqueta {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background-color: var(--marrom-100);
+  color: var(--marrom-900);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* ==========================================================================
+   12. Campo de ajuda e erro (.campo-ajuda / .erro-campo)
+   Texto de apoio abaixo de um campo e mensagem de erro de validação
+   client-side, associada ao campo correspondente. Usados tanto dentro de
+   um `.campo` (filho extra do flex column, ver seção 6) quanto soltos após
+   outros elementos (ex.: `.contato-principal-opcao` em ContatoFields) — por
+   isso usam margem positiva, nunca negativa, evitando sobrepor o elemento
+   anterior em qualquer um dos dois contextos.
+   ========================================================================== */
+.campo-ajuda {
+  font-size: 12px;
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+.erro-campo {
+  font-size: 12px;
+  color: var(--vermelho);
+  margin: 4px 0 0;
+}
+
+/* ==========================================================================
+   13. Ficha do cliente (dados e contatos)
+   Linhas de dado do cabeçalho do cliente e bloco de cada contato, ver
+   docs/prototipo/cliente.html.
+   ========================================================================== */
+.cliente-info {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: var(--texto-suave);
+}
+
+.contato {
+  padding: 12px 0;
+  border-top: 1px solid var(--marrom-100);
+}
+
+.contato:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.contato-nome {
+  margin: 0 0 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.contato-cargo {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   14. Ações e confirmações (.acoes-linha / .confirmacao / .btn-perigo)
+   Grupo de botões lado a lado e cartão de confirmação para ações sensíveis
+   (inativar cliente, remover contato).
+   ========================================================================== */
+.acoes-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.acoes-linha .btn-primario,
+.acoes-linha .btn-secundario {
+  width: auto;
+  flex: 1 1 auto;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.confirmacao {
+  background-color: var(--creme);
+  border: 1px solid var(--marrom-100);
+  border-radius: var(--raio);
+  padding: 12px 14px;
+  margin-top: 8px;
+}
+
+.btn-perigo {
+  color: var(--vermelho);
+  border-color: var(--vermelho);
+}
+
+.btn-perigo.btn-primario {
+  background-color: var(--vermelho);
+  color: var(--branco);
+}
+
+.btn-perigo.btn-secundario:hover,
+.btn-perigo.btn-secundario:focus-visible {
+  background-color: #fdecea;
+}
+
+/* ==========================================================================
+   15. Contatos dinâmicos do formulário (ContatoFields)
+   Cada linha de contato do formulário de cadastro/edição, delimitada por um
+   contorno tracejado para diferenciá-la dos demais campos do cliente.
+   ========================================================================== */
+.contato-linha {
+  position: relative;
+  border: 1px dashed var(--marrom-100);
+  border-radius: var(--raio);
+  padding: 12px;
+  margin: 0 0 16px 0;
+}
+
+.contato-linha-legenda {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--marrom-900);
+  padding: 0 4px;
+}
+
+.contato-linha-remover {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--vermelho);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.contato-linha-remover:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.contato-principal-opcao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--texto);
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+.contato-principal-opcao input {
+  width: auto;
+}
