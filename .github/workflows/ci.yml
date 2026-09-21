@@ -24,6 +24,7 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npm run lint
       - run: npm test
+      - run: npm run build
   frontend:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: frontend } }
