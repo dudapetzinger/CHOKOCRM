@@ -23,7 +23,7 @@ O ChokoCRM é uma aplicação web responsiva (mobile-first, expansão futura par
 | Comunicação | **API REST** |
 | Banco de dados | **PostgreSQL** (ORM: Prisma) |
 | Dev local | Docker Compose (postgres + api + web) |
-| Produção | Railway ou Render (deploy via GitHub, exigência do PAC: nuvem pública e estável) |
+| Produção | **Microsoft Azure** — App Service (API), Static Web Apps (frontend) e PostgreSQL Flexible Server; CD pelo GitHub Actions (exigência do PAC: nuvem pública e estável) |
 | Repositório | Monorepo público no GitHub |
 
 ## 4. Arquitetura
@@ -50,28 +50,35 @@ Regras de dependência: camada superior só conhece a imediatamente inferior; se
 ```
 chokocrm/
 ├── backend/
+│   ├── prisma/                # schema.prisma, migrations versionadas e seed determinístico
 │   ├── src/
 │   │   ├── routes/            # definição das rotas REST por domínio
-│   │   ├── controllers/       # req/res, validação (zod), status codes
+│   │   ├── controllers/       # req/res, status codes
+│   │   ├── schemas/           # validação da entrada com zod
 │   │   ├── services/          # regra de negócio pura, testável
 │   │   ├── repositories/      # acesso a dados via Prisma
-│   │   ├── providers/
-│   │   │   └── erp/           # ErpProvider (interface), MockErpProvider, (futuro) SeniorErpProvider
-│   │   ├── middlewares/       # authJwt, errorHandler, requestLogger
-│   │   ├── jobs/              # cron diário de alertas de visita
-│   │   └── config/            # env, constantes (regras de cor, datas comemorativas)
-│   └── prisma/                # schema.prisma, migrations, seed.ts
+│   │   ├── middlewares/       # authJwt, requireRole, errorHandler, requestLogger
+│   │   ├── errors/            # AppError e catálogo centralizado de códigos de erro
+│   │   ├── lib/               # Prisma Client e logger compartilhados
+│   │   ├── config/            # variáveis de ambiente validadas
+│   │   ├── types/             # tipagens compartilhadas
+│   │   ├── app.ts             # composição do Express
+│   │   └── server.ts          # bootstrap do processo
+│   └── tests/                 # Jest + Supertest
 ├── frontend/
 │   └── src/
-│       ├── pages/             # Login, Clientes, FichaCliente, CheckIn, Painel
-│       ├── components/        # ColorBadge, ContactList, VisitTimeline, InsightCard
+│       ├── pages/             # Login, Clientes, NovoCliente, ClienteDetalhe
+│       ├── components/        # componentes de UI reutilizáveis
+│       ├── auth/              # contexto de autenticação e rota protegida
 │       ├── services/          # cliente HTTP da API REST
-│       └── hooks/
-├── docs/                      # casos de uso, modelo de dados, arquitetura, ADRs
+│       └── styles/            # tokens visuais herdados do protótipo
+├── docs/                      # casos de uso, modelo de dados, arquitetura, guia e protótipo
 ├── docker-compose.yml
-├── .github/workflows/         # ci.yml (lint+test+build), deploy.yml
+├── .github/workflows/         # ci.yml (lint, testes e build)
 └── README.md
 ```
+
+A estrutura acima reflete o repositório ao fim da Etapa 2. Pastas previstas e ainda não criadas: `backend/src/providers/erp/` (Etapa 5), `backend/src/jobs/` (Etapa 4) e `frontend/src/hooks/`, além do workflow `deploy.yml` (Etapa 6). As regras de dependência entre as camadas estão na seção 4.1 e nos diagramas C4 do documento de arquitetura.
 
 ### 4.3 Integração ERP (padrão Adapter)
 
@@ -169,11 +176,12 @@ Erros padronizados: `{ error: { code, message, details? } }` via middleware cent
 
 ## 9. DevOps, ambientes e observabilidade
 
-- **Dev local:** `docker-compose up` sobe Postgres + API (hot reload) + Web.
-- **CI (GitHub Actions):** lint (ESLint) + testes + build a cada push/PR.
-- **CD:** deploy no Railway/Render a partir da branch `main` (produção só é ativada perto das apresentações; permanece estável ao final, como exige o PAC).
-- **Ambientes:** desenvolvimento (local/Docker) e produção (nuvem). Variáveis via `.env` (com `.env.example` versionado).
-- **Observabilidade:** logs estruturados (pino) com request-id, endpoint `GET /health` (checa DB), Sentry (free tier) para erros em produção, uptime monitor externo (UptimeRobot) na apresentação final.
+- **Dev local:** `docker compose up` sobe Postgres + API (hot reload) + Web.
+- **CI (GitHub Actions):** lint + testes + build a cada push/PR.
+- **Análise estática:** SonarCloud como job do pipeline de CI, a cada push/PR (item obrigatório do playbook da disciplina).
+- **CD:** deploy no Azure a partir da branch `main`, por workflow do GitHub Actions — API em App Service, frontend em Static Web Apps e banco em PostgreSQL Flexible Server (produção só é ativada perto das apresentações; permanece estável ao final, como exige o PAC).
+- **Ambientes:** desenvolvimento (local/Docker) e produção (Azure). Variáveis via `.env` em desenvolvimento (com `.env.example` versionado) e pelas configurações do App Service em produção; segredos nunca versionados, por se tratar de repositório público.
+- **Observabilidade:** logs estruturados (pino) com request-id e redação do cabeçalho `Authorization`, endpoint `GET /health` (checa DB) e Azure Application Insights para erros, métricas e teste de disponibilidade em produção.
 
 ## 10. Testes
 
@@ -190,9 +198,9 @@ Erros padronizados: `{ error: { code, message, details? } }` via middleware cent
 | 3 | 18/set | Check-in de visitas com descrição obrigatória e histórico de interações por cliente |
 | 4 | 02/out | Classificação por cores, recorrência editável com justificativa, alertas diários e agenda do dia |
 | 5 | 16/out | Integração simulada com o ERP (padrão Adapter), cruzamento de venda/estoque na ficha do cliente e regra de cor composta |
-| 6 | 30/out | Mensagens de consulta de estoque (WhatsApp), módulo de insights por sazonalidade, painel de KPIs, deploy em produção e testes com os representantes |
+| 6 | 30/out | Mensagens de consulta de estoque (WhatsApp), módulo de insights por sazonalidade, painel de KPIs, deploy em produção no Azure com análise estática e monitoramento ativos, e testes com os representantes |
 
-Transversal a todas as etapas: testes automatizados por módulo, documentação atualizada no repositório e observabilidade incremental (logs estruturados, healthcheck e monitoramento em produção).
+Transversal a todas as etapas: testes automatizados por módulo, análise estática no pipeline de CI, documentação atualizada no repositório e observabilidade incremental (logs estruturados, healthcheck e monitoramento em produção).
 
 ## 12. Riscos e mitigações
 
@@ -201,7 +209,8 @@ Transversal a todas as etapas: testes automatizados por módulo, documentação 
 | API da Senior indisponível | MockErpProvider desde o início (cronograma já prevê simulação) |
 | Envio real de WhatsApp inviável (custo/aprovação Meta) | Link wa.me com texto pré-preenchido — funcional e sem dependência externa |
 | Prazo curto entre etapas | Desenvolvimento pode adiantar etapas futuras; entregas seguem o calendário |
-| Hospedagem instável na avaliação final | Deploy congelado + healthcheck + uptime monitor antes da divulgação das notas |
+| Hospedagem instável na avaliação final | Deploy congelado + healthcheck + teste de disponibilidade do Application Insights antes da divulgação das notas |
+| Crédito do Azure for Students (US$ 100) esgotar antes da avaliação | Produção ligada apenas nas janelas de apresentação, tiers B1/B1ms, Static Web Apps no plano gratuito e consumo acompanhado no portal |
 
 ## 13. Fora de escopo (nesta disciplina)
 
