@@ -20,11 +20,11 @@ Como preparar o ambiente, executar o projeto e rodar os testes na sua máquina. 
 | Ferramenta | Versão | Para quê |
 |------------|--------|----------|
 | Docker Desktop | com Compose v2 | Subir PostgreSQL, API e frontend juntos |
-| Node.js | 22 ou superior | Rodar API e frontend fora do Docker, instalar dependências |
+| Node.js | 22.12+ ou 24 LTS | Rodar API e frontend fora do Docker, instalar dependências |
 | npm | 10 ou superior | Acompanha o Node 22 |
 | Git | qualquer versão recente | Clonar o repositório |
 
-Só o Docker já é suficiente para ver a aplicação rodando. O Node é necessário para rodar os testes, o lint e os comandos do Prisma na máquina.
+Só o Docker já é suficiente para ver a aplicação rodando. O Node é necessário para rodar os testes, o lint e os comandos do Prisma na máquina — e a versão importa: o Prisma 7 exige 20.19+, 22.12+ ou 24+, e recusa a instalação em versões anteriores (o 22.11, por exemplo, não serve).
 
 ## 2. Variáveis de ambiente
 
