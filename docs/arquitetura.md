@@ -2,7 +2,7 @@
 
 Este documento descreve a arquitetura do ChokoCRM e registra as decisões técnicas (ADRs). Complementa a [especificação técnica](especificacao-tecnica.md), que prevalece em caso de divergência.
 
-Este documento registra a arquitetura do ChokoCRM e as decisões técnicas (ADRs) tomadas até a Etapa 1. Ele serve de referência para as etapas seguintes do cronograma (seção 11 da especificação técnica): toda implementação deve manter consistência com as decisões aqui registradas ou, quando necessário, propor um novo ADR justificando o desvio.
+Este documento registra a arquitetura do ChokoCRM e as decisões técnicas (ADRs) vigentes. Ele serve de referência para as etapas do cronograma (seção 11 da especificação técnica): toda implementação deve manter consistência com as decisões aqui registradas ou, quando necessário, propor um novo ADR justificando o desvio.
 
 ## Sumário
 
@@ -18,45 +18,87 @@ Este documento registra a arquitetura do ChokoCRM e as decisões técnicas (ADRs
 
 O ChokoCRM segue arquitetura em camadas — restrição definida pela disciplina e registrada em [ADR-001](#adr-001--stack-definido-pela-disciplina) — organizada em dois grandes blocos: um frontend em React consumido pelo navegador do representante ou do gestor, e um backend em Node.js/Express dividido internamente em quatro camadas (apresentação, negócio, acesso a dados, integrações) mais um eixo transversal de infraestrutura (autenticação, tratamento de erros, logs, jobs agendados e configuração). A persistência é feita em PostgreSQL via Prisma; dados de venda e estoque do ERP não são persistidos no ChokoCRM e são consultados sob demanda através de um provider substituível.
 
-### 1.1 Diagrama de contêineres
+### 1.1 Nível 1 — Diagrama de contexto
 
 ```mermaid
-flowchart LR
-    Browser["Navegador (representante / gestor)"]
-    SPA["React SPA (Vite + TypeScript)"]
-    API["API Express (Node.js + TypeScript)"]
-    DB[("PostgreSQL")]
-    ErpIface{{"ErpProvider (interface)"}}
-    Mock["MockErpProvider (seed sazonal)"]
-    Senior["SeniorErpProvider (futuro)"]
+C4Context
+    title Nível 1 — Contexto do ChokoCRM
 
-    Browser -->|"HTTPS"| SPA
-    SPA -->|"REST JSON + JWT"| API
-    API -->|"Prisma"| DB
-    API --> ErpIface
-    ErpIface -.->|"implementação atual"| Mock
-    ErpIface -.->|"implementação futura"| Senior
+    Person(rep, "Representante comercial", "Visita os clientes em campo, registra check-ins e consulta estoque")
+    Person(gestor, "Gestor comercial", "Acompanha indicadores, sazonalidade e alertas da equipe")
+
+    System(chokocrm, "ChokoCRM", "CRM web mobile-first: carteira de clientes, visitas, classificação por cor e indicadores")
+
+    System_Ext(erp, "ERP Senior", "Sistema de gestão da Chokolaten: vendas e estoque")
+    System_Ext(whatsapp, "WhatsApp", "Aplicativo de mensagens já usado pelo representante")
+
+    Rel(rep, chokocrm, "Registra visitas e consulta a carteira", "HTTPS")
+    Rel(gestor, chokocrm, "Consulta o painel de indicadores e os alertas", "HTTPS")
+    Rel(chokocrm, erp, "Consulta venda e estoque por cliente", "REST — simulado até a Etapa 5")
+    Rel(chokocrm, rep, "Sugere o texto da mensagem de estoque", "link wa.me pré-preenchido")
+    Rel(rep, whatsapp, "Envia a mensagem manualmente", "ADR-005")
+```
+
+O ChokoCRM atende dois perfis. O **representante comercial** usa o sistema em campo, pelo celular, para consultar a carteira, registrar o check-in de cada visita e pedir o texto da mensagem de consulta de estoque. O **gestor comercial** acompanha os indicadores por sazonalidade, a distribuição de cores da carteira e os alertas de visita atrasada.
+
+Dois sistemas externos aparecem na fronteira. O **ERP da Senior** é a origem dos dados de venda e estoque, consultados sob demanda e nunca replicados no banco do ChokoCRM ([ADR-004](#adr-004--integração-erp-via-adapter-com-mockerpprovider)). O **WhatsApp** não é integrado por API: o ChokoCRM apenas monta o texto e o link `wa.me`, e o envio é feito manualmente pelo próprio representante, a partir do aplicativo que ele já usa ([ADR-005](#adr-005--mensagem-de-estoque-via-link-wame)) — por isso a seta de envio sai do representante, e não do sistema.
+
+### 1.2 Nível 2 — Diagrama de contêineres
+
+```mermaid
+C4Container
+    title Nível 2 — Contêineres do ChokoCRM
+
+    Person(rep, "Representante comercial", "Uso em campo, pelo celular")
+    Person(gestor, "Gestor comercial", "Acompanhamento dos indicadores")
+
+    Container_Boundary(choko, "ChokoCRM") {
+        Container(spa, "SPA Web", "React 19, Vite, TypeScript", "Interface mobile-first executada no navegador; guarda o token JWT")
+        Container(api, "API REST", "Node.js 22, Express 5, TypeScript", "Regra de negócio em camadas, autenticação JWT e job diário de alertas")
+        ContainerDb(db, "Banco de dados", "PostgreSQL 16 via Prisma", "Usuários, clientes, contatos, visitas e histórico de recorrência")
+    }
+
+    System_Ext(erp, "ERP Senior", "Vendas e estoque da Chokolaten")
+    System_Ext(whatsapp, "WhatsApp", "Mensagem enviada manualmente pelo representante")
+
+    Rel(rep, spa, "Usa", "HTTPS")
+    Rel(gestor, spa, "Usa", "HTTPS")
+    Rel(spa, api, "Chama", "REST/JSON com Bearer JWT")
+    Rel(api, db, "Lê e grava", "Prisma / SQL")
+    Rel(api, erp, "Consulta venda e estoque", "ErpProvider")
+    Rel(spa, whatsapp, "Abre a conversa com o texto sugerido", "link wa.me")
 ```
 
 O navegador carrega a SPA React, que consome exclusivamente a API REST do Express via JSON, autenticada por token JWT (seção 8 e [ADR-008](#adr-008--autenticação-jwt-com-papéis-representante-e-gestor)). A API é o único ponto de acesso ao PostgreSQL (via Prisma) e ao ERP: o acesso ao ERP nunca é feito diretamente pelo frontend, e sim através da interface `ErpProvider`, hoje implementada por `MockErpProvider` e futuramente substituível por `SeniorErpProvider` sem alterar as camadas superiores ([ADR-004](#adr-004--integração-erp-via-adapter-com-mockerpprovider)).
 
-### 1.2 Diagrama de camadas do backend
+Os três contêineres rodam juntos em desenvolvimento via Docker Compose e, em produção, são publicados no Azure — API em App Service, SPA em Static Web Apps e banco em PostgreSQL Flexible Server ([ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)).
+
+### 1.3 Nível 3 — Diagrama de componentes (backend)
 
 ```mermaid
-flowchart TD
-    AP["Apresentação (routes, controllers)"]
-    NEG["Negócio (services)"]
-    DADOS["Acesso a dados (repositories)"]
-    INT["Integrações (providers / ErpProvider)"]
-    TRANS["Transversal (middlewares, jobs, config)"]
+C4Component
+    title Nível 3 — Componentes da API REST
 
-    AP --> NEG
-    NEG --> DADOS
-    NEG --> INT
-    TRANS -.-> AP
-    TRANS -.-> NEG
-    TRANS -.-> DADOS
-    TRANS -.-> INT
+    Container(spa, "SPA Web", "React", "Cliente da API")
+
+    Container_Boundary(api, "API REST — Node.js + Express") {
+        Component(apres, "Rotas e Controllers", "Express Router, zod", "Apresentação: roteia, valida a entrada e traduz o resultado em status code")
+        Component(neg, "Services", "TypeScript sem dependência de Express", "Negócio: cor do cliente, próxima visita, insights e templates de mensagem")
+        Component(dados, "Repositories", "Prisma Client", "Acesso a dados: leitura e escrita das entidades do CRM")
+        Component(integ, "ErpProvider", "Interface e MockErpProvider", "Integrações: venda e estoque sob demanda, sem persistir")
+        Component(trans, "Middlewares, Jobs e Config", "authJwt, errorHandler, pino, node-cron", "Transversal: autenticação, erros, logs, agenda diária e limiares de cor")
+    }
+
+    ContainerDb(db, "PostgreSQL", "Prisma", "Dados do CRM")
+    System_Ext(erp, "ERP Senior", "Vendas e estoque")
+
+    Rel(spa, apres, "Envia requisições", "REST/JSON + JWT")
+    Rel(apres, neg, "Delega a decisão")
+    Rel(neg, dados, "Consulta e persiste")
+    Rel(neg, integ, "Consulta venda e estoque")
+    Rel(dados, db, "Lê e grava", "SQL via Prisma")
+    Rel(integ, erp, "Substituível por SeniorErpProvider")
+    Rel(trans, apres, "Autentica, loga e formata erros")
 ```
 
 O diagrama reproduz as regras de dependência da seção 4.1 da especificação técnica: uma camada superior só conhece a camada imediatamente inferior que ela invoca, nunca o inverso. A camada de **apresentação** (`routes` + `controllers`) recebe a requisição HTTP, valida a entrada (zod) e delega toda decisão à camada de **negócio** (`services`); os services não conhecem `req`/`res` do Express — não têm qualquer dependência da camada de apresentação. A partir do negócio, as duas camadas seguintes são acessadas em paralelo, cada uma isolada da outra: **acesso a dados** (`repositories`, via Prisma), que não contém regra de negócio (não decide, por exemplo, a cor do cliente — apenas lê e grava registros); e **integrações** (`providers`), acessada exclusivamente através da interface `ErpProvider` — nenhuma outra camada chama uma API de ERP diretamente. O eixo **transversal** (middlewares de autenticação JWT e tratamento de erros, jobs agendados via `node-cron`, configuração) dá suporte a todas as camadas sem carregar regra de negócio de domínio própria.
@@ -66,28 +108,35 @@ O diagrama reproduz as regras de dependência da seção 4.1 da especificação 
 ```
 chokocrm/
 ├── backend/
+│   ├── prisma/                # schema.prisma, migrations versionadas e seed determinístico
 │   ├── src/
 │   │   ├── routes/            # definição das rotas REST por domínio
-│   │   ├── controllers/       # req/res, validação (zod), status codes
+│   │   ├── controllers/       # req/res, status codes
+│   │   ├── schemas/           # validação da entrada com zod
 │   │   ├── services/          # regra de negócio pura, testável
 │   │   ├── repositories/      # acesso a dados via Prisma
-│   │   ├── providers/
-│   │   │   └── erp/           # ErpProvider (interface), MockErpProvider, (futuro) SeniorErpProvider
-│   │   ├── middlewares/       # authJwt, errorHandler, requestLogger
-│   │   ├── jobs/              # cron diário de alertas de visita
-│   │   └── config/            # env, constantes (regras de cor, datas comemorativas)
-│   └── prisma/                # schema.prisma, migrations, seed.ts
+│   │   ├── middlewares/       # authJwt, requireRole, errorHandler, requestLogger
+│   │   ├── errors/            # AppError e catálogo centralizado de códigos de erro
+│   │   ├── lib/               # Prisma Client e logger compartilhados
+│   │   ├── config/            # variáveis de ambiente validadas
+│   │   ├── types/             # tipagens compartilhadas
+│   │   ├── app.ts             # composição do Express
+│   │   └── server.ts          # bootstrap do processo
+│   └── tests/                 # Jest + Supertest
 ├── frontend/
 │   └── src/
-│       ├── pages/             # Login, Clientes, FichaCliente, CheckIn, Painel
-│       ├── components/        # ColorBadge, ContactList, VisitTimeline, InsightCard
+│       ├── pages/             # Login, Clientes, NovoCliente, ClienteDetalhe
+│       ├── components/        # componentes de UI reutilizáveis
+│       ├── auth/              # contexto de autenticação e rota protegida
 │       ├── services/          # cliente HTTP da API REST
-│       └── hooks/
-├── docs/                      # casos de uso, modelo de dados, arquitetura, ADRs
+│       └── styles/            # tokens visuais herdados do protótipo
+├── docs/                      # casos de uso, modelo de dados, arquitetura, guia e protótipo
 ├── docker-compose.yml
-├── .github/workflows/         # ci.yml (lint+test+build), deploy.yml
+├── .github/workflows/         # ci.yml (lint, testes e build)
 └── README.md
 ```
+
+A árvore acima reflete o estado do repositório ao fim da Etapa 2. Três pastas descritas nesta seção ainda não existem e são criadas nas etapas em que passam a ter conteúdo: `backend/src/providers/erp/` (interface `ErpProvider` e `MockErpProvider`) na Etapa 5, `backend/src/jobs/` (rotina diária de alertas de visita) na Etapa 4 e `frontend/src/hooks/` quando o estado de servidor passar a ser compartilhado entre páginas. O workflow `deploy.yml` entra na Etapa 6, junto com a publicação no Azure ([ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)).
 
 **Apresentação (`backend/src/routes`, `backend/src/controllers`).** As rotas mapeiam método HTTP + caminho para o controller correspondente, sem lógica própria além do roteamento. Os controllers leem a requisição, validam a entrada com zod, chamam o service apropriado e traduzem o resultado em corpo de resposta e status code. Essa camada **não** implementa regra de negócio, **não** acessa `repositories` ou o Prisma Client diretamente e **não** decide, por exemplo, qual cor atribuir a um cliente.
 
@@ -101,11 +150,11 @@ chokocrm/
 
 **Frontend (`frontend/src/pages`, `components`, `services`, `hooks`).** As `pages` compõem as telas completas do produto (Login, Clientes, FichaCliente, CheckIn, Painel), reaproveitando `components` de UI reutilizáveis (`ColorBadge`, `ContactList`, `VisitTimeline`, `InsightCard`). A camada `services` do frontend concentra o cliente HTTP da API REST (incluindo o envio do token JWT); os `hooks` encapsulam estado de servidor (TanStack Query) e lógica reativa compartilhada entre páginas. O frontend **não** reimplementa regra de negócio de domínio — cor, recorrência e insights são sempre calculados pelo backend — e os `components` **não** fazem chamada HTTP direta, apenas recebem dados via propriedades.
 
-**Documentação e infraestrutura (`docs/`, `docker-compose.yml`, `.github/workflows/`, `README.md`).** `docs/` concentra a documentação viva do projeto (casos de uso, modelo de dados, esta arquitetura, protótipo navegável); `docker-compose.yml` sobe o ambiente local completo (Postgres + API + Web); `.github/workflows/` contém os pipelines de integração contínua (`ci.yml`) e de deploy (`deploy.yml`); `README.md` documenta o setup do projeto. Nenhum desses arquivos contém regra de negócio do domínio do CRM.
+**Documentação e infraestrutura (`docs/`, `docker-compose.yml`, `.github/workflows/`, `README.md`).** `docs/` concentra a documentação viva do projeto (casos de uso, modelo de dados, esta arquitetura, guia de desenvolvimento e protótipo navegável); `docker-compose.yml` sobe o ambiente local completo (Postgres + API + Web); `.github/workflows/` contém o pipeline de integração contínua (`ci.yml`), ao qual se junta o de deploy (`deploy.yml`) na Etapa 6; o `README.md` reúne o sumário da documentação e o `docs/guia-de-desenvolvimento.md` descreve o setup do ambiente local. Nenhum desses arquivos contém regra de negócio do domínio do CRM.
 
 ## 3. Decisões arquiteturais (ADRs)
 
-As decisões abaixo formam a lista fechada de ADRs da Etapa 1 e serão referenciadas pelas etapas seguintes do cronograma (seção 11 da especificação técnica) sempre que uma decisão for revisitada, detalhada ou, excepcionalmente, revista.
+Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etapa 3, quando a hospedagem foi decidida, e o ADR-009 nasceu na mesma revisão. A lista é referenciada pelas etapas seguintes do cronograma (seção 11 da especificação técnica) sempre que uma decisão for revisitada, detalhada ou, excepcionalmente, revista — cada revisão substitui o texto do ADR e fica registrada no histórico de commits.
 
 ### ADR-001 — Stack definido pela disciplina
 
@@ -155,13 +204,13 @@ As decisões abaixo formam a lista fechada de ADRs da Etapa 1 e serão referenci
 
 **Consequências.** A cor exibida está sempre consistente com o estado real de visitas e vendas, sem necessidade de jobs de sincronização. O cálculo, sendo uma função pura na camada de negócio, é trivial de testar unitariamente (seção 10). Em contrapartida, listagens com filtro por cor precisam calcular a cor de cada cliente na própria consulta, o que pode exigir índices em `Visit.data_hora` e paginação caso o volume de clientes cresça.
 
-### ADR-007 — Docker Compose no desenvolvimento; Railway/Render em produção
+### ADR-007 — Docker Compose no desenvolvimento; Azure em produção
 
-**Contexto.** O PAC exige nuvem pública e estável para a avaliação final (seção 12), e a equipe precisa de um ambiente local reprodutível para desenvolvimento e CI, incluindo o PostgreSQL.
+**Contexto.** O PAC exige que a aplicação esteja publicada em nuvem pública e estável na avaliação final (seção 12), e o projeto precisa de um ambiente local reprodutível para desenvolvimento e CI, incluindo o PostgreSQL. O playbook de Web Apps da disciplina veta Vercel, Netlify, Firebase e Render, e reprova deploy manual por SSH ou FTP: a entrega contínua precisa sair de um pipeline do GitHub Actions. A conta disponível para o projeto é uma assinatura Azure for Students, com crédito limitado a US$ 100.
 
-**Decisão.** Usar Docker Compose (Postgres + API + Web) para desenvolvimento local e CI, e publicar o deploy de produção no Railway ou Render a partir da branch `main` via GitHub, mantendo o ambiente congelado antes da avaliação final.
+**Decisão.** Manter o Docker Compose (Postgres + API + Web) como ambiente de desenvolvimento local e de integração contínua, e publicar a produção no **Microsoft Azure**: a API em **Azure App Service** (Linux, plano Basic B1), o frontend em **Azure Static Web Apps** (plano gratuito) e o banco em **Azure Database for PostgreSQL — Flexible Server** (tier Burstable B1ms). O deploy é disparado por workflow do GitHub Actions a partir da branch `main`, com as credenciais guardadas em secrets do repositório. A produção só é ligada próximo às apresentações e é congelada antes da avaliação final.
 
-**Consequências.** Onboarding e execução local ficam padronizados (`docker-compose up`), com paridade razoável entre desenvolvimento e produção. A escolha final entre Railway e Render fica em aberto até a etapa 6, sem impacto nas camadas de aplicação, já que ambas as plataformas suportam Node.js e Postgres via variáveis de ambiente. Exige atenção ao congelamento do deploy perto da apresentação, conforme risco já mapeado na seção 12.
+**Consequências.** Onboarding e execução local seguem padronizados (`docker compose up`), com paridade razoável entre desenvolvimento e produção — ambos rodam Node 22 e PostgreSQL 16. O CD por GitHub Actions atende à exigência do playbook e mantém o histórico de publicação auditável junto ao histórico de commits. Em contrapartida, o crédito estudantil é finito: com a produção ligada apenas na janela de outubro a dezembro, o consumo estimado fica na casa de algumas dezenas de dólares, sem folga para manter o ambiente no ar o ano inteiro — o gasto precisa ser acompanhado no portal e os recursos desligados fora das janelas de avaliação. Railway e Render, cogitadas na Etapa 1, foram descartadas (Render está explicitamente vetada pelo playbook); também foi descartado hospedar em um servidor interno da instituição, por não caracterizar nuvem pública. Nenhuma camada de aplicação muda em função da plataforma: toda a configuração depende apenas de variáveis de ambiente.
 
 ### ADR-008 — Autenticação JWT com papéis REPRESENTANTE e GESTOR
 
@@ -170,6 +219,14 @@ As decisões abaixo formam a lista fechada de ADRs da Etapa 1 e serão referenci
 **Decisão.** Autenticar via JSON Web Token emitido em `POST /auth/login`, carregando o papel do usuário (`REPRESENTANTE` | `GESTOR`); a autorização por rota é feita em um middleware que verifica o token e o papel antes de a requisição chegar ao controller.
 
 **Consequências.** A API fica sem estado no servidor (stateless), simplificando escalabilidade horizontal. Um middleware central de autenticação evita duplicar a checagem de permissão em cada controller. Fica em aberto, para detalhamento na etapa 2, a estratégia de expiração e renovação do token, além do cuidado necessário com o armazenamento do token no frontend para mitigar risco de XSS.
+
+### ADR-009 — Análise estática e monitoramento obrigatórios
+
+**Contexto.** O playbook de Web Apps da disciplina trata análise estática de código e monitoramento da aplicação em produção como itens obrigatórios de avaliação. O repositório já executa lint, testes e build no GitHub Actions desde a Etapa 2, mas nenhum dos dois itens estava registrado como decisão arquitetural até aqui, e a Etapa 1 previa Sentry para erros e um monitor de uptime externo — ferramentas escolhidas antes de a hospedagem ser definida.
+
+**Decisão.** Adotar **SonarCloud** para análise estática, executado como job adicional do workflow de CI a cada push e pull request; e **Azure Application Insights** para monitoramento da aplicação em produção, com um teste de disponibilidade apontando para `GET /health`. O Sentry e o monitor de uptime externo previstos na Etapa 1 são substituídos por essa dupla.
+
+**Consequências.** O SonarCloud é gratuito para repositórios públicos — o caso deste projeto ([ADR-002](#adr-002--monorepo-público-único-no-github)) — e roda inteiramente dentro do GitHub Actions, sem servidor a manter; em troca, exige um token no repositório e expõe publicamente as métricas de qualidade, inclusive eventuais regressões. O Application Insights é nativo do Azure, plataforma já escolhida no [ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção), o que evita um terceiro fornecedor só para telemetria e concentra erros, métricas e disponibilidade em um único painel; o custo, porém, sai do mesmo crédito estudantil limitado, então a ingestão precisa ser mantida dentro da cota gratuita. A implementação dos dois está prevista para a Etapa 6, junto com o deploy.
 
 ## 4. API REST
 
@@ -215,8 +272,8 @@ Erros são padronizados no formato `{ error: { code, message, details? } }`, pro
 
 ### 5.2 Observabilidade e operação
 
-- **Ambientes:** desenvolvimento local via Docker Compose (Postgres + API com hot reload + Web) e produção na nuvem (Railway ou Render), com variáveis de ambiente via `.env` (`.env.example` versionado).
-- **CI (GitHub Actions):** lint (ESLint), testes e build a cada push/PR; **CD** publica a branch `main` em produção.
-- **Logs estruturados** (pino) com identificador de requisição (request-id), facilitando o rastreio de erros em produção.
-- O endpoint `GET /health` verifica a disponibilidade da API e a conexão com o banco de dados.
-- **Sentry** (free tier) captura erros em produção; um monitor externo de uptime (UptimeRobot) é ativado antes da apresentação final, mantendo o ambiente estável conforme exigência do PAC.
+- **Ambientes:** desenvolvimento local via Docker Compose (Postgres + API com hot reload + Web) e produção no Azure — App Service (API), Static Web Apps (SPA) e PostgreSQL Flexible Server ([ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)). As variáveis vêm de `.env` em desenvolvimento (`.env.example` versionado) e das configurações do App Service em produção.
+- **CI (GitHub Actions):** lint, testes e build a cada push e pull request, mais o job de análise estática do SonarCloud ([ADR-009](#adr-009--análise-estática-e-monitoramento-obrigatórios)); o **CD** publica a branch `main` no Azure.
+- **Logs estruturados** (pino) com identificador de requisição (request-id), facilitando o rastreio de erros em produção. O cabeçalho `Authorization` é redigido nos logs para não expor o token JWT.
+- O endpoint `GET /health` verifica a disponibilidade da API e a conexão com o banco de dados; é também o alvo do teste de disponibilidade em produção.
+- **Azure Application Insights** coleta erros e métricas da API em produção e dispara o alerta de indisponibilidade, mantendo o ambiente estável e monitorado conforme exigência do PAC ([ADR-009](#adr-009--análise-estática-e-monitoramento-obrigatórios)).
