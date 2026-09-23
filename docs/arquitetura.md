@@ -117,7 +117,8 @@ chokocrm/
 │   │   ├── repositories/      # acesso a dados via Prisma
 │   │   ├── middlewares/       # authJwt, requireRole, errorHandler, requestLogger
 │   │   ├── errors/            # AppError e catálogo centralizado de códigos de erro
-│   │   ├── lib/               # Prisma Client e logger compartilhados
+│   │   ├── storage/           # FileStorage e LocalFileStorage (fotos de check-in)
+│   │   ├── lib/               # Prisma Client, logger e detecção de formato de imagem
 │   │   ├── config/            # variáveis de ambiente validadas
 │   │   ├── types/             # tipagens compartilhadas
 │   │   ├── app.ts             # composição do Express
@@ -125,10 +126,12 @@ chokocrm/
 │   └── tests/                 # Jest + Supertest
 ├── frontend/
 │   └── src/
-│       ├── pages/             # Login, Clientes, NovoCliente, ClienteDetalhe
+│       ├── pages/             # Login, Clientes, NovoCliente, ClienteDetalhe, CheckIn
 │       ├── components/        # componentes de UI reutilizáveis
+│       ├── hooks/             # estado de servidor com TanStack Query
 │       ├── auth/              # contexto de autenticação e rota protegida
 │       ├── services/          # cliente HTTP da API REST
+│       ├── lib/               # utilitários de navegador (compressão de imagem)
 │       └── styles/            # tokens visuais herdados do protótipo
 ├── docs/                      # casos de uso, modelo de dados, arquitetura, guia e protótipo
 ├── docker-compose.yml
@@ -136,7 +139,7 @@ chokocrm/
 └── README.md
 ```
 
-A árvore acima reflete o estado do repositório ao fim da Etapa 2. Três pastas descritas nesta seção ainda não existem e são criadas nas etapas em que passam a ter conteúdo: `backend/src/providers/erp/` (interface `ErpProvider` e `MockErpProvider`) na Etapa 5, `backend/src/jobs/` (rotina diária de alertas de visita) na Etapa 4 e `frontend/src/hooks/` quando o estado de servidor passar a ser compartilhado entre páginas. O workflow `deploy.yml` entra na Etapa 6, junto com a publicação no Azure ([ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)).
+A árvore acima reflete o estado do repositório ao fim da Etapa 3, que acrescentou `backend/src/storage/`, `frontend/src/hooks/` e `frontend/src/lib/`. Duas pastas descritas nesta seção ainda não existem e são criadas nas etapas em que passam a ter conteúdo: `backend/src/providers/erp/` (interface `ErpProvider` e `MockErpProvider`) na Etapa 5 e `backend/src/jobs/` (rotina diária de alertas de visita) na Etapa 4. O workflow `deploy.yml` entra na Etapa 6, junto com a publicação no Azure ([ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)).
 
 **Apresentação (`backend/src/routes`, `backend/src/controllers`).** As rotas mapeiam método HTTP + caminho para o controller correspondente, sem lógica própria além do roteamento. Os controllers leem a requisição, validam a entrada com zod, chamam o service apropriado e traduzem o resultado em corpo de resposta e status code. Essa camada **não** implementa regra de negócio, **não** acessa `repositories` ou o Prisma Client diretamente e **não** decide, por exemplo, qual cor atribuir a um cliente.
 

@@ -160,6 +160,8 @@ GET    /clients?color=&search=          GET    /clients/:id
 POST   /clients                         PUT    /clients/:id
 POST   /clients/:id/contacts            PUT/DELETE /contacts/:id
 POST   /clients/:id/visits              GET    /clients/:id/visits
+PATCH  /visits/:id                      (corrige a descrição, só o autor)
+PUT    /visits/:id/foto                 GET    /visits/:id/foto
 PUT    /clients/:id/recurrence          (exige justificativa)
 GET    /clients/:id/erp                 (última venda, volume, estoque — via provider)
 POST   /clients/:id/stock-message       GET    /stock-messages
