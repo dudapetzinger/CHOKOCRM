@@ -248,12 +248,66 @@ async function seedCliente(cliente: ClienteSeed): Promise<void> {
   }
 }
 
+/**
+ * Visitas de demonstração no primeiro cliente do seed, uma de cada
+ * resultado, para a timeline da ficha ter conteúdo. Idempotente: se o
+ * cliente já tem visita registrada, não cria nada.
+ */
+async function seedVisitas(): Promise<void> {
+  const representante = await prisma.user.findUnique({
+    where: { email: 'eduarda@chokolaten.com.br' },
+  });
+  const cliente = await prisma.client.findFirst({
+    where: { email: 'contato@emporiopomerode.com.br' },
+    include: { contacts: { where: { principal: true } } },
+  });
+
+  if (!representante || !cliente) return;
+
+  const jaTemVisitas = await prisma.visit.count({ where: { clientId: cliente.id } });
+  if (jaTemVisitas > 0) return;
+
+  const agora = Date.now();
+  const diasAtras = (dias: number): Date => new Date(agora - dias * 24 * 60 * 60 * 1000);
+  const [contatoPrincipal] = cliente.contacts;
+
+  await prisma.visit.createMany({
+    data: [
+      {
+        clientId: cliente.id,
+        userId: representante.id,
+        contactId: contatoPrincipal?.id ?? null,
+        dataHora: diasAtras(3),
+        descricao: 'Reposição do mostruário e pedido de trufas para o fim de semana.',
+        resultado: 'VENDA',
+      },
+      {
+        clientId: cliente.id,
+        userId: representante.id,
+        contactId: contatoPrincipal?.id ?? null,
+        dataHora: diasAtras(20),
+        descricao: 'Apresentei a linha de Páscoa; pediu proposta por escrito.',
+        resultado: 'NEGOCIACAO',
+      },
+      {
+        clientId: cliente.id,
+        userId: representante.id,
+        dataHora: diasAtras(45),
+        descricao: 'Visita de relacionamento; estoque ainda alto, sem pedido.',
+        resultado: 'SEM_VENDA',
+      },
+    ],
+  });
+}
+
 async function main(): Promise<void> {
   await seedUsuarios();
 
   for (const cliente of CLIENTES) {
     await seedCliente(cliente);
   }
+
+  await seedVisitas();
 }
 
 main()

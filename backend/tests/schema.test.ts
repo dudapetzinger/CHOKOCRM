@@ -82,4 +82,42 @@ describe('Schema Prisma (smoke)', () => {
       }),
     ).rejects.toThrow();
   });
+
+  it('cria Visit com resultado, foto e marca de edição', async () => {
+    const user = await prisma.user.create({
+      data: {
+        nome: 'Eduarda Visita',
+        email: 'smoke.visita@chokolaten.com.br',
+        senhaHash: 'hash-fake',
+        role: 'REPRESENTANTE',
+      },
+    });
+
+    const client = await prisma.client.create({
+      data: {
+        razaoSocial: 'Visita Smoke Comércio Ltda',
+        nomeFantasia: 'Visita Smoke',
+        cnpj: '00000000000300',
+        cidade: 'Pomerode',
+        endereco: 'Rua de Teste, 300',
+        telefone: '(47) 0000-0001',
+        email: 'contato@visitasmoke.com.br',
+      },
+    });
+
+    const visita = await prisma.visit.create({
+      data: {
+        clientId: client.id,
+        userId: user.id,
+        dataHora: new Date('2026-09-20T13:00:00.000Z'),
+        descricao: 'Reposição do mostruário.',
+        resultado: 'VENDA',
+      },
+    });
+
+    expect(visita.resultado).toBe('VENDA');
+    expect(visita.fotoPath).toBeNull();
+    expect(visita.editadoEm).toBeNull();
+    expect(visita.criadoEm).toBeInstanceOf(Date);
+  });
 });

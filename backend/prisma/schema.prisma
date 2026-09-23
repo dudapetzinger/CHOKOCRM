@@ -11,6 +11,12 @@ enum Role {
   GESTOR
 }
 
+enum ResultadoVisita {
+  VENDA
+  NEGOCIACAO
+  SEM_VENDA
+}
+
 model User {
   id              String                @id @default(uuid())
   nome            String
@@ -61,17 +67,21 @@ model Contact {
 }
 
 model Visit {
-  id         String   @id @default(uuid())
-  clientId   String   @map("client_id")
-  client     Client   @relation(fields: [clientId], references: [id])
-  userId     String   @map("user_id")
-  user       User     @relation(fields: [userId], references: [id])
-  contactId  String?  @map("contact_id")
-  contact    Contact? @relation(fields: [contactId], references: [id])
-  dataHora   DateTime @map("data_hora")
-  descricao  String
-  houveVenda Boolean  @map("houve_venda")
+  id        String          @id @default(uuid())
+  clientId  String          @map("client_id")
+  client    Client          @relation(fields: [clientId], references: [id])
+  userId    String          @map("user_id")
+  user      User            @relation(fields: [userId], references: [id])
+  contactId String?         @map("contact_id")
+  contact   Contact?        @relation(fields: [contactId], references: [id])
+  dataHora  DateTime        @map("data_hora")
+  descricao String
+  resultado ResultadoVisita
+  fotoPath  String?         @map("foto_path")
+  criadoEm  DateTime        @default(now()) @map("criado_em")
+  editadoEm DateTime?       @map("editado_em")
 
+  @@index([clientId, dataHora(sort: Desc)])
   @@map("visits")
 }
 
