@@ -79,8 +79,9 @@ export function CheckInPage() {
           const comprimida = await comprimirImagem(foto);
           await enviarFoto(visita.id, comprimida);
         } catch {
-          // O check-in já está salvo; a foto pode ser anexada na timeline.
-          navigate(`/clientes/${id}?aviso=foto-nao-enviada`, { replace: true });
+          // O check-in já está salvo; a ficha exibe o aviso e a timeline
+          // oferece anexar a foto depois (UC07, fluxo de exceção E2).
+          navigate(`/clientes/${id}`, { replace: true, state: { avisoFoto: 'nao-enviada' } });
           return;
         }
       }

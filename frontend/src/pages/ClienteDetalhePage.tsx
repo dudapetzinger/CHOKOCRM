@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getCliente,
@@ -75,6 +75,15 @@ export function ClienteDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const location = useLocation();
+
+  /**
+   * A tela de check-in redireciona para cá com este aviso quando a visita
+   * foi gravada mas a foto não subiu (sinal instável em campo, UC07 E2).
+   * Sem ele, a volta para a ficha é idêntica à de um envio bem-sucedido e
+   * a representante acredita que a comprovação está registrada.
+   */
+  const fotoNaoEnviada = (location.state as { avisoFoto?: string } | null)?.avisoFoto === 'nao-enviada';
 
   const { data: visitas } = useVisitas(id);
   const mutationEditarDescricao = useEditarDescricaoVisita(id);
@@ -649,9 +658,22 @@ export function ClienteDetalhePage() {
             Histórico de visitas
           </h2>
 
-          <Link className="btn-primario" to={`/clientes/${id}/check-in`}>
-            Novo check-in
-          </Link>
+          {fotoNaoEnviada && (
+            <p className="aviso aviso-atencao" role="alert">
+              O check-in foi salvo, mas a foto não chegou a ser enviada. Você pode anexá-la na visita
+              mais recente, abaixo.
+            </p>
+          )}
+
+          {user?.role !== 'REPRESENTANTE' ? (
+            <p className="campo-ajuda">Somente o representante registra visitas.</p>
+          ) : !cliente.ativo ? (
+            <p className="campo-ajuda">Cliente inativo não recebe check-in novo.</p>
+          ) : (
+            <Link className="btn-primario" to={`/clientes/${id}/check-in`}>
+              Novo check-in
+            </Link>
+          )}
 
           <VisitTimeline
             visitas={visitas ?? []}

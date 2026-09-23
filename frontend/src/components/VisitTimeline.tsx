@@ -143,6 +143,10 @@ export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarF
                     disabled={ocupado}
                     onChange={(evento) => {
                       const arquivo = evento.target.files?.[0];
+                      // Limpar o valor permite escolher o MESMO arquivo de
+                      // novo depois de uma falha de envio: sem isso o
+                      // navegador não dispara `change` e o botão parece morto.
+                      evento.target.value = '';
                       if (arquivo) void anexarFoto(visita.id, arquivo);
                     }}
                   />
