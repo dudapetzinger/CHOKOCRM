@@ -548,3 +548,39 @@ button {
 .contato-principal-opcao input {
   width: auto;
 }
+
+.visita-previa {
+  margin-top: 0.5rem;
+  width: 100%;
+  max-height: 14rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+
+/* `.item-lista` é uma linha (desenhada para a lista de clientes); o item
+   da timeline empilha o conteúdo, senão a data e o texto disputam a
+   largura e estouram a tela no celular. */
+.visita {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.visita p {
+  margin: 0;
+}
+
+.visita-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.visita-foto {
+  margin-top: 0.5rem;
+  width: 100%;
+  max-height: 16rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}

@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { ClientesPage } from './pages/ClientesPage';
 import { NovoClientePage } from './pages/NovoClientePage';
 import { ClienteDetalhePage } from './pages/ClienteDetalhePage';
+import { CheckInPage } from './pages/CheckInPage';
 
 export function App() {
   return (
@@ -33,6 +34,14 @@ export function App() {
             element={
               <RequireAuth>
                 <ClienteDetalhePage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/clientes/:id/check-in"
+            element={
+              <RequireAuth>
+                <CheckInPage />
               </RequireAuth>
             }
           />

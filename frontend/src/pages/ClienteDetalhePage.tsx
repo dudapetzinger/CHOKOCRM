@@ -21,6 +21,10 @@ import {
   validarContatoFormulario,
   type ContatoFormValue,
 } from '../components/ContatoFields';
+import { VisitTimeline } from '../components/VisitTimeline';
+import { useAuth } from '../auth/useAuth';
+import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
+import { comprimirImagem } from '../lib/comprimirImagem';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do cliente.';
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar as alterações.';
@@ -70,6 +74,11 @@ type ModoContato = { tipo: 'novo' } | { tipo: 'editar'; id: string };
 export function ClienteDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const { data: visitas } = useVisitas(id);
+  const mutationEditarDescricao = useEditarDescricaoVisita(id);
+  const mutationAnexarFoto = useAnexarFotoVisita(id);
 
   const [modoEdicaoCliente, setModoEdicaoCliente] = useState(false);
   const [dadosEdicao, setDadosEdicao] = useState<DadosClienteFormulario>(dadosClienteVazios());
@@ -633,6 +642,28 @@ export function ClienteDetalhePage() {
               + Adicionar contato
             </button>
           )}
+        </section>
+
+        <section className="card" aria-labelledby="titulo-visitas">
+          <h2 className="card-titulo" id="titulo-visitas">
+            Histórico de visitas
+          </h2>
+
+          <Link className="btn-primario" to={`/clientes/${id}/check-in`}>
+            Novo check-in
+          </Link>
+
+          <VisitTimeline
+            visitas={visitas ?? []}
+            usuarioId={user?.id}
+            onEditarDescricao={async (visitaId, descricao) => {
+              await mutationEditarDescricao.mutateAsync({ visitaId, descricao });
+            }}
+            onAnexarFoto={async (visitaId, arquivo) => {
+              const comprimida = await comprimirImagem(arquivo);
+              await mutationAnexarFoto.mutateAsync({ visitaId, foto: comprimida });
+            }}
+          />
         </section>
       </div>
     </div>
