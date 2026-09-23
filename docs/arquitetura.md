@@ -144,6 +144,8 @@ A árvore acima reflete o estado do repositório ao fim da Etapa 2. Três pastas
 
 **Acesso a dados (`backend/src/repositories`, `backend/prisma`).** Os repositories encapsulam todo o acesso ao PostgreSQL via Prisma Client (leitura, criação, atualização de `User`, `Client`, `Contact`, `Visit` etc.); `prisma/` guarda o schema, as migrations versionadas e o seed determinístico. Essa camada **não** contém regra de negócio — não decide, por exemplo, se uma alteração de recorrência exige justificativa; apenas persiste o que o service determinou.
 
+**Armazenamento de arquivos (`backend/src/storage`).** Define a interface `FileStorage` (gravar e ler por chave lógica) e sua implementação atual `LocalFileStorage`, que grava as fotos de comprovação de check-in no diretório configurado em `UPLOADS_DIR`, com espaço já reservado para a futura `AzureBlobStorage` ([ADR-010](#adr-010--armazenamento-de-arquivos-atrás-de-interface-com-driver-em-disco-na-etapa-3)). Essa camada **não** conhece regra de negócio — não decide se a visita pode receber foto — e é usada apenas pela camada de negócio, nunca por controllers.
+
 **Integrações (`backend/src/providers/erp`).** Define a interface `ErpProvider` e sua implementação atual `MockErpProvider` (dados gerados por seed com sazonalidade realista), com espaço já reservado para a futura `SeniorErpProvider`. Essa camada **não** persiste dados de venda ou estoque no banco do ChokoCRM — apenas consulta sob demanda — e **não** é chamada diretamente por controllers ou repositories, somente pela camada de negócio.
 
 **Transversal (`backend/src/middlewares`, `backend/src/jobs`, `backend/src/config`).** Os middlewares tratam autenticação JWT, formatação centralizada de erros e log estruturado de requisições; os jobs executam a rotina diária (`node-cron`) que materializa a agenda de visitas do dia/atrasadas; `config/` concentra variáveis de ambiente e constantes ajustáveis (limiares de cor, calendário de datas comemorativas). Essa camada **não** implementa regra de negócio específica de um caso de uso — fornece apenas infraestrutura compartilhada pelas demais camadas.
@@ -154,7 +156,7 @@ A árvore acima reflete o estado do repositório ao fim da Etapa 2. Três pastas
 
 ## 3. Decisões arquiteturais (ADRs)
 
-Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etapa 3, quando a hospedagem foi decidida, e o ADR-009 nasceu na mesma revisão. A lista é referenciada pelas etapas seguintes do cronograma (seção 11 da especificação técnica) sempre que uma decisão for revisitada, detalhada ou, excepcionalmente, revista — cada revisão substitui o texto do ADR e fica registrada no histórico de commits.
+Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etapa 3, quando a hospedagem foi decidida, e o ADR-009 nasceu na mesma revisão. O ADR-010 nasceu na Etapa 3, com a foto de comprovação de check-in. A lista é referenciada pelas etapas seguintes do cronograma (seção 11 da especificação técnica) sempre que uma decisão for revisitada, detalhada ou, excepcionalmente, revista — cada revisão substitui o texto do ADR e fica registrada no histórico de commits.
 
 ### ADR-001 — Stack definido pela disciplina
 
@@ -200,7 +202,7 @@ Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etap
 
 **Contexto.** A cor do cliente depende de valores que mudam a cada nova visita ou a cada dia que passa sem visita (seção 6.1). Armazenar a cor como campo persistido exigiria um job de recomputação periódica e criaria risco de inconsistência entre o evento (nova visita) e a atualização do campo.
 
-**Decisão.** Calcular a cor sob demanda, em tempo de consulta, a partir dos limiares fixos de dias sem visita (15/30, configuráveis em `config/`) aplicados à última `Visit` (e ao campo `houve_venda`) — não a partir de `Client.recorrencia_dias`, que alimenta apenas a agenda e os lembretes de próxima visita (seção 6.2) —, e, a partir da etapa 5, também da última venda via `ErpProvider`, sem persistir o valor no banco.
+**Decisão.** Calcular a cor sob demanda, em tempo de consulta, a partir dos limiares fixos de dias sem visita (15/30, configuráveis em `config/`) aplicados à última `Visit` (e ao campo `resultado`, em que apenas `VENDA` conta como venda) — não a partir de `Client.recorrencia_dias`, que alimenta apenas a agenda e os lembretes de próxima visita (seção 6.2) —, e, a partir da etapa 5, também da última venda via `ErpProvider`, sem persistir o valor no banco.
 
 **Consequências.** A cor exibida está sempre consistente com o estado real de visitas e vendas, sem necessidade de jobs de sincronização. O cálculo, sendo uma função pura na camada de negócio, é trivial de testar unitariamente (seção 10). Em contrapartida, listagens com filtro por cor precisam calcular a cor de cada cliente na própria consulta, o que pode exigir índices em `Visit.data_hora` e paginação caso o volume de clientes cresça.
 
@@ -228,6 +230,16 @@ Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etap
 
 **Consequências.** O SonarCloud é gratuito para repositórios públicos — o caso deste projeto ([ADR-002](#adr-002--monorepo-público-único-no-github)) — e roda inteiramente dentro do GitHub Actions, sem servidor a manter; em troca, exige um token no repositório e expõe publicamente as métricas de qualidade, inclusive eventuais regressões. O Application Insights é nativo do Azure, plataforma já escolhida no [ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção), o que evita um terceiro fornecedor só para telemetria e concentra erros, métricas e disponibilidade em um único painel; o custo, porém, sai do mesmo crédito estudantil limitado, então a ingestão precisa ser mantida dentro da cota gratuita. A implementação dos dois está prevista para a Etapa 6, junto com o deploy.
 
+### ADR-010 — Armazenamento de arquivos atrás de interface, com driver em disco na Etapa 3
+
+**Contexto.** O check-in de visita passou a aceitar uma foto de comprovação de presença (UC07), escolhida em vez de geolocalização por não depender de permissão de GPS nem de precisão em zona rural. O deploy no Azure só acontece na Etapa 6, o repositório é público ([ADR-002](#adr-002--monorepo-público-único-no-github)) e o pipeline de CI roda sem credenciais de nuvem.
+
+**Decisão.** Definir a interface `FileStorage` (`save`/`read` por chave lógica) e implementar `LocalFileStorage`, que grava no diretório configurado por `UPLOADS_DIR`. Na Etapa 6, uma `AzureBlobStorage` implementa a mesma interface e passa a ser usada em produção, sem alteração em service nem controller — mesmo padrão Adapter adotado para o ERP no [ADR-004](#adr-004--integração-erp-via-adapter-com-mockerpprovider).
+
+**Alternativas descartadas.** *Azure Blob Storage já na Etapa 3, com o emulador Azurite no desenvolvimento:* exigiria criar a conta de Storage e gerenciar connection string antes de existir deploy, e acrescentaria um contêiner ao ambiente de desenvolvimento sem ganho nesta etapa. *Gravar o binário em coluna do PostgreSQL:* dispensaria infraestrutura nova, mas infla com dado não relacional justamente o recurso mais caro do projeto no Azure ([ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)) e contraria a prática esperada para arquivos.
+
+**Consequências.** As fotos não são versionadas (`backend/uploads/` está no `.gitignore`) e não são servidas como arquivo estático: a leitura passa por `GET /visits/:id/foto`, autenticada por JWT como as demais rotas, o que impede acesso por URL adivinhada. A chave gravada em `foto_path` é lógica (`visits/<id>.jpg`), nunca um caminho absoluto, e o driver valida o formato da chave antes de tocar no disco, o que impede escrita fora do diretório base. A troca de driver na Etapa 6 fica restrita a um módulo. Em contrapartida, enquanto o driver é o de disco, as fotos vivem no volume do contêiner e **não** fazem parte do backup do banco — restaurar só o banco deixa registros apontando para arquivos ausentes, caso que a API responde como 404.
+
 ## 4. API REST
 
 Contorno de rotas (seção 7 da especificação técnica):
@@ -238,6 +250,8 @@ GET    /clients?color=&search=          GET    /clients/:id
 POST   /clients                         PUT    /clients/:id
 POST   /clients/:id/contacts            PUT/DELETE /contacts/:id
 POST   /clients/:id/visits              GET    /clients/:id/visits
+PATCH  /visits/:id                      (corrige a descrição, só o autor)
+PUT    /visits/:id/foto                 GET    /visits/:id/foto
 PUT    /clients/:id/recurrence          (exige justificativa)
 GET    /clients/:id/erp                 (última venda, volume, estoque — via provider)
 POST   /clients/:id/stock-message       GET    /stock-messages
@@ -251,7 +265,7 @@ Descrição por grupo:
 - **Autenticação** (`POST /auth/login`) — emite o token JWT a partir de credenciais válidas.
 - **Clientes** (`GET/POST/PUT /clients`, `GET /clients/:id`) — listagem com busca e filtro por cor, cadastro e edição dos dados cadastrais do cliente.
 - **Contatos** (`POST /clients/:id/contacts`, `PUT/DELETE /contacts/:id`) — cadastro, edição e remoção dos contatos de um cliente.
-- **Visitas** (`POST/GET /clients/:id/visits`) — registro de check-in (descrição obrigatória) e histórico de visitas do cliente.
+- **Visitas** (`POST/GET /clients/:id/visits`, `PATCH /visits/:id`, `PUT/GET /visits/:id/foto`) — registro de check-in (descrição obrigatória, resultado em três estados e foto de comprovação opcional), histórico de visitas do cliente e correção da descrição pelo autor. A foto viaja numa chamada própria, com os bytes crus no corpo, para que uma falha de upload em campo não perca o check-in já gravado.
 - **Recorrência** (`PUT /clients/:id/recurrence`) — altera a frequência de visita do cliente, exigindo justificativa registrada.
 - **ERP** (`GET /clients/:id/erp`) — expõe última venda, volume de compras e histórico de estoque, consultados via `ErpProvider`.
 - **Mensagem de estoque** (`POST /clients/:id/stock-message`, `GET /stock-messages`) — gera o link `wa.me` pré-preenchido e mantém o histórico de mensagens geradas.

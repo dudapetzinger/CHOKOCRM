@@ -94,7 +94,10 @@ Convenções adotadas nas tabelas abaixo:
 | contact_id | Chave estrangeira → `Contact.id` | Não | Contato atendido na visita, quando identificado. Campo opcional — a visita pode ser registrada sem um contato específico. |
 | data_hora | Data/hora | Sim | Data e hora em que a visita (check-in) ocorreu. |
 | descricao | Texto | **Sim (NOT NULL)** | Relato da visita. **Campo obrigatório, com validação dupla (frontend e backend)** — requisito explícito da especificação (seção 5, observações, e seção 10, testes de integração). |
-| houve_venda | Booleano | Sim | Indica se houve venda associada a esta visita. Utilizado no cálculo da cor do cliente (seção 5 deste documento). |
+| resultado | Enumeração (`VENDA`, `NEGOCIACAO`, `SEM_VENDA`) | Sim | Resultado da visita. Substitui o antigo booleano `houve_venda` (Etapa 3): distingue "não vendi" de "a venda está em andamento". Apenas `VENDA` conta como venda no cálculo da cor do cliente (seção 5 deste documento). |
+| foto_path | Texto | Não | Chave da foto de comprovação de presença no armazenamento de arquivos (ex.: `visits/<id>.jpg`), nunca um caminho absoluto. Nulo quando a visita não tem foto — a foto é **opcional** e pode ser anexada **uma única vez**. |
+| criado_em | Data/hora | Sim | Momento em que o check-in foi **registrado** no sistema. Distinto de `data_hora`, que é quando a visita **ocorreu** (o representante pode lançar visita retroativa). |
+| editado_em | Data/hora | Não | Momento da última edição da descrição. Nulo enquanto a descrição nunca foi editada. Somente a descrição é editável, e somente pelo autor (UC08). |
 
 ### 3.5 VisitScheduleChange
 
@@ -157,8 +160,8 @@ O cálculo é avaliado nesta ordem — a primeira regra satisfeita determina a c
 |---|---|---|
 | 1 | 🔴 Vermelho | Mais de 30 dias sem visita. |
 | 2 | 🟠 Laranja | Entre 15 e 30 dias sem visita. |
-| 3 | 🟢 Verde | Última visita há até 15 dias, **com** venda (`Visit.houve_venda = true`). |
-| 4 | 🟡 Amarelo | Última visita há até 15 dias, **sem** venda (`Visit.houve_venda = false`). |
+| 3 | 🟢 Verde | Última visita há até 15 dias, **com** venda (`Visit.resultado = VENDA`). |
+| 4 | 🟡 Amarelo | Última visita há até 15 dias, **sem** venda (`Visit.resultado = NEGOCIACAO` ou `SEM_VENDA`). |
 
 Observações:
 

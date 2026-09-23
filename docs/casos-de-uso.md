@@ -225,20 +225,25 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 2. O sistema preenche automaticamente a data e a hora atuais.
 3. O representante pode ajustar manualmente a data/hora, se necessário.
 4. O representante informa a descrição da visita.
-5. O representante indica se houve venda (sim/não).
+5. O representante escolhe o resultado da visita entre **houve venda**, **em negociação** e **sem venda**.
 6. O representante pode selecionar o contato atendido, de forma opcional.
-7. O representante confirma o check-in.
-8. O sistema valida os dados informados.
-9. O sistema persiste a visita e atualiza a timeline de interações (UC08) e a cor de classificação do cliente (UC05), agora recalculada.
+7. O representante pode, opcionalmente, anexar uma foto de comprovação de presença, tirada na hora pela câmera do celular.
+8. O representante confirma o check-in.
+9. O sistema valida os dados informados.
+10. O sistema persiste a visita e atualiza a timeline de interações (UC08) e a cor de classificação do cliente (UC05), agora recalculada.
 
 **Fluxo de exceção:**
-- **E1** (passo 8): tentativa de salvar o check-in sem informar a descrição da visita — o sistema bloqueia o salvamento e exibe mensagem indicando que a descrição é obrigatória.
+- **E1** (passo 9): tentativa de salvar o check-in sem informar a descrição da visita — o sistema bloqueia o salvamento e exibe mensagem indicando que a descrição é obrigatória.
+- **E2** (passo 10): a visita é gravada, mas o envio da foto falha (sinal instável em campo) — o check-in permanece registrado e a timeline oferece anexar a foto depois.
 
 **Regras de negócio associadas:**
 - A descrição da visita é **obrigatória**, com validação tanto no frontend quanto no backend.
-- O campo "houve venda?" (sim/não) é obrigatório.
-- O contato atendido é opcional.
-- A data/hora é preenchida automaticamente no momento do check-in, mas admite ajuste manual pelo representante (ex.: registro posterior de uma visita já ocorrida).
+- O resultado da visita é **obrigatório** e assume um de três valores: houve venda, em negociação, sem venda. Apenas "houve venda" conta como venda para a classificação por cores (UC05); "em negociação" registra visita realizada com negócio em andamento.
+- O contato atendido é opcional; quando informado, precisa pertencer ao próprio cliente.
+- A data/hora é preenchida automaticamente no momento do check-in, mas admite ajuste manual pelo representante (ex.: registro posterior de uma visita já ocorrida). **A data/hora informada não pode estar no futuro.**
+- A foto de comprovação é **opcional**: o check-in é registrado sem ela e a foto pode ser anexada depois, pela timeline. A foto **não pode ser substituída**, para preservar seu valor de comprovação.
+- O check-in é exclusivo do representante; o gestor não registra visitas.
+- Cliente inativo não recebe check-in novo.
 
 ---
 
@@ -251,14 +256,21 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Fluxo principal:**
 1. O representante acessa a timeline de visitas na ficha do cliente (UC06).
 2. O sistema lista as visitas do cliente em ordem cronológica reversa (mais recente primeiro).
-3. Para cada visita, o sistema exibe data, hora, descrição, contato atendido (quando informado) e se houve venda.
+3. Para cada visita, o sistema exibe data, hora, descrição, contato atendido (quando informado), autor do check-in, resultado e a foto de comprovação, quando houver.
+4. O autor de uma visita pode corrigir a descrição dela no próprio item da timeline.
+5. O sistema grava a data/hora da edição e passa a exibi-la junto da descrição.
 
 **Fluxo alternativo:**
 - **A1** (passo 2): o cliente não possui visitas registradas — o sistema exibe mensagem informando que não há visitas registradas.
+- **A2** (passo 3): a visita não tem foto e o usuário é o autor — o sistema oferece anexar a foto de comprovação naquele momento.
 
 **Regras de negócio associadas:**
 - A listagem segue sempre ordenação cronológica reversa.
-- Todos os campos da visita (data/hora, descrição, contato, houve venda) são exibidos integralmente.
+- Todos os campos da visita (data/hora, descrição, contato, resultado, autor) são exibidos integralmente.
+- **Somente o autor** da visita pode editar a descrição dela, e **somente a descrição** é editável: data/hora, resultado, contato atendido e foto permanecem como foram gravados.
+- Não há prazo limite para a edição da descrição.
+- O gestor consulta a timeline, inclusive as fotos, mas não registra nem edita visitas.
+- A timeline de um cliente inativado continua legível e editável; o que se bloqueia é o registro de visita nova.
 
 ---
 

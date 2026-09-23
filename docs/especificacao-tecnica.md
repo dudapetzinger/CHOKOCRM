@@ -103,7 +103,9 @@ Client             (id, razao_social, nome_fantasia, cnpj, cidade, endereco, tel
                     email, erp_id, recorrencia_dias[default 15; sugestão válida 15–30], ativo, criado_em)
 Contact            (id, client_id→Client, nome, cargo, telefone, email, principal:bool)
 Visit              (id, client_id→Client, user_id→User, contact_id?→Contact,
-                    data_hora, descricao NOT NULL, houve_venda:bool)
+                    data_hora, descricao NOT NULL,
+                    resultado[VENDA|NEGOCIACAO|SEM_VENDA], foto_path?,
+                    criado_em, editado_em?)
 VisitScheduleChange(id, client_id→Client, user_id→User, recorrencia_anterior,
                     recorrencia_nova, justificativa NOT NULL, data)
 StockMessage       (id, client_id→Client, user_id→User, evento_sazonal?,
