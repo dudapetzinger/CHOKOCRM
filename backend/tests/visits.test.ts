@@ -250,6 +250,32 @@ describe('POST /clients/:id/visits', () => {
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
   });
+
+  /**
+   * Data/hora só é aceita como ISO 8601. Sem isso, qualquer valor que o
+   * `new Date()` do JavaScript engole vira uma visita gravada em 1970 —
+   * e como só a descrição é editável e não há exclusão, o registro fica
+   * errado para sempre e ainda distorce a cor do cliente (UC05).
+   */
+  it.each([
+    ['nulo', null],
+    ['booleano', true],
+    ['numero zero', 0],
+    ['timestamp unix em segundos', 1757512200],
+    ['data no formato brasileiro', '05/09/2026'],
+    ['texto qualquer', 'ontem de manha'],
+  ])('recusa dataHora %s em vez de gravar 1970', async (_rotulo, valor) => {
+    const res = await request(app)
+      .post(`/clients/${clienteId}/visits`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payloadCheckIn({ dataHora: valor }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+
+    const gravadas = await prisma.visit.count({ where: { clientId: clienteId } });
+    expect(gravadas).toBe(0);
+  });
 });
 
 describe('GET /clients/:id/visits', () => {

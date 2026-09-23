@@ -15,13 +15,23 @@ const MENSAGEM_DATA_FUTURA = 'Data e hora da visita não podem estar no futuro.'
 const descricaoSchema = z.string().trim().min(3, MENSAGEM_DESCRICAO);
 
 /**
- * `refine` (e não `max`) porque o limite é "agora, no momento da
- * requisição": um `max(new Date())` ficaria congelado no instante em que
- * o módulo foi carregado, e passaria a recusar check-ins legítimos
+ * Data/hora entra **exclusivamente** como ISO 8601, com `Z` ou com offset
+ * (`-03:00`, que é o que o celular envia). Coerção solta (`z.coerce.date`)
+ * não serve aqui: ela delega para `new Date(valor)`, que engole `null`,
+ * `true`, `0` e `"05/09/2026"` — todos viram uma visita gravada em 1970 ou
+ * na data errada. Como só a descrição é editável (UC08) e não há exclusão
+ * de visita, esse registro ficaria errado para sempre e ainda distorceria
+ * a classificação por cor do cliente (UC05).
+ *
+ * O limite superior usa `refine`, e não `max`, porque é "agora, no momento
+ * da requisição": um `max(new Date())` ficaria congelado no instante em
+ * que o módulo foi carregado e passaria a recusar check-ins legítimos
  * conforme o servidor envelhece.
  */
-const dataHoraSchema = z.coerce
-  .date({ message: MENSAGEM_DATA_INVALIDA })
+const dataHoraSchema = z
+  .string({ message: MENSAGEM_DATA_INVALIDA })
+  .datetime({ offset: true, message: MENSAGEM_DATA_INVALIDA })
+  .transform((valor) => new Date(valor))
   .refine((data) => data.getTime() <= Date.now(), { message: MENSAGEM_DATA_FUTURA });
 
 export const createVisitSchema = z
