@@ -9,6 +9,7 @@ import { authRouter } from './routes/auth.routes';
 import { clientRouter } from './routes/client.routes';
 import { clientContactsRouter, contactRouter } from './routes/contact.routes';
 import { healthRouter } from './routes/health.routes';
+import { clientVisitsRouter, visitRouter } from './routes/visit.routes';
 
 export const app: Express = express();
 
@@ -33,6 +34,14 @@ app.use('/auth', authRouter);
 app.use('/clients', clientRouter);
 app.use('/clients/:id/contacts', clientContactsRouter);
 app.use('/contacts', contactRouter);
+app.use('/clients/:id/visits', clientVisitsRouter);
+// Corpo binário apenas para as imagens de check-in: o filtro de `type`
+// deixa os corpos JSON (ex.: PATCH /visits/:id) seguirem no express.json.
+app.use(
+  '/visits',
+  express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '5mb' }),
+  visitRouter,
+);
 
 app.use((_req: Request, _res: Response, next: NextFunction) => {
   next(new AppError(ErrorCode.NOT_FOUND, 'Rota não encontrada.', 404));
