@@ -8,6 +8,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1),
   JWT_EXPIRES_IN: z.string().min(1).default('8h'),
   FRONTEND_URL: z.string().min(1).default('http://localhost:5173'),
+  UPLOADS_DIR: z.string().min(1).default('./uploads'),
 });
 
 export type Env = z.infer<typeof envSchema>;

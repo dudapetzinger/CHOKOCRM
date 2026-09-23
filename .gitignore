@@ -145,3 +145,6 @@ vite.config.ts.timestamp-*
 # Sistema e ambiente local
 .DS_Store
 .env.local
+
+# Fotos de comprovação de check-in (nunca versionadas)
+backend/uploads/
