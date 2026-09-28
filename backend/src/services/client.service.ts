@@ -1,13 +1,19 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, type Role } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import * as clientRepository from '../repositories/client.repository';
 import type { ClientComContatoPrincipal, ClientComContatos } from '../repositories/client.repository';
+import * as userRepository from '../repositories/user.repository';
 import type { CreateClientInput, ListClientsQuery, UpdateClientInput } from '../schemas/client.schema';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CNPJ_DUPLICADO = 'Já existe um cliente cadastrado com este CNPJ.';
 const MENSAGEM_CONTATO_PRINCIPAL_UNICO = 'Cadastro exige exatamente um contato marcado como principal.';
+const MENSAGEM_SOMENTE_REPRESENTANTE_CADASTRA = 'Somente representante cadastra cliente em carteira.';
+const MENSAGEM_SOMENTE_GESTOR_TRANSFERE = 'Somente o gestor transfere um cliente de carteira.';
+const MENSAGEM_REPRESENTANTE_INVALIDO = 'Representante informado não existe ou não é representante.';
+
+export type UsuarioAutenticado = { id: string; role: Role };
 
 export type ClienteListItemDTO = {
   id: string;
@@ -127,24 +133,46 @@ export async function getClientById(id: string): Promise<ClienteCompletoDTO> {
   return toClienteCompletoDTO(cliente);
 }
 
-export async function createClient(input: CreateClientInput): Promise<ClienteCompletoDTO> {
+export async function createClient(
+  input: CreateClientInput,
+  usuario: UsuarioAutenticado,
+): Promise<ClienteCompletoDTO> {
+  if (usuario.role !== 'REPRESENTANTE') {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_SOMENTE_REPRESENTANTE_CADASTRA, 400);
+  }
+
   const cnpjEmUso = await clientRepository.findByCnpj(input.cnpj);
   if (cnpjEmUso) {
     throw new AppError(ErrorCode.CONFLICT, MENSAGEM_CNPJ_DUPLICADO, 409);
   }
 
   try {
-    const id = await clientRepository.createWithContacts(input);
+    const id = await clientRepository.createWithContacts(input, usuario.id);
     return await getClientById(id);
   } catch (err) {
     throw mapPrismaUniqueError(err);
   }
 }
 
-export async function updateClient(id: string, input: UpdateClientInput): Promise<ClienteCompletoDTO> {
+export async function updateClient(
+  id: string,
+  input: UpdateClientInput,
+  usuario: UsuarioAutenticado,
+): Promise<ClienteCompletoDTO> {
   const existente = await clientRepository.findById(id);
   if (!existente) {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
+  }
+
+  if (input.representanteId) {
+    if (usuario.role !== 'GESTOR') {
+      throw new AppError(ErrorCode.FORBIDDEN, MENSAGEM_SOMENTE_GESTOR_TRANSFERE, 403);
+    }
+
+    const novoRepresentante = await userRepository.findById(input.representanteId);
+    if (!novoRepresentante || novoRepresentante.role !== 'REPRESENTANTE') {
+      throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_REPRESENTANTE_INVALIDO, 400);
+    }
   }
 
   if (input.cnpj && input.cnpj !== existente.cnpj) {

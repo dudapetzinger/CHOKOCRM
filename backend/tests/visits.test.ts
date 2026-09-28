@@ -21,6 +21,7 @@ const GESTOR = {
 
 let token: string;
 let tokenGestor: string;
+let representanteId: string;
 let clienteId: string;
 let clienteInativoId: string;
 let contatoId: string;
@@ -41,6 +42,7 @@ async function criarCliente(cnpj: string, nomeFantasia: string, ativo = true): P
       telefone: '(47) 3395-0000',
       email: `contato@${apelido(nomeFantasia)}.com.br`,
       ativo,
+      representanteId,
       contacts: {
         create: [
           {
@@ -66,7 +68,8 @@ beforeEach(async () => {
   await truncateAllTables();
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
-  await prisma.user.create({ data: { ...REPRESENTANTE, senhaHash } });
+  const representante = await prisma.user.create({ data: { ...REPRESENTANTE, senhaHash } });
+  representanteId = representante.id;
   await prisma.user.create({ data: { ...GESTOR, senhaHash } });
 
   token = await logar(REPRESENTANTE.email);

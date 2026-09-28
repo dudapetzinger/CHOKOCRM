@@ -55,6 +55,10 @@ export type CreateClientInput = z.infer<typeof createClientSchema>;
  * Atualização parcial (UC03) — nunca inclui `contatos` (gerenciados via
  * UC04, fora do escopo desta task). Campos ausentes do body permanecem
  * inalterados; `ativo: false` aciona a inativação lógica do cliente.
+ * Não inclui `recorrenciaDias`: sua alteração passa a ter rota dedicada,
+ * com justificativa obrigatória (Etapa 4, fora do escopo desta task).
+ * `representanteId`, quando presente, só pode ser enviado por um GESTOR
+ * (regra aplicada em client.service.ts) e transfere a carteira do cliente.
  */
 export const updateClientSchema = z
   .object({
@@ -66,8 +70,8 @@ export const updateClientSchema = z
     telefone: z.string().min(1, 'Telefone é obrigatório.').optional(),
     email: z.string().email('E-mail inválido.').optional(),
     erpId: z.string().min(1, 'Identificador de ERP não pode ser vazio.').optional(),
-    recorrenciaDias: recorrenciaDiasSchema.optional(),
     ativo: z.boolean().optional(),
+    representanteId: z.string().uuid('Identificador do representante inválido.').optional(),
   })
   .strict();
 

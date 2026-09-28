@@ -18,6 +18,7 @@ erDiagram
   USER ||--o{ VISIT : registra
   USER ||--o{ VISIT_SCHEDULE_CHANGE : altera
   USER ||--o{ STOCK_MESSAGE : gera
+  USER ||--o{ CLIENT : "é dono de"
   CLIENT ||--o{ CONTACT : possui
   CLIENT ||--o{ VISIT : recebe
   CLIENT ||--o{ VISIT_SCHEDULE_CHANGE : tem
@@ -29,6 +30,7 @@ erDiagram
 Leitura das cardinalidades:
 
 - Um **User** (representante ou gestor) registra várias `Visit`, altera várias `VisitScheduleChange` e gera várias `StockMessage`; cada uma dessas ocorrências pertence a exatamente um usuário.
+- Um **User** com papel representante é dono de vários `Client` (carteira); cada cliente pertence a exatamente um representante.
 - Um **Client** possui vários `Contact`, recebe várias `Visit` e várias `StockMessage`, e tem várias `VisitScheduleChange`; cada uma dessas ocorrências pertence a exatamente um cliente.
 - Um **Contact** pode ser atendido em zero ou várias `Visit` (campo `contact_id` opcional em `Visit` — nem toda visita identifica um contato específico); cada visita está associada a no máximo um contato.
 - Um **SeasonalEvent** pode contextualizar zero ou várias `StockMessage` (campo `evento_sazonal` opcional em `StockMessage` — a mensagem pode ser gerada sem evento sazonal vigente); cada mensagem está associada a no máximo um evento sazonal.
@@ -70,6 +72,7 @@ Convenções adotadas nas tabelas abaixo:
 | erp_id | Texto | Não | Identificador do cliente no ERP da Senior Sistemas; chave usada nas consultas ao `ErpProvider` (seção 4 deste documento). Preenchimento recomendado assim que disponível, mas opcional no cadastro — o cliente pode ainda não ter vínculo com o ERP (UC02, UC11 em `docs/casos-de-uso.md`). |
 | recorrencia_dias | Número inteiro | Sim | Intervalo, em dias, entre visitas recorrentes a este cliente. **Valor padrão: 15. Faixa sugerida: 15 a 30.** Alteração exige registro correspondente em `VisitScheduleChange`, com justificativa (seção 6.2 da especificação). |
 | ativo | Booleano | Sim | Indica se o cliente está ativo na carteira do representante. A especificação não define valor padrão explícito para este campo; sugere-se `true` na criação, como decisão de implementação da Etapa 2. |
+| representante_id | FK → User.id | Sim | Representante dono da carteira. Preenchido automaticamente com o usuário que cadastra; só o gestor transfere (Etapa 4). |
 | criado_em | Data/hora | Sim | Data e hora de criação do registro. |
 
 ### 3.3 Contact

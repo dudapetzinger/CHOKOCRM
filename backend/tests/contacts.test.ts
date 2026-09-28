@@ -14,6 +14,7 @@ const REPRESENTANTE = {
 };
 
 let token: string;
+let representanteId: string;
 
 type ClienteFixture = {
   razaoSocial: string;
@@ -90,7 +91,7 @@ async function contatoDoClientePorNome(nome: string): Promise<{ id: string; clie
 async function criarClienteFixture(fixture: ClienteFixture): Promise<string> {
   const { contatos, ...dadosCliente } = fixture;
   const client = await prisma.client.create({
-    data: { ...dadosCliente, contacts: { create: contatos } },
+    data: { ...dadosCliente, representanteId, contacts: { create: contatos } },
   });
   return client.id;
 }
@@ -99,7 +100,8 @@ beforeEach(async () => {
   await truncateAllTables();
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
-  await prisma.user.create({ data: { ...REPRESENTANTE, senhaHash } });
+  const representante = await prisma.user.create({ data: { ...REPRESENTANTE, senhaHash } });
+  representanteId = representante.id;
 
   const login = await request(app)
     .post('/auth/login')

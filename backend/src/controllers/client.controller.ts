@@ -18,7 +18,7 @@ export async function getClients(req: Request, res: Response, next: NextFunction
 export async function postClient(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = createClientSchema.parse(req.body);
-    const cliente = await clientService.createClient(input);
+    const cliente = await clientService.createClient(input, req.user!);
     res.status(201).json(cliente);
   } catch (err) {
     next(err);
@@ -39,7 +39,7 @@ export async function putClient(req: Request, res: Response, next: NextFunction)
   try {
     const id = idParamSchema.parse(req.params.id);
     const input = updateClientSchema.parse(req.body);
-    const cliente = await clientService.updateClient(id, input);
+    const cliente = await clientService.updateClient(id, input, req.user!);
     res.status(200).json(cliente);
   } catch (err) {
     next(err);

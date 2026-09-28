@@ -234,13 +234,13 @@ async function seedContato(clientId: string, contato: ContatoSeed): Promise<void
   await prisma.contact.create({ data: { ...contato, clientId } });
 }
 
-async function seedCliente(cliente: ClienteSeed): Promise<void> {
+async function seedCliente(cliente: ClienteSeed, representanteId: string): Promise<void> {
   const { contatos, ...dadosCliente } = cliente;
 
   const client = await prisma.client.upsert({
     where: { cnpj: cliente.cnpj },
-    update: dadosCliente,
-    create: dadosCliente,
+    update: { ...dadosCliente, representanteId },
+    create: { ...dadosCliente, representanteId },
   });
 
   for (const contato of contatos) {
@@ -303,8 +303,12 @@ async function seedVisitas(): Promise<void> {
 async function main(): Promise<void> {
   await seedUsuarios();
 
+  const representante = await prisma.user.findUniqueOrThrow({
+    where: { email: 'eduarda@chokolaten.com.br' },
+  });
+
   for (const cliente of CLIENTES) {
-    await seedCliente(cliente);
+    await seedCliente(cliente, representante.id);
   }
 
   await seedVisitas();

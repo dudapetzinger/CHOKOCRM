@@ -30,6 +30,7 @@ describe('Schema Prisma (smoke)', () => {
         endereco: 'Rua de Teste, 100',
         telefone: '(47) 0000-0000',
         email: 'contato@smoketeste.com.br',
+        representanteId: user.id,
         contacts: {
           create: [
             { nome: 'Contato Principal', cargo: 'Compradora', telefone: '(47) 1111-1111', email: 'principal@smoketeste.com.br', principal: true },
@@ -52,6 +53,15 @@ describe('Schema Prisma (smoke)', () => {
   });
 
   it('rejeita um segundo contato principal para o mesmo cliente', async () => {
+    const representante = await prisma.user.create({
+      data: {
+        nome: 'Eduarda Representante Dois',
+        email: 'smoke.user-dois@chokolaten.com.br',
+        senhaHash: 'hash-fake',
+        role: 'REPRESENTANTE',
+      },
+    });
+
     const client = await prisma.client.create({
       data: {
         razaoSocial: 'Smoke Teste Dois Ltda',
@@ -61,6 +71,7 @@ describe('Schema Prisma (smoke)', () => {
         endereco: 'Rua de Teste, 200',
         telefone: '(47) 3333-3333',
         email: 'contato@smoketestedois.com.br',
+        representanteId: representante.id,
         contacts: {
           create: [
             { nome: 'Primeiro Principal', cargo: 'Compradora', telefone: '(47) 4444-4444', email: 'primeiro@smoketestedois.com.br', principal: true },
@@ -102,6 +113,7 @@ describe('Schema Prisma (smoke)', () => {
         endereco: 'Rua de Teste, 300',
         telefone: '(47) 0000-0001',
         email: 'contato@visitasmoke.com.br',
+        representanteId: user.id,
       },
     });
 

@@ -13,7 +13,16 @@ const REPRESENTANTE = {
   role: 'REPRESENTANTE' as const,
 };
 
+const GESTOR = {
+  nome: 'Ricardo Menezes',
+  email: 'ricardo.clients-teste@chokolaten.com.br',
+  role: 'GESTOR' as const,
+};
+
 let token: string;
+let tokenGestor: string;
+let representanteId: string;
+let gestorId: string;
 
 type ClienteFixture = {
   razaoSocial: string;
@@ -103,32 +112,39 @@ async function idDoClientePorNomeFantasia(nomeFantasia: string): Promise<string>
   return cliente.id;
 }
 
-async function criarClienteFixture(fixture: ClienteFixture): Promise<string> {
+async function criarClienteFixture(fixture: ClienteFixture, donoId: string): Promise<string> {
   const { contatos, ativo, ...dadosCliente } = fixture;
   const client = await prisma.client.create({
     data: {
       ...dadosCliente,
       ...(ativo !== undefined ? { ativo } : {}),
+      representanteId: donoId,
       contacts: { create: contatos },
     },
   });
   return client.id;
 }
 
+async function logar(email: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+  return login.body.token;
+}
+
 beforeEach(async () => {
   await truncateAllTables();
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
-  await prisma.user.create({ data: { ...REPRESENTANTE, senhaHash } });
+  const representante = await prisma.user.create({ data: { ...REPRESENTANTE, senhaHash } });
+  representanteId = representante.id;
+  const gestor = await prisma.user.create({ data: { ...GESTOR, senhaHash } });
+  gestorId = gestor.id;
 
-  const login = await request(app)
-    .post('/auth/login')
-    .send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
-  token = login.body.token;
+  token = await logar(REPRESENTANTE.email);
+  tokenGestor = await logar(GESTOR.email);
 
-  await criarClienteFixture(CLIENTE_POMERODE);
-  await criarClienteFixture(CLIENTE_BLUMENAU);
-  await criarClienteFixture(CLIENTE_INATIVO);
+  await criarClienteFixture(CLIENTE_POMERODE, representanteId);
+  await criarClienteFixture(CLIENTE_BLUMENAU, representanteId);
+  await criarClienteFixture(CLIENTE_INATIVO, representanteId);
 });
 
 afterAll(async () => {
@@ -252,6 +268,28 @@ describe('POST /clients', () => {
 
     const persistido = await prisma.client.findUnique({ where: { id: res.body.id } });
     expect(persistido).not.toBeNull();
+  });
+
+  it('grava o representante logado como dono da carteira', async () => {
+    const res = await request(app)
+      .post('/clients')
+      .set('Authorization', `Bearer ${token}`)
+      .send(payloadClienteNovo());
+
+    expect(res.status).toBe(201);
+
+    const salvo = await prisma.client.findUniqueOrThrow({ where: { id: res.body.id } });
+    expect(salvo.representanteId).toBe(representanteId);
+  });
+
+  it('por gestor responde 400', async () => {
+    const res = await request(app)
+      .post('/clients')
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .send(payloadClienteNovo());
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('sem nenhum contato marcado como principal responde 400 VALIDATION_ERROR', async () => {
@@ -414,5 +452,72 @@ describe('PUT /clients/:id', () => {
       .query({ ativo: 'todos' })
       .set('Authorization', `Bearer ${token}`);
     expect(listaTodos.body.data.some((c: { id: string }) => c.id === id)).toBe(true);
+  });
+
+  it('com recorrenciaDias responde 400', async () => {
+    const id = await idDoClientePorNomeFantasia('Café Blumenau');
+
+    const res = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ recorrenciaDias: 20 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('com representanteId por representante responde 403', async () => {
+    const id = await idDoClientePorNomeFantasia('Café Blumenau');
+
+    const res = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ representanteId });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('com representanteId por gestor transfere a carteira', async () => {
+    const id = await idDoClientePorNomeFantasia('Café Blumenau');
+    const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+    const outroRepresentante = await prisma.user.create({
+      data: {
+        nome: 'Outro Representante',
+        email: 'outro.clients-teste@chokolaten.com.br',
+        role: 'REPRESENTANTE',
+        senhaHash,
+      },
+    });
+
+    const res = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .send({ representanteId: outroRepresentante.id });
+
+    expect(res.status).toBe(200);
+
+    const salvo = await prisma.client.findUniqueOrThrow({ where: { id } });
+    expect(salvo.representanteId).toBe(outroRepresentante.id);
+  });
+
+  it('com representanteId de gestor ou inexistente responde 400', async () => {
+    const id = await idDoClientePorNomeFantasia('Café Blumenau');
+
+    const resDeGestor = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .send({ representanteId: gestorId });
+
+    expect(resDeGestor.status).toBe(400);
+    expect(resDeGestor.body.error.code).toBe('VALIDATION_ERROR');
+
+    const resInexistente = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .send({ representanteId: ID_INEXISTENTE });
+
+    expect(resInexistente.status).toBe(400);
+    expect(resInexistente.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

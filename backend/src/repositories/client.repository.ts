@@ -64,11 +64,11 @@ export async function list(params: { search?: string; ativoFiltro: AtivoFiltro }
  * concorrentes, mas a regra "exatamente um principal" já é garantida antes
  * disso pelo zod (createClientSchema).
  */
-export async function createWithContacts(input: CreateClientInput): Promise<string> {
+export async function createWithContacts(input: CreateClientInput, representanteId: string): Promise<string> {
   const { contatos, ...dadosCliente } = input;
 
   return prisma.$transaction(async (tx) => {
-    const client = await tx.client.create({ data: dadosCliente });
+    const client = await tx.client.create({ data: { ...dadosCliente, representanteId } });
 
     await tx.contact.createMany({
       data: contatos.map((contato) => ({ ...contato, clientId: client.id })),

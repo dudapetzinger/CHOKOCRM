@@ -50,6 +50,10 @@ beforeEach(async () => {
   token = await logar('eduarda.foto-teste@chokolaten.com.br');
   tokenOutro = await logar('outro.foto-teste@chokolaten.com.br');
 
+  const representante = await prisma.user.findUniqueOrThrow({
+    where: { email: 'eduarda.foto-teste@chokolaten.com.br' },
+  });
+
   const cliente = await prisma.client.create({
     data: {
       razaoSocial: 'Empório Pomerode Comércio Ltda',
@@ -59,6 +63,7 @@ beforeEach(async () => {
       endereco: 'Rua Hermann Weege, 620',
       telefone: '(47) 3395-1122',
       email: 'contato@emporiopomerode.com.br',
+      representanteId: representante.id,
       contacts: {
         create: [
           {
