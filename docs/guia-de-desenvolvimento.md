@@ -54,7 +54,7 @@ Mais duas controlam o provedor de ERP simulado da Etapa 5 (ver `backend/src/prov
 | Variável | Padrão | Para quê |
 |----------|--------|----------|
 | `ERP_PROVIDER` | `mock` | Provedor de ERP em uso (`mock` por ora). |
-| `ERP_MOCK_FALHAR` | `false` | Força o mock a responder "indisponível" para demonstrar o fluxo de exceção da ficha (UC11 E1). |
+| `ERP_MOCK_FALHAR` | `false` | Força o mock a responder "indisponível" para demonstrar o fluxo de exceção da ficha (UC11 E3). |
 
 ## 3. Subindo o ambiente com Docker Compose
 

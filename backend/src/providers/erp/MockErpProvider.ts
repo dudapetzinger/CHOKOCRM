@@ -12,7 +12,7 @@ import { gerarHistoricoErp } from './mock/gerador';
  * Implementação de demonstração de `ErpProvider`: gera um histórico
  * determinístico (ver `mock/gerador.ts`) a partir do `erpId`, sem tocar
  * banco de dados nem serviço externo. `falhar` simula a indisponibilidade
- * do ERP (UC11 E1); `hoje` é injetado para os testes controlarem "agora"
+ * do ERP (UC11 E3); `hoje` é injetado para os testes controlarem "agora"
  * sem mockar `Date` globalmente.
  */
 export class MockErpProvider implements ErpProvider {
