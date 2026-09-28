@@ -20,7 +20,7 @@
 - Mensagens ao usuário em português, seguindo o tom das já existentes (`MENSAGEM_*` como constantes no topo dos módulos).
 - Erros no formato `{ error: { code, message, details? } }` via `AppError`/`ErrorCode`; validação com zod nos controllers; nunca `req`/`res` em services.
 - Camadas: controller → service → repository; repository não decide cor nem agenda.
-- Commits com mensagem em português, prefixo convencional (`feat:`, `fix:`, `docs:`, `chore:`), sem acento nos prefixos, e a linha `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
+- Commits com mensagem em português, prefixo convencional (`feat:`, `fix:`, `docs:`, `chore:`), sem acento nos prefixos, sem trailer de coautoria.
 - Backend: `npm run lint && npm test && npm run build` verdes ao fim de cada tarefa. Frontend: `npm run lint && npm run build`.
 - Os testes de integração truncam o banco de desenvolvimento: rodar `npm run db:seed` ao final para voltar a navegar.
 
