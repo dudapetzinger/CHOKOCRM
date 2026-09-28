@@ -5,16 +5,9 @@ import { useAuth } from '../auth/useAuth';
 import { CORES, listClients, mensagemErroApi, ROTULO_COR, type Cor } from '../services/clients';
 import { BadgeCor } from '../components/BadgeCor';
 import { NavInferior } from '../components/NavInferior';
+import { iniciais } from '../lib/iniciais';
 
 const ATRASO_BUSCA_MS = 300;
-
-/** Iniciais exibidas no avatar da lista (1 ou 2 letras, ver .item-lista .avatar). */
-function iniciais(nome: string): string {
-  const partes = nome.trim().split(/\s+/).filter(Boolean);
-  if (partes.length === 0) return '?';
-  if (partes.length === 1) return partes[0]!.slice(0, 2).toUpperCase();
-  return (partes[0]![0] + partes[1]![0]).toUpperCase();
-}
 
 export function ClientesPage() {
   const { logout } = useAuth();

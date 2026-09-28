@@ -6,6 +6,7 @@
  */
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { comprimirImagem } from '../lib/comprimirImagem';
 import { getCliente, mensagemErroApi } from '../services/clients';
 import type { ClienteCompleto } from '../services/clients';
@@ -24,6 +25,7 @@ const RESULTADOS: ResultadoVisita[] = ['VENDA', 'NEGOCIACAO', 'SEM_VENDA'];
 export function CheckInPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [cliente, setCliente] = useState<ClienteCompleto | null>(null);
   const [dataHora, setDataHora] = useState(agoraParaCampoLocal());
@@ -73,6 +75,10 @@ export function CheckInPage() {
         dataHora: new Date(dataHora).toISOString(),
         ...(contactId ? { contactId } : {}),
       });
+
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['agenda'] });
+      queryClient.invalidateQueries({ queryKey: ['client', id, 'visits'] });
 
       if (foto) {
         try {
