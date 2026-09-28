@@ -116,6 +116,7 @@ chokocrm/
 │   │   ├── services/          # regra de negócio pura, testável
 │   │   ├── repositories/      # acesso a dados via Prisma
 │   │   ├── middlewares/       # authJwt, requireRole, errorHandler, requestLogger
+│   │   ├── jobs/              # agenda diária de alertas (node-cron)
 │   │   ├── errors/            # AppError e catálogo centralizado de códigos de erro
 │   │   ├── storage/           # FileStorage e LocalFileStorage (fotos de check-in)
 │   │   ├── lib/               # Prisma Client, logger e detecção de formato de imagem
@@ -123,15 +124,15 @@ chokocrm/
 │   │   ├── types/             # tipagens compartilhadas
 │   │   ├── app.ts             # composição do Express
 │   │   └── server.ts          # bootstrap do processo
-│   └── tests/                 # Jest + Supertest
+│   └── tests/                 # Jest + Supertest (tests/unit/: funções puras dos services)
 ├── frontend/
 │   └── src/
-│       ├── pages/             # Login, Clientes, NovoCliente, ClienteDetalhe, CheckIn
+│       ├── pages/             # Login, Clientes, NovoCliente, ClienteDetalhe, CheckIn, Agenda
 │       ├── components/        # componentes de UI reutilizáveis
 │       ├── hooks/             # estado de servidor com TanStack Query
 │       ├── auth/              # contexto de autenticação e rota protegida
 │       ├── services/          # cliente HTTP da API REST
-│       ├── lib/               # utilitários de navegador (compressão de imagem)
+│       ├── lib/               # utilitários compartilhados (compressão de imagem, formatação de data, iniciais)
 │       └── styles/            # tokens visuais herdados do protótipo
 ├── docs/                      # casos de uso, modelo de dados, arquitetura, guia e protótipo
 ├── docker-compose.yml
@@ -139,7 +140,7 @@ chokocrm/
 └── README.md
 ```
 
-A árvore acima reflete o estado do repositório ao fim da Etapa 3, que acrescentou `backend/src/storage/`, `frontend/src/hooks/` e `frontend/src/lib/`. Duas pastas descritas nesta seção ainda não existem e são criadas nas etapas em que passam a ter conteúdo: `backend/src/providers/erp/` (interface `ErpProvider` e `MockErpProvider`) na Etapa 5 e `backend/src/jobs/` (rotina diária de alertas de visita) na Etapa 4. O workflow `deploy.yml` entra na Etapa 6, junto com a publicação no Azure ([ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)).
+A árvore acima reflete o estado do repositório ao fim da Etapa 4, que acrescentou `backend/src/jobs/`, `backend/tests/unit/` e, no frontend, a página `AgendaPage` e os componentes e hooks de agenda e recorrência. Uma pasta descrita nesta seção ainda não existe: `backend/src/providers/erp/` (interface `ErpProvider` e `MockErpProvider`), criada na Etapa 5. O workflow `deploy.yml` entra na Etapa 6, junto com a publicação no Azure ([ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)).
 
 **Apresentação (`backend/src/routes`, `backend/src/controllers`).** As rotas mapeiam método HTTP + caminho para o controller correspondente, sem lógica própria além do roteamento. Os controllers leem a requisição, validam a entrada com zod, chamam o service apropriado e traduzem o resultado em corpo de resposta e status code. Essa camada **não** implementa regra de negócio, **não** acessa `repositories` ou o Prisma Client diretamente e **não** decide, por exemplo, qual cor atribuir a um cliente.
 
@@ -151,7 +152,7 @@ A árvore acima reflete o estado do repositório ao fim da Etapa 3, que acrescen
 
 **Integrações (`backend/src/providers/erp`).** Define a interface `ErpProvider` e sua implementação atual `MockErpProvider` (dados gerados por seed com sazonalidade realista), com espaço já reservado para a futura `SeniorErpProvider`. Essa camada **não** persiste dados de venda ou estoque no banco do ChokoCRM — apenas consulta sob demanda — e **não** é chamada diretamente por controllers ou repositories, somente pela camada de negócio.
 
-**Transversal (`backend/src/middlewares`, `backend/src/jobs`, `backend/src/config`).** Os middlewares tratam autenticação JWT, formatação centralizada de erros e log estruturado de requisições; os jobs executam a rotina diária (`node-cron`) que materializa a agenda de visitas do dia/atrasadas; `config/` concentra variáveis de ambiente e constantes ajustáveis (limiares de cor, calendário de datas comemorativas). Essa camada **não** implementa regra de negócio específica de um caso de uso — fornece apenas infraestrutura compartilhada pelas demais camadas.
+**Transversal (`backend/src/middlewares`, `backend/src/jobs`, `backend/src/config`).** Os middlewares tratam autenticação JWT, formatação centralizada de erros e log estruturado de requisições; os jobs executam a rotina diária (`node-cron`) que percorre a carteira de cada representante e registra em log os alertas de visita atrasada e prevista para o dia — a agenda em si é sempre calculada ao vivo por `GET /agenda/today`, nunca persistida ([ADR-011](#adr-011--carteira-por-representante-e-agenda-calculada-em-tempo-de-consulta)); `config/` concentra variáveis de ambiente e constantes ajustáveis (limiares de cor, calendário de datas comemorativas). Essa camada **não** implementa regra de negócio específica de um caso de uso — fornece apenas infraestrutura compartilhada pelas demais camadas.
 
 **Frontend (`frontend/src/pages`, `components`, `services`, `hooks`).** As `pages` compõem as telas completas do produto (Login, Clientes, FichaCliente, CheckIn, Painel), reaproveitando `components` de UI reutilizáveis (`ColorBadge`, `ContactList`, `VisitTimeline`, `InsightCard`). A camada `services` do frontend concentra o cliente HTTP da API REST (incluindo o envio do token JWT); os `hooks` encapsulam estado de servidor (TanStack Query) e lógica reativa compartilhada entre páginas. O frontend **não** reimplementa regra de negócio de domínio — cor, recorrência e insights são sempre calculados pelo backend — e os `components` **não** fazem chamada HTTP direta, apenas recebem dados via propriedades.
 
@@ -159,7 +160,7 @@ A árvore acima reflete o estado do repositório ao fim da Etapa 3, que acrescen
 
 ## 3. Decisões arquiteturais (ADRs)
 
-Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etapa 3, quando a hospedagem foi decidida, e o ADR-009 nasceu na mesma revisão. O ADR-010 nasceu na Etapa 3, com a foto de comprovação de check-in. A lista é referenciada pelas etapas seguintes do cronograma (seção 11 da especificação técnica) sempre que uma decisão for revisitada, detalhada ou, excepcionalmente, revista — cada revisão substitui o texto do ADR e fica registrada no histórico de commits.
+Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etapa 3, quando a hospedagem foi decidida, e o ADR-009 nasceu na mesma revisão. O ADR-010 nasceu na Etapa 3, com a foto de comprovação de check-in. O ADR-011 nasceu na Etapa 4, com a carteira por representante e a agenda do dia. A lista é referenciada pelas etapas seguintes do cronograma (seção 11 da especificação técnica) sempre que uma decisão for revisitada, detalhada ou, excepcionalmente, revista — cada revisão substitui o texto do ADR e fica registrada no histórico de commits.
 
 ### ADR-001 — Stack definido pela disciplina
 
@@ -243,6 +244,14 @@ Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etap
 
 **Consequências.** As fotos não são versionadas (`backend/uploads/` está no `.gitignore`) e não são servidas como arquivo estático: a leitura passa por `GET /visits/:id/foto`, autenticada por JWT como as demais rotas, o que impede acesso por URL adivinhada. A chave gravada em `foto_path` é lógica (`visits/<id>.jpg`), nunca um caminho absoluto, e o driver valida o formato da chave antes de tocar no disco, o que impede escrita fora do diretório base. A troca de driver na Etapa 6 fica restrita a um módulo. Em contrapartida, enquanto o driver é o de disco, as fotos vivem no volume do contêiner e **não** fazem parte do backup do banco — restaurar só o banco deixa registros apontando para arquivos ausentes, caso que a API responde como 404.
 
+### ADR-011 — Carteira por representante e agenda calculada em tempo de consulta
+
+**Contexto.** A Etapa 4 introduziu a "agenda do dia por representante" (UC10), mas o modelo de dados não tinha nenhum vínculo entre `Client` e o representante responsável por ele — a especificação técnica (seção 6.2) já falava em um job diário que "materializa" a lista de visitas do dia, sem que existisse uma entidade para sustentar o que seria persistido nem um critério de qual carteira pertence a qual representante.
+
+**Decisão.** Criar `Client.representanteId` (FK para `User`), preenchido automaticamente com quem cadastra o cliente (`POST /clients`); só o gestor transfere um cliente para outro representante (`PUT /clients/:id`, campo `representanteId`, exclusivo do papel `GESTOR`). A rota `GET /agenda/today` calcula a agenda ao vivo a cada chamada — para o representante, restrita à própria carteira; para o gestor, a de todos —, sem persistir nenhuma tabela de "agenda materializada". O job diário (`backend/src/jobs/agendaDiaria.job.ts`, `node-cron`, controlado por `AGENDA_JOB_ENABLED`/`AGENDA_JOB_CRON`) roda a mesma lógica de cálculo por representante e apenas registra um log estruturado com os alertas do dia (atrasadas e previstas); não grava nada no banco, e uma falha ao calcular a agenda de um representante não interrompe os demais nem derruba a API.
+
+**Consequências.** A agenda exibida ao representante está sempre coerente com o check-in mais recente, sem risco de desatualização entre o job e a consulta — o mesmo raciocínio do [ADR-006](#adr-006--classificação-por-cor-calculada-em-tempo-de-consulta) aplicado à agenda. Não há tabela nem migração de dados de "agenda"; o custo é recalcular a carteira inteira a cada consulta e a cada execução do job, aceitável no volume de clientes da empresa. O alerta do job fica restrito ao log estruturado (pino): notificação por push ou e-mail ao representante ou ao gestor fica como evolução futura, fora do escopo desta etapa. A lista e a ficha do cliente continuam mostrando todos os clientes — apenas a agenda filtra pela carteira —, então o representante não deixa de localizar um cliente fora da própria carteira.
+
 ## 4. API REST
 
 Contorno de rotas (seção 7 da especificação técnica):
@@ -266,14 +275,14 @@ GET    /health
 Descrição por grupo:
 
 - **Autenticação** (`POST /auth/login`) — emite o token JWT a partir de credenciais válidas.
-- **Clientes** (`GET/POST/PUT /clients`, `GET /clients/:id`) — listagem com busca e filtro por cor, cadastro e edição dos dados cadastrais do cliente.
+- **Clientes** (`GET/POST/PUT /clients`, `GET /clients/:id`) — listagem com busca e filtro por cor (`?color=`), cadastro (atribui automaticamente o cadastrante como representante da carteira — `POST` por um gestor é rejeitado) e edição dos dados cadastrais do cliente; só o gestor transfere um cliente para outro representante (`representanteId`), via [ADR-011](#adr-011--carteira-por-representante-e-agenda-calculada-em-tempo-de-consulta).
 - **Contatos** (`POST /clients/:id/contacts`, `PUT/DELETE /contacts/:id`) — cadastro, edição e remoção dos contatos de um cliente.
 - **Visitas** (`POST/GET /clients/:id/visits`, `PATCH /visits/:id`, `PUT/GET /visits/:id/foto`) — registro de check-in (descrição obrigatória, resultado em três estados e foto de comprovação opcional), histórico de visitas do cliente e correção da descrição pelo autor. A foto viaja numa chamada própria, com os bytes crus no corpo, para que uma falha de upload em campo não perca o check-in já gravado.
-- **Recorrência** (`PUT /clients/:id/recurrence`) — altera a frequência de visita do cliente, exigindo justificativa registrada.
+- **Recorrência** (`PUT /clients/:id/recurrence`) — altera a frequência de visita do cliente, exclusiva do representante (o gestor recebe 403) e exigindo justificativa registrada; cada alteração fica em histórico auditável em `VisitScheduleChange`, exibido na ficha do cliente.
 - **ERP** (`GET /clients/:id/erp`) — expõe última venda, volume de compras e histórico de estoque, consultados via `ErpProvider`.
 - **Mensagem de estoque** (`POST /clients/:id/stock-message`, `GET /stock-messages`) — gera o link `wa.me` pré-preenchido e mantém o histórico de mensagens geradas.
 - **Insights** (`GET /insights`, `GET /insights/manager-alerts`) — sugestões de BI ao representante e alertas de estoque/demanda ao gestor.
-- **Painel e agenda** (`GET /dashboard/kpis`, `GET /agenda/today`) — indicadores gerenciais e lista de visitas do dia por representante.
+- **Painel e agenda** (`GET /dashboard/kpis`, `GET /agenda/today`) — indicadores gerenciais e lista de visitas atrasadas/previstas para hoje, calculada ao vivo (representante vê só a própria carteira; gestor vê a de todos). Um job diário (`node-cron`, `AGENDA_JOB_ENABLED`/`AGENDA_JOB_CRON`) roda o mesmo cálculo por representante e registra os alertas em log estruturado, sem persistir nada ([ADR-011](#adr-011--carteira-por-representante-e-agenda-calculada-em-tempo-de-consulta)).
 - **Saúde** (`GET /health`) — verificação de disponibilidade da API e da conexão com o banco.
 
 Erros são padronizados no formato `{ error: { code, message, details? } }`, produzidos por um middleware central de tratamento de erros; a validação de entrada é feita com zod nos controllers; respostas `401`/`403` são resolvidas pelo middleware de autenticação JWT combinado à verificação de papel do usuário.

@@ -58,19 +58,23 @@ chokocrm/
 │   │   ├── services/          # regra de negócio pura, testável
 │   │   ├── repositories/      # acesso a dados via Prisma
 │   │   ├── middlewares/       # authJwt, requireRole, errorHandler, requestLogger
+│   │   ├── jobs/              # agenda diária de alertas (node-cron)
 │   │   ├── errors/            # AppError e catálogo centralizado de códigos de erro
-│   │   ├── lib/               # Prisma Client e logger compartilhados
+│   │   ├── storage/           # FileStorage e LocalFileStorage (fotos de check-in)
+│   │   ├── lib/               # Prisma Client, logger e detecção de formato de imagem
 │   │   ├── config/            # variáveis de ambiente validadas
 │   │   ├── types/             # tipagens compartilhadas
 │   │   ├── app.ts             # composição do Express
 │   │   └── server.ts          # bootstrap do processo
-│   └── tests/                 # Jest + Supertest
+│   └── tests/                 # Jest + Supertest (tests/unit/: funções puras dos services)
 ├── frontend/
 │   └── src/
-│       ├── pages/             # Login, Clientes, NovoCliente, ClienteDetalhe
+│       ├── pages/             # Login, Clientes, NovoCliente, ClienteDetalhe, CheckIn, Agenda
 │       ├── components/        # componentes de UI reutilizáveis
+│       ├── hooks/             # estado de servidor com TanStack Query
 │       ├── auth/              # contexto de autenticação e rota protegida
 │       ├── services/          # cliente HTTP da API REST
+│       ├── lib/               # utilitários compartilhados (compressão de imagem, formatação de data, iniciais)
 │       └── styles/            # tokens visuais herdados do protótipo
 ├── docs/                      # casos de uso, modelo de dados, arquitetura, guia e protótipo
 ├── docker-compose.yml
@@ -78,7 +82,7 @@ chokocrm/
 └── README.md
 ```
 
-A estrutura acima reflete o repositório ao fim da Etapa 2. Pastas previstas e ainda não criadas: `backend/src/providers/erp/` (Etapa 5), `backend/src/jobs/` (Etapa 4) e `frontend/src/hooks/`, além do workflow `deploy.yml` (Etapa 6). As regras de dependência entre as camadas estão na seção 4.1 e nos diagramas C4 do documento de arquitetura.
+A estrutura acima reflete o repositório ao fim da Etapa 4. Pastas previstas e ainda não criadas: `backend/src/providers/erp/` (Etapa 5) e o workflow `deploy.yml` (Etapa 6). As regras de dependência entre as camadas estão na seção 4.1 e nos diagramas C4 do documento de arquitetura.
 
 ### 4.3 Integração ERP (padrão Adapter)
 
@@ -137,7 +141,7 @@ Na etapa 5 (ERP), a regra composta passa a considerar também a última venda vi
 
 - Próxima visita = data da última visita + `recorrencia_dias` do cliente.
 - Recorrência editável por cliente (sugestão padrão: 15–30 dias); alteração exige justificativa.
-- Job diário (node-cron) materializa a lista "visitas de hoje / atrasadas" por representante.
+- `GET /agenda/today` calcula a lista "visitas de hoje / atrasadas" ao vivo, por representante (o gestor vê a de todos); nada é persistido. Um job diário (node-cron) roda o mesmo cálculo e apenas registra os alertas em log estruturado — notificação por push ou e-mail fica fora do escopo desta etapa.
 
 ### 6.3 Mensagem de consulta de estoque
 

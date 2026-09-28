@@ -31,7 +31,7 @@ O contexto completo, os objetivos do produto e o que ficou fora de escopo estão
 
 ## 2. Funcionalidades
 
-Cadastro de clientes com múltiplos contatos; check-in de visitas com descrição obrigatória e histórico por cliente; classificação automática da carteira por cores conforme o tempo sem visita; recorrência de visita editável com justificativa; alertas diários e agenda do dia; consulta de venda e estoque por cliente a partir do ERP; mensagem de consulta de estoque pronta para o representante enviar; e painel de indicadores por época do ano.
+Cadastro de clientes com múltiplos contatos; check-in de visitas com descrição obrigatória e histórico por cliente; classificação automática da carteira por cores, com filtro por cor na lista; recorrência de visita editável com justificativa e histórico auditável; agenda do dia por carteira do representante, com job diário que registra os alertas em log; consulta de venda e estoque por cliente a partir do ERP; mensagem de consulta de estoque pronta para o representante enviar; e painel de indicadores por época do ano.
 
 Cada funcionalidade está especificada como caso de uso em [docs/casos-de-uso.md](docs/casos-de-uso.md), com as regras de negócio detalhadas na [seção 6 da especificação técnica](docs/especificacao-tecnica.md#6-regras-de-negócio-principais).
 

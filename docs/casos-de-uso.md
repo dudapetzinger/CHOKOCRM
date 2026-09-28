@@ -16,7 +16,7 @@ Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protó
 |---|---|---|
 | **Representante Comercial** | Principal, humano | Usuário de campo. Cadastra e mantém clientes, realiza check-ins de visita, consulta agenda, histórico, dados de ERP e insights. |
 | **Gestor** | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Possui, adicionalmente, todas as permissões do Representante Comercial. |
-| **Sistema (Agendador)** | Secundário, automatizado | Processo executado diariamente (job agendado, sem intervenção humana) que recalcula e materializa a lista de visitas previstas e atrasadas por representante. |
+| **Sistema (Agendador)** | Secundário, automatizado | Processo executado diariamente (job agendado, sem intervenção humana) que recalcula a lista de visitas previstas e atrasadas por representante e registra os alertas em log, sem persistir nada. |
 
 **Observação sobre sobreposição de permissões:** por herdar todas as permissões do Representante Comercial, o Gestor pode executar também os casos de uso UC01–UC13 quando necessário. O diagrama de visão geral (seção 3) e as fichas individuais (seção 4) indicam o ator tipicamente responsável por cada fluxo no uso cotidiano do sistema, não uma restrição de acesso adicional além do controle de papel (role) já previsto em UC01.
 
@@ -185,6 +185,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 | 🟠 Laranja | Entre 15 e 30 dias sem visita |
 | 🔴 Vermelho | Mais de 30 dias sem visita |
 
+- Cliente que nunca recebeu visita é classificado como vermelho.
 - A cor do cliente é **calculada em tempo de consulta**, nunca armazenada.
 - Clientes inativos (UC03) não aparecem na listagem padrão.
 - **Evolução da regra na Etapa 5:** a partir da integração com o provedor de ERP (ver UC11), a classificação por cor passa a ser **composta**: além do tempo sem visita, também considera a data da última venda do cliente obtida do ERP. Um cliente visitado recentemente, porém sem venda registrada há um período prolongado, é **rebaixado** na classificação (deixa de ser classificado como verde/amarelo apenas por ter sido visitado). Os limiares dessa regra composta permanecem configuráveis, para ajuste fino junto à empresa.
@@ -320,7 +321,8 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Regras de negócio associadas:**
 - Próxima visita prevista = data da última visita + recorrência (em dias) do cliente.
-- Um job diário (executado pelo Sistema/Agendador) materializa a lista de visitas do dia e das atrasadas, por representante.
+- A agenda é sempre calculada em tempo de consulta, restrita à carteira do representante (`Client.representanteId`, atribuído automaticamente a quem cadastra o cliente; só o gestor transfere um cliente para outro representante); o gestor vê a agenda de todos os representantes.
+- Um job diário (executado pelo Sistema/Agendador) roda o mesmo cálculo por representante e registra os alertas de visita atrasada/prevista em log estruturado, sem persistir nada; notificação por push ou e-mail fica fora do escopo desta etapa.
 - A priorização da lista segue a cor de classificação do cliente (UC05).
 
 ---
