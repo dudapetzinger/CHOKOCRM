@@ -5,7 +5,7 @@ import * as clientRepository from '../repositories/client.repository';
 import type { ClientComContatoPrincipal, ClientComContatos } from '../repositories/client.repository';
 import * as userRepository from '../repositories/user.repository';
 import type { CreateClientInput, ListClientsQuery, UpdateClientInput } from '../schemas/client.schema';
-import { classificarCor, diasSemVisita, type Cor } from './classificacao.service';
+import { classificacaoDoCliente, type Cor } from './classificacao.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CNPJ_DUPLICADO = 'Já existe um cliente cadastrado com este CNPJ.';
@@ -69,7 +69,7 @@ export type ClienteCompletoDTO = {
 
 function toListItemDTO(client: ClientComContatoPrincipal, hoje: Date): ClienteListItemDTO {
   const [principal] = client.contacts;
-  const ultima = client.visits[0] ?? null;
+  const { cor, diasSemVisita } = classificacaoDoCliente(client.visits, hoje);
 
   return {
     id: client.id,
@@ -79,14 +79,14 @@ function toListItemDTO(client: ClientComContatoPrincipal, hoje: Date): ClienteLi
     telefone: client.telefone,
     ativo: client.ativo,
     contatoPrincipal: principal ? { nome: principal.nome, telefone: principal.telefone } : null,
-    cor: classificarCor(ultima, hoje),
-    diasSemVisita: diasSemVisita(ultima, hoje),
+    cor,
+    diasSemVisita,
     representante: { id: client.representante.id, nome: client.representante.nome },
   };
 }
 
 function toClienteCompletoDTO(client: ClientComContatos, hoje: Date): ClienteCompletoDTO {
-  const ultima = client.visits[0] ?? null;
+  const { cor, diasSemVisita } = classificacaoDoCliente(client.visits, hoje);
 
   return {
     id: client.id,
@@ -109,8 +109,8 @@ function toClienteCompletoDTO(client: ClientComContatos, hoje: Date): ClienteCom
       email: contato.email,
       principal: contato.principal,
     })),
-    cor: classificarCor(ultima, hoje),
-    diasSemVisita: diasSemVisita(ultima, hoje),
+    cor,
+    diasSemVisita,
     representante: { id: client.representante.id, nome: client.representante.nome },
     recorrenciaChanges: client.scheduleChanges.map((change) => ({
       id: change.id,
@@ -161,13 +161,14 @@ export async function listClients(query: ListClientsQuery): Promise<ClienteListI
 }
 
 export async function getClientById(id: string): Promise<ClienteCompletoDTO> {
+  const hoje = new Date();
   const cliente = await clientRepository.findById(id);
 
   if (!cliente) {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
   }
 
-  return toClienteCompletoDTO(cliente, new Date());
+  return toClienteCompletoDTO(cliente, hoje);
 }
 
 export async function createClient(

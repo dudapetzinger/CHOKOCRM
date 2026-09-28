@@ -75,6 +75,24 @@ export function classificarCor(ultima: UltimaVisita, hoje: Date): Cor {
   return 'VERMELHO';
 }
 
+/**
+ * Deriva a última visita (mais recente por `dataHora`) e a cor/dias sem
+ * visita a partir dela — ponto único usado pelos dois DTOs de cliente
+ * (lista e ficha) para não divergirem sobre como `ultima` é obtida.
+ */
+export function classificacaoDoCliente(
+  visits: { dataHora: Date; resultado: ResultadoVisita }[],
+  hoje: Date,
+): { ultima: UltimaVisita; cor: Cor; diasSemVisita: number | null } {
+  const ultima = visits[0] ?? null;
+
+  return {
+    ultima,
+    cor: classificarCor(ultima, hoje),
+    diasSemVisita: diasSemVisita(ultima, hoje),
+  };
+}
+
 /** Soma a recorrência à data da última visita ou, sem visita, à de `criadoEm`. */
 export function calcularProximaVisita(
   ultima: UltimaVisita,

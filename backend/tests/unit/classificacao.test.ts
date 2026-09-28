@@ -4,6 +4,7 @@ import {
   diasEntre,
   diasSemVisita,
   classificarCor,
+  classificacaoDoCliente,
   calcularProximaVisita,
   ordemDeCor,
 } from '../../src/services/classificacao.service';
@@ -65,6 +66,17 @@ describe('classificarCor', () => {
   it('conta dias de calendário no fuso: 23h30 de ontem (02h30Z de hoje) é 1 dia', () => {
     const ultima = { dataHora: new Date('2026-09-27T02:30:00Z'), resultado: 'VENDA' as const };
     expect(diasSemVisita(ultima, hoje)).toBe(1);
+  });
+});
+
+describe('classificacaoDoCliente', () => {
+  it('sem visitas: ultima null, cor VERMELHO, diasSemVisita null', () => {
+    expect(classificacaoDoCliente([], hoje)).toEqual({ ultima: null, cor: 'VERMELHO', diasSemVisita: null });
+  });
+
+  it('uma visita VENDA há 3 dias: cor VERDE e diasSemVisita 3', () => {
+    const ultima = { dataHora: diasAtras(3), resultado: 'VENDA' as const };
+    expect(classificacaoDoCliente([ultima], hoje)).toEqual({ ultima, cor: 'VERDE', diasSemVisita: 3 });
   });
 });
 
