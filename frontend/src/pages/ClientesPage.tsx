@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/useAuth';
-import { listClients, mensagemErroApi } from '../services/clients';
+import { CORES, listClients, mensagemErroApi, ROTULO_COR, type Cor } from '../services/clients';
+import { BadgeCor } from '../components/BadgeCor';
 import { NavInferior } from '../components/NavInferior';
 
 const ATRASO_BUSCA_MS = 300;
@@ -19,6 +20,7 @@ export function ClientesPage() {
   const { logout } = useAuth();
   const [busca, setBusca] = useState('');
   const [buscaAtrasada, setBuscaAtrasada] = useState('');
+  const [cor, setCor] = useState<Cor | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setBuscaAtrasada(busca.trim()), ATRASO_BUSCA_MS);
@@ -26,8 +28,8 @@ export function ClientesPage() {
   }, [busca]);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['clients', buscaAtrasada],
-    queryFn: () => listClients({ search: buscaAtrasada || undefined }),
+    queryKey: ['clients', buscaAtrasada, cor],
+    queryFn: () => listClients({ search: buscaAtrasada || undefined, cor: cor ?? undefined }),
   });
 
   return (
@@ -52,6 +54,28 @@ export function ClientesPage() {
           />
         </div>
 
+        <div className="filtro-cores">
+          <button
+            type="button"
+            className={`badge-pilula${cor === null ? ' ativo' : ''}`}
+            aria-pressed={cor === null}
+            onClick={() => setCor(null)}
+          >
+            Todas
+          </button>
+          {CORES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`badge-pilula${cor === c ? ' ativo' : ''}`}
+              aria-pressed={cor === c}
+              onClick={() => setCor(c)}
+            >
+              <span className={`badge-${c.toLowerCase()}`} aria-hidden="true" /> {ROTULO_COR[c]}
+            </button>
+          ))}
+        </div>
+
         {isLoading && <p className="aviso">Carregando clientes...</p>}
 
         {isError && (
@@ -62,8 +86,8 @@ export function ClientesPage() {
 
         {!isLoading && !isError && data && data.length === 0 && (
           <p className="aviso">
-            {buscaAtrasada
-              ? 'Nenhum cliente encontrado para esta busca.'
+            {buscaAtrasada || cor
+              ? 'Nenhum cliente encontrado para esta busca ou filtro.'
               : 'Nenhum cliente cadastrado ainda.'}
           </p>
         )}
@@ -76,7 +100,9 @@ export function ClientesPage() {
                 <span className="info">
                   <span className="nome">{cliente.nomeFantasia}</span>
                   <span className="cidade">{cliente.cidade}</span>
+                  <span className="cidade">Rep.: {cliente.representante.nome}</span>
                 </span>
+                <BadgeCor cor={cliente.cor} />
               </Link>
             ))}
           </div>

@@ -39,6 +39,9 @@ export type ClienteListItem = {
   telefone: string;
   ativo: boolean;
   contatoPrincipal: { nome: string; telefone: string } | null;
+  cor: Cor;
+  diasSemVisita: number | null;
+  representante: { id: string; nome: string };
 };
 
 export type ClienteCompleto = {
@@ -95,10 +98,13 @@ export type UpdateContatoInput = Partial<ContatoInput>;
 
 type ListClientsResponse = { data: ClienteListItem[] };
 
-export function listClients(params: { search?: string } = {}): Promise<ClienteListItem[]> {
+export function listClients(params: { search?: string; cor?: Cor } = {}): Promise<ClienteListItem[]> {
   const query = new URLSearchParams();
   if (params.search) {
     query.set('search', params.search);
+  }
+  if (params.cor) {
+    query.set('color', params.cor);
   }
   const qs = query.toString();
   return api.get<ListClientsResponse>(`/clients${qs ? `?${qs}` : ''}`).then((resposta) => resposta.data);
