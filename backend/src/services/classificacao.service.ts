@@ -3,6 +3,7 @@ import {
   FUSO_HORARIO,
   LIMIAR_VERDE_AMARELO_DIAS,
   LIMIAR_LARANJA_DIAS,
+  LIMIAR_SEM_COMPRA_DIAS,
 } from '../config/classificacao';
 
 const MILISSEGUNDOS_POR_DIA = 86_400_000;
@@ -75,21 +76,61 @@ export function classificarCor(ultima: UltimaVisita, hoje: Date): Cor {
   return 'VERMELHO';
 }
 
+/** Dias de calendário desde a última venda no ERP; `null` sem venda registrada. */
+export function diasSemCompra(ultimaVenda: Date | null, hoje: Date): number | null {
+  if (ultimaVenda === null) {
+    return null;
+  }
+
+  return Math.max(0, diasEntre(dataCalendario(ultimaVenda), dataCalendario(hoje)));
+}
+
+/**
+ * Regra de cor composta (spec Etapa 5): se a última venda no ERP está há
+ * mais de `LIMIAR_SEM_COMPRA_DIAS` dias, VERDE/AMARELO são rebaixados para
+ * LARANJA. LARANJA e VERMELHO não mudam; sem `ultimaVenda`, mantém a base.
+ */
+export function aplicarRebaixamentoPorVenda(corBase: Cor, ultimaVenda: Date | null, hoje: Date): Cor {
+  const dias = diasSemCompra(ultimaVenda, hoje);
+
+  if (dias === null || dias <= LIMIAR_SEM_COMPRA_DIAS) {
+    return corBase;
+  }
+
+  if (corBase === 'VERDE' || corBase === 'AMARELO') {
+    return 'LARANJA';
+  }
+
+  return corBase;
+}
+
 /**
  * Deriva a última visita (mais recente por `dataHora`) e a cor/dias sem
  * visita a partir dela — ponto único usado pelos dois DTOs de cliente
- * (lista e ficha) para não divergirem sobre como `ultima` é obtida.
+ * (lista e ficha) para não divergirem sobre como `ultima` é obtida. `cor`
+ * já é a composta (rebaixada por `ultimaVenda` quando aplicável).
  */
 export function classificacaoDoCliente(
   visits: { dataHora: Date; resultado: ResultadoVisita }[],
   hoje: Date,
-): { ultima: UltimaVisita; cor: Cor; diasSemVisita: number | null } {
+  ultimaVenda: Date | null = null,
+): {
+  ultima: UltimaVisita;
+  cor: Cor;
+  diasSemVisita: number | null;
+  rebaixadoPorVenda: boolean;
+  diasSemCompra: number | null;
+} {
   const ultima = visits[0] ?? null;
+  const corBase = classificarCor(ultima, hoje);
+  const cor = aplicarRebaixamentoPorVenda(corBase, ultimaVenda, hoje);
 
   return {
     ultima,
-    cor: classificarCor(ultima, hoje),
+    cor,
     diasSemVisita: diasSemVisita(ultima, hoje),
+    rebaixadoPorVenda: cor !== corBase,
+    diasSemCompra: diasSemCompra(ultimaVenda, hoje),
   };
 }
 

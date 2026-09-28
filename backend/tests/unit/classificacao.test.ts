@@ -7,6 +7,8 @@ import {
   classificacaoDoCliente,
   calcularProximaVisita,
   ordemDeCor,
+  diasSemCompra,
+  aplicarRebaixamentoPorVenda,
 } from '../../src/services/classificacao.service';
 
 const hoje = new Date('2026-09-27T15:00:00Z');
@@ -77,12 +79,84 @@ describe('classificarCor', () => {
 
 describe('classificacaoDoCliente', () => {
   it('sem visitas: ultima null, cor VERMELHO, diasSemVisita null', () => {
-    expect(classificacaoDoCliente([], hoje)).toEqual({ ultima: null, cor: 'VERMELHO', diasSemVisita: null });
+    expect(classificacaoDoCliente([], hoje)).toEqual({
+      ultima: null,
+      cor: 'VERMELHO',
+      diasSemVisita: null,
+      rebaixadoPorVenda: false,
+      diasSemCompra: null,
+    });
   });
 
   it('uma visita VENDA há 3 dias: cor VERDE e diasSemVisita 3', () => {
     const ultima = { dataHora: diasAtras(3), resultado: 'VENDA' as const };
-    expect(classificacaoDoCliente([ultima], hoje)).toEqual({ ultima, cor: 'VERDE', diasSemVisita: 3 });
+    expect(classificacaoDoCliente([ultima], hoje)).toEqual({
+      ultima,
+      cor: 'VERDE',
+      diasSemVisita: 3,
+      rebaixadoPorVenda: false,
+      diasSemCompra: null,
+    });
+  });
+});
+
+describe('diasSemCompra', () => {
+  it('sem ultimaVenda é null', () => {
+    expect(diasSemCompra(null, hoje)).toBeNull();
+  });
+
+  it('conta dias de calendário desde a última venda', () => {
+    expect(diasSemCompra(diasAtras(90), hoje)).toBe(90);
+  });
+});
+
+describe('aplicarRebaixamentoPorVenda', () => {
+  it('VERDE e AMARELO viram LARANJA com última venda há 61 dias', () => {
+    const ultimaVenda = diasAtras(61);
+    expect(aplicarRebaixamentoPorVenda('VERDE', ultimaVenda, hoje)).toBe('LARANJA');
+    expect(aplicarRebaixamentoPorVenda('AMARELO', ultimaVenda, hoje)).toBe('LARANJA');
+  });
+
+  it('não rebaixa com última venda há exatamente 60 dias', () => {
+    const ultimaVenda = diasAtras(60);
+    expect(aplicarRebaixamentoPorVenda('VERDE', ultimaVenda, hoje)).toBe('VERDE');
+    expect(aplicarRebaixamentoPorVenda('AMARELO', ultimaVenda, hoje)).toBe('AMARELO');
+  });
+
+  it('LARANJA e VERMELHO não mudam mesmo com venda há 200 dias', () => {
+    const ultimaVenda = diasAtras(200);
+    expect(aplicarRebaixamentoPorVenda('LARANJA', ultimaVenda, hoje)).toBe('LARANJA');
+    expect(aplicarRebaixamentoPorVenda('VERMELHO', ultimaVenda, hoje)).toBe('VERMELHO');
+  });
+
+  it('ultimaVenda null mantém a cor base', () => {
+    expect(aplicarRebaixamentoPorVenda('VERDE', null, hoje)).toBe('VERDE');
+    expect(aplicarRebaixamentoPorVenda('LARANJA', null, hoje)).toBe('LARANJA');
+  });
+});
+
+describe('classificacaoDoCliente com ultimaVenda', () => {
+  it('visita VENDA há 3 dias + compra há 90 dias → LARANJA, rebaixadoPorVenda true, diasSemCompra 90', () => {
+    const ultima = { dataHora: diasAtras(3), resultado: 'VENDA' as const };
+    const ultimaVenda = diasAtras(90);
+    expect(classificacaoDoCliente([ultima], hoje, ultimaVenda)).toEqual({
+      ultima,
+      cor: 'LARANJA',
+      diasSemVisita: 3,
+      rebaixadoPorVenda: true,
+      diasSemCompra: 90,
+    });
+  });
+
+  it('sem ultimaVenda → rebaixadoPorVenda false e diasSemCompra null', () => {
+    const ultima = { dataHora: diasAtras(3), resultado: 'VENDA' as const };
+    expect(classificacaoDoCliente([ultima], hoje)).toEqual({
+      ultima,
+      cor: 'VERDE',
+      diasSemVisita: 3,
+      rebaixadoPorVenda: false,
+      diasSemCompra: null,
+    });
   });
 });
 
