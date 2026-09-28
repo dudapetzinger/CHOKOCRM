@@ -122,18 +122,22 @@ Convenções adotadas nas tabelas abaixo:
 | client_id | Chave estrangeira → `Client.id` | Sim | Cliente destinatário da mensagem de consulta de estoque. |
 | user_id | Chave estrangeira → `User.id` | Sim | Representante que gerou a mensagem. |
 | evento_sazonal | Chave estrangeira → `SeasonalEvent.id` | Não | Evento sazonal vigente no momento da geração, usado para sugerir produtos no template. Campo opcional — pode não haver evento sazonal ativo. |
-| texto_final | Texto | Sim | Texto final da mensagem, usado para compor o link `https://wa.me/<telefone>?text=<mensagem>` (seção 6.3 da especificação). |
+| texto_final | Texto | Sim | Texto final da mensagem — o texto sugerido pelo sistema, revisado (ou não) pelo representante antes de confirmar — usado para compor o link `https://wa.me/<telefone>?text=<mensagem>` (seção 6.3 da especificação). |
 | data_geracao | Data/hora | Sim | Data e hora de geração da mensagem; usada para auditoria e para o KPI de taxa de registro. |
+
+**Não persistidos:** o contato escolhido (ou o telefone do cliente, quando não há contato) e o telefone usado para montar o link não são gravados nesta entidade — apenas o `texto_final` fica registrado. O destinatário da mensagem, portanto, não é recuperável a partir do histórico; apenas o conteúdo enviado, o autor, o cliente e o evento sazonal vigente na geração.
 
 ### 3.7 SeasonalEvent
 
 | Campo | Tipo | Obrigatório | Descrição / Regra |
 |---|---|---|---|
 | id | Identificador único (UUID sugerido) | Sim | Chave primária. |
-| nome | Texto | Sim | Nome do evento ou data comemorativa (ex.: Páscoa, Dia das Mães, Dia dos Namorados, Dia dos Pais, Natal). |
-| data_inicio | Data | Sim | Data de início do período de vigência do evento. |
-| data_fim | Data | Sim | Data de término do período de vigência do evento. |
+| nome | Texto (único) | Sim | Nome do evento já com o ano (ex.: "Páscoa 2026", "Natal 2026"); a unicidade é a chave de upsert do seed, que o torna idempotente entre execuções. |
+| data_inicio | Data | Sim | Data de início do período de vigência do evento (30 dias antes da data do evento). |
+| data_fim | Data | Sim | Data de término do período de vigência do evento — a própria data do evento (ex.: o domingo de Páscoa). |
 | produtos_sugeridos | Lista de texto | Sim | Lista de produtos sugeridos associados ao evento; utilizada na composição de templates de mensagem de estoque (seção 6.3) e no módulo de insights (seção 6.4 da especificação). |
+
+**Seed:** os registros de `SeasonalEvent` são derivados do calendário sazonal já existente em `backend/src/config/sazonalidade.ts` (datas por algoritmo de Meeus/Jones/Butcher para a Páscoa, N-ésimo domingo do mês para Dia das Mães/Dia dos Pais, datas fixas para Namorados/Natal), com nome, janela de vigência (`data_fim` − 30 dias) e produtos sugeridos calculados por `config/eventosSazonaisSeed.ts` para cada um dos 5 eventos (`PASCOA`, `DIA_DAS_MAES`, `NAMORADOS`, `DIA_DOS_PAIS`, `NATAL`) nos dois anos `[ano atual, ano atual + 1]` — 10 registros no total. O seed (`prisma/seed.ts`) faz `upsert` por `nome`, portanto pode ser executado repetidamente sem duplicar eventos; `config/sazonalidade.ts` continua sendo a única fonte do calendário, usada também pelo gerador mock de ERP (seção 4).
 
 ## 4. Dados externos (ERP)
 

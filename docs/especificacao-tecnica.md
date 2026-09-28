@@ -83,7 +83,7 @@ chokocrm/
 └── README.md
 ```
 
-A estrutura acima reflete o repositório ao fim da Etapa 5, que acrescentou `backend/src/providers/erp/` (interface `ErpProvider`, `MockErpProvider` e o gerador determinístico e o catálogo em `providers/erp/mock/`) e, no frontend, o card de dados do ERP na ficha do cliente. Falta apenas o workflow `deploy.yml` (Etapa 6). As regras de dependência entre as camadas estão na seção 4.1 e nos diagramas C4 do documento de arquitetura.
+A estrutura acima reflete o repositório ao fim da Etapa 6A. A Etapa 5 acrescentou `backend/src/providers/erp/` (interface `ErpProvider`, `MockErpProvider` e o gerador determinístico e o catálogo em `providers/erp/mock/`) e, no frontend, o card de dados do ERP na ficha do cliente. A Etapa 6A acrescentou, no backend, `config/eventosSazonaisSeed.ts` (projeção pura do calendário de `config/sazonalidade.ts` para `SeasonalEvent`), `repositories/seasonal-event.repository.ts`, `services/seasonal-event.service.ts`, `services/stock-message.template.ts`, `services/stock-message.service.ts`, `schemas/stock-message.schema.ts` e `routes/stock-message.routes.ts`; e, no frontend, o card de mensagem de estoque na ficha do cliente (`components/MensagemEstoqueCard.tsx`, `hooks/useMensagensEstoque.ts` e `services/stockMessages.ts`). Falta apenas o workflow `deploy.yml` (Etapa 6). As regras de dependência entre as camadas estão na seção 4.1 e nos diagramas C4 do documento de arquitetura.
 
 ### 4.3 Integração ERP (padrão Adapter)
 
@@ -146,9 +146,12 @@ Na etapa 5, a cor calculada pela tabela acima pode ser rebaixada em um degrau: s
 
 ### 6.3 Mensagem de consulta de estoque
 
-- Template com produtos sugeridos do `SeasonalEvent` vigente.
-- Geração de link `https://wa.me/<telefone>?text=<mensagem>` — o representante revisa e envia pelo próprio WhatsApp (sem custo de API, funcional em campo).
-- Cada geração é registrada em `StockMessage` (auditoria + KPI de taxa de registro).
+- Template com produtos sugeridos do `SeasonalEvent` vigente, ou genérico sem evento vigente:
+  - Com evento: `Olá, {contato}! Aqui é {representante}, da Chokolaten. {Evento} está chegando — como está o estoque de {produtos} na {loja}? Posso preparar uma reposição. 🍫`
+  - Sem evento: `Olá, {contato}! Aqui é {representante}, da Chokolaten. Como está o estoque de chocolates na {loja}? Posso preparar uma reposição. 🍫` (`{contato}` vira "cliente" quando o destinatário não tem nome, ex.: telefone do cliente sem contato associado).
+- Destinatário escolhido pelo representante entre os contatos do cliente (o principal vem pré-selecionado) ou o telefone do próprio cliente; o texto proposto é editável antes de confirmar.
+- Geração de link `https://wa.me/<telefone>?text=<mensagem>` (telefone normalizado com DDI 55) — o representante revisa e envia pelo próprio WhatsApp (sem custo de API, funcional em campo); sem confirmação de envio.
+- Cada geração é registrada em `StockMessage` (cliente, autor, evento sazonal vigente quando houver e texto final; telefone e contato não são persistidos) — auditoria + KPI de taxa de registro.
 
 ### 6.4 Módulo de insights (BI)
 
@@ -169,6 +172,7 @@ PATCH  /visits/:id                      (corrige a descrição, só o autor)
 PUT    /visits/:id/foto                 GET    /visits/:id/foto
 PUT    /clients/:id/recurrence          (exige justificativa)
 GET    /clients/:id/erp                 (última venda, volume, estoque — via provider)
+GET    /clients/:id/stock-message/proposta   (texto sugerido, contatos e evento vigente)
 POST   /clients/:id/stock-message       GET    /stock-messages
 GET    /insights                        GET    /insights/manager-alerts
 GET    /dashboard/kpis                  GET    /agenda/today

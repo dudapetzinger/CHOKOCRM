@@ -44,7 +44,7 @@ O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator
 | UC09 | Ajustar recorrência de visitas | Representante |
 | UC10 | Visualizar agenda do dia | Representante; Gestor; Sistema (Agendador) |
 | UC11 | Consultar dados de venda/estoque do cliente | Representante; Gestor |
-| UC12 | Gerar mensagem de consulta de estoque | Representante |
+| UC12 | Gerar mensagem de consulta de estoque | Representante; Gestor (só consulta o histórico) |
 | UC13 | Visualizar insights e sugestões | Representante |
 | UC14 | Visualizar painel de KPIs (Gestor) | Gestor |
 | UC15 | Receber alertas de produção (Gestor) | Gestor |
@@ -356,26 +356,35 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 ### UC12 — Gerar mensagem de consulta de estoque
 
-**Ator principal:** Representante Comercial.
+**Ator principal:** Representante Comercial. **Ator secundário:** Gestor (não gera mensagens; consulta o histórico na ficha do cliente, junto com o representante).
 
-**Pré-condições:** o cliente está cadastrado no sistema.
+**Pré-condições:** o cliente está cadastrado no sistema; a geração de mensagem exige, além disso, que o cliente esteja ativo.
 
 **Fluxo principal:**
-1. O representante acessa "gerar mensagem de estoque" na ficha do cliente (UC06).
-2. O sistema identifica o evento sazonal vigente, quando houver, e seus produtos sugeridos.
-3. O sistema preenche o template de mensagem com os produtos sugeridos do evento sazonal vigente.
-4. O representante revisa o texto da mensagem gerada.
-5. O representante confirma a geração.
-6. O sistema monta um link `wa.me` contendo o telefone do cliente/contato e o texto da mensagem.
-7. O sistema registra a geração (data, cliente e usuário responsável).
-8. O representante utiliza o link gerado para enviar a mensagem pelo próprio WhatsApp.
+1. O representante aciona "Gerar mensagem" no card "Mensagem de estoque" da ficha do cliente (UC06), disponível apenas quando o cliente está ativo.
+2. O sistema identifica o evento sazonal vigente, quando houver, monta o texto sugerido com os produtos sugeridos do evento e devolve a lista de contatos do cliente (com o contato principal pré-selecionado) e o telefone do cliente como alternativa.
+3. O representante escolhe, em uma lista, o destinatário da mensagem — um dos contatos cadastrados ou o telefone do cliente — e revisa/edita o texto sugerido.
+4. O representante confirma a mensagem.
+5. O sistema normaliza o telefone escolhido, monta o link `wa.me` com o texto final e registra a geração (`StockMessage`: cliente, representante responsável, evento sazonal vigente quando houver, texto final e data/hora).
+6. O sistema exibe o link como botão "Abrir no WhatsApp" e o abre automaticamente em uma nova aba.
+7. O representante utiliza o link para enviar a mensagem pelo próprio WhatsApp; não há confirmação de envio nem envio automático via API.
+8. O histórico de mensagens geradas para o cliente (data/hora, autor, evento e texto) fica visível na ficha do cliente (UC06) para qualquer usuário autenticado, representante ou gestor.
 
 **Fluxo alternativo:**
-- **A1** (passo 2): não há evento sazonal vigente — o sistema utiliza um template genérico, sem produtos sazonais específicos.
+- **A1** (passo 2): não há evento sazonal vigente — o sistema propõe um template genérico ("Como está o estoque de chocolates..."), sem produtos sazonais específicos.
+- **A2** (passo 2): cliente sem contatos cadastrados — a única opção de destinatário é o telefone do cliente.
+
+**Fluxo de exceção:**
+- **E1** (passo 1): cliente inativo — o sistema não oferece a opção de gerar mensagem na ficha; se acionada mesmo assim, a geração responde com erro (cliente inativo não recebe mensagem de estoque).
+- **E2** (passo 3): o contato escolhido não pertence ao cliente da ficha — o sistema rejeita a geração com mensagem informando que o contato informado não pertence a aquele cliente.
+- **E3** (passo 5): o telefone do destinatário (contato ou cliente) é inválido para o link do WhatsApp (menos de 10 dígitos) — o sistema rejeita a geração com mensagem informando o telefone inválido, sem registrar a mensagem.
 
 **Regras de negócio associadas:**
-- A mensagem é enviada por meio de um link `wa.me` com texto pré-preenchido; o próprio representante revisa e envia pelo WhatsApp, sem envio automático via API.
-- Toda geração de mensagem é registrada, para fins de auditoria e de cálculo da taxa de registro (KPI).
+- O destinatário é sempre uma pessoa (contato do cliente ou o telefone do próprio cliente), nunca um canal genérico da loja; o contato principal do cliente, quando existir, vem pré-selecionado.
+- O sistema propõe o texto; o representante pode editá-lo livremente antes de confirmar — é o texto final editado que é gravado e que compõe o link.
+- A mensagem é enviada por meio de um link `wa.me` com texto pré-preenchido; o próprio representante revisa e envia pelo WhatsApp, sem envio automático via API e sem confirmação de envio pelo sistema.
+- Toda geração de mensagem é registrada em `StockMessage`, para fins de auditoria e de cálculo da taxa de registro (KPI); o telefone e o contato escolhidos não são persistidos, apenas o texto final.
+- O histórico de mensagens geradas é visível a qualquer papel na ficha do cliente; a listagem `GET /stock-messages` (sem filtro de carteira) está pronta para uso futuro em um painel gerencial.
 
 ---
 

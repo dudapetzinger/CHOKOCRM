@@ -87,7 +87,7 @@ npm run db:migrate
 npm run db:seed
 ```
 
-O seed é determinístico e cria clientes com contatos, um histórico de visitas suficiente para exercitar a classificação por cor e dois usuários de desenvolvimento:
+O seed é determinístico e cria clientes com contatos, um histórico de visitas suficiente para exercitar a classificação por cor, dois usuários de desenvolvimento e, desde a Etapa 6A, os eventos sazonais (`SeasonalEvent`) do ano corrente e do seguinte — usados pela mensagem de consulta de estoque (UC12) e pelo módulo de insights; o `upsert` por `nome` torna o seed idempotente, então rodá-lo de novo não duplica eventos:
 
 | Perfil | E-mail | Senha |
 |--------|--------|-------|
