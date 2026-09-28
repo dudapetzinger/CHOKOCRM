@@ -1,27 +1,17 @@
-import type { Role } from '@prisma/client';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import { createVisitSchema, updateVisitSchema } from '../schemas/visit.schema';
 import * as visitService from '../services/visit.service';
+import { usuarioAutenticado } from './usuarioAutenticado';
 
 const idParamSchema = z.string().uuid('Identificador inválido.');
 
-const MENSAGEM_SEM_USUARIO = 'Token de autenticação ausente ou inválido.';
 const MENSAGEM_TIPO_NAO_SUPORTADO = 'Envie a foto como image/jpeg, image/png ou image/webp.';
 const MENSAGEM_CORPO_VAZIO = 'O corpo da requisição deve conter os bytes da foto.';
 
 const TIPOS_DE_IMAGEM_ACEITOS = ['image/jpeg', 'image/png', 'image/webp'];
-
-/** `authJwt` popula `req.user`; esta guarda estreita o tipo sem asserção. */
-function usuarioAutenticado(req: Request): { id: string; role: Role } {
-  if (!req.user) {
-    throw new AppError(ErrorCode.UNAUTHORIZED, MENSAGEM_SEM_USUARIO, 401);
-  }
-
-  return req.user;
-}
 
 export async function getVisitsByClient(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
