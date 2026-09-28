@@ -161,7 +161,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 ### UC05 — Visualizar lista de clientes com classificação por cores
 
-**Ator principal:** Representante Comercial.
+**Ator principal:** Representante Comercial. **Ator secundário:** Gestor (somente consulta).
 
 **Pré-condições:** o representante está autenticado; existem clientes cadastrados.
 
@@ -194,7 +194,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 ### UC06 — Visualizar ficha do cliente
 
-**Ator principal:** Representante Comercial.
+**Ator principal:** Representante Comercial. **Ator secundário:** Gestor (somente consulta).
 
 **Pré-condições:** o cliente está cadastrado no sistema.
 
@@ -250,7 +250,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 ### UC08 — Consultar histórico de interações
 
-**Ator principal:** Representante Comercial.
+**Ator principal:** Representante Comercial. **Ator secundário:** Gestor (somente consulta).
 
 **Pré-condições:** o cliente está cadastrado no sistema.
 
@@ -306,7 +306,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 ### UC10 — Visualizar agenda do dia
 
-**Ator principal:** Representante Comercial. **Ator secundário:** Sistema (Agendador).
+**Ator principal:** Representante Comercial. **Atores secundários:** Gestor (somente consulta, vê a agenda de todos os representantes) e Sistema (Agendador).
 
 **Pré-condições:** existem clientes cadastrados com recorrência de visitas definida.
 
