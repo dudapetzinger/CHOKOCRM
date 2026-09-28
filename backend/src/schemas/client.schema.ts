@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CORES } from '../services/classificacao.service';
 
 /**
  * Validação de clientes e contatos (UC02/UC03/UC04). O schema Prisma
@@ -80,6 +81,7 @@ export type UpdateClientInput = z.infer<typeof updateClientSchema>;
 export const listClientsQuerySchema = z.object({
   search: z.string().trim().min(1).optional(),
   ativo: z.string().optional(),
+  color: z.enum(CORES, { message: 'Cor deve ser VERDE, AMARELO, LARANJA ou VERMELHO.' }).optional(),
 });
 
 export type ListClientsQuery = z.infer<typeof listClientsQuerySchema>;

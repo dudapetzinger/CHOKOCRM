@@ -5,6 +5,7 @@ import * as clientRepository from '../repositories/client.repository';
 import type { ClientComContatoPrincipal, ClientComContatos } from '../repositories/client.repository';
 import * as userRepository from '../repositories/user.repository';
 import type { CreateClientInput, ListClientsQuery, UpdateClientInput } from '../schemas/client.schema';
+import { classificarCor, diasSemVisita, type Cor } from './classificacao.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CNPJ_DUPLICADO = 'Já existe um cliente cadastrado com este CNPJ.';
@@ -23,6 +24,9 @@ export type ClienteListItemDTO = {
   telefone: string;
   ativo: boolean;
   contatoPrincipal: { nome: string; telefone: string } | null;
+  cor: Cor;
+  diasSemVisita: number | null;
+  representante: { id: string; nome: string };
 };
 
 export type ContatoDTO = {
@@ -32,6 +36,15 @@ export type ContatoDTO = {
   telefone: string;
   email: string;
   principal: boolean;
+};
+
+export type RecorrenciaChangeDTO = {
+  id: string;
+  de: number;
+  para: number;
+  justificativa: string;
+  autor: { id: string; nome: string };
+  data: string;
 };
 
 export type ClienteCompletoDTO = {
@@ -48,10 +61,15 @@ export type ClienteCompletoDTO = {
   ativo: boolean;
   criadoEm: string;
   contatos: ContatoDTO[];
+  cor: Cor;
+  diasSemVisita: number | null;
+  representante: { id: string; nome: string };
+  recorrenciaChanges: RecorrenciaChangeDTO[];
 };
 
-function toListItemDTO(client: ClientComContatoPrincipal): ClienteListItemDTO {
+function toListItemDTO(client: ClientComContatoPrincipal, hoje: Date): ClienteListItemDTO {
   const [principal] = client.contacts;
+  const ultima = client.visits[0] ?? null;
 
   return {
     id: client.id,
@@ -61,10 +79,15 @@ function toListItemDTO(client: ClientComContatoPrincipal): ClienteListItemDTO {
     telefone: client.telefone,
     ativo: client.ativo,
     contatoPrincipal: principal ? { nome: principal.nome, telefone: principal.telefone } : null,
+    cor: classificarCor(ultima, hoje),
+    diasSemVisita: diasSemVisita(ultima, hoje),
+    representante: { id: client.representante.id, nome: client.representante.nome },
   };
 }
 
-function toClienteCompletoDTO(client: ClientComContatos): ClienteCompletoDTO {
+function toClienteCompletoDTO(client: ClientComContatos, hoje: Date): ClienteCompletoDTO {
+  const ultima = client.visits[0] ?? null;
+
   return {
     id: client.id,
     razaoSocial: client.razaoSocial,
@@ -85,6 +108,17 @@ function toClienteCompletoDTO(client: ClientComContatos): ClienteCompletoDTO {
       telefone: contato.telefone,
       email: contato.email,
       principal: contato.principal,
+    })),
+    cor: classificarCor(ultima, hoje),
+    diasSemVisita: diasSemVisita(ultima, hoje),
+    representante: { id: client.representante.id, nome: client.representante.nome },
+    recorrenciaChanges: client.scheduleChanges.map((change) => ({
+      id: change.id,
+      de: change.recorrenciaAnterior,
+      para: change.recorrenciaNova,
+      justificativa: change.justificativa,
+      autor: { id: change.user.id, nome: change.user.nome },
+      data: change.data.toISOString(),
     })),
   };
 }
@@ -119,8 +153,11 @@ function mapPrismaUniqueError(err: unknown): unknown {
 
 export async function listClients(query: ListClientsQuery): Promise<ClienteListItemDTO[]> {
   const ativoFiltro = query.ativo === 'todos' ? 'todos' : 'ativos';
+  const hoje = new Date();
   const clientes = await clientRepository.list({ search: query.search, ativoFiltro });
-  return clientes.map(toListItemDTO);
+  const itens = clientes.map((cliente) => toListItemDTO(cliente, hoje));
+
+  return query.color ? itens.filter((item) => item.cor === query.color) : itens;
 }
 
 export async function getClientById(id: string): Promise<ClienteCompletoDTO> {
@@ -130,7 +167,7 @@ export async function getClientById(id: string): Promise<ClienteCompletoDTO> {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
   }
 
-  return toClienteCompletoDTO(cliente);
+  return toClienteCompletoDTO(cliente, new Date());
 }
 
 export async function createClient(

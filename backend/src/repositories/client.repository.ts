@@ -1,14 +1,32 @@
-import type { Client, Contact, Prisma } from '@prisma/client';
+import type { Client, Contact, Prisma, ResultadoVisita, VisitScheduleChange } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import type { CreateClientInput, UpdateClientInput } from '../schemas/client.schema';
 
 export type AtivoFiltro = 'ativos' | 'todos';
 
+/**
+ * Projeção da última visita (por `dataHora`), reaproveitada tanto na
+ * listagem quanto na ficha para classificar a cor do cliente (ADR-005:
+ * a cor nunca é persistida, sempre calculada a partir da última visita).
+ */
+export const SELECT_ULTIMA_VISITA = {
+  take: 1,
+  orderBy: { dataHora: 'desc' as const },
+  select: { dataHora: true, resultado: true },
+} as const;
+
 export type ClientComContatoPrincipal = Client & {
   contacts: Pick<Contact, 'nome' | 'telefone'>[];
+  visits: { dataHora: Date; resultado: ResultadoVisita }[];
+  representante: { id: string; nome: string };
 };
 
-export type ClientComContatos = Client & { contacts: Contact[] };
+export type ClientComContatos = Client & {
+  contacts: Contact[];
+  visits: { dataHora: Date; resultado: ResultadoVisita }[];
+  representante: { id: string; nome: string };
+  scheduleChanges: (VisitScheduleChange & { user: { id: string; nome: string } })[];
+};
 
 export async function findByCnpj(cnpj: string): Promise<Client | null> {
   return prisma.client.findUnique({ where: { cnpj } });
@@ -19,6 +37,12 @@ export async function findById(id: string): Promise<ClientComContatos | null> {
     where: { id },
     include: {
       contacts: { orderBy: [{ principal: 'desc' }, { nome: 'asc' }] },
+      visits: SELECT_ULTIMA_VISITA,
+      representante: { select: { id: true, nome: true } },
+      scheduleChanges: {
+        orderBy: { data: 'desc' },
+        include: { user: { select: { id: true, nome: true } } },
+      },
     },
   });
 }
@@ -52,6 +76,8 @@ export async function list(params: { search?: string; ativoFiltro: AtivoFiltro }
         take: 1,
         select: { nome: true, telefone: true },
       },
+      visits: SELECT_ULTIMA_VISITA,
+      representante: { select: { id: true, nome: true } },
     },
     orderBy: { nomeFantasia: 'asc' },
   });

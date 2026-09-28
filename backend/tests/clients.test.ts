@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
+import type { ResultadoVisita } from '@prisma/client';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
 import { truncateAllTables } from './helpers/db';
@@ -130,6 +131,18 @@ async function logar(email: string): Promise<string> {
   return login.body.token;
 }
 
+async function criarVisita(clienteId: string, diasAtras: number, resultado: ResultadoVisita) {
+  return prisma.visit.create({
+    data: {
+      clientId: clienteId,
+      userId: representanteId,
+      dataHora: new Date(Date.now() - diasAtras * 86_400_000),
+      descricao: 'Visita de teste',
+      resultado,
+    },
+  });
+}
+
 beforeEach(async () => {
   await truncateAllTables();
 
@@ -197,6 +210,9 @@ describe('GET /clients', () => {
       telefone: CLIENTE_POMERODE.telefone,
       ativo: true,
       contatoPrincipal: { nome: 'Marta Weber', telefone: '(47) 99911-2233' },
+      cor: 'VERMELHO',
+      diasSemVisita: null,
+      representante: { id: representanteId, nome: REPRESENTANTE.nome },
     });
 
     const inativo = res.body.data.find((c: { nomeFantasia: string }) => c.nomeFantasia === 'Doceria Jaraguá');
@@ -223,6 +239,63 @@ describe('GET /clients', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(3);
     expect(res.body.data.some((c: { nomeFantasia: string }) => c.nomeFantasia === 'Doceria Jaraguá')).toBe(true);
+  });
+
+  it('GET /clients traz cor VERMELHO, diasSemVisita null e representante para cliente sem visita', async () => {
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const pomerode = res.body.data.find((c: { nomeFantasia: string }) => c.nomeFantasia === 'Empório Pomerode');
+    expect(pomerode.cor).toBe('VERMELHO');
+    expect(pomerode.diasSemVisita).toBeNull();
+    expect(pomerode.representante).toEqual({ id: representanteId, nome: REPRESENTANTE.nome });
+  });
+
+  it('GET /clients calcula VERDE para visita de 3 dias com VENDA', async () => {
+    const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+    await criarVisita(id, 3, 'VENDA');
+
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const pomerode = res.body.data.find((c: { nomeFantasia: string }) => c.nomeFantasia === 'Empório Pomerode');
+    expect(pomerode.cor).toBe('VERDE');
+    expect(pomerode.diasSemVisita).toBe(3);
+  });
+
+  it('cor usa a visita mais recente por dataHora, não a última gravada', async () => {
+    const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+    await criarVisita(id, 3, 'VENDA');
+    await criarVisita(id, 40, 'SEM_VENDA');
+
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const pomerode = res.body.data.find((c: { nomeFantasia: string }) => c.nomeFantasia === 'Empório Pomerode');
+    expect(pomerode.cor).toBe('VERDE');
+    expect(pomerode.diasSemVisita).toBe(3);
+  });
+
+  it('GET /clients?color=VERMELHO devolve só os vermelhos', async () => {
+    const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+    await criarVisita(id, 3, 'VENDA');
+
+    const res = await request(app)
+      .get('/clients')
+      .query({ color: 'VERMELHO' })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThan(0);
+    expect(res.body.data.every((c: { cor: string }) => c.cor === 'VERMELHO')).toBe(true);
+    expect(res.body.data.some((c: { nomeFantasia: string }) => c.nomeFantasia === 'Empório Pomerode')).toBe(false);
+  });
+
+  it('GET /clients?color=roxo responde 400', async () => {
+    const res = await request(app).get('/clients').query({ color: 'roxo' }).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
 
@@ -264,6 +337,10 @@ describe('POST /clients', () => {
           principal: true,
         },
       ],
+      cor: 'VERMELHO',
+      diasSemVisita: null,
+      representante: { id: representanteId, nome: REPRESENTANTE.nome },
+      recorrenciaChanges: [],
     });
 
     const persistido = await prisma.client.findUnique({ where: { id: res.body.id } });
@@ -399,6 +476,19 @@ describe('GET /clients/:id', () => {
     expect(res.body.contatos).toHaveLength(2);
     expect(res.body.contatos[0]).toMatchObject({ nome: 'Marta Weber', principal: true });
     expect(res.body.contatos[1]).toMatchObject({ nome: 'João Siewert', principal: false });
+  });
+
+  it('GET /clients/:id traz cor, diasSemVisita, representante e recorrenciaChanges vazio', async () => {
+    const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+    await criarVisita(id, 3, 'VENDA');
+
+    const res = await request(app).get(`/clients/${id}`).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.cor).toBe('VERDE');
+    expect(res.body.diasSemVisita).toBe(3);
+    expect(res.body.representante).toEqual({ id: representanteId, nome: REPRESENTANTE.nome });
+    expect(res.body.recorrenciaChanges).toEqual([]);
   });
 });
 
