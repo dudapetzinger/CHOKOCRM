@@ -351,7 +351,7 @@ button {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 20px;
+  bottom: 72px;
   max-width: 480px;
   margin: 0 auto;
   display: flex;
@@ -384,8 +384,8 @@ button {
 
 /* ==========================================================================
    11. Etiquetas (.etiqueta)
-   Rótulo neutro (sem cor de classificação — badges de cor são da Etapa 4).
-   Uso: identificar o contato principal na ficha do cliente.
+   Rótulo neutro (sem cor de classificação — ver seção 17 para os badges de
+   cor). Uso: identificar o contato principal na ficha do cliente.
    ========================================================================== */
 .etiqueta {
   display: inline-block;
@@ -583,4 +583,215 @@ button {
   max-height: 16rem;
   object-fit: cover;
   border-radius: 0.5rem;
+}
+
+/* ==========================================================================
+   16. Navegação inferior (.nav-inferior)
+   Barra fixa com os atalhos das telas internas: Clientes e Agenda. Não
+   aparece na tela de login. Uso (ver components/NavInferior.tsx):
+   <nav class="nav-inferior" aria-label="Navegação principal">
+     <NavLink to="/clientes"><span class="icone">👥</span>Clientes</NavLink>
+     <NavLink to="/agenda"><span class="icone">🗓️</span>Agenda</NavLink>
+   </nav>
+   A classe "ativo" marca a aba da tela atual. Toda tela que renderiza a
+   barra deve somar `.conteudo-com-nav` à `.conteudo`, para reservar o
+   espaço ocupado por ela (ver docs/prototipo/css/estilo.css).
+   ========================================================================== */
+.conteudo-com-nav {
+  padding-bottom: 96px;
+}
+
+.nav-inferior {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  max-width: 480px;
+  margin: 0 auto;
+  background-color: var(--branco);
+  border-top: 1px solid var(--marrom-100);
+  box-shadow: 0 -1px 4px rgba(62, 39, 35, 0.1);
+}
+
+.nav-inferior a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 4px 10px;
+  font-size: 11px;
+  color: var(--texto-suave);
+  text-decoration: none;
+  text-align: center;
+}
+
+.nav-inferior a .icone {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.nav-inferior a.ativo {
+  color: var(--marrom-900);
+  font-weight: 700;
+  box-shadow: inset 0 2px 0 var(--marrom-900);
+}
+
+/* ==========================================================================
+   17. Selos de classificação por cor (.badge-*)
+   Ponto de 12px de diâmetro — a cor indica a classificação do cliente
+   (verde/amarelo/laranja/vermelho, ver docs/casos-de-uso.md, UC05). Uso
+   isolado (ex.: dentro de .item-lista, via components/BadgeCor.tsx):
+     <span class="badge-verde" role="img" aria-label="Verde"></span>
+   ========================================================================== */
+.badge-verde,
+.badge-amarelo,
+.badge-laranja,
+.badge-vermelho {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.badge-verde { background-color: var(--verde); }
+.badge-amarelo { background-color: var(--amarelo); }
+.badge-laranja { background-color: var(--laranja); }
+.badge-vermelho { background-color: var(--vermelho); }
+
+/* Variante pílula: o ponto de cor acompanhado de um rótulo textual, usada
+   em filtros e legendas. Uso:
+     <span class="badge-pilula"><span class="badge-verde"></span> Verde</span>
+   Adicionar "ativo" para marcar o filtro selecionado. */
+.badge-pilula {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background-color: var(--branco);
+  border: 1px solid var(--marrom-100);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.badge-pilula.ativo {
+  background-color: var(--marrom-100);
+  border-color: var(--marrom-700);
+}
+
+/* ==========================================================================
+   18. Filtro de cores (.filtro-cores)
+   Barra de pílulas de cor para filtrar a lista de clientes por
+   classificação (ver docs/prototipo/clientes.html).
+   ========================================================================== */
+.filtro-cores {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+  margin-bottom: 4px;
+}
+
+.filtro-cores .badge-pilula {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   19. Agenda do dia (.agenda-*)
+   Cada linha tem duas ações — abrir a ficha do cliente e registrar
+   check-in —, o que exigiria aninhar um elemento interativo dentro de
+   outro (<a> dentro de <a>), inválido em HTML; por isso este componente
+   próprio, em vez de reaproveitar .item-lista (ver
+   docs/prototipo/agenda.html).
+   ========================================================================== */
+.agenda-lista {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--branco);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.agenda-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--marrom-100);
+}
+
+.agenda-item:last-child {
+  border-bottom: none;
+}
+
+.agenda-item-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.agenda-item-link:hover,
+.agenda-item-link:focus-visible {
+  text-decoration: underline;
+}
+
+.agenda-item .avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  background-color: var(--marrom-100);
+  color: var(--marrom-900);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.agenda-item .info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.agenda-item .info .nome {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.agenda-item .info .dias {
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+.agenda-item [class^="badge-"] {
+  flex-shrink: 0;
+}
+
+.agenda-item .btn-checkin {
+  flex-shrink: 0;
+  width: auto;
+  padding: 8px 14px;
+  font-size: 13px;
 }

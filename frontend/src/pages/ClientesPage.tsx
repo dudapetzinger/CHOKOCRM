@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/useAuth';
 import { listClients, mensagemErroApi } from '../services/clients';
+import { NavInferior } from '../components/NavInferior';
 
 const ATRASO_BUSCA_MS = 300;
 
@@ -38,7 +39,7 @@ export function ClientesPage() {
         </button>
       </header>
 
-      <div className="conteudo conteudo-com-flutuante">
+      <div className="conteudo conteudo-com-flutuante conteudo-com-nav">
         <div className="campo">
           <label htmlFor="busca">Buscar cliente</label>
           <input
@@ -87,6 +88,8 @@ export function ClientesPage() {
           + Novo cliente
         </Link>
       </div>
+
+      <NavInferior />
     </div>
   );
 }

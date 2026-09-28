@@ -19,6 +19,18 @@ export type Contato = {
   principal: boolean;
 };
 
+/** Classificação de cliente por cor (UC05, Etapa 4). */
+export type Cor = 'VERDE' | 'AMARELO' | 'LARANJA' | 'VERMELHO';
+
+export const CORES: readonly Cor[] = ['VERDE', 'AMARELO', 'LARANJA', 'VERMELHO'];
+
+export const ROTULO_COR: Record<Cor, string> = {
+  VERDE: 'Verde',
+  AMARELO: 'Amarelo',
+  LARANJA: 'Laranja',
+  VERMELHO: 'Vermelho',
+};
+
 export type ClienteListItem = {
   id: string;
   nomeFantasia: string;

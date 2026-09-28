@@ -22,6 +22,7 @@ import {
   type ContatoFormValue,
 } from '../components/ContatoFields';
 import { VisitTimeline } from '../components/VisitTimeline';
+import { NavInferior } from '../components/NavInferior';
 import { useAuth } from '../auth/useAuth';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
@@ -267,9 +268,10 @@ export function ClienteDetalhePage() {
             Voltar
           </Link>
         </header>
-        <div className="conteudo">
+        <div className="conteudo conteudo-com-nav">
           <p className="aviso">Carregando dados do cliente...</p>
         </div>
+        <NavInferior />
       </div>
     );
   }
@@ -283,11 +285,12 @@ export function ClienteDetalhePage() {
             Voltar
           </Link>
         </header>
-        <div className="conteudo">
+        <div className="conteudo conteudo-com-nav">
           <p className="aviso aviso-atencao" role="alert">
             {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
           </p>
         </div>
+        <NavInferior />
       </div>
     );
   }
@@ -301,7 +304,7 @@ export function ClienteDetalhePage() {
         </Link>
       </header>
 
-      <div className="conteudo">
+      <div className="conteudo conteudo-com-nav">
         {mensagemSucesso && <p className="aviso">{mensagemSucesso}</p>}
 
         <section className="card" aria-labelledby="titulo-dados-cliente">
@@ -688,6 +691,8 @@ export function ClienteDetalhePage() {
           />
         </section>
       </div>
+
+      <NavInferior />
     </div>
   );
 }
