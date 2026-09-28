@@ -28,6 +28,34 @@ export type ClientComContatos = Client & {
   scheduleChanges: (VisitScheduleChange & { user: { id: string; nome: string } })[];
 };
 
+export type ClienteParaAgenda = {
+  id: string;
+  nomeFantasia: string;
+  cidade: string;
+  criadoEm: Date;
+  recorrenciaDias: number;
+  visits: { dataHora: Date; resultado: ResultadoVisita }[];
+};
+
+/**
+ * Clientes ativos elegíveis para a agenda do dia (UC10): sem
+ * `representanteId`, todos os representantes (visão do gestor); com
+ * `representanteId`, só a carteira daquele representante.
+ */
+export async function listAtivosParaAgenda(representanteId?: string): Promise<ClienteParaAgenda[]> {
+  return prisma.client.findMany({
+    where: { ativo: true, ...(representanteId ? { representanteId } : {}) },
+    select: {
+      id: true,
+      nomeFantasia: true,
+      cidade: true,
+      criadoEm: true,
+      recorrenciaDias: true,
+      visits: SELECT_ULTIMA_VISITA,
+    },
+  });
+}
+
 export async function findByCnpj(cnpj: string): Promise<Client | null> {
   return prisma.client.findUnique({ where: { cnpj } });
 }

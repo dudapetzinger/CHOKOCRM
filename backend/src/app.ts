@@ -5,6 +5,7 @@ import { AppError } from './errors/AppError';
 import { ErrorCode } from './errors/errorCodes';
 import { errorHandler } from './middlewares/errorHandler';
 import { requestLogger } from './middlewares/requestLogger';
+import { agendaRouter } from './routes/agenda.routes';
 import { authRouter } from './routes/auth.routes';
 import { clientRouter } from './routes/client.routes';
 import { clientContactsRouter, contactRouter } from './routes/contact.routes';
@@ -31,6 +32,7 @@ app.use(express.json());
 app.use(requestLogger);
 
 app.use(healthRouter);
+app.use('/agenda', agendaRouter);
 app.use('/auth', authRouter);
 app.use('/clients', clientRouter);
 app.use('/clients/:id/contacts', clientContactsRouter);
