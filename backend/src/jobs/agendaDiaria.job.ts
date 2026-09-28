@@ -51,6 +51,22 @@ export async function executarAgendaDiaria(hoje: Date = new Date()): Promise<voi
 }
 
 /**
+ * Wrapper usado pelo agendamento (`cron.schedule`): `executarAgendaDiaria`
+ * mantém o contrato honesto de rejeitar quando nem consegue listar os
+ * representantes (ex.: falha transitória do banco), mas o callback do
+ * cron descarta a promise (`void`) sem anexar `.catch` — uma rejeição ali
+ * vira unhandled rejection e, sob os defaults do Node, derruba o processo
+ * inteiro da API (job roda no mesmo processo do Express). Este wrapper
+ * consome a rejeição e só loga, garantindo que a promise retornada nunca
+ * rejeita.
+ */
+export async function executarAgendaDiariaComSeguranca(): Promise<void> {
+  await executarAgendaDiaria().catch((err: unknown) => {
+    logger.error({ job: NOME_JOB, err }, 'Falha ao executar a agenda diária');
+  });
+}
+
+/**
  * Agenda o job para rodar diariamente no fuso do representante
  * (`FUSO_HORARIO`). Desativável via `AGENDA_JOB_ENABLED=false` (usado no CI
  * e em ambientes onde o agendamento não deve rodar).
@@ -65,6 +81,8 @@ export function iniciarAgendaDiaria(): void {
     throw new Error(`AGENDA_JOB_CRON inválido: "${env.AGENDA_JOB_CRON}"`);
   }
 
-  cron.schedule(env.AGENDA_JOB_CRON, () => void executarAgendaDiaria(), { timezone: FUSO_HORARIO });
+  cron.schedule(env.AGENDA_JOB_CRON, () => void executarAgendaDiariaComSeguranca(), {
+    timezone: FUSO_HORARIO,
+  });
   logger.info(`Job agenda-diaria agendado (${env.AGENDA_JOB_CRON}, ${FUSO_HORARIO})`);
 }

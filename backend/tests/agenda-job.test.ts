@@ -1,8 +1,13 @@
 import bcrypt from 'bcryptjs';
 import * as agendaService from '../src/services/agenda.service';
-import { executarAgendaDiaria, NOME_JOB } from '../src/jobs/agendaDiaria.job';
+import {
+  executarAgendaDiaria,
+  executarAgendaDiariaComSeguranca,
+  NOME_JOB,
+} from '../src/jobs/agendaDiaria.job';
 import { logger } from '../src/lib/logger';
 import { prisma } from '../src/lib/prisma';
+import * as userRepository from '../src/repositories/user.repository';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -96,5 +101,25 @@ describe('executarAgendaDiaria', () => {
 
     expect(errosDoJob).toHaveLength(1);
     expect(infosDoJob).toHaveLength(1);
+  });
+
+  it('rejeita quando nem consegue listar os representantes (contrato honesto)', async () => {
+    jest.spyOn(userRepository, 'listByRole').mockRejectedValueOnce(new Error('db fora'));
+
+    await expect(executarAgendaDiaria(new Date())).rejects.toThrow('db fora');
+  });
+});
+
+describe('executarAgendaDiariaComSeguranca', () => {
+  it('consome a rejeição de executarAgendaDiaria e loga o erro, sem derrubar o processo', async () => {
+    const errorSpy = jest.spyOn(logger, 'error');
+    jest.spyOn(userRepository, 'listByRole').mockRejectedValueOnce(new Error('db fora'));
+
+    await expect(executarAgendaDiariaComSeguranca()).resolves.toBeUndefined();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ job: NOME_JOB }),
+      'Falha ao executar a agenda diária',
+    );
   });
 });
