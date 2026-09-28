@@ -9,6 +9,11 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().min(1).default('8h'),
   FRONTEND_URL: z.string().min(1).default('http://localhost:5173'),
   UPLOADS_DIR: z.string().min(1).default('./uploads'),
+  AGENDA_JOB_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  AGENDA_JOB_CRON: z.string().min(1).default('0 6 * * *'),
 });
 
 export type Env = z.infer<typeof envSchema>;

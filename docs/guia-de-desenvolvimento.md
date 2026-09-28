@@ -42,6 +42,13 @@ O `backend/.env.example` documenta cada variável. Duas merecem atenção:
 
 O usuário, a senha e o nome do banco de desenvolvimento estão fixos no `docker-compose.yml` (`chokocrm` para os três) e servem apenas ao ambiente local.
 
+Duas outras controlam o job diário de alertas da agenda (UC10 — ver `backend/src/jobs/agendaDiaria.job.ts`):
+
+| Variável | Padrão | Para quê |
+|----------|--------|----------|
+| `AGENDA_JOB_ENABLED` | `true` | Liga/desliga o agendamento. O CI define `"false"`, já que o pipeline não precisa de um job recorrente rodando. |
+| `AGENDA_JOB_CRON` | `0 6 * * *` | Expressão cron (formato node-cron) de quando o job roda, interpretada no fuso `America/Sao_Paulo`. |
+
 ## 3. Subindo o ambiente com Docker Compose
 
 Na raiz do repositório:
