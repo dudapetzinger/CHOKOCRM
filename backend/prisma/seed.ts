@@ -248,56 +248,133 @@ async function seedCliente(cliente: ClienteSeed, representanteId: string): Promi
   }
 }
 
+type VisitaSeed = {
+  diasAtras: number;
+  descricao: string;
+  resultado: 'VENDA' | 'NEGOCIACAO' | 'SEM_VENDA';
+};
+
+type VisitasClienteSeed = {
+  emailCliente: string;
+  visitas: VisitaSeed[];
+};
+
 /**
- * Visitas de demonstração no primeiro cliente do seed, uma de cada
- * resultado, para a timeline da ficha ter conteúdo. Idempotente: se o
- * cliente já tem visita registrada, não cria nada.
+ * Visitas de demonstração por cliente, para a timeline da ficha ter
+ * conteúdo e, com as regras da Etapa 4 (cor pela última visita; agenda =
+ * última visita + recorrência, ou criadoEm + recorrência sem visita),
+ * o banco de dev nascer mostrando as quatro cores e uma agenda do dia
+ * não vazia (atrasadas e hoje):
+ * - Empório Pomerode: VERDE (VENDA há 3 dias) — histórico original mantido.
+ * - Café Blumenau: AMARELO (NEGOCIACAO há 10 dias, dentro dos 15 dias).
+ * - Doceria Jaraguá: LARANJA e atrasada (SEM_VENDA há 20 dias; próxima
+ *   visita vencida há 5 dias, pois a recorrência padrão é 15 dias).
+ * - Mercado Central Joinville: VERMELHO e mais atrasada ainda (VENDA há
+ *   40 dias; próxima visita vencida há 25 dias).
+ * - Armazém São Bento: VERDE (VENDA há 15 dias) mas cai em "Hoje" na
+ *   agenda, pois a próxima visita (15 + recorrência de 15 dias) é hoje.
+ * Os demais clientes do seed permanecem sem visita (VERMELHO, agenda
+ * futura), o que também é um estado válido de demonstração.
+ *
+ * Idempotente por cliente: se o cliente já tem visita registrada, pula
+ * (não duplica) — mesmo comportamento de antes, agora aplicado a cada
+ * cliente da lista, não só ao primeiro.
  */
-async function seedVisitas(): Promise<void> {
-  const representante = await prisma.user.findUnique({
-    where: { email: 'eduarda@chokolaten.com.br' },
-  });
-  const cliente = await prisma.client.findFirst({
-    where: { email: 'contato@emporiopomerode.com.br' },
-    include: { contacts: { where: { principal: true } } },
-  });
-
-  if (!representante || !cliente) return;
-
-  const jaTemVisitas = await prisma.visit.count({ where: { clientId: cliente.id } });
-  if (jaTemVisitas > 0) return;
-
-  const agora = Date.now();
-  const diasAtras = (dias: number): Date => new Date(agora - dias * 24 * 60 * 60 * 1000);
-  const [contatoPrincipal] = cliente.contacts;
-
-  await prisma.visit.createMany({
-    data: [
+const VISITAS_DEMO: VisitasClienteSeed[] = [
+  {
+    emailCliente: 'contato@emporiopomerode.com.br',
+    visitas: [
       {
-        clientId: cliente.id,
-        userId: representante.id,
-        contactId: contatoPrincipal?.id ?? null,
-        dataHora: diasAtras(3),
+        diasAtras: 3,
         descricao: 'Reposição do mostruário e pedido de trufas para o fim de semana.',
         resultado: 'VENDA',
       },
       {
-        clientId: cliente.id,
-        userId: representante.id,
-        contactId: contatoPrincipal?.id ?? null,
-        dataHora: diasAtras(20),
+        diasAtras: 20,
         descricao: 'Apresentei a linha de Páscoa; pediu proposta por escrito.',
         resultado: 'NEGOCIACAO',
       },
       {
-        clientId: cliente.id,
-        userId: representante.id,
-        dataHora: diasAtras(45),
+        diasAtras: 45,
         descricao: 'Visita de relacionamento; estoque ainda alto, sem pedido.',
         resultado: 'SEM_VENDA',
       },
     ],
+  },
+  {
+    emailCliente: 'contato@cafeblumenau.com.br',
+    visitas: [
+      {
+        diasAtras: 10,
+        descricao: 'Apresentação da linha de inverno; pediu tabela de preços.',
+        resultado: 'NEGOCIACAO',
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@doceriajaragua.com.br',
+    visitas: [
+      {
+        diasAtras: 20,
+        descricao: 'Visita de acompanhamento; prateleira ainda cheia, não fechou pedido.',
+        resultado: 'SEM_VENDA',
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@mercadocentraljoinville.com.br',
+    visitas: [
+      {
+        diasAtras: 40,
+        descricao: 'Reposição de gôndola e fechamento do pedido do mês.',
+        resultado: 'VENDA',
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@armazemsaobento.com.br',
+    visitas: [
+      {
+        diasAtras: 15,
+        descricao: 'Pedido de reposição da linha tradicional para o mês.',
+        resultado: 'VENDA',
+      },
+    ],
+  },
+];
+
+async function seedVisitas(): Promise<void> {
+  const representante = await prisma.user.findUnique({
+    where: { email: 'eduarda@chokolaten.com.br' },
   });
+  if (!representante) return;
+
+  const agora = Date.now();
+  const diasAtras = (dias: number): Date => new Date(agora - dias * 24 * 60 * 60 * 1000);
+
+  for (const { emailCliente, visitas } of VISITAS_DEMO) {
+    const cliente = await prisma.client.findFirst({
+      where: { email: emailCliente },
+      include: { contacts: { where: { principal: true } } },
+    });
+    if (!cliente) continue;
+
+    const jaTemVisitas = await prisma.visit.count({ where: { clientId: cliente.id } });
+    if (jaTemVisitas > 0) continue;
+
+    const [contatoPrincipal] = cliente.contacts;
+
+    await prisma.visit.createMany({
+      data: visitas.map((visita) => ({
+        clientId: cliente.id,
+        userId: representante.id,
+        contactId: contatoPrincipal?.id ?? null,
+        dataHora: diasAtras(visita.diasAtras),
+        descricao: visita.descricao,
+        resultado: visita.resultado,
+      })),
+    });
+  }
 }
 
 async function main(): Promise<void> {
