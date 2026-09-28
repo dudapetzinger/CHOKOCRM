@@ -6,6 +6,7 @@ import type { ClientComContatoPrincipal, ClientComContatos } from '../repositori
 import * as userRepository from '../repositories/user.repository';
 import type { CreateClientInput, ListClientsQuery, UpdateClientInput } from '../schemas/client.schema';
 import { classificacaoDoCliente, type Cor } from './classificacao.service';
+import { consultarUltimasVendas } from './erp.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CNPJ_DUPLICADO = 'Já existe um cliente cadastrado com este CNPJ.';
@@ -26,6 +27,7 @@ export type ClienteListItemDTO = {
   contatoPrincipal: { nome: string; telefone: string } | null;
   cor: Cor;
   diasSemVisita: number | null;
+  rebaixadoPorVenda: boolean;
   representante: { id: string; nome: string };
 };
 
@@ -63,13 +65,15 @@ export type ClienteCompletoDTO = {
   contatos: ContatoDTO[];
   cor: Cor;
   diasSemVisita: number | null;
+  rebaixadoPorVenda: boolean;
+  diasSemCompra: number | null;
   representante: { id: string; nome: string };
   recorrenciaChanges: RecorrenciaChangeDTO[];
 };
 
-function toListItemDTO(client: ClientComContatoPrincipal, hoje: Date): ClienteListItemDTO {
+function toListItemDTO(client: ClientComContatoPrincipal, hoje: Date, ultimaVenda: Date | null): ClienteListItemDTO {
   const [principal] = client.contacts;
-  const { cor, diasSemVisita } = classificacaoDoCliente(client.visits, hoje);
+  const { cor, diasSemVisita, rebaixadoPorVenda } = classificacaoDoCliente(client.visits, hoje, ultimaVenda);
 
   return {
     id: client.id,
@@ -81,12 +85,17 @@ function toListItemDTO(client: ClientComContatoPrincipal, hoje: Date): ClienteLi
     contatoPrincipal: principal ? { nome: principal.nome, telefone: principal.telefone } : null,
     cor,
     diasSemVisita,
+    rebaixadoPorVenda,
     representante: { id: client.representante.id, nome: client.representante.nome },
   };
 }
 
-function toClienteCompletoDTO(client: ClientComContatos, hoje: Date): ClienteCompletoDTO {
-  const { cor, diasSemVisita } = classificacaoDoCliente(client.visits, hoje);
+function toClienteCompletoDTO(client: ClientComContatos, hoje: Date, ultimaVenda: Date | null): ClienteCompletoDTO {
+  const { cor, diasSemVisita, rebaixadoPorVenda, diasSemCompra } = classificacaoDoCliente(
+    client.visits,
+    hoje,
+    ultimaVenda,
+  );
 
   return {
     id: client.id,
@@ -111,6 +120,8 @@ function toClienteCompletoDTO(client: ClientComContatos, hoje: Date): ClienteCom
     })),
     cor,
     diasSemVisita,
+    rebaixadoPorVenda,
+    diasSemCompra,
     representante: { id: client.representante.id, nome: client.representante.nome },
     recorrenciaChanges: client.scheduleChanges.map((change) => ({
       id: change.id,
@@ -155,7 +166,10 @@ export async function listClients(query: ListClientsQuery): Promise<ClienteListI
   const ativoFiltro = query.ativo === 'todos' ? 'todos' : 'ativos';
   const hoje = new Date();
   const clientes = await clientRepository.list({ search: query.search, ativoFiltro });
-  const itens = clientes.map((cliente) => toListItemDTO(cliente, hoje));
+  const ultimasVendas = await consultarUltimasVendas(clientes.map((cliente) => cliente.erpId));
+  const itens = clientes.map((cliente) =>
+    toListItemDTO(cliente, hoje, ultimasVendas.get(cliente.erpId ?? '') ?? null),
+  );
 
   return query.color ? itens.filter((item) => item.cor === query.color) : itens;
 }
@@ -168,7 +182,10 @@ export async function getClientById(id: string): Promise<ClienteCompletoDTO> {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
   }
 
-  return toClienteCompletoDTO(cliente, hoje);
+  const ultimasVendas = await consultarUltimasVendas([cliente.erpId]);
+  const ultimaVenda = ultimasVendas.get(cliente.erpId ?? '') ?? null;
+
+  return toClienteCompletoDTO(cliente, hoje, ultimaVenda);
 }
 
 export async function createClient(

@@ -14,6 +14,7 @@ function clienteFabricado(overrides: Partial<ClienteParaAgenda> & { id: string }
     cidade: 'Pomerode',
     criadoEm: diasAtras(100),
     recorrenciaDias: 15,
+    erpId: null,
     visits: [],
     ...overrides,
   };
@@ -101,5 +102,24 @@ describe('montarAgenda', () => {
       { id: 'zulu', cor: 'VERMELHO', diasAtraso: 40 },
       { id: 'larancia', cor: 'LARANJA', diasAtraso: 20 },
     ]);
+  });
+
+  it('montarAgenda aplica o rebaixamento pelo mapa de últimas vendas', () => {
+    const doDia = clienteFabricado({
+      id: 'rebaixado',
+      erpId: 'ERP-9001',
+      recorrenciaDias: 3,
+      visits: [{ dataHora: diasAtras(3), resultado: 'VENDA' }],
+    });
+
+    const ultimasVendas = new Map([['ERP-9001', diasAtras(90)]]);
+
+    const agenda = montarAgenda([doDia], hoje, ultimasVendas);
+
+    expect(agenda.hoje).toHaveLength(1);
+    const item = agenda.hoje[0];
+    expect(item?.id).toBe('rebaixado');
+    expect(item?.cor).toBe('LARANJA');
+    expect(item?.rebaixadoPorVenda).toBe(true);
   });
 });

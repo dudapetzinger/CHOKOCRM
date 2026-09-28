@@ -34,6 +34,7 @@ export type ClienteParaAgenda = {
   cidade: string;
   criadoEm: Date;
   recorrenciaDias: number;
+  erpId: string | null;
   visits: { dataHora: Date; resultado: ResultadoVisita }[];
 };
 
@@ -51,6 +52,7 @@ export async function listAtivosParaAgenda(representanteId?: string): Promise<Cl
       cidade: true,
       criadoEm: true,
       recorrenciaDias: true,
+      erpId: true,
       visits: SELECT_ULTIMA_VISITA,
     },
   });

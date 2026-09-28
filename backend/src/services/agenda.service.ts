@@ -1,6 +1,7 @@
 import * as clientRepository from '../repositories/client.repository';
 import type { UsuarioAutenticado } from './client.service';
 import { montarAgenda, type Agenda } from './agenda.montagem';
+import { consultarUltimasVendas } from './erp.service';
 
 export type { AgendaItem, Agenda } from './agenda.montagem';
 
@@ -9,7 +10,9 @@ export type { AgendaItem, Agenda } from './agenda.montagem';
  * carteira; gestor vê a de todos. `hoje` é parametrizável para permitir
  * reuso futuro (ex.: job diário) com uma data fixa. A montagem em si
  * (`montarAgenda`) é pura e vive em `agenda.montagem.ts`, sem acesso a
- * banco — este módulo é o único ponto que fala com o repositório.
+ * banco — este módulo é o único ponto que fala com o repositório e com o
+ * ERP (via `erp.service.consultarUltimasVendas`, Etapa 5) para a cor
+ * composta.
  */
 export async function getAgendaDoDia(usuario: UsuarioAutenticado, hoje: Date = new Date()): Promise<Agenda> {
   const clientes =
@@ -17,5 +20,7 @@ export async function getAgendaDoDia(usuario: UsuarioAutenticado, hoje: Date = n
       ? await clientRepository.listAtivosParaAgenda(usuario.id)
       : await clientRepository.listAtivosParaAgenda();
 
-  return montarAgenda(clientes, hoje);
+  const ultimasVendas = await consultarUltimasVendas(clientes.map((cliente) => cliente.erpId));
+
+  return montarAgenda(clientes, hoje, ultimasVendas);
 }

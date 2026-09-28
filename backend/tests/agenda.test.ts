@@ -3,7 +3,22 @@ import request from 'supertest';
 import type { ResultadoVisita } from '@prisma/client';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
+import { erpProvider } from '../src/providers/erp';
+import { ErpIndisponivelError } from '../src/providers/erp/ErpProvider';
+import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
 import { truncateAllTables } from './helpers/db';
+
+/** Procura, entre ERP-1001 e ERP-1300, um erpId cujo perfil tenha `mesesSemCompra >= minMeses`. */
+function encontrarErpIdComMesesSemCompra(minMeses: number): string {
+  for (let i = 1001; i <= 1300; i++) {
+    const erpId = `ERP-${i}`;
+    if (perfilDoErpId(erpId).mesesSemCompra >= minMeses) {
+      return erpId;
+    }
+  }
+
+  throw new Error(`Nenhum erpId em ERP-1001..ERP-1300 com mesesSemCompra >= ${minMeses}.`);
+}
 
 const SENHA_PADRAO = 'chokocrm123';
 
@@ -49,7 +64,7 @@ async function criarCliente(
   cnpj: string,
   nomeFantasia: string,
   representanteId: string,
-  opts: { ativo?: boolean; recorrenciaDias?: number } = {},
+  opts: { ativo?: boolean; recorrenciaDias?: number; erpId?: string } = {},
 ): Promise<string> {
   const cliente = await prisma.client.create({
     data: {
@@ -63,6 +78,7 @@ async function criarCliente(
       ativo: opts.ativo ?? true,
       recorrenciaDias: opts.recorrenciaDias ?? 15,
       representanteId,
+      erpId: opts.erpId,
     },
   });
   return cliente.id;
@@ -120,6 +136,10 @@ beforeEach(async () => {
   await criarVisita(clienteBId, representanteBId, 40);
 });
 
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 afterAll(async () => {
   await truncateAllTables();
   await prisma.$disconnect();
@@ -171,5 +191,31 @@ describe('GET /agenda/today', () => {
       diasAtraso: 5,
     });
     expect(item.proximaVisita).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('cliente rebaixado ordena como LARANJA e traz rebaixadoPorVenda true', async () => {
+    const erpId = encontrarErpIdComMesesSemCompra(3);
+    await prisma.client.update({ where: { id: clienteHojeId }, data: { erpId } });
+
+    const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    const item = res.body.data.hoje.find((i: { id: string }) => i.id === clienteHojeId);
+    expect(item).toBeDefined();
+    expect(item.cor).toBe('LARANJA');
+    expect(item.rebaixadoPorVenda).toBe(true);
+  });
+
+  it('provider indisponível responde 200', async () => {
+    jest.spyOn(erpProvider, 'getLastSale').mockRejectedValue(new ErpIndisponivelError());
+    await prisma.client.update({ where: { id: clienteHojeId }, data: { erpId: 'ERP-1001' } });
+
+    const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    const item = res.body.data.hoje.find((i: { id: string }) => i.id === clienteHojeId);
+    expect(item).toBeDefined();
+    expect(item.cor).toBe('VERDE');
+    expect(item.rebaixadoPorVenda).toBe(false);
   });
 });

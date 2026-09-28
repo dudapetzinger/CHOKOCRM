@@ -3,6 +3,9 @@ import request from 'supertest';
 import type { ResultadoVisita } from '@prisma/client';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
+import { erpProvider } from '../src/providers/erp';
+import { ErpIndisponivelError } from '../src/providers/erp/ErpProvider';
+import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -34,6 +37,7 @@ type ClienteFixture = {
   telefone: string;
   email: string;
   ativo?: boolean;
+  erpId?: string;
   contatos: {
     nome: string;
     cargo: string;
@@ -108,6 +112,30 @@ const CLIENTE_INATIVO: ClienteFixture = {
   ],
 };
 
+/** Procura, entre ERP-1001 e ERP-1300, um erpId cujo perfil tenha `mesesSemCompra >= minMeses`. */
+function encontrarErpIdComMesesSemCompra(minMeses: number): string {
+  for (let i = 1001; i <= 1300; i++) {
+    const erpId = `ERP-${i}`;
+    if (perfilDoErpId(erpId).mesesSemCompra >= minMeses) {
+      return erpId;
+    }
+  }
+
+  throw new Error(`Nenhum erpId em ERP-1001..ERP-1300 com mesesSemCompra >= ${minMeses}.`);
+}
+
+/** Procura, entre ERP-1001 e ERP-1300, um erpId cujo perfil tenha `mesesSemCompra === meses`. */
+function encontrarErpIdComMesesSemCompraExato(meses: number): string {
+  for (let i = 1001; i <= 1300; i++) {
+    const erpId = `ERP-${i}`;
+    if (perfilDoErpId(erpId).mesesSemCompra === meses) {
+      return erpId;
+    }
+  }
+
+  throw new Error(`Nenhum erpId em ERP-1001..ERP-1300 com mesesSemCompra === ${meses}.`);
+}
+
 async function idDoClientePorNomeFantasia(nomeFantasia: string): Promise<string> {
   const cliente = await prisma.client.findFirstOrThrow({ where: { nomeFantasia } });
   return cliente.id;
@@ -158,6 +186,10 @@ beforeEach(async () => {
   await criarClienteFixture(CLIENTE_POMERODE, representanteId);
   await criarClienteFixture(CLIENTE_BLUMENAU, representanteId);
   await criarClienteFixture(CLIENTE_INATIVO, representanteId);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 afterAll(async () => {
@@ -212,6 +244,7 @@ describe('GET /clients', () => {
       contatoPrincipal: { nome: 'Marta Weber', telefone: '(47) 99911-2233' },
       cor: 'VERMELHO',
       diasSemVisita: null,
+      rebaixadoPorVenda: false,
       representante: { id: representanteId, nome: REPRESENTANTE.nome },
     });
 
@@ -297,6 +330,76 @@ describe('GET /clients', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
+
+  it('lista: cliente VERDE por visita mas sem compra há mais de 60 dias vem LARANJA com rebaixadoPorVenda true', async () => {
+    const erpId = encontrarErpIdComMesesSemCompra(3);
+    const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+    await prisma.client.update({ where: { id }, data: { erpId } });
+    await criarVisita(id, 3, 'VENDA');
+
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const pomerode = res.body.data.find((c: { nomeFantasia: string }) => c.nomeFantasia === 'Empório Pomerode');
+    expect(pomerode.cor).toBe('LARANJA');
+    expect(pomerode.rebaixadoPorVenda).toBe(true);
+  });
+
+  it('lista: cliente com compra recente mantém VERDE e rebaixadoPorVenda false', async () => {
+    const erpId = encontrarErpIdComMesesSemCompraExato(0);
+    const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+    await prisma.client.update({ where: { id }, data: { erpId } });
+    await criarVisita(id, 3, 'VENDA');
+
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const pomerode = res.body.data.find((c: { nomeFantasia: string }) => c.nomeFantasia === 'Empório Pomerode');
+    expect(pomerode.cor).toBe('VERDE');
+    expect(pomerode.rebaixadoPorVenda).toBe(false);
+  });
+
+  it('lista: erpId desconhecido (-0) mantém a cor base', async () => {
+    const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+    await prisma.client.update({ where: { id }, data: { erpId: 'ERP-9999-0' } });
+    await criarVisita(id, 3, 'VENDA');
+
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const pomerode = res.body.data.find((c: { nomeFantasia: string }) => c.nomeFantasia === 'Empório Pomerode');
+    expect(pomerode.cor).toBe('VERDE');
+    expect(pomerode.rebaixadoPorVenda).toBe(false);
+  });
+
+  it('lista: provider indisponível responde 200 com cor base', async () => {
+    jest.spyOn(erpProvider, 'getLastSale').mockRejectedValue(new ErpIndisponivelError());
+    const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+    await prisma.client.update({ where: { id }, data: { erpId: 'ERP-1001' } });
+    await criarVisita(id, 3, 'VENDA');
+
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const pomerode = res.body.data.find((c: { nomeFantasia: string }) => c.nomeFantasia === 'Empório Pomerode');
+    expect(pomerode.cor).toBe('VERDE');
+    expect(pomerode.rebaixadoPorVenda).toBe(false);
+  });
+
+  it('?color=LARANJA inclui o cliente rebaixado', async () => {
+    const erpId = encontrarErpIdComMesesSemCompra(3);
+    const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+    await prisma.client.update({ where: { id }, data: { erpId } });
+    await criarVisita(id, 3, 'VENDA');
+
+    const res = await request(app)
+      .get('/clients')
+      .query({ color: 'LARANJA' })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.some((c: { nomeFantasia: string }) => c.nomeFantasia === 'Empório Pomerode')).toBe(true);
+  });
 });
 
 describe('POST /clients', () => {
@@ -339,6 +442,8 @@ describe('POST /clients', () => {
       ],
       cor: 'VERMELHO',
       diasSemVisita: null,
+      rebaixadoPorVenda: false,
+      diasSemCompra: null,
       representante: { id: representanteId, nome: REPRESENTANTE.nome },
       recorrenciaChanges: [],
     });
@@ -489,6 +594,21 @@ describe('GET /clients/:id', () => {
     expect(res.body.diasSemVisita).toBe(3);
     expect(res.body.representante).toEqual({ id: representanteId, nome: REPRESENTANTE.nome });
     expect(res.body.recorrenciaChanges).toEqual([]);
+  });
+
+  it('ficha traz rebaixadoPorVenda e diasSemCompra', async () => {
+    const erpId = encontrarErpIdComMesesSemCompra(3);
+    const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+    await prisma.client.update({ where: { id }, data: { erpId } });
+    await criarVisita(id, 3, 'VENDA');
+
+    const res = await request(app).get(`/clients/${id}`).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.cor).toBe('LARANJA');
+    expect(res.body.rebaixadoPorVenda).toBe(true);
+    expect(typeof res.body.diasSemCompra).toBe('number');
+    expect(res.body.diasSemCompra).toBeGreaterThan(60);
   });
 });
 

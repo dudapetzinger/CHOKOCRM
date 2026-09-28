@@ -17,6 +17,7 @@ export type AgendaItem = {
   diasSemVisita: number | null;
   proximaVisita: DataCalendario;
   diasAtraso: number;
+  rebaixadoPorVenda: boolean;
 };
 
 export type Agenda = { atrasadas: AgendaItem[]; hoje: AgendaItem[] };
@@ -39,15 +40,27 @@ function compararAgendaItem(a: AgendaItem, b: AgendaItem): number {
  * Função pura: nenhuma dependência de banco ou relógio além do `hoje`
  * recebido — isolada num módulo próprio (sem `client.repository`, só o tipo,
  * importado com `import type` para não puxar `lib/prisma`/`config/env`) para
- * que o teste unitário não precise de `DATABASE_URL`.
+ * que o teste unitário não precise de `DATABASE_URL`. `ultimasVendas` (Etapa
+ * 5) é o mapa `erpId -> última venda`, já resolvido por quem chama
+ * (`agenda.service.ts`) via `erp.service.consultarUltimasVendas` — este
+ * módulo permanece livre de I/O e só aplica a cor composta a partir do mapa.
  */
-export function montarAgenda(clientes: ClienteParaAgenda[], hoje: Date): Agenda {
+export function montarAgenda(
+  clientes: ClienteParaAgenda[],
+  hoje: Date,
+  ultimasVendas: Map<string, Date | null> = new Map(),
+): Agenda {
   const hojeCal = dataCalendario(hoje);
   const atrasadas: AgendaItem[] = [];
   const agendaHoje: AgendaItem[] = [];
 
   for (const cliente of clientes) {
-    const { ultima, cor, diasSemVisita } = classificacaoDoCliente(cliente.visits, hoje);
+    const ultimaVenda = ultimasVendas.get(cliente.erpId ?? '') ?? null;
+    const { ultima, cor, diasSemVisita, rebaixadoPorVenda } = classificacaoDoCliente(
+      cliente.visits,
+      hoje,
+      ultimaVenda,
+    );
     const proximaVisita = calcularProximaVisita(ultima, cliente.criadoEm, cliente.recorrenciaDias);
     const diasAtraso = diasEntre(proximaVisita, hojeCal);
 
@@ -63,6 +76,7 @@ export function montarAgenda(clientes: ClienteParaAgenda[], hoje: Date): Agenda 
       diasSemVisita,
       proximaVisita,
       diasAtraso,
+      rebaixadoPorVenda,
     };
 
     if (diasAtraso > 0) {
