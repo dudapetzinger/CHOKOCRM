@@ -100,4 +100,35 @@ describe('gerarHistoricoErp', () => {
     expect(perfilDoErpId(ERP_ID_EMPORIO).mesesSemCompra).toBe(0);
     expect(perfilDoErpId(ERP_ID_ARMAZEM).mesesSemCompra).toBeGreaterThanOrEqual(3);
   });
+
+  it('meses passados não mudam quando hoje avança um mês', () => {
+    // 2025-06 está a 14/16 meses de distância de setembro/outubro de 2026 —
+    // fora de qualquer janela de mesesSemCompra (no máximo 4 meses).
+    const mesAntigo = '2025-06';
+    const hojeSetembro = new Date('2026-09-29T15:00:00Z');
+    const hojeOutubro = new Date('2026-10-15T15:00:00Z');
+
+    const vendasSetembro = gerarHistoricoErp('ERP-1001', hojeSetembro).vendas.filter(
+      (venda) => venda.data.toISOString().slice(0, 7) === mesAntigo,
+    );
+    const vendasOutubro = gerarHistoricoErp('ERP-1001', hojeOutubro).vendas.filter(
+      (venda) => venda.data.toISOString().slice(0, 7) === mesAntigo,
+    );
+
+    expect(vendasOutubro).toEqual(vendasSetembro);
+  });
+
+  it('snapshot de estoque de uma data não muda entre dias', () => {
+    const hoje29 = new Date('2026-09-29T15:00:00Z');
+    const hoje30 = new Date('2026-09-30T15:00:00Z');
+
+    const estoque29 = gerarHistoricoErp('ERP-1001', hoje29).estoque;
+    const estoque30 = gerarHistoricoErp('ERP-1001', hoje30).estoque;
+
+    const dataMaisRecente = estoque29[0]!.data.getTime();
+    const doMesmaDataEm29 = estoque29.filter((snapshot) => snapshot.data.getTime() === dataMaisRecente);
+    const doMesmaDataEm30 = estoque30.filter((snapshot) => snapshot.data.getTime() === dataMaisRecente);
+
+    expect(doMesmaDataEm30).toEqual(doMesmaDataEm29);
+  });
 });
