@@ -1,5 +1,9 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../src/lib/prisma';
+// erpIds calibrados para a demonstração da Etapa 5 (cor composta com
+// rebaixamento por última compra no ERP) — ver comentário de calibração
+// em src/config/erpIdsDemonstracao.ts.
+import { ERP_IDS_DEMONSTRACAO } from '../src/config/erpIdsDemonstracao';
 
 const SENHA_PADRAO = 'chokocrm123';
 const CUSTO_HASH = 10;
@@ -21,6 +25,7 @@ type ClienteSeed = {
   telefone: string;
   email: string;
   contatos: ContatoSeed[];
+  erpId?: string | null;
 };
 
 const CLIENTES: ClienteSeed[] = [
@@ -236,11 +241,12 @@ async function seedContato(clientId: string, contato: ContatoSeed): Promise<void
 
 async function seedCliente(cliente: ClienteSeed, representanteId: string): Promise<void> {
   const { contatos, ...dadosCliente } = cliente;
+  const erpId = ERP_IDS_DEMONSTRACAO[cliente.nomeFantasia] ?? null;
 
   const client = await prisma.client.upsert({
     where: { cnpj: cliente.cnpj },
-    update: { ...dadosCliente, representanteId },
-    create: { ...dadosCliente, representanteId },
+    update: { ...dadosCliente, representanteId, erpId },
+    create: { ...dadosCliente, representanteId, erpId },
   });
 
   for (const contato of contatos) {

@@ -3,6 +3,7 @@ import {
   perfilDoErpId,
   gerarHistoricoErp,
 } from '../../src/providers/erp/mock/gerador';
+import { ERP_ID_EMPORIO, ERP_ID_ARMAZEM } from '../../src/config/erpIdsDemonstracao';
 
 const hoje = new Date('2026-09-29T15:00:00Z');
 
@@ -93,5 +94,10 @@ describe('gerarHistoricoErp', () => {
 
     const ordenadoPorDataDesc = [...estoque].sort((a, b) => b.data.getTime() - a.data.getTime());
     expect(estoque).toEqual(ordenadoPorDataDesc);
+  });
+
+  it('erpIds do seed: Empório tem mesesSemCompra 0 e Armazém São Bento >= 3', () => {
+    expect(perfilDoErpId(ERP_ID_EMPORIO).mesesSemCompra).toBe(0);
+    expect(perfilDoErpId(ERP_ID_ARMAZEM).mesesSemCompra).toBeGreaterThanOrEqual(3);
   });
 });
