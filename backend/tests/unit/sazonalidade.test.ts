@@ -1,4 +1,10 @@
-import { dataDoEvento, multiplicadorSazonal } from '../../src/config/sazonalidade';
+import {
+  dataDoEvento,
+  EVENTOS_SAZONAIS,
+  multiplicadorSazonal,
+  NOME_DO_EVENTO,
+  PRODUTOS_SUGERIDOS,
+} from '../../src/config/sazonalidade';
 
 describe('dataDoEvento', () => {
   it('calcula a Páscoa de 2026 em 05/04 e de 2027 em 28/03', () => {
@@ -20,5 +26,14 @@ describe('multiplicadorSazonal', () => {
 
   it('multiplicador é 1.6 antes do Dia dos Namorados', () => {
     expect(multiplicadorSazonal('2026-06-01')).toBe(1.6);
+  });
+});
+
+describe('NOME_DO_EVENTO e PRODUTOS_SUGERIDOS', () => {
+  it('todo evento tem nome legível e ao menos 2 produtos sugeridos', () => {
+    for (const evento of EVENTOS_SAZONAIS) {
+      expect(NOME_DO_EVENTO[evento].length).toBeGreaterThan(0);
+      expect(PRODUTOS_SUGERIDOS[evento].length).toBeGreaterThanOrEqual(2);
+    }
   });
 });

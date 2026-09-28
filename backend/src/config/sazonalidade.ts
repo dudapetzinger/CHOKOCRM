@@ -18,13 +18,31 @@ export const MULTIPLICADOR_PICO: Record<EventoSazonal, number> = {
   NATAL: 2.0,
 };
 
-const EVENTOS: readonly EventoSazonal[] = [
+export const EVENTOS_SAZONAIS: readonly EventoSazonal[] = [
   'PASCOA',
   'DIA_DAS_MAES',
   'NAMORADOS',
   'DIA_DOS_PAIS',
   'NATAL',
 ];
+
+/** Nome legível de cada evento, sem o ano (usado no template da mensagem de estoque). */
+export const NOME_DO_EVENTO: Record<EventoSazonal, string> = {
+  PASCOA: 'Páscoa',
+  DIA_DAS_MAES: 'Dia das Mães',
+  NAMORADOS: 'Dia dos Namorados',
+  DIA_DOS_PAIS: 'Dia dos Pais',
+  NATAL: 'Natal',
+};
+
+/** Produtos sugeridos por evento para a mensagem de consulta de estoque (UC12). */
+export const PRODUTOS_SUGERIDOS: Record<EventoSazonal, string[]> = {
+  PASCOA: ['ovos de Páscoa', 'trufas', 'caixas presente'],
+  DIA_DAS_MAES: ['caixas presente', 'bombons sortidos', 'barras 70%'],
+  NAMORADOS: ['caixas presente', 'trufas', 'bombons sortidos'],
+  DIA_DOS_PAIS: ['barras 70%', 'tabletes ao leite', 'dragées'],
+  NATAL: ['panetones de chocolate', 'caixas presente', 'bombons sortidos'],
+};
 
 function pad2(numero: number): string {
   return numero.toString().padStart(2, '0');
@@ -82,7 +100,7 @@ export function multiplicadorSazonal(data: DataCalendario): number {
   const ano = Number(data.slice(0, 4));
   let maior = 1.0;
 
-  for (const evento of EVENTOS) {
+  for (const evento of EVENTOS_SAZONAIS) {
     const dataEvento = dataDoEvento(evento, ano);
     const inicioJanela = somarDias(dataEvento, -JANELA_PICO_DIAS);
     const dentroDaJanela = diasEntre(inicioJanela, data) >= 0 && diasEntre(data, dataEvento) > 0;
