@@ -119,7 +119,7 @@ model StockMessage {
 
 model SeasonalEvent {
   id                String         @id @default(uuid())
-  nome              String
+  nome              String         @unique
   dataInicio        DateTime       @map("data_inicio") @db.Date
   dataFim           DateTime       @map("data_fim") @db.Date
   produtosSugeridos String[]       @map("produtos_sugeridos")

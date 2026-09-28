@@ -4,6 +4,8 @@ import { prisma } from '../src/lib/prisma';
 // rebaixamento por última compra no ERP) — ver comentário de calibração
 // em src/config/erpIdsDemonstracao.ts.
 import { ERP_IDS_DEMONSTRACAO } from '../src/config/erpIdsDemonstracao';
+import { eventosSazonaisParaSeed } from '../src/config/eventosSazonaisSeed';
+import { upsertMany } from '../src/repositories/seasonal-event.repository';
 
 const SENHA_PADRAO = 'chokocrm123';
 const CUSTO_HASH = 10;
@@ -383,6 +385,12 @@ async function seedVisitas(): Promise<void> {
   }
 }
 
+/** Calendário sazonal (Etapa 6A) do ano corrente e do seguinte; idempotente por `nome` (upsert). */
+async function seedEventosSazonais(): Promise<void> {
+  const ano = new Date().getFullYear();
+  await upsertMany(eventosSazonaisParaSeed([ano, ano + 1]));
+}
+
 async function main(): Promise<void> {
   await seedUsuarios();
 
@@ -394,6 +402,7 @@ async function main(): Promise<void> {
     await seedCliente(cliente, representante.id);
   }
 
+  await seedEventosSazonais();
   await seedVisitas();
 }
 
