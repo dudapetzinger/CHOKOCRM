@@ -40,6 +40,23 @@ export function somarDias(data: DataCalendario, dias: number): DataCalendario {
   return new Date(epoca).toISOString().slice(0, 10);
 }
 
+/**
+ * Início (00:00:00.000) e fim (23:59:59.999) locais de uma `DataCalendario`
+ * no `FUSO_HORARIO`, como instantes. `America/Sao_Paulo` está fixo em
+ * -03:00 desde o fim do horário de verão no Brasil (Decreto 9.542/2018,
+ * sem novo horário de verão a partir de 2019), por isso o offset abaixo é
+ * escrito literalmente em vez de derivado de `Intl` a cada chamada; se
+ * `FUSO_HORARIO` mudar para um fuso com DST, estas duas funções precisam
+ * ser revistas.
+ */
+export function inicioDoDia(dia: DataCalendario): Date {
+  return new Date(`${dia}T00:00:00.000-03:00`);
+}
+
+export function fimDoDia(dia: DataCalendario): Date {
+  return new Date(`${dia}T23:59:59.999-03:00`);
+}
+
 /** `ate - de`, em dias de calendário; pode ser negativo. */
 export function diasEntre(de: DataCalendario, ate: DataCalendario): number {
   return (epocaDoDia(ate) - epocaDoDia(de)) / MILISSEGUNDOS_POR_DIA;

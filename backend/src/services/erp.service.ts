@@ -4,16 +4,15 @@ import { erpProvider } from '../providers/erp';
 import { ErpIndisponivelError, type NivelEstoque, type StockSnapshot, type Volume } from '../providers/erp/ErpProvider';
 import * as clientRepository from '../repositories/client.repository';
 import { logger } from '../lib/logger';
+import { dataCalendario, fimDoDia, inicioDoDia, somarDias } from './classificacao.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const DIAS_DE_VOLUME = 90;
-const MILISSEGUNDOS_POR_DIA = 86_400_000;
 
 /**
  * Único módulo do sistema que fala com `erpProvider` (Task 4 do plano de
  * design da Etapa 5): services e controllers de cliente/agenda consomem
- * `consultarUltimaVenda`/`consultarUltimasVendas` daqui, nunca o provider
- * diretamente.
+ * `consultarUltimasVendas` daqui, nunca o provider diretamente.
  */
 export type DadosErpDTO =
   | {
@@ -41,33 +40,12 @@ const ORDEM_DE_GRAVIDADE: Record<NivelEstoque, number> = {
 };
 
 /**
- * Última venda registrada no ERP para o `erpId`; `null` sem `erpId` ou
- * quando o provedor está indisponível (a indisponibilidade é logada, não
- * propagada — quem chama não precisa saber que o ERP está fora do ar).
- */
-export async function consultarUltimaVenda(erpId: string | null): Promise<Date | null> {
-  if (!erpId) {
-    return null;
-  }
-
-  try {
-    const venda = await erpProvider.getLastSale(erpId);
-    return venda?.data ?? null;
-  } catch (err) {
-    if (err instanceof ErpIndisponivelError) {
-      logger.warn({ erpId, err }, 'ERP indisponível ao consultar última venda');
-      return null;
-    }
-
-    throw err;
-  }
-}
-
-/**
- * Versão em lote de `consultarUltimaVenda`, para telas que listam vários
- * clientes de uma vez (ex.: agenda). Deduplica os `erpId`s e consulta o
- * provedor em paralelo; se o ERP estiver indisponível, registra um único
- * warn para o lote inteiro (não um por cliente).
+ * Última venda de cada `erpId`, para telas que listam vários clientes de
+ * uma vez (lista de clientes, ficha do cliente, agenda). Deduplica os
+ * `erpId`s e consulta o provedor em paralelo; se o ERP estiver
+ * indisponível, registra um único warn para o lote inteiro (não um por
+ * cliente) e devolve `null` para cada um — quem chama não precisa saber
+ * que o ERP está fora do ar.
  */
 export async function consultarUltimasVendas(erpIds: (string | null)[]): Promise<Map<string, Date | null>> {
   const idsUnicos = [...new Set(erpIds.filter((erpId): erpId is string => Boolean(erpId)))];
@@ -137,7 +115,11 @@ export async function obterDadosErp(clientId: string, hoje: Date = new Date()): 
   }
 
   const { erpId } = cliente;
-  const periodo = { inicio: new Date(hoje.getTime() - DIAS_DE_VOLUME * MILISSEGUNDOS_POR_DIA), fim: hoje };
+  const hojeCal = dataCalendario(hoje);
+  const periodo = {
+    inicio: inicioDoDia(somarDias(hojeCal, -DIAS_DE_VOLUME)),
+    fim: fimDoDia(hojeCal),
+  };
 
   try {
     const [ultimaVenda, historicoDeEstoque, volume90Dias] = await Promise.all([
@@ -159,6 +141,7 @@ export async function obterDadosErp(clientId: string, hoje: Date = new Date()): 
     };
   } catch (err) {
     if (err instanceof ErpIndisponivelError) {
+      logger.warn({ clientId, erpId, err }, 'ERP indisponível ao consultar dados do cliente');
       return { status: 'INDISPONIVEL' };
     }
 

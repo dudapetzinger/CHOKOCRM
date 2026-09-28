@@ -9,6 +9,8 @@ import {
   ordemDeCor,
   diasSemCompra,
   aplicarRebaixamentoPorVenda,
+  inicioDoDia,
+  fimDoDia,
 } from '../../src/services/classificacao.service';
 
 const hoje = new Date('2026-09-27T15:00:00Z');
@@ -170,6 +172,16 @@ describe('calcularProximaVisita', () => {
   it('sem visita usa criadoEm como base', () => {
     const criadoEm = diasAtras(20);
     expect(calcularProximaVisita(null, criadoEm, 15)).toBe(somarDias(dataCalendario(hoje), -5));
+  });
+});
+
+describe('inicioDoDia/fimDoDia', () => {
+  it("inicioDoDia('2026-09-29') é 00:00:00.000 local (2026-09-29T03:00:00.000Z)", () => {
+    expect(inicioDoDia('2026-09-29').toISOString()).toBe('2026-09-29T03:00:00.000Z');
+  });
+
+  it("fimDoDia('2026-09-29') é 23:59:59.999 local (2026-09-30T02:59:59.999Z)", () => {
+    expect(fimDoDia('2026-09-29').toISOString()).toBe('2026-09-30T02:59:59.999Z');
   });
 });
 

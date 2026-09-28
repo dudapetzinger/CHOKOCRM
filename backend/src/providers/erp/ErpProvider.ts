@@ -11,6 +11,14 @@ export type Sale = {
   produtos: { sku: string; nome: string; quantidade: number }[];
 };
 
+/**
+ * `inicio` e `fim` são instantes inclusivos, não uma janela de 24h por
+ * `Date.now()`. Quem chama (`erp.service.ts`) monta os dois a partir de
+ * dias de calendário inteiros — `inicio` é `00:00:00.000` local do
+ * primeiro dia da janela, `fim` é `23:59:59.999` local do último —, então
+ * um adapter deve filtrar por `data >= inicio && data <= fim` sem
+ * reinterpretar os limites como uma janela corrida de N×24h.
+ */
 export type Period = { inicio: Date; fim: Date };
 
 export type Volume = { total: number; quantidadeVendas: number };

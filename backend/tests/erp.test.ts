@@ -5,6 +5,8 @@ import { prisma } from '../src/lib/prisma';
 import { erpProvider } from '../src/providers/erp';
 import { ErpIndisponivelError } from '../src/providers/erp/ErpProvider';
 import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
+import * as erpService from '../src/services/erp.service';
+import { dataCalendario, fimDoDia, inicioDoDia, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -176,6 +178,24 @@ describe('GET /clients/:id/erp', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'INDISPONIVEL' });
+  });
+
+  it('a janela de volume90Dias usa dias de calendário, não uma janela corrida de 90×24h (I2)', async () => {
+    // 04h UTC = 01h em America/Sao_Paulo (-03:00): ainda madrugada de
+    // 29/09, bem antes das 09h locais em que o mock carimba as vendas
+    // (T12:00Z). Antes da correção, `inicio`/`fim` eram `hoje ± 90×24h` em
+    // instante, não em dia de calendário, então a venda de hoje (e o
+    // início da janela) ficavam de fora até passar das 09h locais.
+    const hoje = new Date('2026-09-29T04:00:00Z');
+    const hojeCal = dataCalendario(hoje);
+    const espiaoVolume = jest.spyOn(erpProvider, 'getPurchaseVolume');
+
+    await erpService.obterDadosErp(clienteConhecidoId, hoje);
+
+    expect(espiaoVolume).toHaveBeenCalledWith('ERP-1001', {
+      inicio: inicioDoDia(somarDias(hojeCal, -90)),
+      fim: fimDoDia(hojeCal),
+    });
   });
 
   it('gestor também consulta (200)', async () => {
