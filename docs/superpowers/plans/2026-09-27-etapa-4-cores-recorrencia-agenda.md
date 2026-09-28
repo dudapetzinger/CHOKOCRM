@@ -4,7 +4,7 @@
 
 **Goal:** Entregar UC05 (cor do cliente + filtro), UC09 (recorrência com justificativa e histórico) e UC10 (agenda do dia + job diário de alertas), com o vínculo cliente → representante que a agenda exige.
 
-**Architecture:** Regras puras em `services/classificacao.service.ts` (cor, dias de calendário no fuso, próxima visita) reutilizadas pela lista de clientes, pela ficha, pela rota `GET /agenda/today` e pelo job `node-cron`. Nada derivado é persistido (ADR-005); a única mudança de schema é `Client.representanteId`. O frontend ganha barra de navegação, badges, filtro por cor, card de recorrência e a página de agenda.
+**Architecture:** Regras puras em `services/classificacao.service.ts` (cor, dias de calendário no fuso, próxima visita) reutilizadas pela lista de clientes, pela ficha, pela rota `GET /agenda/today` e pelo job `node-cron`. Nada derivado é persistido (ADR-006); a única mudança de schema é `Client.representanteId`. O frontend ganha barra de navegação, badges, filtro por cor, card de recorrência e a página de agenda.
 
 **Tech Stack:** Express 5 + Prisma 7 + zod 4 + pino + node-cron (novo) no backend; React 19 + React Router 7 + TanStack Query 5 no frontend; Jest + Supertest.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Limiares: `LIMIAR_VERDE_AMARELO_DIAS = 15`, `LIMIAR_LARANJA_DIAS = 30`, `FAIXA_RECORRENCIA_SUGERIDA = { min: 15, max: 30 }`, `FUSO_HORARIO = 'America/Sao_Paulo'` (spec §3.3).
-- Só `resultado === 'VENDA'` conta como venda (ADR-005).
+- Só `resultado === 'VENDA'` conta como venda (ADR-006).
 - "Dias" é diferença de datas de calendário no `FUSO_HORARIO`, nunca de horas (spec §4.1).
 - Cliente sem visita: cor `VERMELHO`; próxima visita = `criadoEm` + recorrência (spec §2).
 - Cor **nunca** é gravada no banco; `?color=` filtra em memória (spec §4.2).

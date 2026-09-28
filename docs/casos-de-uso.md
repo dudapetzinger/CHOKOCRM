@@ -15,10 +15,10 @@ Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protó
 | Ator | Tipo | Descrição |
 |---|---|---|
 | **Representante Comercial** | Principal, humano | Usuário de campo. Cadastra e mantém clientes, realiza check-ins de visita, consulta agenda, histórico, dados de ERP e insights. |
-| **Gestor** | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Possui, adicionalmente, todas as permissões do Representante Comercial. |
+| **Gestor** | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Consulta, em modo somente leitura e para todas as carteiras, a lista de clientes, a ficha, o histórico e a agenda do dia, além da recorrência de visitas e seu histórico de alterações; pode transferir um cliente entre representantes. |
 | **Sistema (Agendador)** | Secundário, automatizado | Processo executado diariamente (job agendado, sem intervenção humana) que recalcula a lista de visitas previstas e atrasadas por representante e registra os alertas em log, sem persistir nada. |
 
-**Observação sobre sobreposição de permissões:** por herdar todas as permissões do Representante Comercial, o Gestor pode executar também os casos de uso UC01–UC13 quando necessário. O diagrama de visão geral (seção 3) e as fichas individuais (seção 4) indicam o ator tipicamente responsável por cada fluxo no uso cotidiano do sistema, não uma restrição de acesso adicional além do controle de papel (role) já previsto em UC01.
+**Observação sobre permissões do Gestor:** o Gestor **não** possui todas as permissões do Representante Comercial. Ele autentica-se no sistema (UC01); consulta, em modo somente leitura e para todas as carteiras, a lista de clientes com classificação por cores (UC05), a ficha do cliente (UC06), o histórico de interações (UC08) e a agenda do dia (UC10); visualiza a recorrência de visitas e seu histórico de alterações, sem poder alterá-la; possui o painel de KPIs (UC14) e recebe os alertas de produção (UC15); e pode transferir um cliente entre representantes através de `PUT /clients/:id` (campo `representanteId`). O Gestor **não** cadastra clientes (UC02 responde 400), não registra check-ins de visita (UC07) e não altera a recorrência de visitas (UC09 responde 403).
 
 ## 3. Diagrama de visão geral
 
@@ -37,12 +37,12 @@ O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator
 | UC02 | Cadastrar cliente | Representante |
 | UC03 | Editar e inativar cliente | Representante |
 | UC04 | Gerenciar contatos do cliente | Representante |
-| UC05 | Visualizar lista de clientes com classificação por cores | Representante |
-| UC06 | Visualizar ficha do cliente | Representante |
+| UC05 | Visualizar lista de clientes com classificação por cores | Representante; Gestor |
+| UC06 | Visualizar ficha do cliente | Representante; Gestor |
 | UC07 | Realizar check-in de visita | Representante |
-| UC08 | Consultar histórico de interações | Representante |
+| UC08 | Consultar histórico de interações | Representante; Gestor |
 | UC09 | Ajustar recorrência de visitas | Representante |
-| UC10 | Visualizar agenda do dia | Representante; Sistema (Agendador) |
+| UC10 | Visualizar agenda do dia | Representante; Gestor; Sistema (Agendador) |
 | UC11 | Consultar dados de venda/estoque do cliente | Representante |
 | UC12 | Gerar mensagem de consulta de estoque | Representante |
 | UC13 | Visualizar insights e sugestões | Representante |

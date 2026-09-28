@@ -2,7 +2,7 @@
 
 **Data:** 2026-09-27
 **Casos de uso:** UC05, UC09, UC10 (`docs/casos-de-uso.md`)
-**Referências:** especificação técnica §6.1, §6.2 e §7; arquitetura ADR-005; modelo de dados §3.2 e §3.5.
+**Referências:** especificação técnica §6.1, §6.2 e §7; arquitetura ADR-006; modelo de dados §3.2 e §3.5.
 
 ## 1. Objetivo
 
@@ -19,7 +19,7 @@ Entregar os três casos de uso da Etapa 4 do cronograma:
 | "Agenda por representante" exige vínculo cliente → representante | Novo campo `Client.representanteId` (FK `User`) | O modelo de dados não tinha o vínculo; sem ele não existe "carteira". |
 | Como o vínculo é criado | Automático: quem cadastra vira o representante. Só o gestor transfere. | Nenhum campo novo no formulário; menos chance de erro em campo. |
 | Visibilidade | Só a agenda filtra pela carteira. Lista e ficha continuam mostrando todos os clientes. | Menor mudança nas rotas e testes existentes; representante não deixa de achar um cliente. |
-| Job diário × rota | `GET /agenda/today` calcula ao vivo; o job faz o mesmo cálculo e só grava alertas em log. | Coerente com ADR-005 (nada derivado é persistido); a agenda reflete um check-in na hora. |
+| Job diário × rota | `GET /agenda/today` calcula ao vivo; o job faz o mesmo cálculo e só grava alertas em log. | Coerente com ADR-006 (nada derivado é persistido); a agenda reflete um check-in na hora. |
 | Cliente nunca visitado | Cor `VERMELHO`; próxima visita = `criadoEm` + recorrência. | Evita cliente "invisível" na agenda. |
 | Fuso de "hoje" e de "dias sem visita" | `America/Sao_Paulo`, constante em `config/` | O servidor no Azure roda em UTC; a régua de dias é de calendário, não de 24 h. |
 
@@ -77,12 +77,12 @@ Regras de `classificarCor`:
 | 16 ≤ dias ≤ 30 | `LARANJA` |
 | dias > 30 | `VERMELHO` |
 
-`calcularProximaVisita` soma `recorrenciaDias` à data (de calendário) da última visita ou, sem visita, à de `criadoEm`. `Client.recorrenciaDias` não participa da cor (ADR-005).
+`calcularProximaVisita` soma `recorrenciaDias` à data (de calendário) da última visita ou, sem visita, à de `criadoEm`. `Client.recorrenciaDias` não participa da cor (ADR-006).
 
 ### 4.2 Lista e ficha de clientes (`client.service.ts` / `client.repository.ts`)
 
 - O repository passa a incluir, em `list` e `findById`, `visits: { take: 1, orderBy: { dataHora: 'desc' }, select: { dataHora, resultado } }` e `representante: { select: { id, nome } }`. Em `findById` inclui também `scheduleChanges` (mais recente primeiro) com o `user.nome`.
-- `listClientsQuerySchema` ganha `color: z.enum([...]).optional()`. O service calcula a cor de cada cliente e filtra em memória quando `color` vem informado (consequência prevista no ADR-005; o volume da empresa é de dezenas de clientes).
+- `listClientsQuerySchema` ganha `color: z.enum([...]).optional()`. O service calcula a cor de cada cliente e filtra em memória quando `color` vem informado (consequência prevista no ADR-006; o volume da empresa é de dezenas de clientes).
 - `ClienteListItemDTO` ganha `cor`, `diasSemVisita: number | null` e `representante: { id, nome }`.
 - `ClienteCompletoDTO` ganha os mesmos três campos e `recorrenciaChanges: { id, de, para, justificativa, autor: { id, nome }, data }[]`.
 - `createClient(input, usuario)`: grava `representanteId = usuario.id`; se `usuario.role !== 'REPRESENTANTE'` → 400 `VALIDATION_ERROR` ("Somente representante cadastra cliente em carteira.").
@@ -148,7 +148,7 @@ Componente `components/NavInferior.tsx` com dois atalhos (Clientes, Agenda) e de
 
 - Badge de cor no cabeçalho ao lado do nome e linha "Última visita há N dias" (ou "Nunca visitado").
 - O campo `recorrenciaDias` **sai** do formulário de edição (`DadosClienteFormulario` continua com o campo para o cadastro; a ficha só não o renderiza nem envia). `UpdateClienteInput` perde `recorrenciaDias`.
-- Card novo "Recorrência de visitas" (`components/RecorrenciaCard.tsx`): valor atual + botão "Alterar" → formulário com número e justificativa. Validação client-side: inteiro 1–365, justificativa obrigatória. Fora de 15–30 exibe aviso e o botão passa a "Confirmar mesmo assim". Abaixo, o histórico (`recorrenciaChanges`): "{autor}, {data}: de X para Y dias — {justificativa}". Card oculto para `GESTOR`.
+- Card novo "Recorrência de visitas" (`components/RecorrenciaCard.tsx`): valor atual + botão "Alterar" → formulário com número e justificativa. Validação client-side: inteiro 1–365, justificativa obrigatória. Fora de 15–30 exibe aviso e o botão passa a "Confirmar mesmo assim". Abaixo, o histórico (`recorrenciaChanges`): "{autor}, {data}: de X para Y dias — {justificativa}". Card visível para todos os papéis; apenas o representante vê o botão Alterar (gestor lê o valor e o histórico).
 - `services/clients.ts` ganha `alterarRecorrencia(id, input)`; `hooks/useRecorrencia.ts` encapsula a mutation e invalida `['client', id]`, `['clients']` e `['agenda']`.
 
 ### 7.4 Agenda (`pages/AgendaPage.tsx`, rota `/agenda`)
