@@ -10,7 +10,7 @@ import { iniciais } from '../lib/iniciais';
 const ATRASO_BUSCA_MS = 300;
 
 export function ClientesPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [busca, setBusca] = useState('');
   const [buscaAtrasada, setBuscaAtrasada] = useState('');
   const [cor, setCor] = useState<Cor | null>(null);
@@ -102,11 +102,13 @@ export function ClientesPage() {
         )}
       </div>
 
-      <div className="flutuante-wrap">
-        <Link to="/clientes/novo" className="botao-flutuante">
-          + Novo cliente
-        </Link>
-      </div>
+      {user?.role === 'REPRESENTANTE' && (
+        <div className="flutuante-wrap">
+          <Link to="/clientes/novo" className="botao-flutuante">
+            + Novo cliente
+          </Link>
+        </div>
+      )}
 
       <NavInferior />
     </div>

@@ -650,14 +650,12 @@ export function ClienteDetalhePage() {
           )}
         </section>
 
-        {user?.role === 'REPRESENTANTE' && (
-          <RecorrenciaCard
-            clienteId={id!}
-            recorrenciaDias={cliente.recorrenciaDias}
-            historico={cliente.recorrenciaChanges}
-            podeAlterar={cliente.ativo}
-          />
-        )}
+        <RecorrenciaCard
+          clienteId={id!}
+          recorrenciaDias={cliente.recorrenciaDias}
+          historico={cliente.recorrenciaChanges}
+          podeAlterar={user?.role === 'REPRESENTANTE' && cliente.ativo}
+        />
 
         <section className="card" aria-labelledby="titulo-visitas">
           <h2 className="card-titulo" id="titulo-visitas">

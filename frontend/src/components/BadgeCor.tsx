@@ -10,5 +10,11 @@ type Props = {
 };
 
 export function BadgeCor({ cor }: Props) {
-  return <span className={`badge-${cor.toLowerCase()}`} role="img" aria-label={ROTULO_COR[cor]} />;
+  return (
+    <span
+      className={`badge-${cor.toLowerCase()}`}
+      role="img"
+      aria-label={`Classificação: ${ROTULO_COR[cor]}`}
+    />
+  );
 }

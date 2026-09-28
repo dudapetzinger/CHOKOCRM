@@ -9,11 +9,11 @@ export function NavInferior() {
   return (
     <nav className="nav-inferior" aria-label="Navegação principal">
       <NavLink to="/clientes" className={({ isActive }) => (isActive ? 'ativo' : undefined)}>
-        <span className="icone">👥</span>
+        <span className="icone" aria-hidden="true">👥</span>
         Clientes
       </NavLink>
       <NavLink to="/agenda" className={({ isActive }) => (isActive ? 'ativo' : undefined)}>
-        <span className="icone">🗓️</span>
+        <span className="icone" aria-hidden="true">🗓️</span>
         Agenda
       </NavLink>
     </nav>

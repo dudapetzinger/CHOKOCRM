@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createCliente,
@@ -16,6 +16,7 @@ import {
   validarContatoFormulario,
   type ContatoFormValue,
 } from '../components/ContatoFields';
+import { useAuth } from '../auth/useAuth';
 
 const MENSAGEM_ERRO_PADRAO = 'Não foi possível cadastrar o cliente. Tente novamente.';
 const MENSAGEM_ERRO_PRINCIPAL = 'Marque exatamente um contato como principal.';
@@ -23,6 +24,7 @@ const MENSAGEM_ERRO_PRINCIPAL = 'Marque exatamente um contato como principal.';
 export function NovoClientePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const [dados, setDados] = useState<DadosClienteFormulario>(dadosClienteVazios());
   const [erros, setErros] = useState<ErrosDadosCliente>({});
@@ -100,6 +102,10 @@ export function NovoClientePage() {
         principal: contato.principal,
       })),
     });
+  }
+
+  if (user?.role !== 'REPRESENTANTE') {
+    return <Navigate to="/clientes" replace />;
   }
 
   return (

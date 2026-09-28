@@ -79,6 +79,7 @@ export function CheckInPage() {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['agenda'] });
       queryClient.invalidateQueries({ queryKey: ['client', id, 'visits'] });
+      queryClient.invalidateQueries({ queryKey: ['client', id] });
 
       if (foto) {
         try {
