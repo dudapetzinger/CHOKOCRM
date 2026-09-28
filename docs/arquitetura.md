@@ -119,6 +119,7 @@ chokocrm/
 │   │   ├── jobs/              # agenda diária de alertas (node-cron)
 │   │   ├── errors/            # AppError e catálogo centralizado de códigos de erro
 │   │   ├── storage/           # FileStorage e LocalFileStorage (fotos de check-in)
+│   │   ├── providers/erp/     # ErpProvider (interface) e MockErpProvider; mock/ tem o gerador determinístico e o catálogo
 │   │   ├── lib/               # Prisma Client, logger e detecção de formato de imagem
 │   │   ├── config/            # variáveis de ambiente validadas
 │   │   ├── types/             # tipagens compartilhadas
@@ -132,7 +133,7 @@ chokocrm/
 │       ├── hooks/             # estado de servidor com TanStack Query
 │       ├── auth/              # contexto de autenticação e rota protegida
 │       ├── services/          # cliente HTTP da API REST
-│       ├── lib/               # utilitários compartilhados (compressão de imagem, formatação de data, iniciais)
+│       ├── lib/               # utilitários compartilhados (compressão de imagem, formatação de data e de moeda, iniciais)
 │       └── styles/            # tokens visuais herdados do protótipo
 ├── docs/                      # casos de uso, modelo de dados, arquitetura, guia e protótipo
 ├── docker-compose.yml
@@ -140,7 +141,7 @@ chokocrm/
 └── README.md
 ```
 
-A árvore acima reflete o estado do repositório ao fim da Etapa 4, que acrescentou `backend/src/jobs/`, `backend/tests/unit/` e, no frontend, a página `AgendaPage` e os componentes e hooks de agenda e recorrência. Uma pasta descrita nesta seção ainda não existe: `backend/src/providers/erp/` (interface `ErpProvider` e `MockErpProvider`), criada na Etapa 5. O workflow `deploy.yml` entra na Etapa 6, junto com a publicação no Azure ([ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)).
+A árvore acima reflete o estado do repositório ao fim da Etapa 5. A Etapa 4 acrescentou `backend/src/jobs/`, `backend/tests/unit/` e, no frontend, a página `AgendaPage` e os componentes e hooks de agenda e recorrência; a Etapa 5 acrescentou `backend/src/providers/erp/` (interface `ErpProvider`, `MockErpProvider` e o gerador determinístico e o catálogo em `providers/erp/mock/`) e, no frontend, o card de dados do ERP na ficha do cliente (`components/DadosErpCard.tsx`, `hooks/useDadosErp.ts`, `services/erp.ts` e `lib/formatarMoeda.ts`). O único item desta seção que ainda não existe é o workflow `deploy.yml`, que entra na Etapa 6 junto com a publicação no Azure ([ADR-007](#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)).
 
 **Apresentação (`backend/src/routes`, `backend/src/controllers`).** As rotas mapeiam método HTTP + caminho para o controller correspondente, sem lógica própria além do roteamento. Os controllers leem a requisição, validam a entrada com zod, chamam o service apropriado e traduzem o resultado em corpo de resposta e status code. Essa camada **não** implementa regra de negócio, **não** acessa `repositories` ou o Prisma Client diretamente e **não** decide, por exemplo, qual cor atribuir a um cliente.
 
@@ -150,7 +151,7 @@ A árvore acima reflete o estado do repositório ao fim da Etapa 4, que acrescen
 
 **Armazenamento de arquivos (`backend/src/storage`).** Define a interface `FileStorage` (gravar e ler por chave lógica) e sua implementação atual `LocalFileStorage`, que grava as fotos de comprovação de check-in no diretório configurado em `UPLOADS_DIR`, com espaço já reservado para a futura `AzureBlobStorage` ([ADR-010](#adr-010--armazenamento-de-arquivos-atrás-de-interface-com-driver-em-disco-na-etapa-3)). Essa camada **não** conhece regra de negócio — não decide se a visita pode receber foto — e é usada apenas pela camada de negócio, nunca por controllers.
 
-**Integrações (`backend/src/providers/erp`).** Define a interface `ErpProvider` e sua implementação atual `MockErpProvider` (dados gerados por seed com sazonalidade realista), com espaço já reservado para a futura `SeniorErpProvider`. Essa camada **não** persiste dados de venda ou estoque no banco do ChokoCRM — apenas consulta sob demanda — e **não** é chamada diretamente por controllers ou repositories, somente pela camada de negócio.
+**Integrações (`backend/src/providers/erp`).** Define a interface `ErpProvider` e sua implementação atual `MockErpProvider` (dados gerados em memória por um gerador determinístico com sazonalidade realista — semente derivada do `erpId`, sem seed do Prisma), com espaço já reservado para a futura `SeniorErpProvider`. Essa camada **não** persiste dados de venda ou estoque no banco do ChokoCRM — apenas consulta sob demanda — e **não** é chamada diretamente por controllers ou repositories, somente pela camada de negócio.
 
 **Transversal (`backend/src/middlewares`, `backend/src/jobs`, `backend/src/config`).** Os middlewares tratam autenticação JWT, formatação centralizada de erros e log estruturado de requisições; os jobs executam a rotina diária (`node-cron`) que percorre a carteira de cada representante e registra em log os alertas de visita atrasada e prevista para o dia — a agenda em si é sempre calculada ao vivo por `GET /agenda/today`, nunca persistida ([ADR-011](#adr-011--carteira-por-representante-e-agenda-calculada-em-tempo-de-consulta)); `config/` concentra variáveis de ambiente e constantes ajustáveis (limiares de cor, calendário de datas comemorativas). Essa camada **não** implementa regra de negócio específica de um caso de uso — fornece apenas infraestrutura compartilhada pelas demais camadas.
 
@@ -160,7 +161,7 @@ A árvore acima reflete o estado do repositório ao fim da Etapa 4, que acrescen
 
 ## 3. Decisões arquiteturais (ADRs)
 
-Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etapa 3, quando a hospedagem foi decidida, e o ADR-009 nasceu na mesma revisão. O ADR-010 nasceu na Etapa 3, com a foto de comprovação de check-in. O ADR-011 nasceu na Etapa 4, com a carteira por representante e a agenda do dia. A lista é referenciada pelas etapas seguintes do cronograma (seção 11 da especificação técnica) sempre que uma decisão for revisitada, detalhada ou, excepcionalmente, revista — cada revisão substitui o texto do ADR e fica registrada no histórico de commits.
+Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etapa 3, quando a hospedagem foi decidida, e o ADR-009 nasceu na mesma revisão. O ADR-010 nasceu na Etapa 3, com a foto de comprovação de check-in. O ADR-011 nasceu na Etapa 4, com a carteira por representante e a agenda do dia. O ADR-004 e o ADR-006 foram revistos na Etapa 5, com o gerador determinístico do ERP simulado e a regra de cor composta, respectivamente. A lista é referenciada pelas etapas seguintes do cronograma (seção 11 da especificação técnica) sempre que uma decisão for revisitada, detalhada ou, excepcionalmente, revista — cada revisão substitui o texto do ADR e fica registrada no histórico de commits.
 
 ### ADR-001 — Stack definido pela disciplina
 
@@ -194,6 +195,8 @@ Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etap
 
 **Consequências.** A troca futura pela API real da Senior consiste em implementar uma nova classe (`SeniorErpProvider`) que satisfaça a mesma interface, sem alterar controllers, services (além da instância injetada) ou repositories. O módulo de BI pode ser desenvolvido e testado desde já com dados determinísticos. Existe o risco de o mock não reproduzir todas as particularidades da API real, o que pode exigir ajustes na etapa 5.
 
+**Revisto na Etapa 5.** O `MockErpProvider` não lê nenhum dado gravado por seed do Prisma: gera o histórico em memória, a cada chamada, por um gerador determinístico (`providers/erp/mock/gerador.ts`) que usa um hash FNV-1a do `erpId` como semente de um PRNG mulberry32, produzindo 24 meses de vendas e 12 snapshots quinzenais de estoque, com o calendário sazonal de `config/sazonalidade.ts` (Páscoa, Dia das Mães, Namorados, Dia dos Pais e Natal) aplicado como multiplicador de valor sobre as vendas. A seleção do provider é explícita, por `env.ERP_PROVIDER` (`providers/erp/index.ts`), no mesmo desenho de `storage/index.ts`; e `services/erp.service.ts` passa a ser o único módulo que fala com `erpProvider` — os demais services (cliente, agenda) e o job consomem `consultarUltimaVenda`/`consultarUltimasVendas` dali, nunca o provider diretamente. Não há cache nesta etapa: o mock roda inteiramente em memória a cada requisição; um decorator com TTL sobre a mesma interface `ErpProvider` fica para quando a integração real com a Senior entrar.
+
 ### ADR-005 — Mensagem de estoque via link wa.me
 
 **Contexto.** O envio automático de mensagens pela API oficial do WhatsApp (Meta) exige aprovação de conta comercial e tem custo por mensagem, inviável para o escopo e o prazo da disciplina (seção 12). Ainda assim, o representante precisa de um jeito ágil de consultar o cliente sobre reposição de estoque em campo.
@@ -209,6 +212,8 @@ Os ADR-001 a ADR-008 foram registrados na Etapa 1; o ADR-007 foi revisto na Etap
 **Decisão.** Calcular a cor sob demanda, em tempo de consulta, a partir dos limiares fixos de dias sem visita (15/30, configuráveis em `config/`) aplicados à última `Visit` (e ao campo `resultado`, em que apenas `VENDA` conta como venda) — não a partir de `Client.recorrencia_dias`, que alimenta apenas a agenda e os lembretes de próxima visita (seção 6.2) —, e, a partir da etapa 5, também da última venda via `ErpProvider`, sem persistir o valor no banco.
 
 **Consequências.** A cor exibida está sempre consistente com o estado real de visitas e vendas, sem necessidade de jobs de sincronização. O cálculo, sendo uma função pura na camada de negócio, é trivial de testar unitariamente (seção 10). Em contrapartida, listagens com filtro por cor precisam calcular a cor de cada cliente na própria consulta, o que pode exigir índices em `Visit.data_hora` e paginação caso o volume de clientes cresça.
+
+**Revisto na Etapa 5.** A cor passa a ser composta: `aplicarRebaixamentoPorVenda` (`services/classificacao.service.ts`), aplicada depois da cor base de visitas, rebaixa em um degrau — VERDE ou AMARELO para LARANJA — quando a última venda do cliente no ERP (via `ErpProvider`) está há mais de `LIMIAR_SEM_COMPRA_DIAS = 60` dias (`config/classificacao.ts`); LARANJA e VERMELHO não mudam, e a regra nunca promove, só rebaixa. Sem dado do ERP — cliente sem `erpId`, `erpId` desconhecido no provedor, ou provedor indisponível — a cor base calculada pela tabela de visitas permanece intacta.
 
 ### ADR-007 — Docker Compose no desenvolvimento; Azure em produção
 
@@ -279,7 +284,7 @@ Descrição por grupo:
 - **Contatos** (`POST /clients/:id/contacts`, `PUT/DELETE /contacts/:id`) — cadastro, edição e remoção dos contatos de um cliente.
 - **Visitas** (`POST/GET /clients/:id/visits`, `PATCH /visits/:id`, `PUT/GET /visits/:id/foto`) — registro de check-in (descrição obrigatória, resultado em três estados e foto de comprovação opcional), histórico de visitas do cliente e correção da descrição pelo autor. A foto viaja numa chamada própria, com os bytes crus no corpo, para que uma falha de upload em campo não perca o check-in já gravado.
 - **Recorrência** (`PUT /clients/:id/recurrence`) — altera a frequência de visita do cliente, exclusiva do representante (o gestor recebe 403) e exigindo justificativa registrada; cada alteração fica em histórico auditável em `VisitScheduleChange`, exibido na ficha do cliente.
-- **ERP** (`GET /clients/:id/erp`) — expõe última venda, volume de compras e histórico de estoque, consultados via `ErpProvider`.
+- **ERP** (`GET /clients/:id/erp`) — expõe última venda, volume de compras dos últimos 90 dias e nível de estoque estimado, consultados por `erp.service` via `ErpProvider`; acessível a qualquer usuário autenticado (representante ou gestor), sem `requireRole`.
 - **Mensagem de estoque** (`POST /clients/:id/stock-message`, `GET /stock-messages`) — gera o link `wa.me` pré-preenchido e mantém o histórico de mensagens geradas.
 - **Insights** (`GET /insights`, `GET /insights/manager-alerts`) — sugestões de BI ao representante e alertas de estoque/demanda ao gestor.
 - **Painel e agenda** (`GET /dashboard/kpis`, `GET /agenda/today`) — indicadores gerenciais e lista de visitas atrasadas/previstas para hoje, calculada ao vivo (representante vê só a própria carteira; gestor vê a de todos). Um job diário (`node-cron`, `AGENDA_JOB_ENABLED`/`AGENDA_JOB_CRON`) roda o mesmo cálculo por representante e registra os alertas em log estruturado, sem persistir nada ([ADR-011](#adr-011--carteira-por-representante-e-agenda-calculada-em-tempo-de-consulta)).

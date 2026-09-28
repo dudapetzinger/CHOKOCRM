@@ -61,6 +61,7 @@ chokocrm/
 │   │   ├── jobs/              # agenda diária de alertas (node-cron)
 │   │   ├── errors/            # AppError e catálogo centralizado de códigos de erro
 │   │   ├── storage/           # FileStorage e LocalFileStorage (fotos de check-in)
+│   │   ├── providers/erp/     # ErpProvider (interface) e MockErpProvider; mock/ tem o gerador determinístico e o catálogo
 │   │   ├── lib/               # Prisma Client, logger e detecção de formato de imagem
 │   │   ├── config/            # variáveis de ambiente validadas
 │   │   ├── types/             # tipagens compartilhadas
@@ -74,7 +75,7 @@ chokocrm/
 │       ├── hooks/             # estado de servidor com TanStack Query
 │       ├── auth/              # contexto de autenticação e rota protegida
 │       ├── services/          # cliente HTTP da API REST
-│       ├── lib/               # utilitários compartilhados (compressão de imagem, formatação de data, iniciais)
+│       ├── lib/               # utilitários compartilhados (compressão de imagem, formatação de data e de moeda, iniciais)
 │       └── styles/            # tokens visuais herdados do protótipo
 ├── docs/                      # casos de uso, modelo de dados, arquitetura, guia e protótipo
 ├── docker-compose.yml
@@ -82,7 +83,7 @@ chokocrm/
 └── README.md
 ```
 
-A estrutura acima reflete o repositório ao fim da Etapa 4. Pastas previstas e ainda não criadas: `backend/src/providers/erp/` (Etapa 5) e o workflow `deploy.yml` (Etapa 6). As regras de dependência entre as camadas estão na seção 4.1 e nos diagramas C4 do documento de arquitetura.
+A estrutura acima reflete o repositório ao fim da Etapa 5, que acrescentou `backend/src/providers/erp/` (interface `ErpProvider`, `MockErpProvider` e o gerador determinístico e o catálogo em `providers/erp/mock/`) e, no frontend, o card de dados do ERP na ficha do cliente. Falta apenas o workflow `deploy.yml` (Etapa 6). As regras de dependência entre as camadas estão na seção 4.1 e nos diagramas C4 do documento de arquitetura.
 
 ### 4.3 Integração ERP (padrão Adapter)
 
@@ -95,9 +96,9 @@ interface ErpProvider {
 }
 ```
 
-- `MockErpProvider`: dados gerados por seed com sazonalidade realista (picos de venda antes de Páscoa, Dia das Mães, Dia dos Namorados, Dia dos Pais, Natal) para o módulo de BI ter base de análise.
+- `MockErpProvider`: dados gerados em memória por um gerador determinístico (semente derivada do `erpId`) com sazonalidade realista (picos de venda antes de Páscoa, Dia das Mães, Dia dos Namorados, Dia dos Pais, Natal) para o módulo de BI ter base de análise.
 - Troca futura pela API real da Senior = nova classe implementando a mesma interface; nenhuma outra camada muda.
-- Dados de venda/estoque **não são persistidos** no banco do ChokoCRM; são consultados sob demanda via provider (com cache em memória simples se necessário).
+- Dados de venda/estoque **não são persistidos** no banco do ChokoCRM; são consultados sob demanda via provider, sem cache nesta etapa — o mock roda inteiramente em memória a cada chamada; um cache com TTL sobre a mesma interface fica para quando a integração real com a Senior entrar.
 
 ## 5. Modelo de dados
 
@@ -135,7 +136,7 @@ Avaliada em tempo de consulta, nesta ordem:
 | 🟢 Verde | Última visita ≤ 15 dias **com** venda |
 | 🟡 Amarelo | Última visita ≤ 15 dias **sem** venda |
 
-Na etapa 5 (ERP), a regra composta passa a considerar também a última venda vinda do provider (ex.: cliente visitado recentemente mas sem comprar há X dias é rebaixado). Os limiares ficam em `config/` para ajuste fino com a empresa.
+Na etapa 5, a cor calculada pela tabela acima pode ser rebaixada em um degrau: se for verde ou amarelo e a última venda do cliente no ERP (via `ErpProvider`) estiver há mais de 60 dias (`LIMIAR_SEM_COMPRA_DIAS`, em `config/classificacao.ts`), a cor passa a laranja; laranja e vermelho não mudam. Sem dado de venda no ERP — cliente sem `erp_id`, identificador desconhecido no provedor, ou provedor indisponível —, a cor da tabela acima permanece intacta: a regra só rebaixa, nunca promove. Os limiares ficam em `config/` para ajuste fino com a empresa.
 
 ### 6.2 Lembretes de próxima visita
 

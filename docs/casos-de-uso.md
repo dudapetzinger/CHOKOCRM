@@ -43,7 +43,7 @@ O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator
 | UC08 | Consultar histórico de interações | Representante; Gestor |
 | UC09 | Ajustar recorrência de visitas | Representante |
 | UC10 | Visualizar agenda do dia | Representante; Gestor; Sistema (Agendador) |
-| UC11 | Consultar dados de venda/estoque do cliente | Representante |
+| UC11 | Consultar dados de venda/estoque do cliente | Representante; Gestor |
 | UC12 | Gerar mensagem de consulta de estoque | Representante |
 | UC13 | Visualizar insights e sugestões | Representante |
 | UC14 | Visualizar painel de KPIs (Gestor) | Gestor |
@@ -188,7 +188,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - Cliente que nunca recebeu visita é classificado como vermelho.
 - A cor do cliente é **calculada em tempo de consulta**, nunca armazenada.
 - Clientes inativos (UC03) não aparecem na listagem padrão.
-- **Evolução da regra na Etapa 5:** a partir da integração com o provedor de ERP (ver UC11), a classificação por cor passa a ser **composta**: além do tempo sem visita, também considera a data da última venda do cliente obtida do ERP. Um cliente visitado recentemente, porém sem venda registrada há um período prolongado, é **rebaixado** na classificação (deixa de ser classificado como verde/amarelo apenas por ter sido visitado). Os limiares dessa regra composta permanecem configuráveis, para ajuste fino junto à empresa.
+- **Regra composta (Etapa 5):** além do tempo sem visita, a cor também considera a data da última venda do cliente no ERP (UC11). Se a cor calculada pela tabela acima for verde ou amarela e a última venda estiver há mais de 60 dias, o cliente é **rebaixado** um degrau, para laranja; laranja e vermelho não mudam. Sem última venda no ERP — cliente sem identificador de ERP, identificador desconhecido no provedor, ou provedor indisponível —, a cor da tabela acima permanece intacta: a regra só rebaixa, nunca promove. O limiar (60 dias) fica em `config/`, para ajuste fino junto à empresa.
 
 ---
 
@@ -329,24 +329,28 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 ### UC11 — Consultar dados de venda/estoque do cliente
 
-**Ator principal:** Representante Comercial.
+**Ator principal:** Representante Comercial e Gestor — consulta idêntica para os dois papéis, sem restrição.
 
-**Pré-condições:** o cliente possui identificador de ERP cadastrado (campo opcional em UC02; ver fluxo de exceção caso não tenha sido preenchido).
+**Pré-condições:** o representante ou o gestor está autenticado; o cliente está cadastrado (o identificador de ERP é opcional em UC02 — ver fluxos de exceção quando ele está ausente ou não é reconhecido pelo provedor).
 
 **Fluxo principal:**
-1. O representante acessa a seção de dados de ERP na ficha do cliente (UC06).
-2. O sistema consulta o provedor de ERP (provedor simulado, enquanto a integração real não estiver disponível) utilizando o identificador de ERP do cliente.
-3. O sistema exibe a última venda, o volume de compras do período e o histórico de estoque do cliente.
-4. O sistema exibe um aviso informando que os dados apresentados são simulados, enquanto o provedor simulado estiver em uso.
+1. O ator acessa a seção "Dados do ERP" na ficha do cliente (UC06).
+2. O sistema consulta o provedor de ERP (`GET /clients/:id/erp`; provedor simulado, enquanto a integração real não estiver disponível) utilizando o identificador de ERP do cliente.
+3. Encontrado dado no provedor, o sistema exibe a última venda (data e valor), o volume de compras dos últimos 90 dias e o nível de estoque estimado do cliente, com os itens em falta quando o nível for baixo.
+4. O sistema exibe um aviso informando que os dados apresentados são simulados sempre que o provedor sinalizar isso (campo `simulado` do `ErpProvider`, verdadeiro no provedor simulado atual).
 
 **Fluxo de exceção:**
-- **E1** (passo 2): provedor de ERP indisponível, ou cliente sem identificador de ERP cadastrado (campo opcional em UC02) — o sistema exibe mensagem informando a indisponibilidade dos dados, sem impedir a visualização do restante da ficha do cliente.
+- **E1** (passo 2): cliente sem identificador de ERP cadastrado (`status: SEM_ERP_ID`) — o sistema exibe mensagem orientando a preencher o identificador em "Editar dados", sem impedir a visualização do restante da ficha.
+- **E2** (passo 2): identificador de ERP cadastrado, mas desconhecido pelo provedor (`status: NAO_ENCONTRADO`) — o sistema exibe mensagem informando que o identificador não foi encontrado no ERP.
+- **E3** (passo 2): provedor de ERP indisponível (`status: INDISPONIVEL`) — o sistema exibe mensagem de indisponibilidade, sem impedir a visualização do restante da ficha do cliente.
 
 **Regras de negócio associadas:**
 - O acesso a dados de ERP é sempre realizado por meio de uma interface de integração (provedor de ERP), permitindo a substituição futura do provedor simulado pela integração real sem alterar as demais camadas do sistema.
+- A consulta responde em quatro estados, conforme os fluxos acima: `OK`, `SEM_ERP_ID`, `NAO_ENCONTRADO` e `INDISPONIVEL`.
 - Os dados de venda e estoque não são persistidos no banco do ChokoCRM; são consultados sob demanda a cada acesso.
-- Enquanto o provedor simulado estiver em uso, é obrigatória a exibição do aviso "dados simulados".
-- **A partir da Etapa 5**, a última venda consultada aqui alimenta a regra de classificação por cor composta descrita em UC05: clientes visitados recentemente mas sem venda registrada há período prolongado são rebaixados na classificação.
+- O aviso "dados simulados" não é um texto fixo da tela: é exibido sempre que o campo `simulado`, informado pelo próprio provedor, for verdadeiro, e desaparece automaticamente quando uma integração real for adotada.
+- A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel.
+- **A partir da Etapa 5**, a última venda consultada aqui alimenta a regra de classificação por cor composta descrita em UC05: clientes visitados recentemente mas sem venda registrada há mais de 60 dias são rebaixados na classificação.
 
 ---
 
