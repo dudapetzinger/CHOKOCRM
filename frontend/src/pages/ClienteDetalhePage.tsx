@@ -8,7 +8,7 @@ import {
   updateContato,
   deleteContato,
   mensagemErroApi,
-  normalizarDadosCliente,
+  normalizarDadosEdicao,
   validarDadosCliente,
   dadosClienteVazios,
   type Contato,
@@ -23,9 +23,12 @@ import {
 } from '../components/ContatoFields';
 import { VisitTimeline } from '../components/VisitTimeline';
 import { NavInferior } from '../components/NavInferior';
+import { BadgeCor } from '../components/BadgeCor';
+import { RecorrenciaCard } from '../components/RecorrenciaCard';
 import { useAuth } from '../auth/useAuth';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
+import { formatarData } from '../lib/formatarData';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do cliente.';
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar as alterações.';
@@ -40,10 +43,11 @@ function formatarCnpj(cnpj: string): string {
   return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
 }
 
-function formatarData(iso: string): string {
-  const data = new Date(iso);
-  if (Number.isNaN(data.getTime())) return iso;
-  return new Intl.DateTimeFormat('pt-BR').format(data);
+function formatarUltimaVisita(diasSemVisita: number | null): string {
+  if (diasSemVisita === null) return 'Nunca visitado';
+  if (diasSemVisita === 0) return 'Última visita hoje';
+  if (diasSemVisita === 1) return 'Última visita há 1 dia';
+  return `Última visita há ${diasSemVisita} dias`;
 }
 
 function dadosParaFormulario(cliente: {
@@ -124,7 +128,7 @@ export function ClienteDetalhePage() {
   }
 
   const mutationEditar = useMutation({
-    mutationFn: (input: ReturnType<typeof normalizarDadosCliente>) => updateCliente(id!, input),
+    mutationFn: (input: ReturnType<typeof normalizarDadosEdicao>) => updateCliente(id!, input),
     onSuccess: () => {
       invalidarCliente();
       setModoEdicaoCliente(false);
@@ -218,7 +222,7 @@ export function ClienteDetalhePage() {
     setErrosEdicao(erros);
     if (Object.keys(erros).length > 0) return;
 
-    mutationEditar.mutate(normalizarDadosCliente(dadosEdicao));
+    mutationEditar.mutate(normalizarDadosEdicao(dadosEdicao));
   }
 
   function abrirNovoContato(): void {
@@ -298,7 +302,9 @@ export function ClienteDetalhePage() {
   return (
     <div className="container">
       <header className="topo">
-        <h1>{cliente.nomeFantasia}</h1>
+        <h1>
+          {cliente.nomeFantasia} <BadgeCor cor={cliente.cor} />
+        </h1>
         <Link className="topo-acao" to="/clientes">
           Voltar
         </Link>
@@ -312,6 +318,8 @@ export function ClienteDetalhePage() {
             Dados do cliente
           </h2>
 
+          <p className="cliente-info">{formatarUltimaVisita(cliente.diasSemVisita)}</p>
+
           {!cliente.ativo && <p className="aviso aviso-atencao">Este cliente está inativo.</p>}
 
           {!modoEdicaoCliente && !confirmandoInativacao && (
@@ -323,7 +331,6 @@ export function ClienteDetalhePage() {
               <p className="cliente-info">Telefone: {cliente.telefone}</p>
               <p className="cliente-info">E-mail: {cliente.email}</p>
               {cliente.erpId && <p className="cliente-info">Identificador no ERP: {cliente.erpId}</p>}
-              <p className="cliente-info">Recorrência de visitas: a cada {cliente.recorrenciaDias} dias</p>
               <p className="cliente-info">Cliente desde: {formatarData(cliente.criadoEm)}</p>
 
               <div className="acoes-linha">
@@ -485,19 +492,6 @@ export function ClienteDetalhePage() {
                 />
               </div>
 
-              <div className="campo">
-                <label htmlFor="edicao-recorrenciaDias">Recorrência de visitas em dias</label>
-                <input
-                  type="number"
-                  id="edicao-recorrenciaDias"
-                  min={1}
-                  max={365}
-                  value={dadosEdicao.recorrenciaDias}
-                  onChange={(event) => atualizarCampoEdicao('recorrenciaDias', event.target.value)}
-                />
-                {errosEdicao.recorrenciaDias && <p className="erro-campo">{errosEdicao.recorrenciaDias}</p>}
-              </div>
-
               <div className="acoes-linha">
                 <button
                   type="button"
@@ -655,6 +649,15 @@ export function ClienteDetalhePage() {
             </button>
           )}
         </section>
+
+        {user?.role === 'REPRESENTANTE' && (
+          <RecorrenciaCard
+            clienteId={id!}
+            recorrenciaDias={cliente.recorrenciaDias}
+            historico={cliente.recorrenciaChanges}
+            podeAlterar={cliente.ativo}
+          />
+        )}
 
         <section className="card" aria-labelledby="titulo-visitas">
           <h2 className="card-titulo" id="titulo-visitas">

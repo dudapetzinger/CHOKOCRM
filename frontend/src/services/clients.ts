@@ -44,6 +44,16 @@ export type ClienteListItem = {
   representante: { id: string; nome: string };
 };
 
+/** Uma alteração registrada da recorrência de visitas (UC05/UC09, Etapa 4). */
+export type RecorrenciaChange = {
+  id: string;
+  de: number;
+  para: number;
+  justificativa: string;
+  autor: { id: string; nome: string };
+  data: string;
+};
+
 export type ClienteCompleto = {
   id: string;
   razaoSocial: string;
@@ -58,6 +68,10 @@ export type ClienteCompleto = {
   ativo: boolean;
   criadoEm: string;
   contatos: Contato[];
+  cor: Cor;
+  diasSemVisita: number | null;
+  representante: { id: string; nome: string };
+  recorrenciaChanges: RecorrenciaChange[];
 };
 
 export type ContatoInput = {
@@ -90,8 +104,8 @@ export type UpdateClienteInput = Partial<{
   telefone: string;
   email: string;
   erpId: string;
-  recorrenciaDias: number;
   ativo: boolean;
+  representanteId: string;
 }>;
 
 export type UpdateContatoInput = Partial<ContatoInput>;
@@ -120,6 +134,16 @@ export function createCliente(input: CreateClienteInput): Promise<ClienteComplet
 
 export function updateCliente(id: string, input: UpdateClienteInput): Promise<ClienteCompleto> {
   return api.put<ClienteCompleto>(`/clients/${id}`, input);
+}
+
+/** Faixa de recorrência sugerida (dias) fora da qual o card exige confirmação extra. */
+export const FAIXA_RECORRENCIA_SUGERIDA = { min: 15, max: 30 } as const;
+
+export function alterarRecorrencia(
+  id: string,
+  input: { recorrenciaDias: number; justificativa: string },
+): Promise<ClienteCompleto> {
+  return api.put<ClienteCompleto>(`/clients/${id}/recurrence`, input);
 }
 
 export function createContato(clienteId: string, input: ContatoInput): Promise<Contato> {
@@ -234,4 +258,14 @@ export function normalizarDadosCliente(
     ...(dados.erpId.trim() ? { erpId: dados.erpId.trim() } : {}),
     ...(dados.recorrenciaDias.trim() ? { recorrenciaDias: Number(dados.recorrenciaDias) } : {}),
   };
+}
+
+/**
+ * Mesma normalização de `normalizarDadosCliente`, mas sem `recorrenciaDias`:
+ * usada na edição dos dados do cliente, já que a recorrência agora tem seu
+ * próprio fluxo (com justificativa e histórico) em `RecorrenciaCard`.
+ */
+export function normalizarDadosEdicao(dados: DadosClienteFormulario): UpdateClienteInput {
+  const { recorrenciaDias: _recorrenciaDias, ...resto } = normalizarDadosCliente(dados);
+  return resto;
 }
