@@ -1,5 +1,5 @@
 import type { ClienteParaAgenda } from '../../src/repositories/client.repository';
-import { montarAgenda } from '../../src/services/agenda.service';
+import { montarAgenda } from '../../src/services/agenda.montagem';
 import { somarDias } from '../../src/services/classificacao.service';
 
 const hoje = new Date('2026-09-27T15:00:00Z');
