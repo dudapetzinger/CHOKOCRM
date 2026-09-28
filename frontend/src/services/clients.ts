@@ -42,6 +42,7 @@ export type ClienteListItem = {
   cor: Cor;
   diasSemVisita: number | null;
   representante: { id: string; nome: string };
+  rebaixadoPorVenda: boolean;
 };
 
 /** Uma alteração registrada da recorrência de visitas (UC09, Etapa 4). */
@@ -72,6 +73,8 @@ export type ClienteCompleto = {
   diasSemVisita: number | null;
   representante: { id: string; nome: string };
   recorrenciaChanges: RecorrenciaChange[];
+  rebaixadoPorVenda: boolean;
+  diasSemCompra: number | null;
 };
 
 export type ContatoInput = {

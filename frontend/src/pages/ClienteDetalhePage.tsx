@@ -25,6 +25,7 @@ import { VisitTimeline } from '../components/VisitTimeline';
 import { NavInferior } from '../components/NavInferior';
 import { BadgeCor } from '../components/BadgeCor';
 import { RecorrenciaCard } from '../components/RecorrenciaCard';
+import { DadosErpCard } from '../components/DadosErpCard';
 import { useAuth } from '../auth/useAuth';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
@@ -319,6 +320,9 @@ export function ClienteDetalhePage() {
           </h2>
 
           <p className="cliente-info">{formatarUltimaVisita(cliente.diasSemVisita)}</p>
+          {cliente.rebaixadoPorVenda && (
+            <p className="cliente-info">Cor rebaixada: sem compra há {cliente.diasSemCompra} dias</p>
+          )}
 
           {!cliente.ativo && <p className="aviso aviso-atencao">Este cliente está inativo.</p>}
 
@@ -656,6 +660,8 @@ export function ClienteDetalhePage() {
           historico={cliente.recorrenciaChanges}
           podeAlterar={user?.role === 'REPRESENTANTE' && cliente.ativo}
         />
+
+        <DadosErpCard clienteId={id!} />
 
         <section className="card" aria-labelledby="titulo-visitas">
           <h2 className="card-titulo" id="titulo-visitas">

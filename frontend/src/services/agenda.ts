@@ -14,6 +14,7 @@ export type AgendaItem = {
   diasSemVisita: number | null;
   proximaVisita: string;
   diasAtraso: number;
+  rebaixadoPorVenda: boolean;
 };
 
 export type Agenda = {
