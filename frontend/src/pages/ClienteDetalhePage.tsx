@@ -26,6 +26,7 @@ import { NavInferior } from '../components/NavInferior';
 import { BadgeCor } from '../components/BadgeCor';
 import { RecorrenciaCard } from '../components/RecorrenciaCard';
 import { DadosErpCard } from '../components/DadosErpCard';
+import { MensagemEstoqueCard } from '../components/MensagemEstoqueCard';
 import { useAuth } from '../auth/useAuth';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
@@ -662,6 +663,11 @@ export function ClienteDetalhePage() {
         />
 
         <DadosErpCard clienteId={id!} />
+
+        <MensagemEstoqueCard
+          clienteId={id!}
+          podeGerar={user?.role === 'REPRESENTANTE' && cliente.ativo}
+        />
 
         <section className="card" aria-labelledby="titulo-visitas">
           <h2 className="card-titulo" id="titulo-visitas">

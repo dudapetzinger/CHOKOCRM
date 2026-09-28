@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { ROTULO_RESULTADO } from '../services/visits';
 import type { Visita } from '../services/visits';
 import { VisitaFoto } from './VisitaFoto';
+import { formatarDataHora } from '../lib/formatarData';
 
 type Props = {
   visitas: Visita[];
@@ -18,10 +19,6 @@ type Props = {
   onEditarDescricao: (visitaId: string, descricao: string) => Promise<void>;
   onAnexarFoto: (visitaId: string, arquivo: File) => Promise<void>;
 };
-
-function formatarDataHora(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-}
 
 export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarFoto }: Props) {
   const [editando, setEditando] = useState<string | null>(null);
