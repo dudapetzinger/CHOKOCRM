@@ -49,6 +49,13 @@ Duas outras controlam o job diário de alertas da agenda (UC10 — ver `backend/
 | `AGENDA_JOB_ENABLED` | `true` | Liga/desliga o agendamento. O CI define `"false"`, já que o pipeline não precisa de um job recorrente rodando. |
 | `AGENDA_JOB_CRON` | `0 6 * * *` | Expressão cron (formato node-cron) de quando o job roda, interpretada no fuso `America/Sao_Paulo`. |
 
+Mais duas controlam o provedor de ERP simulado da Etapa 5 (ver `backend/src/providers/erp/`):
+
+| Variável | Padrão | Para quê |
+|----------|--------|----------|
+| `ERP_PROVIDER` | `mock` | Provedor de ERP em uso (`mock` por ora). |
+| `ERP_MOCK_FALHAR` | `false` | Força o mock a responder "indisponível" para demonstrar o fluxo de exceção da ficha (UC11 E1). |
+
 ## 3. Subindo o ambiente com Docker Compose
 
 Na raiz do repositório:

@@ -21,6 +21,11 @@ const envSchema = z.object({
     .refine((v) => cron.validate(v), {
       message: 'AGENDA_JOB_CRON deve ser uma expressão cron válida.',
     }),
+  ERP_PROVIDER: z.enum(['mock']).default('mock'),
+  ERP_MOCK_FALHAR: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;
