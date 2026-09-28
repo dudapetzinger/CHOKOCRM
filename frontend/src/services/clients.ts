@@ -44,7 +44,7 @@ export type ClienteListItem = {
   representante: { id: string; nome: string };
 };
 
-/** Uma alteração registrada da recorrência de visitas (UC05/UC09, Etapa 4). */
+/** Uma alteração registrada da recorrência de visitas (UC09, Etapa 4). */
 export type RecorrenciaChange = {
   id: string;
   de: number;

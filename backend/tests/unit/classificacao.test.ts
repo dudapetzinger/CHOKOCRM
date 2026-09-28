@@ -67,6 +67,12 @@ describe('classificarCor', () => {
     const ultima = { dataHora: new Date('2026-09-27T02:30:00Z'), resultado: 'VENDA' as const };
     expect(diasSemVisita(ultima, hoje)).toBe(1);
   });
+
+  it('visita registrada 1 dia de calendário após "hoje" (micro-janela da meia-noite) não fica negativa', () => {
+    const ultima = { dataHora: diasAtras(-1), resultado: 'VENDA' as const };
+    expect(diasSemVisita(ultima, hoje)).toBe(0);
+    expect(classificarCor(ultima, hoje)).toBe('VERDE');
+  });
 });
 
 describe('classificacaoDoCliente', () => {

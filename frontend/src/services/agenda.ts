@@ -1,5 +1,5 @@
 /**
- * Acesso tipado à API da agenda do dia (UC09, Etapa 4). Espelha o shape de
+ * Acesso tipado à API da agenda do dia (UC10, Etapa 4). Espelha o shape de
  * `backend`'s `GET /agenda/today`: o representante vê só a própria carteira,
  * o gestor vê todos os clientes.
  */

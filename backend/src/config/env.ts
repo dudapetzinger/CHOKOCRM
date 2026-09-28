@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import cron from 'node-cron';
 import { z } from 'zod';
 
 const envSchema = z.object({
@@ -13,7 +14,13 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
-  AGENDA_JOB_CRON: z.string().min(1).default('0 6 * * *'),
+  AGENDA_JOB_CRON: z
+    .string()
+    .min(1)
+    .default('0 6 * * *')
+    .refine((v) => cron.validate(v), {
+      message: 'AGENDA_JOB_CRON deve ser uma expressão cron válida.',
+    }),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -6,7 +6,7 @@ export type AtivoFiltro = 'ativos' | 'todos';
 
 /**
  * Projeção da última visita (por `dataHora`), reaproveitada tanto na
- * listagem quanto na ficha para classificar a cor do cliente (ADR-005:
+ * listagem quanto na ficha para classificar a cor do cliente (ADR-006:
  * a cor nunca é persistida, sempre calculada a partir da última visita).
  */
 export const SELECT_ULTIMA_VISITA = {

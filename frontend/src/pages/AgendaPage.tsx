@@ -1,5 +1,5 @@
 /**
- * Agenda do dia (UC09, Etapa 4): visitas atrasadas e previstas para hoje,
+ * Agenda do dia (UC10, Etapa 4): visitas atrasadas e previstas para hoje,
  * priorizadas pela cor de classificação do cliente. O representante vê só a
  * própria carteira; o gestor vê todos os clientes (ver `GET /agenda/today`).
  */

@@ -1,5 +1,5 @@
 /**
- * Estado de servidor da alteração de recorrência de visitas (UC05/UC09,
+ * Estado de servidor da alteração de recorrência de visitas (UC09,
  * Etapa 4), como manda a arquitetura do projeto: páginas e componentes não
  * chamam a API diretamente (ver docs/arquitetura.md e `hooks/useVisitas.ts`).
  */

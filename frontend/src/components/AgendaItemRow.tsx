@@ -1,5 +1,5 @@
 /**
- * Uma linha da agenda do dia (UC09, Etapa 4): avatar+nome+cidade abrem a
+ * Uma linha da agenda do dia (UC10, Etapa 4): avatar+nome+cidade abrem a
  * ficha do cliente (UC06), badge de cor e, só para o representante, um
  * atalho para registrar check-in (UC07). Duas ações por linha — abrir ficha
  * e check-in — impedem reaproveitar `.item-lista` (aninharia <a> dentro de

@@ -49,7 +49,7 @@ export function diasSemVisita(ultima: UltimaVisita, hoje: Date): number | null {
     return null;
   }
 
-  return diasEntre(dataCalendario(ultima.dataHora), dataCalendario(hoje));
+  return Math.max(0, diasEntre(dataCalendario(ultima.dataHora), dataCalendario(hoje)));
 }
 
 /**

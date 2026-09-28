@@ -77,10 +77,8 @@ export function iniciarAgendaDiaria(): void {
     return;
   }
 
-  if (!cron.validate(env.AGENDA_JOB_CRON)) {
-    throw new Error(`AGENDA_JOB_CRON inválido: "${env.AGENDA_JOB_CRON}"`);
-  }
-
+  // AGENDA_JOB_CRON já é validado em `config/env.ts` (falha no parse do
+  // ambiente, antes do `app.listen` — ver M8 da revisão final).
   cron.schedule(env.AGENDA_JOB_CRON, () => void executarAgendaDiariaComSeguranca(), {
     timezone: FUSO_HORARIO,
   });

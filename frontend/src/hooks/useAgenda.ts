@@ -1,5 +1,5 @@
 /**
- * Estado de servidor da agenda do dia (UC09, Etapa 4), como manda a
+ * Estado de servidor da agenda do dia (UC10, Etapa 4), como manda a
  * arquitetura do projeto: as páginas não chamam a API diretamente (ver
  * docs/arquitetura.md).
  */
