@@ -148,3 +148,4 @@ vite.config.ts.timestamp-*
 
 # Fotos de comprovação de check-in (nunca versionadas)
 backend/uploads/
+.superpowers/
