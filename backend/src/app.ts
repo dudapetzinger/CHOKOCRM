@@ -9,6 +9,7 @@ import { authRouter } from './routes/auth.routes';
 import { clientRouter } from './routes/client.routes';
 import { clientContactsRouter, contactRouter } from './routes/contact.routes';
 import { healthRouter } from './routes/health.routes';
+import { recurrenceRouter } from './routes/recurrence.routes';
 import { clientVisitsRouter, visitRouter } from './routes/visit.routes';
 
 export const app: Express = express();
@@ -33,6 +34,7 @@ app.use(healthRouter);
 app.use('/auth', authRouter);
 app.use('/clients', clientRouter);
 app.use('/clients/:id/contacts', clientContactsRouter);
+app.use('/clients/:id/recurrence', recurrenceRouter);
 app.use('/contacts', contactRouter);
 app.use('/clients/:id/visits', clientVisitsRouter);
 // Corpo binário apenas para as imagens de check-in: o filtro de `type`

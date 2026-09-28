@@ -12,7 +12,7 @@ const MENSAGEM_CONTATO_PRINCIPAL_UNICO = 'Cadastro exige exatamente um contato m
 
 const cnpjSchema = z.string().regex(/^\d{14}$/, 'CNPJ deve conter 14 dígitos numéricos.');
 
-const recorrenciaDiasSchema = z
+export const recorrenciaDiasSchema = z
   .number()
   .int('Recorrência de visitas deve ser um número inteiro.')
   .min(1, 'Recorrência de visitas deve ser entre 1 e 365 dias.')

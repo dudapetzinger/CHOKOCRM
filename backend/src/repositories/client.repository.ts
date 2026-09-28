@@ -107,3 +107,33 @@ export async function createWithContacts(input: CreateClientInput, representante
 export async function update(id: string, data: UpdateClientInput): Promise<Client> {
   return prisma.client.update({ where: { id }, data });
 }
+
+/**
+ * Única via de alteração de `Client.recorrenciaDias` (UC09): grava o
+ * histórico auditável em `VisitScheduleChange` e atualiza o cliente na
+ * mesma transação, para que nunca exista mudança de recorrência sem o
+ * respectivo registro de justificativa.
+ */
+export async function updateRecorrenciaComHistorico(params: {
+  clientId: string;
+  userId: string;
+  anterior: number;
+  nova: number;
+  justificativa: string;
+}): Promise<void> {
+  const { clientId, userId, anterior, nova, justificativa } = params;
+
+  await prisma.$transaction([
+    prisma.visitScheduleChange.create({
+      data: {
+        clientId,
+        userId,
+        recorrenciaAnterior: anterior,
+        recorrenciaNova: nova,
+        justificativa,
+        data: new Date(),
+      },
+    }),
+    prisma.client.update({ where: { id: clientId }, data: { recorrenciaDias: nova } }),
+  ]);
+}
