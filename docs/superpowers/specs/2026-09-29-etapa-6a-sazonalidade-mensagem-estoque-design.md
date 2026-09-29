@@ -51,7 +51,7 @@ Para `ano ∈ { anoAtual, anoAtual + 1 }` e cada `EventoSazonal`: `nome = `${NOM
 export type DadosDoTemplate = { nomeContato: string | null; nomeFantasia: string; nomeRepresentante: string; evento: { nome: string; produtosSugeridos: string[] } | null };
 export function montarMensagemDeEstoque(d: DadosDoTemplate): string;
 export function listarProdutos(produtos: string[]): string;   // 'a', 'a e b', 'a, b e c'
-export function normalizarTelefone(telefone: string): string; // só dígitos; prefixa '55' se tiver 10–11 dígitos sem DDI; lança se < 10 dígitos
+export function normalizarTelefone(telefone: string): string; // só dígitos; rejeita prefixo não-geográfico (0800/0300/0500/0900); remove o "0" de tronco (interurbano); prefixa '55' se sobrarem 10–11 dígitos sem DDI; mantém se vierem 12–13 dígitos já com '55'; lança nos demais casos
 export function montarLinkWhatsapp(telefone: string, texto: string): string; // `https://wa.me/${normalizarTelefone(t)}?text=${encodeURIComponent(texto)}`
 ```
 
@@ -64,11 +64,12 @@ Textos (saudação usa `nomeContato ?? 'cliente'`; o nome do evento vem sem o an
 ### 5.1 `services/stock-message.service.ts`
 
 ```ts
-export type PropostaDTO = { evento: { id: string; nome: string; produtosSugeridos: string[] } | null; contatos: { id: string; nome: string; telefone: string; principal: boolean }[]; telefoneCliente: string; textoSugerido: string };
+export type PropostaDTO = { evento: { id: string; nome: string; produtosSugeridos: string[] } | null; contatos: { id: string; nome: string; telefone: string; principal: boolean }[]; telefoneCliente: string; textoSugerido: string; textosSugeridos: { contactId: string | null; texto: string }[] };
 export type StockMessageDTO = { id: string; dataGeracao: string; textoFinal: string; autor: { id: string; nome: string }; evento: { id: string; nome: string } | null; cliente: { id: string; nomeFantasia: string } };
 export type GeracaoDTO = StockMessageDTO & { contato: { id: string; nome: string } | null; telefone: string; link: string };
 
 export async function propor(clientId: string, usuario: UsuarioAutenticado, hoje?: Date): Promise<PropostaDTO>;   // 404 cliente; usa nome do usuário (userRepository.findById)
+// `textosSugeridos`: um item por contato do cliente (saudação com o nome daquele contato) mais um item com `contactId: null` (saudação "cliente", para a opção telefone do cliente); `textoSugerido` é o texto do contato principal (ou o item `null`, se não houver contato principal) — o front troca a sugestão ao trocar "Enviar para" enquanto o texto não tiver sido editado.
 export async function gerar(clientId: string, usuario: UsuarioAutenticado, input: GerarMensagemInput, hoje?: Date): Promise<GeracaoDTO>;
 export async function listar(filtro: { clientId?: string }): Promise<StockMessageDTO[]>;   // mais recente primeiro
 ```

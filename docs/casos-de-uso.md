@@ -377,10 +377,10 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Fluxo de exceção:**
 - **E1** (passo 1): cliente inativo — o sistema não oferece a opção de gerar mensagem na ficha; se acionada mesmo assim, a geração responde com erro (cliente inativo não recebe mensagem de estoque).
 - **E2** (passo 3): o contato escolhido não pertence ao cliente da ficha — o sistema rejeita a geração com mensagem informando que o contato informado não pertence a aquele cliente.
-- **E3** (passo 5): o telefone do destinatário (contato ou cliente) é inválido para o link do WhatsApp (menos de 10 dígitos) — o sistema rejeita a geração com mensagem informando o telefone inválido, sem registrar a mensagem.
+- **E3** (passo 5): o telefone do destinatário (contato ou cliente) é telefone inválido (sem DDD, prefixo 0800/0300 ou fora do padrão brasileiro) — o sistema rejeita a geração com mensagem informando o telefone inválido, sem registrar a mensagem.
 
 **Regras de negócio associadas:**
-- O destinatário é sempre uma pessoa (contato do cliente ou o telefone do próprio cliente), nunca um canal genérico da loja; o contato principal do cliente, quando existir, vem pré-selecionado.
+- O destinatário é um contato do cliente ou o telefone do próprio cliente; este último é sempre oferecido como opção explícita ("Telefone do cliente") e é a única opção quando não há contatos cadastrados (A2). O contato principal do cliente, quando existir, vem pré-selecionado, e a saudação do texto sugerido acompanha o destinatário escolhido — trocar o destinatário troca o nome usado na saudação.
 - O sistema propõe o texto; o representante pode editá-lo livremente antes de confirmar — é o texto final editado que é gravado e que compõe o link.
 - A mensagem é enviada por meio de um link `wa.me` com texto pré-preenchido; o próprio representante revisa e envia pelo WhatsApp, sem envio automático via API e sem confirmação de envio pelo sistema.
 - Toda geração de mensagem é registrada em `StockMessage`, para fins de auditoria e de cálculo da taxa de registro (KPI); o telefone e o contato escolhidos não são persistidos, apenas o texto final.

@@ -14,7 +14,7 @@
 
 - **Ninguém além do parceiro executa `git commit`/`push`.** Cada tarefa termina com as alterações no working tree e a mensagem de commit sugerida; o controller apresenta o resumo do diff e espera o parceiro commitar antes da tarefa seguinte. Nenhum trailer de coautoria.
 - Textos do template exatamente como o spec §4 (com o emoji 🍫 e o travessão); saudação usa `nomeContato ?? 'cliente'`; nome do evento sem o ano.
-- `normalizarTelefone`: só dígitos; 10–11 dígitos → prefixa `55`; 12–13 dígitos começando com `55` → mantém; menos de 10 → lança `Error('Telefone inválido')`. Link `https://wa.me/${digitos}?text=${encodeURIComponent(texto)}`.
+- `normalizarTelefone`: só dígitos; rejeita prefixo não-geográfico (0800/0300/0500/0900); remove o "0" de tronco (interurbano) antes de medir o tamanho; 10–11 dígitos restantes → prefixa `55`; 12–13 dígitos começando com `55` → mantém; nos demais casos → lança `Error('Telefone inválido')`. Link `https://wa.me/${digitos}?text=${encodeURIComponent(texto)}`.
 - Produtos sugeridos e nomes por evento exatamente como o spec §3.1; `dataInicio = dataDoEvento − JANELA_PICO_DIAS`, `dataFim = dataDoEvento`; seed para o ano atual e o seguinte; `SeasonalEvent.nome` único.
 - `eventoVigente(hoje)`: `dataInicio ≤ dia ≤ dataFim` em dia de calendário (`dataCalendario`); sobreposição → menor `dataFim`.
 - Regras de `gerar`: 404 cliente; 409 `CONFLICT` "Cliente inativo não recebe mensagem de estoque."; 400 "Contato informado não pertence a este cliente."; 400 "Telefone inválido para gerar o link do WhatsApp."; `texto` trim, 10–1000 caracteres; `contactId` uuid opcional.
