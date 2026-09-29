@@ -50,12 +50,29 @@ export function montarMensagemDeEstoque(dados: DadosDoTemplate): string {
 }
 
 /**
+ * Prefixos não-geográficos ("0800", "0300", "0500", "0900"), reconhecidos
+ * antes de remover o "0" de tronco: nenhum deles é um número de WhatsApp
+ * válido, mesmo tendo o mesmo formato de um DDD + número comum.
+ */
+const REGEX_PREFIXO_NAO_GEOGRAFICO = /^0[3589]00/;
+
+/**
  * Normaliza um telefone para o formato exigido pelo `wa.me`: só dígitos, com
- * DDI 55. Prefixa `55` quando vêm 10–11 dígitos (DDD + número, sem DDI);
- * mantém como está quando já vêm 12–13 dígitos começando com `55`.
+ * DDI 55. Remove primeiro os não-dígitos; rejeita prefixos não-geográficos
+ * (0800/0300/0500/0900); remove então o "0" de tronco (interurbano, com ou
+ * sem o "0xx" do código da operadora) antes de medir o tamanho, já que é
+ * comum escrever o telefone com esse prefixo no Brasil. Prefixa `55` quando
+ * sobram 10–11 dígitos (DDD + número, sem DDI); mantém como está quando já
+ * vêm 12–13 dígitos começando com `55`.
  */
 export function normalizarTelefone(telefone: string): string {
-  const digitos = telefone.replace(/\D/g, '');
+  const digitosComTronco = telefone.replace(/\D/g, '');
+
+  if (REGEX_PREFIXO_NAO_GEOGRAFICO.test(digitosComTronco)) {
+    throw new Error('Telefone inválido');
+  }
+
+  const digitos = digitosComTronco.replace(/^0+/, '');
 
   if (digitos.length >= 10 && digitos.length <= 11) {
     return `55${digitos}`;

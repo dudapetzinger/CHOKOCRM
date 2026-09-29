@@ -24,9 +24,11 @@ type Props = {
 export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
   const [contactId, setContactId] = useState(CONTATO_TELEFONE_CLIENTE);
   const [texto, setTexto] = useState('');
+  const [ultimoTextoSugerido, setUltimoTextoSugerido] = useState('');
   const [erroTexto, setErroTexto] = useState<string | null>(null);
 
-  const { data: mensagens } = useMensagensEstoque(clienteId);
+  const { data: mensagens, isLoading: mensagensCarregando, isError: mensagensComErro, error: erroMensagens } =
+    useMensagensEstoque(clienteId);
   const mutationGerar = useGerarMensagemEstoque(clienteId);
 
   const mutationProposta = useMutation({
@@ -35,6 +37,7 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
       const principal = proposta.contatos.find((contato) => contato.principal);
       setContactId(principal?.id ?? CONTATO_TELEFONE_CLIENTE);
       setTexto(proposta.textoSugerido);
+      setUltimoTextoSugerido(proposta.textoSugerido);
       setErroTexto(null);
     },
   });
@@ -50,6 +53,27 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
     setErroTexto(null);
     setContactId(CONTATO_TELEFONE_CLIENTE);
     setTexto('');
+    setUltimoTextoSugerido('');
+  }
+
+  /**
+   * Troca "Enviar para" (I2): a saudação sugerida segue o destinatário
+   * escolhido, mas só enquanto o representante não tiver editado o texto —
+   * se o texto atual ainda é exatamente a última sugestão aplicada, troca
+   * pela sugestão do novo destinatário; caso contrário, o texto já editado
+   * é preservado.
+   */
+  function handleContactChange(novoContactId: string): void {
+    setContactId(novoContactId);
+
+    const novaSugestao = mutationProposta.data?.textosSugeridos.find(
+      (item) => item.contactId === (novoContactId || null),
+    )?.texto;
+
+    if (novaSugestao !== undefined && texto === ultimoTextoSugerido) {
+      setTexto(novaSugestao);
+      setUltimoTextoSugerido(novaSugestao);
+    }
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -88,6 +112,9 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
             <a className="btn-primario" href={geracao.link} target="_blank" rel="noopener">
               Abrir no WhatsApp
             </a>
+            <button type="button" className="btn-secundario" onClick={cancelar}>
+              Gerar outra mensagem
+            </button>
           </div>
         </>
       )}
@@ -102,7 +129,7 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
 
           <label className="campo">
             <span className="etiqueta">Enviar para</span>
-            <select value={contactId} onChange={(event) => setContactId(event.target.value)}>
+            <select value={contactId} onChange={(event) => handleContactChange(event.target.value)}>
               {proposta.contatos.map((contato) => (
                 <option key={contato.id} value={contato.id}>
                   {contato.nome} — {contato.telefone}
@@ -128,11 +155,17 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
             <textarea
               id="mensagem-estoque-texto"
               value={texto}
-              onChange={(event) => setTexto(event.target.value)}
+              onChange={(event) => {
+                setTexto(event.target.value);
+                setErroTexto(null);
+              }}
               rows={5}
+              maxLength={1000}
+              aria-invalid={erroTexto ? true : undefined}
+              aria-describedby={erroTexto ? 'mensagem-estoque-texto-erro' : undefined}
             />
             {erroTexto && (
-              <p className="erro-campo" role="alert">
+              <p id="mensagem-estoque-texto-erro" className="erro-campo" role="alert">
                 {erroTexto}
               </p>
             )}
@@ -175,19 +208,32 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
       )}
 
       <h3 className="card-titulo">Mensagens geradas</h3>
-      {!mensagens || mensagens.length === 0 ? (
+      {mensagensCarregando && <p className="aviso">Carregando mensagens...</p>}
+
+      {mensagensComErro && (
+        <p className="aviso aviso-atencao" role="alert">
+          {mensagemErroApi(erroMensagens, 'Não foi possível carregar as mensagens.')}
+        </p>
+      )}
+
+      {!mensagensCarregando && !mensagensComErro && (!mensagens || mensagens.length === 0) && (
         <p className="campo-ajuda">Nenhuma mensagem gerada para este cliente.</p>
-      ) : (
+      )}
+
+      {!mensagensCarregando &&
+        !mensagensComErro &&
+        mensagens &&
         mensagens.map((mensagem) => (
           <details key={mensagem.id}>
             <summary>
               {formatarDataHora(mensagem.dataGeracao)} · {mensagem.autor.nome} ·{' '}
               {mensagem.evento?.nome ?? 'sem evento'}
             </summary>
-            <p className="cliente-info">{mensagem.textoFinal}</p>
+            <p className="cliente-info" style={{ whiteSpace: 'pre-wrap' }}>
+              {mensagem.textoFinal}
+            </p>
           </details>
-        ))
-      )}
+        ))}
     </section>
   );
 }

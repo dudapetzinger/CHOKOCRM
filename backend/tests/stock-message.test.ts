@@ -37,6 +37,8 @@ let contactDeOutroClienteId: string;
 let clienteTelefoneInvalidoId: string;
 let contactTelefoneInvalidoId: string;
 
+let clienteTelefoneClienteInvalidoId: string;
+
 function apelido(nomeFantasia: string): string {
   return nomeFantasia.toLowerCase().replace(/\s/g, '');
 }
@@ -168,6 +170,22 @@ beforeEach(async () => {
   });
   clienteTelefoneInvalidoId = clienteTelefoneInvalido.id;
   contactTelefoneInvalidoId = clienteTelefoneInvalido.contacts[0]!.id;
+
+  const clienteTelefoneClienteInvalido = await prisma.client.create({
+    data: {
+      razaoSocial: 'Chocolates Gaspar Comércio Ltda',
+      nomeFantasia: 'Chocolates Gaspar',
+      cnpj: '11222333000505',
+      cidade: 'Gaspar',
+      endereco: 'Rua Bahia, 500',
+      telefone: '1234',
+      email: `contato@${apelido('Chocolates Gaspar')}.com.br`,
+      recorrenciaDias: 15,
+      representanteId,
+      ativo: true,
+    },
+  });
+  clienteTelefoneClienteInvalidoId = clienteTelefoneClienteInvalido.id;
 });
 
 afterAll(async () => {
@@ -237,6 +255,13 @@ describe('GET /clients/:id/stock-message/proposta', () => {
     );
     expect(res.body.textoSugerido).toContain('Marta Weber');
     expect(res.body.textoSugerido).toContain('estoque de chocolates');
+
+    expect(res.body.textosSugeridos).toHaveLength(3);
+    const porContato = (id: string | null) =>
+      res.body.textosSugeridos.find((item: { contactId: string | null }) => item.contactId === id);
+    expect(porContato(contactPrincipalId).texto).toContain('Marta Weber');
+    expect(porContato(contactSecundarioId).texto).toContain('João Neto');
+    expect(porContato(null).texto).toContain('Olá, cliente!');
   });
 
   it('com evento vigente devolve o evento e o texto sazonal', async () => {
@@ -254,6 +279,15 @@ describe('GET /clients/:id/stock-message/proposta', () => {
 });
 
 describe('POST /clients/:id/stock-message', () => {
+  it('sem token 401', async () => {
+    const res = await request(app)
+      .post(`/clients/${clienteAtivoId}/stock-message`)
+      .send({ texto: 'Olá, como está o estoque de chocolates?' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+  });
+
   it('gestor 403', async () => {
     const res = await request(app)
       .post(`/clients/${clienteAtivoId}/stock-message`)
@@ -262,6 +296,16 @@ describe('POST /clients/:id/stock-message', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('cliente inexistente 404', async () => {
+    const res = await request(app)
+      .post(`/clients/${ID_INEXISTENTE}/stock-message`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ texto: 'Olá, como está o estoque de chocolates?' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
   it('cliente inativo 409', async () => {
@@ -294,6 +338,40 @@ describe('POST /clients/:id/stock-message', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('texto com mais de 1000 caracteres 400', async () => {
+    const res = await request(app)
+      .post(`/clients/${clienteAtivoId}/stock-message`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ texto: 'a'.repeat(1001) });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('campo desconhecido 400', async () => {
+    const res = await request(app)
+      .post(`/clients/${clienteAtivoId}/stock-message`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ texto: 'Olá, como está o estoque de chocolates?', campoInexistente: 'x' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('sem contactId e telefone do cliente inválido 400 e nada gravado', async () => {
+    const res = await request(app)
+      .post(`/clients/${clienteTelefoneClienteInvalidoId}/stock-message`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ texto: 'Olá, como está o estoque de chocolates?' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toBe('Telefone inválido para gerar o link do WhatsApp.');
+
+    const total = await prisma.stockMessage.count();
+    expect(total).toBe(0);
   });
 
   it('contato com telefone inválido 400 e nada gravado', async () => {

@@ -77,6 +77,17 @@ describe('normalizarTelefone', () => {
     expect(normalizarTelefone('(47) 3395-1122')).toBe('554733951122');
     expect(() => normalizarTelefone('1234')).toThrow();
   });
+
+  it('remove o "0" de tronco (interurbano) antes de medir o tamanho', () => {
+    expect(normalizarTelefone('(047) 3395-1122')).toBe('554733951122');
+    expect(normalizarTelefone('0xx47 3395-1122')).toBe('554733951122');
+    expect(normalizarTelefone('047 99911-2233')).toBe('5547999112233');
+    expect(normalizarTelefone('(11) 3333-4444')).toBe('551133334444');
+  });
+
+  it('rejeita prefixos não-geográficos (0800/0300/0500/0900)', () => {
+    expect(() => normalizarTelefone('0800 123 4567')).toThrow();
+  });
 });
 
 describe('montarLinkWhatsapp', () => {

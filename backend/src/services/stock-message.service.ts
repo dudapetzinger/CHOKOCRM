@@ -3,7 +3,6 @@ import { ErrorCode } from '../errors/errorCodes';
 import * as clientRepository from '../repositories/client.repository';
 import * as stockMessageRepository from '../repositories/stock-message.repository';
 import * as userRepository from '../repositories/user.repository';
-import * as visitRepository from '../repositories/visit.repository';
 import type { GerarMensagemInput } from '../schemas/stock-message.schema';
 import type { UsuarioAutenticado } from './client.service';
 import { eventoVigente } from './seasonal-event.service';
@@ -26,6 +25,7 @@ export type PropostaDTO = {
   contatos: { id: string; nome: string; telefone: string; principal: boolean }[];
   telefoneCliente: string;
   textoSugerido: string;
+  textosSugeridos: { contactId: string | null; texto: string }[];
 };
 
 export type StockMessageDTO = {
@@ -60,15 +60,40 @@ export async function propor(
 
   const usuarioLogado = await userRepository.findById(usuario.id);
   const evento = await eventoVigente(hoje);
+  const eventoTemplate = evento
+    ? { nome: nomeSemAno(evento.nome), produtosSugeridos: evento.produtosSugeridos }
+    : null;
+  const nomeRepresentante = usuarioLogado?.nome ?? '';
+
+  // Uma saudação por destinatário possível: um item por contato, mais um
+  // com `contactId: null` para a opção "telefone do cliente" (saudação
+  // genérica "cliente"). O front troca o texto ao trocar "Enviar para"
+  // enquanto o representante não tiver editado a sugestão (I2).
+  const textosSugeridos = [
+    ...cliente.contacts.map((contato) => ({
+      contactId: contato.id,
+      texto: montarMensagemDeEstoque({
+        nomeContato: contato.nome,
+        nomeFantasia: cliente.nomeFantasia,
+        nomeRepresentante,
+        evento: eventoTemplate,
+      }),
+    })),
+    {
+      contactId: null,
+      texto: montarMensagemDeEstoque({
+        nomeContato: null,
+        nomeFantasia: cliente.nomeFantasia,
+        nomeRepresentante,
+        evento: eventoTemplate,
+      }),
+    },
+  ];
 
   const contatoPrincipal = cliente.contacts.find((contato) => contato.principal) ?? null;
-
-  const textoSugerido = montarMensagemDeEstoque({
-    nomeContato: contatoPrincipal?.nome ?? null,
-    nomeFantasia: cliente.nomeFantasia,
-    nomeRepresentante: usuarioLogado?.nome ?? '',
-    evento: evento ? { nome: nomeSemAno(evento.nome), produtosSugeridos: evento.produtosSugeridos } : null,
-  });
+  const textoSugerido =
+    textosSugeridos.find((item) => item.contactId === (contatoPrincipal?.id ?? null))?.texto ??
+    textosSugeridos[textosSugeridos.length - 1]!.texto;
 
   return {
     evento: evento ? { id: evento.id, nome: evento.nome, produtosSugeridos: evento.produtosSugeridos } : null,
@@ -80,6 +105,7 @@ export async function propor(
     })),
     telefoneCliente: cliente.telefone,
     textoSugerido,
+    textosSugeridos,
   };
 }
 
@@ -119,16 +145,13 @@ export async function gerar(
   let telefone = cliente.telefone;
 
   if (input.contactId) {
-    const pertence = await visitRepository.contatoPertenceAoCliente(input.contactId, clientId);
-    if (!pertence) {
+    const contatoEncontrado = cliente.contacts.find((c) => c.id === input.contactId) ?? null;
+    if (!contatoEncontrado) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_CONTATO_NAO_PERTENCE, 400);
     }
 
-    const contatoEncontrado = cliente.contacts.find((c) => c.id === input.contactId) ?? null;
-    contato = contatoEncontrado
-      ? { id: contatoEncontrado.id, nome: contatoEncontrado.nome, telefone: contatoEncontrado.telefone }
-      : null;
-    telefone = contatoEncontrado?.telefone ?? cliente.telefone;
+    contato = { id: contatoEncontrado.id, nome: contatoEncontrado.nome, telefone: contatoEncontrado.telefone };
+    telefone = contatoEncontrado.telefone;
   }
 
   try {

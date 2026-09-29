@@ -9,6 +9,7 @@ export type Proposta = {
   contatos: { id: string; nome: string; telefone: string; principal: boolean }[];
   telefoneCliente: string;
   textoSugerido: string;
+  textosSugeridos: { contactId: string | null; texto: string }[];
 };
 
 export type MensagemEstoque = {
