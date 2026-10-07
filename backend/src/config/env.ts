@@ -2,7 +2,7 @@ import 'dotenv/config';
 import cron from 'node-cron';
 import { z } from 'zod';
 
-const envSchema = z.object({
+export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1),
@@ -26,6 +26,8 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  // Vazia = telemetria do Application Insights desligada (dev, testes, CI).
+  APPLICATIONINSIGHTS_CONNECTION_STRING: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;
