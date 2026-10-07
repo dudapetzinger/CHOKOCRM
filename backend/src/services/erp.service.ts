@@ -1,7 +1,14 @@
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import { erpProvider } from '../providers/erp';
-import { ErpIndisponivelError, type NivelEstoque, type StockSnapshot, type Volume } from '../providers/erp/ErpProvider';
+import {
+  ErpIndisponivelError,
+  type NivelEstoque,
+  type Period,
+  type Sale,
+  type StockSnapshot,
+  type Volume,
+} from '../providers/erp/ErpProvider';
 import * as clientRepository from '../repositories/client.repository';
 import { logger } from '../lib/logger';
 import { dataCalendario, fimDoDia, inicioDoDia, somarDias } from './classificacao.service';
@@ -30,10 +37,11 @@ export type DadosErpDTO =
   | { status: 'NAO_ENCONTRADO' }
   | { status: 'INDISPONIVEL' };
 
-type EstoqueResumo = Extract<DadosErpDTO, { status: 'OK' }>['estoque'];
-
 /** Item de estoque em nível BAIXO; `atualizadoEm` é a data do snapshot de onde veio. */
 export type ItemBaixo = { sku: string; nome: string; quantidade: number; atualizadoEm: Date };
+
+/** Snapshot mais recente do estoque: pior nível da data e os itens em nível BAIXO. */
+export type ResumoEstoque = { nivel: NivelEstoque; atualizadoEm: string; itensBaixos: ItemBaixo[] };
 
 /** Ordem de "pior" nível de estoque: BAIXO é o pior, ALTO o melhor. */
 const ORDEM_DE_GRAVIDADE: Record<NivelEstoque, number> = {
@@ -42,31 +50,35 @@ const ORDEM_DE_GRAVIDADE: Record<NivelEstoque, number> = {
   ALTO: 2,
 };
 
+type RespostaDoLote<T> = { erpId: string; disponivel: true; resultado: T } | { erpId: string; disponivel: false };
+
 /**
- * Última venda de cada `erpId`, para telas que listam vários clientes de
- * uma vez (lista de clientes, ficha do cliente, agenda). Deduplica os
- * `erpId`s e consulta o provedor em paralelo; se o ERP estiver
- * indisponível, registra um único warn para o lote inteiro (não um por
- * cliente) e devolve `null` para cada um — quem chama não precisa saber
- * que o ERP está fora do ar.
+ * Consulta o ERP uma vez por `erpId` distinto (ignora `null`/vazio e
+ * repetidos), em paralelo. Se o ERP estiver indisponível para algum id,
+ * registra um único warn para o lote inteiro (não um por cliente) e o devolve
+ * em `indisponiveis`, na ordem de `erpIds`; os demais seguem. Outros erros
+ * propagam.
  */
-export async function consultarUltimasVendas(erpIds: (string | null)[]): Promise<Map<string, Date | null>> {
+async function consultarEmLote<T>(
+  erpIds: (string | null)[],
+  consultar: (erpId: string) => Promise<T>,
+  mensagemDeIndisponibilidade: string,
+): Promise<{ resultados: Map<string, T>; indisponiveis: string[] }> {
   const idsUnicos = [...new Set(erpIds.filter((erpId): erpId is string => Boolean(erpId)))];
   let indisponivelJaLogado = false;
 
-  const resultados = await Promise.all(
-    idsUnicos.map(async (erpId): Promise<[string, Date | null]> => {
+  const respostas = await Promise.all(
+    idsUnicos.map(async (erpId): Promise<RespostaDoLote<T>> => {
       try {
-        const venda = await erpProvider.getLastSale(erpId);
-        return [erpId, venda?.data ?? null];
+        return { erpId, disponivel: true, resultado: await consultar(erpId) };
       } catch (err) {
         if (err instanceof ErpIndisponivelError) {
           if (!indisponivelJaLogado) {
             indisponivelJaLogado = true;
-            logger.warn({ err }, 'ERP indisponível ao consultar últimas vendas em lote');
+            logger.warn({ err }, mensagemDeIndisponibilidade);
           }
 
-          return [erpId, null];
+          return { erpId, disponivel: false };
         }
 
         throw err;
@@ -74,11 +86,84 @@ export async function consultarUltimasVendas(erpIds: (string | null)[]): Promise
     }),
   );
 
-  return new Map(resultados);
+  const resultados = new Map<string, T>();
+  const indisponiveis: string[] = [];
+
+  for (const resposta of respostas) {
+    if (resposta.disponivel) {
+      resultados.set(resposta.erpId, resposta.resultado);
+    } else {
+      indisponiveis.push(resposta.erpId);
+    }
+  }
+
+  return { resultados, indisponiveis };
+}
+
+/** Indica se o ERP em uso é o simulado (mock de demonstração), para telas e insights sinalizarem isso. */
+export function erpSimulado(): boolean {
+  return erpProvider.simulado;
+}
+
+/**
+ * Última venda de cada `erpId`, para telas que listam vários clientes de
+ * uma vez (lista de clientes, ficha do cliente, agenda). Se o ERP estiver
+ * indisponível, devolve `null` para o cliente afetado — quem chama não
+ * precisa saber que o ERP está fora do ar.
+ */
+export async function consultarUltimasVendas(erpIds: (string | null)[]): Promise<Map<string, Date | null>> {
+  const { resultados, indisponiveis } = await consultarEmLote(
+    erpIds,
+    async (erpId) => (await erpProvider.getLastSale(erpId))?.data ?? null,
+    'ERP indisponível ao consultar últimas vendas em lote',
+  );
+
+  for (const erpId of indisponiveis) {
+    resultados.set(erpId, null);
+  }
+
+  return resultados;
+}
+
+/**
+ * Vendas de um cliente no período (para os insights sazonais). `null` quando
+ * o ERP está indisponível — o warn é registrado aqui e quem chama decide como
+ * degradar; qualquer outro erro propaga.
+ */
+export async function consultarVendas(erpId: string, periodo: Period): Promise<Sale[] | null> {
+  try {
+    return await erpProvider.getSales(erpId, periodo);
+  } catch (err) {
+    if (err instanceof ErpIndisponivelError) {
+      logger.warn({ erpId, err }, 'ERP indisponível ao consultar vendas do período');
+      return null;
+    }
+
+    throw err;
+  }
+}
+
+/**
+ * Itens em nível BAIXO no snapshot de estoque mais recente de cada `erpId`
+ * (para os alertas de produção). `erpId` sem histórico (desconhecido no ERP)
+ * fica com lista vazia; o que o ERP não conseguiu responder vai para
+ * `indisponiveis` e fica fora do mapa, para quem chama distinguir "sem item
+ * baixo" de "não sei".
+ */
+export async function consultarItensBaixosEmLote(
+  erpIds: (string | null)[],
+): Promise<{ itensPorErpId: Map<string, ItemBaixo[]>; indisponiveis: string[] }> {
+  const { resultados, indisponiveis } = await consultarEmLote(
+    erpIds,
+    async (erpId) => resumirEstoque(await erpProvider.getStockHistory(erpId))?.itensBaixos ?? [],
+    'ERP indisponível ao consultar estoque em lote',
+  );
+
+  return { itensPorErpId: resultados, indisponiveis };
 }
 
 /** Snapshot de estoque mais recente (por `data`), com o pior nível entre os itens dessa data. */
-function resumirEstoque(historico: StockSnapshot[]): EstoqueResumo {
+export function resumirEstoque(historico: StockSnapshot[]): ResumoEstoque | null {
   if (historico.length === 0) {
     return null;
   }
@@ -97,7 +182,7 @@ function resumirEstoque(historico: StockSnapshot[]): EstoqueResumo {
 
   const itensBaixos = itensDaData
     .filter((item) => item.nivel === 'BAIXO')
-    .map((item) => ({ sku: item.sku, nome: item.nome, quantidade: item.quantidade }));
+    .map((item) => ({ sku: item.sku, nome: item.nome, quantidade: item.quantidade, atualizadoEm: item.data }));
 
   return { nivel, atualizadoEm: dataMaisRecente.toISOString(), itensBaixos };
 }
@@ -135,12 +220,18 @@ export async function obterDadosErp(clientId: string, hoje: Date = new Date()): 
       return { status: 'NAO_ENCONTRADO' };
     }
 
+    const resumoDeEstoque = resumirEstoque(historicoDeEstoque);
+
     return {
       status: 'OK',
       simulado: erpProvider.simulado,
       ultimaVenda: ultimaVenda ? { data: ultimaVenda.data.toISOString(), valor: ultimaVenda.valor } : null,
       volume90Dias,
-      estoque: resumirEstoque(historicoDeEstoque),
+      // O DTO não expõe `atualizadoEm` por item (já vai uma vez no resumo).
+      estoque: resumoDeEstoque && {
+        ...resumoDeEstoque,
+        itensBaixos: resumoDeEstoque.itensBaixos.map(({ sku, nome, quantidade }) => ({ sku, nome, quantidade })),
+      },
     };
   } catch (err) {
     if (err instanceof ErpIndisponivelError) {

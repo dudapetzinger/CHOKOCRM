@@ -1,11 +1,13 @@
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
+import { logger } from '../src/lib/logger';
 import { prisma } from '../src/lib/prisma';
 import { erpProvider } from '../src/providers/erp';
-import { ErpIndisponivelError } from '../src/providers/erp/ErpProvider';
+import { ErpIndisponivelError, type StockSnapshot } from '../src/providers/erp/ErpProvider';
 import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
 import * as erpService from '../src/services/erp.service';
+import type { ItemBaixo } from '../src/services/erp.service';
 import { dataCalendario, fimDoDia, inicioDoDia, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
@@ -205,5 +207,160 @@ describe('GET /clients/:id/erp', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('OK');
+  });
+});
+
+describe('erp.service — consultas para insights', () => {
+  /** Itens com `quantidade < 10` do snapshot de data mais recente, derivados direto do histórico do provider. */
+  function itensBaixosDaDataMaisRecente(historico: StockSnapshot[]): ItemBaixo[] {
+    const maisRecente = Math.max(...historico.map((item) => item.data.getTime()));
+
+    return historico
+      .filter((item) => item.data.getTime() === maisRecente && item.quantidade < 10)
+      .map((item) => ({
+        sku: item.sku,
+        nome: item.nome,
+        quantidade: item.quantidade,
+        atualizadoEm: new Date(maisRecente),
+      }));
+  }
+
+  /** Primeiro erpId a partir de ERP-1002 cujo snapshot mais recente tenha ao menos um item baixo. */
+  async function encontrarErpIdComItemBaixo(): Promise<string> {
+    for (let i = 1002; i <= 1100; i++) {
+      const erpId = `ERP-${i}`;
+      const itens = itensBaixosDaDataMaisRecente(await erpProvider.getStockHistory(erpId));
+
+      if (itens.length > 0) {
+        return erpId;
+      }
+    }
+
+    throw new Error('Nenhum erpId em ERP-1002..ERP-1100 com item baixo no snapshot mais recente.');
+  }
+
+  function snapshot(data: string, sku: string, quantidade: number, nivel: StockSnapshot['nivel']): StockSnapshot {
+    return { data: new Date(`${data}T12:00:00Z`), sku, nome: `Produto ${sku}`, quantidade, nivel };
+  }
+
+  it('erpSimulado reflete o provider simulado', () => {
+    expect(erpService.erpSimulado()).toBe(true);
+  });
+
+  it('consultarVendas devolve as vendas do período e null quando o provider está indisponível', async () => {
+    const periodo = { inicio: new Date('2000-01-01T00:00:00Z'), fim: new Date('2100-01-01T00:00:00Z') };
+    const esperadas = await erpProvider.getSales('ERP-1001', periodo);
+    const avisoSpy = jest.spyOn(logger, 'warn');
+
+    expect(esperadas.length).toBeGreaterThan(0);
+    await expect(erpService.consultarVendas('ERP-1001', periodo)).resolves.toEqual(esperadas);
+    expect(avisoSpy).not.toHaveBeenCalled();
+
+    jest.spyOn(erpProvider, 'getSales').mockRejectedValueOnce(new ErpIndisponivelError());
+    await expect(erpService.consultarVendas('ERP-1001', periodo)).resolves.toBeNull();
+    expect(avisoSpy).toHaveBeenCalledTimes(1);
+
+    const falhaInesperada = new Error('falha inesperada');
+    jest.spyOn(erpProvider, 'getSales').mockRejectedValueOnce(falhaInesperada);
+    await expect(erpService.consultarVendas('ERP-1001', periodo)).rejects.toBe(falhaInesperada);
+  });
+
+  it('consultarItensBaixosEmLote: só itens com quantidade < 10 do snapshot mais recente; desconhecido → vazio; null e repetidos ignorados', async () => {
+    const erpIdComItemBaixo = await encontrarErpIdComItemBaixo();
+    const espiaoEstoque = jest.spyOn(erpProvider, 'getStockHistory');
+
+    const { itensPorErpId, indisponiveis } = await erpService.consultarItensBaixosEmLote([
+      'ERP-1001',
+      null,
+      erpIdComItemBaixo,
+      'ERP-1001',
+      'ERP-1001-0',
+      null,
+      erpIdComItemBaixo,
+    ]);
+
+    expect(indisponiveis).toEqual([]);
+    expect([...itensPorErpId.keys()]).toEqual(['ERP-1001', erpIdComItemBaixo, 'ERP-1001-0']);
+    expect(espiaoEstoque).toHaveBeenCalledTimes(3);
+
+    for (const erpId of ['ERP-1001', erpIdComItemBaixo]) {
+      const esperados = itensBaixosDaDataMaisRecente(await erpProvider.getStockHistory(erpId));
+      expect(itensPorErpId.get(erpId)).toEqual(esperados);
+    }
+
+    const itensComBaixo = itensPorErpId.get(erpIdComItemBaixo)!;
+    expect(itensComBaixo.length).toBeGreaterThan(0);
+    expect(itensComBaixo.every((item) => item.quantidade < 10 && item.atualizadoEm instanceof Date)).toBe(true);
+    expect(itensPorErpId.get('ERP-1001-0')).toEqual([]);
+  });
+
+  it('consultarItensBaixosEmLote: erpId cujo getStockHistory rejeita com ErpIndisponivelError vai para indisponiveis e os demais seguem', async () => {
+    const avisoSpy = jest.spyOn(logger, 'warn');
+    jest
+      .spyOn(erpProvider, 'getStockHistory')
+      .mockRejectedValueOnce(new ErpIndisponivelError())
+      .mockRejectedValueOnce(new ErpIndisponivelError());
+
+    const { itensPorErpId, indisponiveis } = await erpService.consultarItensBaixosEmLote([
+      'ERP-1001',
+      'ERP-1002',
+      'ERP-1003',
+    ]);
+
+    expect(indisponiveis).toEqual(['ERP-1001', 'ERP-1002']);
+    expect([...itensPorErpId.keys()]).toEqual(['ERP-1003']);
+    expect(itensPorErpId.get('ERP-1003')).toEqual(
+      itensBaixosDaDataMaisRecente(await erpProvider.getStockHistory('ERP-1003')),
+    );
+    expect(avisoSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('consultarItensBaixosEmLote propaga erros que não são de indisponibilidade', async () => {
+    const falhaInesperada = new Error('falha inesperada');
+    jest.spyOn(erpProvider, 'getStockHistory').mockRejectedValueOnce(falhaInesperada);
+
+    await expect(erpService.consultarItensBaixosEmLote(['ERP-1001'])).rejects.toBe(falhaInesperada);
+  });
+
+  it('obterDadosErp mantém os itensBaixos do DTO só com sku, nome e quantidade', async () => {
+    jest
+      .spyOn(erpProvider, 'getStockHistory')
+      .mockResolvedValueOnce([snapshot('2026-09-01', 'C', 4, 'BAIXO'), snapshot('2026-09-01', 'D', 30, 'NORMAL')]);
+
+    const dados = await erpService.obterDadosErp(clienteConhecidoId);
+
+    expect(dados.status).toBe('OK');
+    expect(dados.status === 'OK' && dados.estoque).toEqual({
+      nivel: 'BAIXO',
+      atualizadoEm: '2026-09-01T12:00:00.000Z',
+      itensBaixos: [{ sku: 'C', nome: 'Produto C', quantidade: 4 }],
+    });
+  });
+
+  it('resumirEstoque segue devolvendo o pior nível da data mais recente', () => {
+    const resumo = erpService.resumirEstoque([
+      snapshot('2026-08-01', 'A', 3, 'BAIXO'),
+      snapshot('2026-09-01', 'A', 55, 'ALTO'),
+      snapshot('2026-09-01', 'B', 20, 'NORMAL'),
+      snapshot('2026-09-01', 'C', 4, 'BAIXO'),
+    ]);
+
+    expect(resumo).toEqual({
+      nivel: 'BAIXO',
+      atualizadoEm: '2026-09-01T12:00:00.000Z',
+      itensBaixos: [
+        { sku: 'C', nome: 'Produto C', quantidade: 4, atualizadoEm: new Date('2026-09-01T12:00:00Z') },
+      ],
+    });
+
+    const semBaixos = erpService.resumirEstoque([
+      snapshot('2026-08-01', 'A', 3, 'BAIXO'),
+      snapshot('2026-09-01', 'A', 55, 'ALTO'),
+      snapshot('2026-09-01', 'B', 20, 'NORMAL'),
+    ]);
+
+    expect(semBaixos?.nivel).toBe('NORMAL');
+    expect(semBaixos?.itensBaixos).toEqual([]);
+    expect(erpService.resumirEstoque([])).toBeNull();
   });
 });
