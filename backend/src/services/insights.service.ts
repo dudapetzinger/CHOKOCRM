@@ -179,7 +179,7 @@ export async function obterInsights(clientId: string, horizonteDias: number, hoj
       acao,
       variacaoPercentual,
       periodoComparado: { inicio: janela.inicio, fim: janela.fim },
-      comprasNaJanela: totalJanela,
+      comprasNaJanela: arredondarCentavos(totalJanela),
       mediaNaJanela: arredondarCentavos(mediaNaJanela(totalBase, diasJanela)),
       produtosMaisComprados: produtos,
       titulo,

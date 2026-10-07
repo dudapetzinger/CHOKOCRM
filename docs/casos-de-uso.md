@@ -419,7 +419,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - A consulta responde em três estados — `OK`, `SEM_ERP_ID` e `INDISPONIVEL` — e, diferentemente de UC11, não há `NAO_ENCONTRADO`: o identificador desconhecido no provedor cai em A1.
 - Os dados vêm do provedor de ERP; o aviso "dados simulados" aparece sempre que o provedor o sinalizar (como em UC11).
 - A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel.
-- Premissa: o período de base assume ao menos dois anos de histórico no ERP (o provedor simulado gera 24 meses); com menos histórico a média fica subestimada e a variação, inflada, e sem nenhuma compra no período de base a sugestão não é gerada.
+- Premissa: o período de base precisa de cerca de 26 meses de histórico antes do evento (≈ 760 dias; até ≈ 795 para a Páscoa). O provedor simulado gera 24 meses e só cobre a base por inteiro para eventos a mais de ~2 meses de distância; para eventos mais próximos a base fica truncada, a média é subestimada e a variação, inflada. Um ERP real com 26 meses ou mais de histórico não tem esse limite. Sem nenhuma compra no período de base a sugestão não é gerada.
 
 ---
 

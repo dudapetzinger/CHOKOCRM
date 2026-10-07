@@ -268,7 +268,7 @@ export async function obterAlertasDeProducao(horizonteDias: number, hoje: Date =
 
 ## 12. Premissas e limites conhecidos
 
-- A base assume ≥ 2 anos de histórico no ERP (o mock tem 24 meses). Com menos, `totalBase` fica subestimado e a variação, inflada; com base zero a sugestão não é gerada.
+- A base precisa de cerca de 26 meses de histórico antes do evento (≈ 760 dias; até ≈ 795 para a Páscoa). O mock tem 24 meses e a cobre por inteiro só para eventos a mais de ~2 meses; para eventos mais próximos a base é truncada, `totalBase` fica subestimado e a variação, inflada. Um ERP real com ≥ 26 meses de histórico não tem esse limite; com base zero a sugestão não é gerada.
 - O horizonte máximo de 180 dias pode trazer dois eventos (ex.: Dia das Mães e Namorados); cada um gera sua própria sugestão/alerta.
 - Os alertas refletem o estoque do cliente (loja), não o da fábrica: "produção" aqui é a leitura do gestor sobre a demanda de reposição que vem.
 

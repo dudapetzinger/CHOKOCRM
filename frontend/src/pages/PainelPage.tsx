@@ -43,6 +43,8 @@ function AlertaDeProducao({ alerta }: { alerta: AlertaProducao }) {
 
 function CardAlertasDeProducao({ alertas }: { alertas: Alertas }) {
   const temAlertas = alertas.alertas.length > 0;
+  const todosIndisponiveis =
+    alertas.clientesConsultados > 0 && alertas.clientesIndisponiveis === alertas.clientesConsultados;
 
   // `role="alert"` só com alertas: o card neutro de "nenhum alerta" não deve interromper a leitura de tela.
   return (
@@ -59,7 +61,13 @@ function CardAlertasDeProducao({ alertas }: { alertas: Alertas }) {
         <AlertaDeProducao key={`${alerta.evento.id}-${alerta.produto.sku}`} alerta={alerta} />
       ))}
 
-      {!temAlertas && (
+      {!temAlertas && todosIndisponiveis && (
+        <p className="aviso">
+          Dados do ERP indisponíveis no momento — não foi possível verificar o estoque dos clientes.
+        </p>
+      )}
+
+      {!temAlertas && !todosIndisponiveis && (
         <p className="campo-ajuda">Nenhum alerta de produção para os próximos {alertas.horizonteDias} dias.</p>
       )}
     </section>
@@ -111,9 +119,11 @@ function PainelGestor() {
           <>
             {alertas.simulado && <AvisoSimulado />}
 
-            {alertas.clientesIndisponiveis > 0 && (
+            {/* Indisponível para todos: a mensagem do card de alertas já cobre; aqui só a falha parcial. */}
+            {alertas.clientesIndisponiveis > 0 && alertas.clientesIndisponiveis < alertas.clientesConsultados && (
               <p className="aviso">
-                ERP indisponível para {alertas.clientesIndisponiveis} de {alertas.clientesConsultados} clientes.
+                ERP indisponível para {alertas.clientesIndisponiveis} de {alertas.clientesConsultados}{' '}
+                {alertas.clientesConsultados === 1 ? 'cliente' : 'clientes'}.
               </p>
             )}
 
