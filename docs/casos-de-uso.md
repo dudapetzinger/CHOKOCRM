@@ -45,7 +45,7 @@ O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator
 | UC10 | Visualizar agenda do dia | Representante; Gestor; Sistema (Agendador) |
 | UC11 | Consultar dados de venda/estoque do cliente | Representante; Gestor |
 | UC12 | Gerar mensagem de consulta de estoque | Representante; Gestor (só consulta o histórico) |
-| UC13 | Visualizar insights e sugestões | Representante |
+| UC13 | Visualizar insights e sugestões | Representante; Gestor (só consulta) |
 | UC14 | Visualizar painel de KPIs (Gestor) | Gestor |
 | UC15 | Receber alertas de produção (Gestor) | Gestor |
 
@@ -204,14 +204,15 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 3. O sistema exibe os contatos do cliente (UC04).
 4. O sistema exibe a timeline de visitas em ordem cronológica reversa (UC08).
 5. O sistema exibe os dados de venda e estoque obtidos do ERP (UC11).
-6. O sistema exibe os insights e sugestões relacionados ao cliente (UC13).
+6. O sistema exibe o card "Insights e sugestões" (UC13), com as sugestões do cliente para os eventos sazonais próximos.
 
 **Fluxo de exceção:**
-- **E1** (passo 5): dados do ERP indisponíveis (ex.: provedor fora do ar) — o sistema exibe a seção correspondente com mensagem de indisponibilidade, sem impedir a visualização do restante da ficha.
+- **E1** (passos 5 e 6): dados do ERP indisponíveis (ex.: provedor fora do ar) — o sistema exibe a seção correspondente (dados do ERP ou insights) com mensagem de indisponibilidade, sem impedir a visualização do restante da ficha.
 
 **Regras de negócio associadas:**
 - A ficha do cliente consolida dados próprios do cliente e informações provenientes de UC04 (contatos), UC08 (histórico), UC11 (ERP) e UC13 (insights).
-- Este caso de uso é **evolutivo**: a seção de contatos e dados básicos é entregue na Etapa 2, a timeline de visitas na Etapa 3, a cor de classificação na Etapa 4, a seção de ERP na Etapa 5 e a seção de insights na Etapa 6.
+- Este caso de uso é **evolutivo**: a seção de contatos e dados básicos é entregue na Etapa 2, a timeline de visitas na Etapa 3, a cor de classificação na Etapa 4, a seção de ERP na Etapa 5, a mensagem de consulta de estoque (UC12) na Etapa 6A e a seção de insights na Etapa 6B.
+- O card de insights fica na ficha entre os dados do ERP e a mensagem de estoque e é visível a qualquer papel (representante ou gestor).
 
 ---
 
@@ -390,22 +391,35 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 ### UC13 — Visualizar insights e sugestões
 
-**Ator principal:** Representante Comercial.
+**Ator principal:** Representante Comercial. **Ator secundário:** Gestor (somente consulta — o card de insights aparece na ficha do cliente para qualquer papel).
 
-**Pré-condições:** o cliente possui histórico de vendas disponível via ERP.
+**Pré-condições:** o cliente possui histórico de vendas disponível via ERP (o identificador de ERP é opcional em UC02 — ver fluxos de exceção quando ele está ausente ou o provedor está indisponível).
 
 **Fluxo principal:**
-1. O representante acessa a seção de insights na ficha do cliente (UC06).
-2. O sistema cruza os dados de vendas obtidos do provedor de ERP com os eventos sazonais cadastrados e o calendário vigente.
-3. O sistema calcula sugestões acionáveis para o cliente, considerando a proximidade de datas comemorativas e o histórico de compras do cliente no mesmo período do ano anterior.
-4. O sistema exibe as sugestões geradas (ex.: "Páscoa em N dias — cliente comprou X% a mais no período anterior").
+1. O representante acessa a seção "Insights e sugestões" na ficha do cliente (UC06). O horizonte de "evento próximo" começa em 90 dias.
+2. O sistema (`GET /clients/:id/insights?horizonteDias=`) identifica os eventos sazonais cadastrados (`SeasonalEvent`) cuja data cai entre hoje e hoje + horizonte e obtém do provedor de ERP, em uma única consulta, as vendas do cliente que cobrem, para cada um desses eventos, a janela do mesmo evento no ano anterior e o período de base que a antecede.
+3. Para cada evento, o sistema compara as compras do cliente na janela do mesmo evento no ano anterior com a média do cliente no período de base e calcula a variação; a variação define a ação sugerida (regras abaixo).
+4. O sistema exibe, para cada evento, o título (ex.: "Natal em 79 dias"), a etiqueta da ação (Aumentar oferta, Criar promoção ou Ofertar desconto), o texto da sugestão (ex.: "Comprou 85% a mais no mesmo período do ano passado. Aumentar a oferta de …") e, em "Como calculamos", o período comparado, as compras no período, a média do cliente e os produtos mais comprados.
+5. O representante troca o horizonte entre 30, 60, 90 e 180 dias e o sistema recalcula e exibe as sugestões do novo horizonte.
 
 **Fluxo alternativo:**
-- **A1** (passo 3): dados insuficientes para gerar uma sugestão para determinado evento sazonal (ex.: sem histórico de compras no período correspondente) — o sistema não exibe sugestão para aquele evento, sem gerar erro.
+- **A1** (passo 3): dados insuficientes para gerar uma sugestão para determinado evento sazonal — sem compras no período de base ou sem compras na janela do ano anterior (inclui o identificador de ERP desconhecido pelo provedor, cujo histórico vem vazio) — o sistema não gera sugestão para aquele evento, sem gerar erro: o evento aparece na lista de eventos sem histórico (`eventosSemHistorico`), com a mensagem "sem histórico de compras no mesmo período do ano passado".
+- **A2** (passo 2): nenhum evento sazonal dentro do horizonte — o sistema não consulta o ERP e exibe "Nenhum evento sazonal nos próximos N dias.".
+
+**Fluxo de exceção:**
+- **E1** (passo 2): cliente sem identificador de ERP cadastrado (`status: SEM_ERP_ID`) — o sistema exibe mensagem orientando a preencher o identificador em "Editar dados", sem impedir a visualização do restante da ficha.
+- **E2** (passo 2): provedor de ERP indisponível (`status: INDISPONIVEL`) — o sistema exibe mensagem de indisponibilidade, sem impedir a visualização do restante da ficha.
 
 **Regras de negócio associadas:**
-- As sugestões são baseadas no cruzamento entre vendas do cliente, eventos sazonais e calendário.
-- As sugestões são acionáveis, indicando ações como aumentar oferta, ofertar desconto ou criar promoção.
+- As sugestões são baseadas no cruzamento entre vendas do cliente (ERP), eventos sazonais (`SeasonalEvent`) e calendário, e são calculadas a cada consulta: nada é persistido.
+- **Horizonte:** `?horizonteDias=`, inteiro de 30 a 180, padrão 90; um valor fora da faixa ou não numérico é rejeitado com 400 (`VALIDATION_ERROR`). Na tela, o horizonte é escolhido nas opções 30 · 60 · 90 · 180 dias e vale só para a tela aberta — a preferência não é salva. Um evento está no horizonte quando a sua data (`data_fim`) cai entre hoje e hoje + horizonte, inclusive.
+- **Janela de comparação:** o mesmo evento no ano anterior, dos 30 dias antes da data do evento naquele ano até a própria data (31 dias, inclusive). A janela parte da data real do evento no ano anterior, e não da janela deste ano deslocada em um ano, porque a Páscoa muda até cinco semanas de um ano para o outro — por isso o `SeasonalEvent` guarda a `chave` do evento (modelo de dados, seção 3.7). O **período de base** são os 365 dias imediatamente anteriores à janela.
+- **Variação:** média do cliente na janela = compras no período de base × 31 ÷ 365; variação = compras na janela ÷ média − 1. A variação é exibida como percentual inteiro arredondado, e a ação é decidida sobre esse inteiro, para o número exibido e a ação nunca discordarem.
+- **Ações sugeridas:** variação de +20% ou mais → *Aumentar oferta*; de −20% ou menos → *Ofertar desconto*; entre os dois limiares → *Criar promoção* (texto "as compras … ficaram na média"). Os produtos mais comprados na janela (os três de maior quantidade) entram no texto da sugestão. Os limiares ficam em `config/sazonalidade.ts` (`LIMIAR_VARIACAO_ALTA` e `LIMIAR_VARIACAO_BAIXA`), para ajuste fino junto à empresa, e não são editáveis na tela.
+- A consulta responde em três estados — `OK`, `SEM_ERP_ID` e `INDISPONIVEL` — e, diferentemente de UC11, não há `NAO_ENCONTRADO`: o identificador desconhecido no provedor cai em A1.
+- Os dados vêm do provedor de ERP; o aviso "dados simulados" aparece sempre que o provedor o sinalizar (como em UC11).
+- A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel.
+- Premissa: o período de base assume ao menos dois anos de histórico no ERP (o provedor simulado gera 24 meses); com menos histórico a média fica subestimada e a variação, inflada, e sem nenhuma compra no período de base a sugestão não é gerada.
 
 ---
 
@@ -437,17 +451,29 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Pré-condições:** o gestor está autenticado; existem dados de estoque disponíveis via ERP e eventos sazonais cadastrados.
 
 **Fluxo principal:**
-1. O gestor acessa a seção de alertas de produção.
-2. O sistema cruza, para os clientes ativos, os dados de estoque baixo obtidos do provedor de ERP com a demanda sazonal prevista (evento sazonal vigente ou próximo).
-3. O sistema identifica as ocorrências em que estoque baixo coincide com alta demanda sazonal prevista.
-4. O sistema exibe os alertas gerados, indicando cliente, produto e evento sazonal relacionado.
+1. O gestor acessa a aba "Painel" (`/painel`), exclusiva do papel gestor, onde fica o card "Alertas de produção". O horizonte de "evento próximo" começa em 90 dias.
+2. O sistema (`GET /insights/manager-alerts?horizonteDias=`) identifica os eventos sazonais cuja data cai entre hoje e hoje + horizonte e, para cada cliente ativo com identificador de ERP, obtém do provedor de ERP o estoque mais recente.
+3. O sistema cruza os itens em nível BAIXO de cada cliente com os produtos sugeridos para cada evento do horizonte (por SKU do catálogo do ERP) e identifica as ocorrências em que estoque baixo coincide com alta demanda sazonal prevista.
+4. O sistema exibe um alerta por produto e evento (ex.: "Caixa presente sortida — Natal 2026 em 79 dias"), com o número de clientes com estoque baixo e a lista deles — nome fantasia com link para a ficha (UC06) e a quantidade em estoque —, do estoque mais crítico para o menos crítico. Os alertas vêm do evento mais próximo para o mais distante e, dentro do mesmo evento, do produto com mais clientes afetados para o com menos.
+5. O sistema exibe também o card "Época do ano", com os eventos do horizonte (data, prazo e produtos sugeridos).
+6. O gestor troca o horizonte entre 30, 60, 90 e 180 dias e o sistema recalcula e exibe os alertas do novo horizonte.
 
 **Fluxo alternativo:**
-- **A1** (passo 3): nenhuma coincidência identificada no período analisado — o sistema informa que não há alertas de produção no momento.
+- **A1** (passo 3): nenhuma coincidência identificada no período analisado — o sistema informa que não há alertas de produção ("Nenhum alerta de produção para os próximos N dias.").
+- **A2** (passo 2): nenhum evento sazonal dentro do horizonte — o sistema não consulta clientes nem o ERP, e o painel exibe o mesmo aviso de A1 e, em "Época do ano", "Nenhum evento sazonal nos próximos N dias.".
+
+**Fluxo de exceção:**
+- **E1** (passo 2): provedor de ERP indisponível para parte dos clientes — o sistema segue com os demais, deixa os indisponíveis fora do cruzamento (não se sabe o estoque deles) e exibe o aviso "ERP indisponível para X de Y clientes.", pois a lista de alertas pode estar incompleta.
+- **E2** (passo 1): usuário que não é gestor — a API responde 403 e a navegação não mostra a aba "Painel"; se o representante abrir `/painel` pela URL, a página mostra apenas "Painel disponível apenas para o gestor.".
 
 **Regras de negócio associadas:**
-- Um alerta é sinalizado quando estoque baixo coincide com alta demanda sazonal prevista.
-- Os alertas de produção são direcionados exclusivamente ao Gestor, para apoiar decisões de ajuste de produção.
+- Um alerta é sinalizado quando estoque baixo coincide com alta demanda sazonal prevista: o item está em nível BAIXO no estoque mais recente do cliente e o seu SKU está entre os produtos sugeridos de um evento que cai no horizonte. Os SKUs de cada evento ficam em `SKUS_SUGERIDOS` (`config/sazonalidade.ts`), por SKU do catálogo do ERP — o texto de `produtos_sugeridos` do evento não entra no cruzamento. O Natal, por exemplo, considera só `CX-PRESENTE` e `BOMB-SORT`, porque o panetone não existe no catálogo do provedor simulado.
+- **Horizonte:** as mesmas regras de UC13 (30 a 180 dias, padrão 90, escolhido na tela e não persistido; fora da faixa a API responde 400 `VALIDATION_ERROR`).
+- Só entram clientes ativos com identificador de ERP. Cliente inativo ou sem identificador é ignorado; identificador desconhecido no provedor não tem item em nível baixo e, portanto, não gera alerta nem conta como indisponível.
+- Os alertas refletem o estoque do cliente (a loja), não o da fábrica: "produção" aqui é a leitura do gestor sobre a demanda de reposição que vem.
+- Os alertas de produção são direcionados exclusivamente ao Gestor, para apoiar decisões de ajuste de produção (`GET /insights/manager-alerts` exige o papel `GESTOR`).
+- Os alertas são calculados a cada consulta, sem persistir nada, e aparecem apenas na tela do painel: notificação por push ou e-mail e alertas no job diário (UC10) ficam fora do escopo desta etapa.
+- O aviso "dados simulados" aparece sempre que o provedor o sinalizar (como em UC11).
 
 ---
 

@@ -87,7 +87,7 @@ npm run db:migrate
 npm run db:seed
 ```
 
-O seed é determinístico e cria clientes com contatos, um histórico de visitas suficiente para exercitar a classificação por cor, dois usuários de desenvolvimento e, desde a Etapa 6A, os eventos sazonais (`SeasonalEvent`) do ano corrente e do seguinte — usados pela mensagem de consulta de estoque (UC12) e pelo módulo de insights; o `upsert` por `nome` torna o seed idempotente, então rodá-lo de novo não duplica eventos:
+O seed é determinístico e cria clientes com contatos, um histórico de visitas suficiente para exercitar a classificação por cor, dois usuários de desenvolvimento e, desde a Etapa 6A, os eventos sazonais (`SeasonalEvent`) do ano corrente e do seguinte — usados pela mensagem de consulta de estoque (UC12) e pelo módulo de insights (UC13 e UC15); o `upsert` por `nome` torna o seed idempotente, então rodá-lo de novo não duplica eventos, e desde a Etapa 6B ele grava e atualiza também a `chave` de cada evento:
 
 | Perfil | E-mail | Senha |
 |--------|--------|-------|
@@ -95,6 +95,8 @@ O seed é determinístico e cria clientes com contatos, um histórico de visitas
 | Gestor | `gestor@chokolaten.com.br` | `chokocrm123` |
 
 São contas fictícias, definidas em `backend/prisma/seed.ts` e válidas apenas no banco local — nunca em produção.
+
+**Migration da Etapa 6B (`seasonal_event_chave`).** Ela acrescenta a coluna `chave` (enum `EventoSazonal`: `PASCOA`, `DIA_DAS_MAES`, `NAMORADOS`, `DIA_DOS_PAIS`, `NATAL`) a `seasonal_events` em quatro passos: cria o enum, adiciona a coluna anulável, preenche as linhas que já existem a partir do prefixo de `nome` ("Páscoa 2026" vira `PASCOA`, "Natal 2026" vira `NATAL`, e assim por diante) e só então a torna `NOT NULL`. Por isso um banco de desenvolvimento já semeado pela Etapa 6A migra com `npm run db:migrate`, sem perder os eventos nem precisar de novo seed. Um `nome` fora desse padrão deixaria a `chave` nula e o último passo falharia — de propósito: a migration não inventa chave. Num banco de desenvolvimento, nesse caso, recomece pelo volume (ver "Problemas comuns"). Não há variável de ambiente nova: o horizonte e os limiares dos insights ficam em `backend/src/config/sazonalidade.ts`.
 
 ## 5. Executando sem Docker
 

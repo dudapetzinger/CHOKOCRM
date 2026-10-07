@@ -70,12 +70,12 @@ chokocrm/
 │   └── tests/                 # Jest + Supertest (tests/unit/: funções puras dos services)
 ├── frontend/
 │   └── src/
-│       ├── pages/             # Login, Clientes, NovoCliente, ClienteDetalhe, CheckIn, Agenda
+│       ├── pages/             # Login, Clientes, NovoCliente, ClienteDetalhe, CheckIn, Agenda, Painel
 │       ├── components/        # componentes de UI reutilizáveis
 │       ├── hooks/             # estado de servidor com TanStack Query
 │       ├── auth/              # contexto de autenticação e rota protegida
 │       ├── services/          # cliente HTTP da API REST
-│       ├── lib/               # utilitários compartilhados (compressão de imagem, formatação de data e de moeda, iniciais)
+│       ├── lib/               # utilitários compartilhados (compressão de imagem, formatação de data e de moeda, iniciais, prazo e listas em português)
 │       └── styles/            # tokens visuais herdados do protótipo
 ├── docs/                      # casos de uso, modelo de dados, arquitetura, guia e protótipo
 ├── docker-compose.yml
@@ -83,7 +83,7 @@ chokocrm/
 └── README.md
 ```
 
-A estrutura acima reflete o repositório ao fim da Etapa 6A. A Etapa 5 acrescentou `backend/src/providers/erp/` (interface `ErpProvider`, `MockErpProvider` e o gerador determinístico e o catálogo em `providers/erp/mock/`) e, no frontend, o card de dados do ERP na ficha do cliente. A Etapa 6A acrescentou, no backend, `config/eventosSazonaisSeed.ts` (projeção pura do calendário de `config/sazonalidade.ts` para `SeasonalEvent`), `repositories/seasonal-event.repository.ts`, `services/seasonal-event.service.ts`, `services/stock-message.template.ts`, `services/stock-message.service.ts`, `controllers/stock-message.controller.ts`, `repositories/stock-message.repository.ts`, `schemas/stock-message.schema.ts` e `routes/stock-message.routes.ts`; e, no frontend, o card de mensagem de estoque na ficha do cliente (`components/MensagemEstoqueCard.tsx`, `hooks/useMensagensEstoque.ts`, `services/stockMessages.ts` e `lib/formatarData.ts` (`formatarDataHora`)). Falta apenas o workflow `deploy.yml` (Etapa 6). As regras de dependência entre as camadas estão na seção 4.1 e nos diagramas C4 do documento de arquitetura.
+A estrutura acima reflete o repositório ao fim da Etapa 6B. A Etapa 5 acrescentou `backend/src/providers/erp/` (interface `ErpProvider`, `MockErpProvider` e o gerador determinístico e o catálogo em `providers/erp/mock/`) e, no frontend, o card de dados do ERP na ficha do cliente. A Etapa 6A acrescentou, no backend, `config/eventosSazonaisSeed.ts` (projeção pura do calendário de `config/sazonalidade.ts` para `SeasonalEvent`), `repositories/seasonal-event.repository.ts`, `services/seasonal-event.service.ts`, `services/stock-message.template.ts`, `services/stock-message.service.ts`, `controllers/stock-message.controller.ts`, `repositories/stock-message.repository.ts`, `schemas/stock-message.schema.ts` e `routes/stock-message.routes.ts`; e, no frontend, o card de mensagem de estoque na ficha do cliente (`components/MensagemEstoqueCard.tsx`, `hooks/useMensagensEstoque.ts`, `services/stockMessages.ts` e `lib/formatarData.ts` (`formatarDataHora`)). A Etapa 6B acrescentou, no backend, `services/insights.regras.ts` (regras puras de insights e alertas, sem acesso a banco nem ao provider), `services/insights.service.ts`, `controllers/insights.controller.ts`, `schemas/insights.schema.ts` e `routes/insights.routes.ts`, além dos parâmetros dos insights em `config/sazonalidade.ts`, da coluna `SeasonalEvent.chave` (migration `20261007141059_seasonal_event_chave`) e, em `services/erp.service.ts`, das consultas `consultarVendas` e `consultarItensBaixosEmLote`; e, no frontend, a página `PainelPage`, os componentes `InsightsCard`, `FiltroHorizonte` e `AvisoSimulado`, `hooks/useInsights.ts`, `services/insights.ts` e os utilitários `lib/descreverPrazo.ts`, `lib/listarComE.ts` e `lib/formatarData.ts` (`formatarDataCalendario`). Falta apenas o workflow `deploy.yml` (Etapa 6). As regras de dependência entre as camadas estão na seção 4.1 e nos diagramas C4 do documento de arquitetura.
 
 ### 4.3 Integração ERP (padrão Adapter)
 
@@ -115,13 +115,15 @@ VisitScheduleChange(id, client_id→Client, user_id→User, recorrencia_anterior
                     recorrencia_nova, justificativa NOT NULL, data)
 StockMessage       (id, client_id→Client, user_id→User, evento_sazonal?,
                     texto_final, data_geracao)
-SeasonalEvent      (id, nome, data_inicio, data_fim, produtos_sugeridos[])
+SeasonalEvent      (id, nome, chave[PASCOA|DIA_DAS_MAES|NAMORADOS|DIA_DOS_PAIS|NATAL],
+                    data_inicio, data_fim, produtos_sugeridos[])
 ```
 
 Observações:
 - `descricao` da visita é obrigatória (validação no frontend E no backend) — requisito explícito.
 - Alteração de `recorrencia_dias` exige registro em `VisitScheduleChange` com justificativa — requisito explícito.
 - A **cor do cliente é calculada, nunca armazenada** (evita inconsistência e jobs de sincronização).
+- `SeasonalEvent.chave` liga cada registro ao calendário de `config/sazonalidade.ts`, de onde saem a data exata do evento em outros anos e os SKUs sugeridos (seção 6.4); `nome` já traz o ano ("Natal 2026").
 
 ## 6. Regras de negócio principais
 
@@ -155,10 +157,18 @@ Na etapa 5, a cor calculada pela tabela acima pode ser rebaixada em um degrau: s
 
 ### 6.4 Módulo de insights (BI)
 
-- Cruza vendas do ErpProvider com `SeasonalEvent` e calendário.
-- Sugestões ao representante: aumentar oferta, ofertar desconto, criar promoção (ex.: "Páscoa em 40 dias: cliente X comprou 30% a mais no período no ano passado").
-- Alertas ao gestor: estoque baixo + alta demanda prevista → sinalizar ajuste de produção.
-- Painel de KPIs: frequência de visitas, taxa de registro, conversão, clientes inativos por cor.
+- Cruza vendas do ErpProvider com `SeasonalEvent` e calendário. Insights e alertas são calculados a cada consulta; nada derivado é persistido (ADR-006 e ADR-011 do documento de arquitetura).
+- **Horizonte de "evento próximo":** `?horizonteDias=` nas duas rotas de insights, inteiro de 30 a 180, padrão 90 (`HORIZONTE_MIN_DIAS`, `HORIZONTE_MAX_DIAS` e `HORIZONTE_PADRAO_DIAS` em `config/sazonalidade.ts`); fora da faixa, a API responde 400 `VALIDATION_ERROR`. Um evento está no horizonte quando o seu `data_fim` (a data do evento) cai entre hoje e hoje + horizonte, inclusive. Na tela, o horizonte é escolhido em 30 · 60 · 90 · 180 dias e vale só para a tela aberta — a preferência não é salva.
+- **Sugestões ao representante** (`GET /clients/:id/insights`): para cada evento do horizonte, compara as compras do cliente na janela do mesmo evento no ano anterior com a média dele no período de base.
+  - Janela: de `JANELA_PICO_DIAS` (30) dias antes da data do evento no ano anterior até essa data, inclusive (31 dias). A data é a real do evento no ano anterior (`dataDoEvento(chave, ano − 1)`), e não a janela deste ano deslocada em um ano, porque a Páscoa muda até cinco semanas de um ano para o outro — por isso o `SeasonalEvent` guarda a `chave`.
+  - Base: os `DIAS_DE_BASE` (365) dias imediatamente anteriores à janela. Média do cliente na janela = compras na base × 31 ÷ 365; variação = compras na janela ÷ média − 1.
+  - Ação, decidida sobre a variação já arredondada para percentual inteiro (para o número exibido e a ação nunca discordarem): ≥ +20% (`LIMIAR_VARIACAO_ALTA` = 0,2) → *aumentar oferta*; ≤ −20% (`LIMIAR_VARIACAO_BAIXA` = −0,2) → *ofertar desconto*; entre os dois → *criar promoção*. Ex.: "Natal em 79 dias — Comprou 85% a mais no mesmo período do ano passado. Aumentar a oferta de …", com os `MAX_PRODUTOS_MAIS_COMPRADOS` (3) produtos mais comprados na janela.
+  - Sem compras na base ou sem compras na janela, não há sugestão: o evento vem em `eventosSemHistorico`. Identificador de ERP desconhecido no provedor (vendas vazias) cai no mesmo caso para todos os eventos.
+  - Uma única consulta de vendas ao ERP por requisição, cobrindo todos os eventos do horizonte. Status da resposta: `OK`, `SEM_ERP_ID` e `INDISPONIVEL`.
+  - Premissa: o período de base assume ao menos dois anos de histórico no ERP (o mock gera 24 meses); com menos, a média fica subestimada e a variação, inflada.
+- **Alertas ao gestor** (`GET /insights/manager-alerts`, só `GESTOR`): estoque baixo + alta demanda prevista → sinalizar ajuste de produção. Para os clientes ativos com `erp_id`, o item em nível BAIXO (no estoque mais recente do cliente) cujo SKU está em `SKUS_SUGERIDOS[evento]` (`config/sazonalidade.ts`, por SKU do catálogo do ERP — o Natal considera só `CX-PRESENTE` e `BOMB-SORT`, pois o panetone não existe no catálogo simulado) entra no alerta de cada evento do horizonte que sugere esse SKU. Os alertas são agrupados por evento e produto, ordenados pelo evento mais próximo e, dentro dele, pelo produto com mais clientes afetados; em cada alerta, os clientes vêm do estoque mais crítico para o menos crítico. Uma consulta de estoque por `erp_id`, em paralelo; sem evento no horizonte, o ERP nem é consultado. Clientes sem resposta do ERP ficam fora do cruzamento e são contados em `clientesIndisponiveis`, para a tela avisar que a lista pode estar incompleta. Os alertas refletem o estoque do cliente (a loja), não o da fábrica.
+- Os limiares ficam em `config/` (mesmo padrão de `config/classificacao.ts`), para ajuste fino com a empresa; não são editáveis na tela.
+- Painel de KPIs: frequência de visitas, taxa de registro, conversão, clientes inativos por cor. Ainda não implementado — entra na mesma tela do Painel (seção 8) nas próximas entregas da Etapa 6.
 
 ## 7. API REST (contorno)
 
@@ -174,7 +184,8 @@ PUT    /clients/:id/recurrence          (exige justificativa)
 GET    /clients/:id/erp                 (última venda, volume, estoque — via provider)
 GET    /clients/:id/stock-message/proposta   (texto sugerido, contatos e evento vigente)
 POST   /clients/:id/stock-message       GET    /stock-messages
-GET    /insights                        GET    /insights/manager-alerts
+GET    /clients/:id/insights            (?horizonteDias=; sugestões sazonais por evento próximo)
+GET    /insights/manager-alerts         (?horizonteDias=; alertas de produção, só GESTOR)
 GET    /dashboard/kpis                  GET    /agenda/today
 GET    /health
 ```
@@ -184,7 +195,9 @@ Erros padronizados: `{ error: { code, message, details? } }` via middleware cent
 ## 8. Frontend
 
 - React + Vite + TypeScript, mobile-first (uso em campo pelos representantes).
-- Telas: Login · Lista de clientes (busca + filtro por cor, badges) · Ficha do cliente (dados, contatos, timeline de visitas, dados ERP, insights) · Check-in de visita · Agenda do dia · Painel de indicadores (gestor).
+- Telas: Login · Lista de clientes (busca + filtro por cor, badges) · Ficha do cliente (dados, contatos, timeline de visitas, dados ERP, insights sazonais, mensagem de estoque) · Check-in de visita · Agenda do dia · Painel de indicadores (gestor).
+- Painel (`/painel`, aba "Painel" da navegação inferior): exclusivo do gestor — o representante não vê a aba e, se abrir a rota pela URL, recebe só o aviso "Painel disponível apenas para o gestor.". Hoje traz o card "⚠️ Alertas de produção" (um alerta por produto e evento, com os clientes de estoque baixo e link para a ficha) e o card "Época do ano" (eventos do horizonte, com data, prazo e produtos sugeridos); os KPIs do UC14 entram na mesma tela nas próximas entregas da Etapa 6.
+- Horizonte de eventos: pílulas 30 · 60 · 90 · 180 dias (padrão 90), na ficha do cliente e no Painel; estado local da tela, não persistido. Enquanto o provedor de ERP for o simulado, o card de insights e o Painel exibem o aviso "Dados simulados — integração com o ERP ainda não está disponível.", como a ficha já faz com os dados do ERP.
 - Estado de servidor com TanStack Query; roteamento com React Router.
 
 ## 9. DevOps, ambientes e observabilidade
