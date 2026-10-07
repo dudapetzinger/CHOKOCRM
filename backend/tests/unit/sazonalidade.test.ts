@@ -4,7 +4,9 @@ import {
   multiplicadorSazonal,
   NOME_DO_EVENTO,
   PRODUTOS_SUGERIDOS,
+  SKUS_SUGERIDOS,
 } from '../../src/config/sazonalidade';
+import { CATALOGO } from '../../src/providers/erp/mock/catalogo';
 
 describe('dataDoEvento', () => {
   it('calcula a Páscoa de 2026 em 05/04 e de 2027 em 28/03', () => {
@@ -34,6 +36,20 @@ describe('NOME_DO_EVENTO e PRODUTOS_SUGERIDOS', () => {
     for (const evento of EVENTOS_SAZONAIS) {
       expect(NOME_DO_EVENTO[evento].length).toBeGreaterThan(0);
       expect(PRODUTOS_SUGERIDOS[evento].length).toBeGreaterThanOrEqual(2);
+    }
+  });
+});
+
+describe('SKUS_SUGERIDOS', () => {
+  it('todo SKU de SKUS_SUGERIDOS existe no CATALOGO', () => {
+    const skusDoCatalogo = CATALOGO.map((produto) => produto.sku);
+
+    for (const evento of EVENTOS_SAZONAIS) {
+      expect(SKUS_SUGERIDOS[evento].length).toBeGreaterThan(0);
+
+      for (const sku of SKUS_SUGERIDOS[evento]) {
+        expect(skusDoCatalogo).toContain(sku);
+      }
     }
   });
 });

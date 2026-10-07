@@ -32,6 +32,9 @@ export type DadosErpDTO =
 
 type EstoqueResumo = Extract<DadosErpDTO, { status: 'OK' }>['estoque'];
 
+/** Item de estoque em nível BAIXO; `atualizadoEm` é a data do snapshot de onde veio. */
+export type ItemBaixo = { sku: string; nome: string; quantidade: number; atualizadoEm: Date };
+
 /** Ordem de "pior" nível de estoque: BAIXO é o pior, ALTO o melhor. */
 const ORDEM_DE_GRAVIDADE: Record<NivelEstoque, number> = {
   BAIXO: 0,

@@ -44,6 +44,40 @@ export const PRODUTOS_SUGERIDOS: Record<EventoSazonal, string[]> = {
   NATAL: ['panetones de chocolate', 'caixas presente', 'bombons sortidos'],
 };
 
+// Parâmetros de insights e alertas (Etapa 6B): constantes de código, não
+// editáveis na tela — mesmo padrão de `config/classificacao.ts` ("ajuste
+// fino com a empresa").
+
+/** Horizonte padrão (dias) de "evento próximo" quando `?horizonteDias=` está ausente. */
+export const HORIZONTE_PADRAO_DIAS = 90;
+export const HORIZONTE_MIN_DIAS = 30;
+export const HORIZONTE_MAX_DIAS = 180;
+
+/** Período (dias), imediatamente antes da janela do evento no ano anterior, que define a "média" do cliente. */
+export const DIAS_DE_BASE = 365;
+
+/** Variação de compras na janela ≥ +20% sobre a média do cliente → AUMENTAR_OFERTA. */
+export const LIMIAR_VARIACAO_ALTA = 0.2;
+
+/** Variação ≤ −20% → OFERTAR_DESCONTO; entre os dois limiares → CRIAR_PROMOCAO. */
+export const LIMIAR_VARIACAO_BAIXA = -0.2;
+
+/** Quantos produtos mais comprados na janela entram no texto da sugestão. */
+export const MAX_PRODUTOS_MAIS_COMPRADOS = 3;
+
+/**
+ * SKUs do catálogo do ERP por evento — o cruzamento de estoque (UC15) é por
+ * SKU, não pelo texto de `PRODUTOS_SUGERIDOS`. Panetone não existe no
+ * catálogo mock e por isso fica de fora do Natal.
+ */
+export const SKUS_SUGERIDOS: Record<EventoSazonal, string[]> = {
+  PASCOA: ['OVO-PASCOA', 'TRUF-70', 'CX-PRESENTE'],
+  DIA_DAS_MAES: ['CX-PRESENTE', 'BOMB-SORT', 'BARRA-70'],
+  NAMORADOS: ['CX-PRESENTE', 'TRUF-70', 'BOMB-SORT'],
+  DIA_DOS_PAIS: ['BARRA-70', 'TAB-LEITE', 'DRAGEE'],
+  NATAL: ['CX-PRESENTE', 'BOMB-SORT'],
+};
+
 function pad2(numero: number): string {
   return numero.toString().padStart(2, '0');
 }
