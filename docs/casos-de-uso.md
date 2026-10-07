@@ -18,7 +18,7 @@ Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protó
 | **Gestor** | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Consulta, em modo somente leitura e para todas as carteiras, a lista de clientes, a ficha, o histórico e a agenda do dia, além da recorrência de visitas e seu histórico de alterações; pode transferir um cliente entre representantes. |
 | **Sistema (Agendador)** | Secundário, automatizado | Processo executado diariamente (job agendado, sem intervenção humana) que recalcula a lista de visitas previstas e atrasadas por representante e registra os alertas em log, sem persistir nada. |
 
-**Observação sobre permissões do Gestor:** o Gestor **não** possui todas as permissões do Representante Comercial. Ele autentica-se no sistema (UC01); consulta, em modo somente leitura e para todas as carteiras, a lista de clientes com classificação por cores (UC05), a ficha do cliente (UC06), o histórico de interações (UC08) e a agenda do dia (UC10); visualiza a recorrência de visitas e seu histórico de alterações, sem poder alterá-la; possui o painel de KPIs (UC14) e recebe os alertas de produção (UC15); e pode transferir um cliente entre representantes através de `PUT /clients/:id` (campo `representanteId`). O Gestor **não** cadastra clientes (UC02 responde 400), não registra check-ins de visita (UC07) e não altera a recorrência de visitas (UC09 responde 403).
+**Observação sobre permissões do Gestor:** o Gestor **não** possui todas as permissões do Representante Comercial. Ele autentica-se no sistema (UC01); consulta, em modo somente leitura e para todas as carteiras, a lista de clientes com classificação por cores (UC05), a ficha do cliente (UC06), o histórico de interações (UC08), a agenda do dia (UC10) e as sugestões sazonais da ficha (UC13); visualiza a recorrência de visitas e seu histórico de alterações, sem poder alterá-la; possui o painel de KPIs (UC14) e recebe os alertas de produção (UC15); e pode transferir um cliente entre representantes através de `PUT /clients/:id` (campo `representanteId`). O Gestor **não** cadastra clientes (UC02 responde 400), não registra check-ins de visita (UC07) e não altera a recorrência de visitas (UC09 responde 403).
 
 ## 3. Diagrama de visão geral
 
@@ -417,7 +417,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - **Variação:** média do cliente na janela = compras no período de base × 31 ÷ 365; variação = compras na janela ÷ média − 1. A variação é exibida como percentual inteiro arredondado, e a ação é decidida sobre esse inteiro, para o número exibido e a ação nunca discordarem.
 - **Ações sugeridas:** variação de +20% ou mais → *Aumentar oferta*; de −20% ou menos → *Ofertar desconto*; entre os dois limiares → *Criar promoção* (texto "as compras … ficaram na média"). Os produtos mais comprados na janela (os três de maior quantidade) entram no texto da sugestão. Os limiares ficam em `config/sazonalidade.ts` (`LIMIAR_VARIACAO_ALTA` e `LIMIAR_VARIACAO_BAIXA`), para ajuste fino junto à empresa, e não são editáveis na tela.
 - A consulta responde em três estados — `OK`, `SEM_ERP_ID` e `INDISPONIVEL` — e, diferentemente de UC11, não há `NAO_ENCONTRADO`: o identificador desconhecido no provedor cai em A1.
-- Os dados vêm do provedor de ERP; o aviso "dados simulados" aparece sempre que o provedor o sinalizar (como em UC11).
+- Os dados vêm do provedor de ERP; o aviso "dados simulados" aparece sempre que a consulta traz dados e o provedor o sinalizar (como em UC11).
 - A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel.
 - Premissa: o período de base precisa de cerca de 26 meses de histórico antes do evento (≈ 760 dias; até ≈ 795 para a Páscoa). O provedor simulado gera 24 meses e só cobre a base por inteiro para eventos a mais de ~2 meses de distância; para eventos mais próximos a base fica truncada, a média é subestimada e a variação, inflada. Um ERP real com 26 meses ou mais de histórico não tem esse limite. Sem nenhuma compra no período de base a sugestão não é gerada.
 
@@ -430,17 +430,32 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Pré-condições:** o gestor está autenticado (UC01).
 
 **Fluxo principal:**
-1. O gestor acessa o painel de indicadores.
-2. O gestor seleciona, opcionalmente, um filtro de período ou época do ano.
-3. O sistema calcula e exibe os indicadores: frequência de visitas, taxa de registro, conversão em vendas e clientes inativos por cor.
-4. O gestor altera o filtro e o sistema recalcula e exibe os indicadores atualizados.
+1. O gestor acessa a aba "Painel" (`/painel`), exclusiva do papel gestor, onde o card "Indicadores" abre a tela. O período de análise começa em 30 dias.
+2. O sistema (`GET /dashboard/kpis?periodoDias=`) obtém as visitas e as mensagens de estoque geradas no período e a carteira de clientes ativos, e calcula a cor de cada cliente ativo pelo mesmo caminho da lista de clientes (UC05, regra composta com o ERP).
+3. O sistema exibe o período analisado e o número de clientes ativos; os quatro indicadores — visitas no período (com a média por cliente ativo), taxa de registro, conversão em vendas e clientes inativos —; e a distribuição dos clientes ativos por cor, em uma barra com legenda.
+4. O gestor troca o período entre 30, 90 e 365 dias e o sistema recalcula e exibe os indicadores do novo período.
 
 **Fluxo alternativo:**
-- **A1** (passo 3): não há dados suficientes no período selecionado — o sistema exibe os indicadores zerados, com mensagem informativa.
+- **A1** (passo 3): não há dados no período selecionado — nenhuma visita e nenhuma mensagem de estoque registrada (`semDados`) — o sistema exibe os indicadores zerados, com a mensagem "Nenhuma visita ou mensagem registrada no período — indicadores zerados."; a distribuição por cor, que reflete a carteira de hoje, continua na tela.
+- **A2** (passo 3): não há clientes ativos — a taxa de registro e a média de visitas por cliente não têm denominador e aparecem como "—" (ou "sem clientes ativos"), e no lugar da barra o sistema exibe "Nenhum cliente ativo.".
+
+**Fluxo de exceção:**
+- **E1** (passo 1): usuário que não é gestor — a API responde 403 e a navegação não mostra a aba "Painel"; se o representante abrir `/painel` pela URL, a página mostra apenas "Painel disponível apenas para o gestor.".
+- **E2** (passo 2): falha ao carregar os indicadores — o sistema exibe "Não foi possível carregar os indicadores." (ou a mensagem devolvida pela API), sem esconder o filtro de período.
 
 **Regras de negócio associadas:**
-- Os indicadores exibidos são: frequência de visitas, taxa de registro (de check-ins e de mensagens de estoque geradas), conversão em vendas e clientes inativos por cor.
-- O painel admite filtro por período e por época do ano (sazonalidade).
+- Os indicadores são calculados a cada consulta, a partir de `Visit`, `StockMessage` e da classificação por cor; nada é persistido ([ADR-006](arquitetura.md#adr-006--classificação-por-cor-calculada-em-tempo-de-consulta)).
+- **Período:** `?periodoDias=` aceita só 30, 90 ou 365, com padrão 30; qualquer outro valor (ou não numérico) é rejeitado com 400 (`VALIDATION_ERROR`). O período vai de hoje − (N − 1) até hoje, inclusive — 30 dias inclui hoje —, em dias de calendário do fuso do representante. Na tela, o período é escolhido nas opções 30 · 90 · 365 dias, vale só para a tela aberta e não é salvo. Os valores ficam em `config/kpis.ts`.
+- **Visitas no período:** número de check-ins do período, de qualquer cliente; a média é esse total ÷ clientes ativos, com uma casa decimal.
+- **Taxa de registro:** clientes ativos com pelo menos um check-in **ou** uma mensagem de estoque gerada no período ÷ clientes ativos; cada cliente conta uma vez, e o percentual é inteiro arredondado.
+- **Conversão em vendas:** visitas do período com resultado `VENDA` ÷ visitas do período, também em percentual inteiro arredondado; negociação e visita sem venda não contam como venda.
+- **Clientes inativos:** clientes ativos hoje em LARANJA ou VERMELHO (`CORES_INATIVAS`); a distribuição traz as quatro cores, com zero nas que não têm clientes. A cor é a mesma da lista e da ficha, inclusive o rebaixamento por última compra no ERP (UC05); com o ERP indisponível, a cor cai na regra base de visitas, sem derrubar a consulta.
+- Proporção sem denominador (nenhum cliente ativo, nenhuma visita) não tem percentual: a tela mostra "—".
+- Cliente inativado no cadastro (UC03) fica fora da taxa de registro e da distribuição por cor, mas as visitas que ele teve no período ainda contam em "visitas no período" e na conversão.
+- **Época do ano:** não é um filtro destes indicadores; a leitura por sazonalidade é feita pelo card "Época do ano" da mesma tela (UC15), com o horizonte próprio "Próximos".
+- Os indicadores são exclusivos do Gestor (`GET /dashboard/kpis` exige o papel `GESTOR`; o representante recebe 403).
+- O aviso "dados simulados" aparece sempre que a consulta traz dados e o provedor o sinalizar (como em UC11), pois a cor composta consulta o ERP.
+- Fora do escopo desta etapa: indicadores por representante, comparação com o período anterior, filtro por intervalo livre, exportação e a evolução dos inativos ao longo do tempo (a "redução de inativos" da especificação entra aqui como a contagem atual por cor).
 
 ---
 
@@ -473,7 +488,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - Os alertas refletem o estoque do cliente (a loja), não o da fábrica: "produção" aqui é a leitura do gestor sobre a demanda de reposição que vem.
 - Os alertas de produção são direcionados exclusivamente ao Gestor, para apoiar decisões de ajuste de produção (`GET /insights/manager-alerts` exige o papel `GESTOR`).
 - Os alertas são calculados a cada consulta, sem persistir nada, e aparecem apenas na tela do painel: notificação por push ou e-mail e alertas no job diário (UC10) ficam fora do escopo desta etapa.
-- O aviso "dados simulados" aparece sempre que o provedor o sinalizar (como em UC11).
+- O aviso "dados simulados" aparece sempre que a consulta traz dados e o provedor o sinalizar (como em UC11).
 
 ---
 

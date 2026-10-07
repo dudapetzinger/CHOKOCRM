@@ -96,7 +96,9 @@ O seed é determinístico e cria clientes com contatos, um histórico de visitas
 
 São contas fictícias, definidas em `backend/prisma/seed.ts` e válidas apenas no banco local — nunca em produção.
 
-**Migration da Etapa 6B (`seasonal_event_chave`).** Ela acrescenta a coluna `chave` (enum `EventoSazonal`: `PASCOA`, `DIA_DAS_MAES`, `NAMORADOS`, `DIA_DOS_PAIS`, `NATAL`) a `seasonal_events` em quatro passos: cria o enum, adiciona a coluna anulável, preenche as linhas que já existem a partir do prefixo de `nome` ("Páscoa 2026" vira `PASCOA`, "Natal 2026" vira `NATAL`, e assim por diante) e só então a torna `NOT NULL`. Por isso um banco de desenvolvimento já semeado pela Etapa 6A migra com `npm run db:migrate`, sem perder os eventos nem precisar de novo seed. Um `nome` fora desse padrão deixaria a `chave` nula e o último passo falharia — de propósito: a migration não inventa chave. Num banco de desenvolvimento, nesse caso, recomece pelo volume (ver "Problemas comuns"). Não há variável de ambiente nova: o horizonte e os limiares dos insights ficam em `backend/src/config/sazonalidade.ts`.
+**Migration da Etapa 6B (`seasonal_event_chave`).** Ela acrescenta a coluna `chave` (enum `EventoSazonal`: `PASCOA`, `DIA_DAS_MAES`, `NAMORADOS`, `DIA_DOS_PAIS`, `NATAL`) a `seasonal_events` em quatro passos: cria o enum, adiciona a coluna anulável, preenche as linhas que já existem a partir do prefixo de `nome` ("Páscoa 2026" vira `PASCOA`, "Natal 2026" vira `NATAL`, e assim por diante) e só então a torna `NOT NULL`. Por isso um banco de desenvolvimento já semeado pela Etapa 6A migra com `npm run db:migrate`, sem perder os eventos nem precisar de novo seed. Um `nome` fora desse padrão deixaria a `chave` nula e o último passo falharia — de propósito: a migration não inventa chave. O `prisma migrate` passa a apontar essa migration como falhada, e num banco de desenvolvimento o caminho é recomeçar pelo volume (ver "Problemas comuns"). Não há variável de ambiente nova: o horizonte e os limiares dos insights ficam em `backend/src/config/sazonalidade.ts`.
+
+**Etapa 6C.** Sem migration nem variável de ambiente nova: os indicadores do painel do gestor são calculados a cada consulta, e o período padrão e os períodos aceitos ficam em `backend/src/config/kpis.ts`.
 
 ## 5. Executando sem Docker
 
@@ -161,6 +163,6 @@ Esses mesmos comandos rodam no pipeline de integração contínua ([ci.yml](../.
 
 **A API sobe e cai em seguida.** Quase sempre é `DATABASE_URL` com o host errado (`localhost` dentro do container, ou `db` fora dele) ou `JWT_SECRET` ausente. O log estruturado da API aponta a variável que falhou na validação.
 
-**`prisma migrate` reclama de estado divergente.** Em desenvolvimento, apagar o volume e recomeçar resolve: `docker compose down -v`, subir de novo e repetir migrate e seed. Nunca faça isso contra um banco que não seja o de desenvolvimento local.
+**`prisma migrate` reclama de estado divergente, ou aponta uma migration falhada.** Dois casos levam a isso: o histórico de migrations do banco não bate com o do repositório e, na migration da Etapa 6B (`seasonal_event_chave`), um `nome` de evento fora do padrão, que faz o passo `NOT NULL` falhar e deixa a migration registrada como falhada. Em desenvolvimento, apagar o volume e recomeçar resolve nos dois: `docker compose down -v`, subir de novo e repetir migrate e seed. Nunca faça isso contra um banco que não seja o de desenvolvimento local.
 
 **Containers antigos do projeto atrapalhando.** `docker compose ps -a` lista o que ficou para trás; `docker compose down --remove-orphans` limpa os órfãos.
