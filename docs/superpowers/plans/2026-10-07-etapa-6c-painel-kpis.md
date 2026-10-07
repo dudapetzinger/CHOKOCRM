@@ -58,7 +58,7 @@ describe('taxaDeRegistro', () => {
   it('7 de 9 → 78; 1 de 8 → 13 (arredonda .5 para cima)', ...);
 });
 describe('conversaoEmVendas', () => {
-  it('15 VENDA em 24 → 62; NEGOCIACAO e SEM_VENDA não contam; sem visitas → { 0, 0, null }', ...);
+  it('15 VENDA em 24 → 63; NEGOCIACAO e SEM_VENDA não contam; sem visitas → { 0, 0, null }', ...);
 });
 describe('distribuicaoPorCor / contarInativos', () => {
   it('sempre as quatro chaves; [] → tudo 0; VERDE×3, AMARELO×2, LARANJA×2, VERMELHO×2 → inativos 4', ...);

@@ -103,7 +103,7 @@ Fluxo: `periodoDeAnalise(dataCalendario(hoje), periodoDias)` → `Promise.all([v
 
 ## 9. Testes
 
-**Unitários (`tests/unit/kpis-regras.test.ts`):** `periodoDeAnalise` (30 → `[hoje−29, hoje]`; 365; virada de ano `2027-01-10` com 30 → inicia `2026-12-12`); `contarVisitas`; `mediaDeVisitasPorCliente` (24 visitas / 9 → 2,7; `null` sem clientes); `taxaDeRegistro` (cliente com visita; cliente só com mensagem; cliente com os dois conta uma vez; cliente fora da lista de ativos não entra; 7/9 → 78; `null` sem ativos); `conversaoEmVendas` (15/24 → 62; `NEGOCIACAO`/`SEM_VENDA` não contam; `null` sem visitas); `distribuicaoPorCor` (quatro chaves sempre presentes) e `contarInativos`.
+**Unitários (`tests/unit/kpis-regras.test.ts`):** `periodoDeAnalise` (30 → `[hoje−29, hoje]`; 365; virada de ano `2027-01-10` com 30 → inicia `2026-12-12`); `contarVisitas`; `mediaDeVisitasPorCliente` (24 visitas / 9 → 2,7; `null` sem clientes); `taxaDeRegistro` (cliente com visita; cliente só com mensagem; cliente com os dois conta uma vez; cliente fora da lista de ativos não entra; 7/9 → 78; `null` sem ativos); `conversaoEmVendas` (15/24 → 63; `NEGOCIACAO`/`SEM_VENDA` não contam; `null` sem visitas); `distribuicaoPorCor` (quatro chaves sempre presentes) e `contarInativos`.
 
 **Serviço (`tests/kpis-service.test.ts`, `jest.spyOn` nos repositórios e em `erp.service`, sem banco):** as três consultas recebem `inicioDoDia(inicio)`/`fimDoDia(fim)`; cliente VERDE pela visita mas com última compra há 70 dias → LARANJA → inativo; `semDados` true/false; `simulado` de `erpSimulado()`; visita de cliente inativo (cadastro) conta em `visitas.total` e na conversão, não na taxa; `consultarUltimasVendas` com `null` mantém a cor base.
 
