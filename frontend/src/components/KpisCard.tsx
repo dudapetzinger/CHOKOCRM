@@ -75,7 +75,7 @@ function ConteudoKpis({ kpis }: { kpis: Kpis }) {
               : `${conversaoEmVendas.numerador} de ${conversaoEmVendas.denominador} visitas com venda`
           }
         />
-        <Indicador valor={String(inativos.total)} rotulo="Clientes inativos" apoio="laranja e vermelho" />
+        <Indicador valor={String(inativos.total)} rotulo="Clientes inativos" apoio="laranja e vermelho, hoje" />
       </div>
 
       <h3 className="card-subtitulo">Distribuição por cor</h3>
@@ -119,15 +119,15 @@ export function KpisCard() {
 
       <FiltroPeriodo valor={periodoDias} onChange={setPeriodoDias} />
 
-      {kpis && (
-        <p className="campo-ajuda">
-          Período: {formatarDataCalendario(kpis.periodo.inicio)} a {formatarDataCalendario(kpis.periodo.fim)} ·{' '}
-          {descreverClientesAtivos(kpis.clientesAtivos)}
-        </p>
-      )}
-
       {/* `isPlaceholderData`: o resultado do período anterior segue visível, esmaecido, até o novo chegar. */}
       <div aria-busy={isPlaceholderData} className={isPlaceholderData ? 'atualizando' : undefined}>
+        {kpis && (
+          <p className="campo-ajuda kpi-periodo">
+            Período: {formatarDataCalendario(kpis.periodo.inicio)} a {formatarDataCalendario(kpis.periodo.fim)} ·{' '}
+            {descreverClientesAtivos(kpis.clientesAtivos)}
+          </p>
+        )}
+
         {isLoading && <p className="aviso">Carregando indicadores...</p>}
 
         {isError && (

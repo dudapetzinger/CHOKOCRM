@@ -436,8 +436,8 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 4. O gestor troca o período entre 30, 90 e 365 dias e o sistema recalcula e exibe os indicadores do novo período.
 
 **Fluxo alternativo:**
-- **A1** (passo 3): não há dados no período selecionado — nenhuma visita e nenhuma mensagem de estoque registrada (`semDados`) — o sistema exibe os indicadores zerados, com a mensagem "Nenhuma visita ou mensagem registrada no período — indicadores zerados."; a distribuição por cor, que reflete a carteira de hoje, continua na tela.
-- **A2** (passo 3): não há clientes ativos — a taxa de registro e a média de visitas por cliente não têm denominador e aparecem como "—" (ou "sem clientes ativos"), e no lugar da barra o sistema exibe "Nenhum cliente ativo.".
+- **A1** (passo 3): não há dados no período selecionado — nenhuma visita e nenhuma mensagem de estoque registrada (`semDados`) — o sistema exibe os indicadores zerados — a conversão em vendas aparece como "—" ("sem visitas no período"), não como 0 —, com a mensagem "Nenhuma visita ou mensagem registrada no período — indicadores zerados."; a distribuição por cor, que reflete a carteira de hoje, continua na tela.
+- **A2** (passo 3): não há clientes ativos — a taxa de registro não tem denominador e aparece como "—", e o indicador de visitas mostra o total com o apoio "sem clientes ativos" (sem média por cliente); no lugar da barra o sistema exibe "Nenhum cliente ativo.".
 
 **Fluxo de exceção:**
 - **E1** (passo 1): usuário que não é gestor — a API responde 403 e a navegação não mostra a aba "Painel"; se o representante abrir `/painel` pela URL, a página mostra apenas "Painel disponível apenas para o gestor.".
@@ -445,11 +445,11 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Regras de negócio associadas:**
 - Os indicadores são calculados a cada consulta, a partir de `Visit`, `StockMessage` e da classificação por cor; nada é persistido ([ADR-006](arquitetura.md#adr-006--classificação-por-cor-calculada-em-tempo-de-consulta)).
-- **Período:** `?periodoDias=` aceita só 30, 90 ou 365, com padrão 30; qualquer outro valor (ou não numérico) é rejeitado com 400 (`VALIDATION_ERROR`). O período vai de hoje − (N − 1) até hoje, inclusive — 30 dias inclui hoje —, em dias de calendário do fuso do representante. Na tela, o período é escolhido nas opções 30 · 90 · 365 dias, vale só para a tela aberta e não é salvo. Os valores ficam em `config/kpis.ts`.
+- **Período:** `?periodoDias=` aceita só 30, 90 ou 365, com padrão 30; qualquer outro valor (ou não numérico) é rejeitado com 400 (`VALIDATION_ERROR`). O período vai de hoje − (N − 1) até hoje, inclusive — 30 dias inclui hoje —, em dias de calendário de `America/Sao_Paulo`. Na tela, o período é escolhido nas opções 30 · 90 · 365 dias, vale só para a tela aberta e não é salvo. Os valores ficam em `config/kpis.ts`.
 - **Visitas no período:** número de check-ins do período, de qualquer cliente; a média é esse total ÷ clientes ativos, com uma casa decimal.
 - **Taxa de registro:** clientes ativos com pelo menos um check-in **ou** uma mensagem de estoque gerada no período ÷ clientes ativos; cada cliente conta uma vez, e o percentual é inteiro arredondado.
 - **Conversão em vendas:** visitas do período com resultado `VENDA` ÷ visitas do período, também em percentual inteiro arredondado; negociação e visita sem venda não contam como venda.
-- **Clientes inativos:** clientes ativos hoje em LARANJA ou VERMELHO (`CORES_INATIVAS`); a distribuição traz as quatro cores, com zero nas que não têm clientes. A cor é a mesma da lista e da ficha, inclusive o rebaixamento por última compra no ERP (UC05); com o ERP indisponível, a cor cai na regra base de visitas, sem derrubar a consulta.
+- **Clientes inativos:** clientes ativos hoje em LARANJA ou VERMELHO (`CORES_INATIVAS`); a contagem reflete as cores de hoje, independentemente do período escolhido (apoio "laranja e vermelho, hoje"); a distribuição traz as quatro cores, com zero nas que não têm clientes. A cor é a mesma da lista e da ficha, inclusive o rebaixamento por última compra no ERP (UC05); com o ERP indisponível, a cor cai na regra base de visitas, sem derrubar a consulta.
 - Proporção sem denominador (nenhum cliente ativo, nenhuma visita) não tem percentual: a tela mostra "—".
 - Cliente inativado no cadastro (UC03) fica fora da taxa de registro e da distribuição por cor, mas as visitas que ele teve no período ainda contam em "visitas no período" e na conversão.
 - **Época do ano:** não é um filtro destes indicadores; a leitura por sazonalidade é feita pelo card "Época do ano" da mesma tela (UC15), com o horizonte próprio "Próximos".

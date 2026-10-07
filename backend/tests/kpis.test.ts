@@ -160,9 +160,11 @@ describe('GET /dashboard/kpis', () => {
     // A por visita e C por mensagem; B (visita há 40 dias) fora; D inativo não entra.
     expect(res.body.taxaDeRegistro).toEqual({ numerador: 2, denominador: 3, percentual: 67 });
 
-    const { distribuicao, total } = res.body.inativos;
-    expect(Object.values(distribuicao as Record<string, number>).reduce((a, b) => a + b, 0)).toBe(3);
-    expect(total).toBeLessThanOrEqual(3);
+    // Sem ERP (erpId nulo): A VERDE (visita há 2 dias), B e C VERMELHO (visita há 40 dias e nenhuma).
+    expect(res.body.inativos).toEqual({
+      total: 2,
+      distribuicao: { VERDE: 1, AMARELO: 0, LARANJA: 0, VERMELHO: 2 },
+    });
     expect(res.body.semDados).toBe(false);
     expect(typeof res.body.simulado).toBe('boolean');
   });

@@ -935,6 +935,11 @@ button {
   margin: 2px 0 0 0;
 }
 
+/* Linha "Período: …", dentro da região esmaecida junto com os números */
+.kpi-periodo {
+  margin-bottom: 12px;
+}
+
 .card-subtitulo {
   font-size: 14px;
   font-weight: 700;
