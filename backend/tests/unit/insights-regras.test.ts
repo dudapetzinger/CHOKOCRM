@@ -7,10 +7,12 @@ import {
   cruzarEstoqueComEventos,
   eventosNoHorizonte,
   janelaDoAnoAnterior,
+  mediaNaJanela,
   montarTextoDaSugestao,
   periodoBase,
   produtosMaisComprados,
   totalNaJanela,
+  vendasNaJanela,
   type ClienteComEstoque,
   type EventoDoBanco,
   type EventoProximo,
@@ -123,8 +125,19 @@ describe('janelaDoAnoAnterior / periodoBase', () => {
   });
 });
 
-describe('totalNaJanela / calcularVariacao / acaoPorVariacao', () => {
+describe('vendasNaJanela / totalNaJanela / mediaNaJanela / calcularVariacao / acaoPorVariacao', () => {
   const janela = { inicio: '2025-11-25', fim: '2025-12-25' };
+
+  it('vendasNaJanela: só as vendas com dataCalendario (fuso do negócio) dentro da janela, limites inclusivos, na ordem recebida', () => {
+    const noMeio = venda('2025-12-10', 10);
+    const noPrimeiroDia = venda('2025-11-25', 100);
+    // 02:00Z de 26/12 ainda é 25/12 às 23:00 em America/Sao_Paulo (-03:00).
+    const tardeNoUltimoDia: Sale = { data: new Date('2025-12-26T02:00:00Z'), valor: 7, produtos: [] };
+    const vendas = [venda('2025-11-24', 1000), noMeio, noPrimeiroDia, tardeNoUltimoDia, venda('2025-12-26', 5000)];
+
+    expect(vendasNaJanela(vendas, janela)).toEqual([noMeio, noPrimeiroDia, tardeNoUltimoDia]);
+    expect(vendasNaJanela([], janela)).toEqual([]);
+  });
 
   it('soma só vendas com dataCalendario dentro da janela, limites inclusivos', () => {
     const vendas = [
@@ -143,6 +156,11 @@ describe('totalNaJanela / calcularVariacao / acaoPorVariacao', () => {
     const tardeNoUltimoDia: Sale = { data: new Date('2025-12-26T02:00:00Z'), valor: 7, produtos: [] };
 
     expect(totalNaJanela([tardeNoUltimoDia], janela)).toBe(7);
+  });
+
+  it('mediaNaJanela: base 3650 em DIAS_DE_BASE dias, janela de 31 dias → 310', () => {
+    expect(mediaNaJanela(3650, 31)).toBe(310);
+    expect(mediaNaJanela(0, 31)).toBe(0);
   });
 
   it('variação: janela 31 dias, base 3650 → média 310; total 573,5 → 0.85; 217 → -0.3', () => {
@@ -267,15 +285,16 @@ describe('cruzarEstoqueComEventos', () => {
   const cx = (quantidade: number) => item('CX-PRESENTE', 'Caixa presente sortida', quantidade);
   const bomb = (quantidade: number) => item('BOMB-SORT', 'Bombons sortidos', quantidade);
   const paoDeMel = (quantidade: number) => item('PAO-MEL', 'Pães de mel', quantidade);
+  const trufa = (quantidade: number) => item('TRUF-70', 'Trufas 70% cacau', quantidade);
 
   function cliente(id: string, itensBaixos: ItemBaixo[]): ClienteComEstoque {
     return { id, nomeFantasia: `Loja ${id}`, cidade: 'Pomerode', itensBaixos };
   }
 
-  it('agrupa por evento × produto só os SKUs de SKUS_SUGERIDOS[chave]; PAO-MEL antes do Natal não gera alerta; cliente sem item baixo não aparece', () => {
+  it('agrupa por evento × produto só os SKUs de SKUS_SUGERIDOS[chave]; PAO-MEL e TRUF-70 (sugerido para Namorados, não para o Natal) antes do Natal não geram alerta; cliente sem item baixo não aparece', () => {
     const natal = eventoProximo();
     const clientes = [
-      cliente('a', [cx(4), paoDeMel(2)]),
+      cliente('a', [cx(4), paoDeMel(2), trufa(1)]),
       cliente('b', [cx(2), bomb(5)]),
       cliente('c', []),
     ];
@@ -301,6 +320,8 @@ describe('cruzarEstoqueComEventos', () => {
     ]);
     expect(alertas.flatMap((alerta) => alerta.clientes.map((c) => c.id))).not.toContain('c');
     expect(alertas.map((alerta) => alerta.produto.sku)).not.toContain('PAO-MEL');
+    // Pina "SKUs do próprio evento" e não "união dos SKUs de todos os eventos".
+    expect(alertas.map((alerta) => alerta.produto.sku)).not.toContain('TRUF-70');
   });
 
   it('ordena por diasAteEvento, depois mais clientes primeiro, depois nome do produto; clientes por quantidade crescente; atualizadoEm em ISO', () => {

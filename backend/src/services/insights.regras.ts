@@ -108,30 +108,43 @@ export function periodoBase(janela: Janela): Janela {
   return { inicio: somarDias(janela.inicio, -DIAS_DE_BASE), fim: somarDias(janela.inicio, -1) };
 }
 
+/**
+ * Vendas cuja data de calendário (no fuso do negócio) cai na janela, limites
+ * inclusivos, na ordem recebida — o mesmo recorte de `totalNaJanela`, para
+ * quem precisa das vendas em si (ex.: produtos mais comprados na janela).
+ */
+export function vendasNaJanela(vendas: Sale[], janela: Janela): Sale[] {
+  return vendas.filter((venda) => dentroDaJanela(dataCalendario(venda.data), janela));
+}
+
 /** Soma de `valor` das vendas cuja data de calendário (no fuso do negócio) cai na janela, limites inclusivos. */
 export function totalNaJanela(vendas: Sale[], janela: Janela): number {
-  return vendas.reduce(
-    (total, venda) => (dentroDaJanela(dataCalendario(venda.data), janela) ? total + venda.valor : total),
-    0,
-  );
+  return vendasNaJanela(vendas, janela).reduce((total, venda) => total + venda.valor, 0);
 }
 
 /**
- * Variação das compras na janela sobre a média diária do cliente no período
- * de base: `mediaNaJanela = totalBase × diasJanela / DIAS_DE_BASE` e
- * `variação = totalJanela / mediaNaJanela − 1` (0,85 = +85%). `diasJanela`
- * conta a janela inclusiva (31 dias para uma janela de 30 dias antes do
- * evento mais o próprio dia). Devolve `null` sem base (`totalBase` = 0) ou
- * sem compra na janela (`totalJanela` = 0) — UC13 A1.
+ * Quanto o cliente compraria em `diasJanela` dias no ritmo do período de
+ * base: `totalBase × diasJanela / DIAS_DE_BASE`. É a régua de
+ * `calcularVariacao` e também o valor exibido na sugestão — uma única conta
+ * para os dois não divergirem.
+ */
+export function mediaNaJanela(totalBase: number, diasJanela: number): number {
+  return (totalBase * diasJanela) / DIAS_DE_BASE;
+}
+
+/**
+ * Variação das compras na janela sobre a média do cliente no período de
+ * base: `variação = totalJanela / mediaNaJanela − 1` (0,85 = +85%).
+ * `diasJanela` conta a janela inclusiva (31 dias para uma janela de 30 dias
+ * antes do evento mais o próprio dia). Devolve `null` sem base
+ * (`totalBase` = 0) ou sem compra na janela (`totalJanela` = 0) — UC13 A1.
  */
 export function calcularVariacao(totalJanela: number, totalBase: number, diasJanela: number): number | null {
   if (totalBase === 0 || totalJanela === 0) {
     return null;
   }
 
-  const mediaNaJanela = (totalBase * diasJanela) / DIAS_DE_BASE;
-
-  return totalJanela / mediaNaJanela - 1;
+  return totalJanela / mediaNaJanela(totalBase, diasJanela) - 1;
 }
 
 /**
