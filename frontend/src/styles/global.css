@@ -855,9 +855,9 @@ button {
   margin-bottom: 8px;
 }
 
-/* Resultado do horizonte anterior, mantido na tela enquanto o novo carrega
-   (isPlaceholderData em InsightsCard.tsx) */
-.insights-atualizando {
+/* Resultado do filtro anterior (horizonte ou período), mantido na tela enquanto o novo carrega
+   (isPlaceholderData em InsightsCard, PainelPage e KpisCard) */
+.atualizando {
   opacity: 0.55;
   transition: opacity 0.15s;
 }
@@ -893,4 +893,76 @@ button {
 .alerta-producao a {
   color: inherit;
   font-weight: 700;
+}
+
+/* ==========================================================================
+   22. Indicadores do gestor (.grade-kpi / .barra-distribuicao)
+   Card "Indicadores" do Painel (components/KpisCard.tsx, UC14, Etapa 6C; ver
+   docs/prototipo/painel.html): grade 2x2 de números e barra segmentada da
+   distribuição de clientes ativos por cor, em CSS puro (sem biblioteca de
+   gráfico): cada segmento cresce com `flex-grow` inline igual à contagem.
+   A legenda reaproveita .badge-pilula + BadgeCor.
+   ========================================================================== */
+.grade-kpi {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.kpi {
+  text-align: center;
+  padding: 8px 4px;
+}
+
+.kpi-valor {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--marrom-900);
+  margin: 0 0 2px 0;
+}
+
+.kpi-rotulo {
+  font-size: 12px;
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+/* Linha de apoio com os números que sustentam o indicador */
+.kpi-apoio {
+  font-size: 11px;
+  color: var(--texto-suave);
+  margin: 2px 0 0 0;
+}
+
+.card-subtitulo {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--marrom-900);
+  margin: 0 0 8px 0;
+}
+
+.barra-distribuicao {
+  display: flex;
+  height: 16px;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.barra-distribuicao span {
+  display: block;
+}
+
+.barra-distribuicao .seg-verde { background-color: var(--verde); }
+.barra-distribuicao .seg-amarelo { background-color: var(--amarelo); }
+.barra-distribuicao .seg-laranja { background-color: var(--laranja); }
+.barra-distribuicao .seg-vermelho { background-color: var(--vermelho); }
+
+/* Legenda da barra: pílulas já existentes (.badge-pilula), com quebra de
+   linha para caber na largura mobile */
+.legenda-distribuicao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

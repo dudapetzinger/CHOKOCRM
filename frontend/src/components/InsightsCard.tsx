@@ -125,7 +125,7 @@ export function InsightsCard({ clienteId }: Props) {
       {mostrarFiltro && <FiltroHorizonte valor={horizonteDias} onChange={setHorizonteDias} />}
 
       {/* `isPlaceholderData`: o resultado do horizonte anterior segue visível, esmaecido, até o novo chegar. */}
-      <div className={isPlaceholderData ? 'insights-atualizando' : undefined} aria-busy={isPlaceholderData}>
+      <div className={isPlaceholderData ? 'atualizando' : undefined} aria-busy={isPlaceholderData}>
         {isLoading && <p className="aviso">Carregando insights...</p>}
 
         {isError && (

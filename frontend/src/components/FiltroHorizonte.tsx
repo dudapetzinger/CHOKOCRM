@@ -5,6 +5,8 @@
  * pelo card de insights da ficha do cliente (UC13) e pelo Painel do gestor
  * (UC15).
  */
+import { FiltroPilulas } from './FiltroPilulas';
+
 export const HORIZONTE_PADRAO_DIAS = 90;
 const HORIZONTES_DIAS = [30, 60, 90, 180] as const;
 
@@ -15,19 +17,13 @@ type Props = {
 
 export function FiltroHorizonte({ valor, onChange }: Props) {
   return (
-    <div className="filtro-periodo" role="group" aria-label="Horizonte de eventos sazonais">
-      <span className="filtro-rotulo">Próximos</span>
-      {HORIZONTES_DIAS.map((dias) => (
-        <button
-          key={dias}
-          type="button"
-          className={valor === dias ? 'badge-pilula ativo' : 'badge-pilula'}
-          aria-pressed={valor === dias}
-          onClick={() => onChange(dias)}
-        >
-          {dias} dias
-        </button>
-      ))}
-    </div>
+    <FiltroPilulas
+      rotulo="Próximos"
+      ariaLabel="Horizonte de eventos sazonais"
+      opcoes={HORIZONTES_DIAS}
+      sufixo="dias"
+      valor={valor}
+      onChange={onChange}
+    />
   );
 }

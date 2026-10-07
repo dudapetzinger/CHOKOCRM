@@ -1,5 +1,7 @@
 /**
- * Painel de indicadores do gestor (UC15, Etapa 6B): alertas de produção
+ * Painel de indicadores do gestor (UC14 e UC15, Etapas 6B e 6C): o card de
+ * indicadores (visitas, taxa de registro, conversão, inativos e distribuição
+ * por cor, `KpisCard`), os alertas de produção
  * (produtos sugeridos para um evento sazonal próximo que estão com estoque
  * baixo em clientes da carteira) e a "Época do ano" com os eventos do
  * horizonte escolhido. Só o gestor vê o conteúdo; para o representante a rota
@@ -10,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { AvisoSimulado } from '../components/AvisoSimulado';
 import { FiltroHorizonte, HORIZONTE_PADRAO_DIAS } from '../components/FiltroHorizonte';
+import { KpisCard } from '../components/KpisCard';
 import { NavInferior } from '../components/NavInferior';
 import { useAlertasDeProducao } from '../hooks/useInsights';
 import { descreverPrazo } from '../lib/descreverPrazo';
@@ -103,10 +106,12 @@ function PainelGestor() {
   // depois de um erro, para o gestor sempre poder escolher outro horizonte.
   return (
     <>
+      <KpisCard />
+
       <FiltroHorizonte valor={horizonteDias} onChange={setHorizonteDias} />
 
       {/* `isPlaceholderData`: o resultado do horizonte anterior segue visível, esmaecido, até o novo chegar. */}
-      <div aria-busy={isPlaceholderData} className={isPlaceholderData ? 'insights-atualizando' : undefined}>
+      <div aria-busy={isPlaceholderData} className={isPlaceholderData ? 'atualizando' : undefined}>
         {isLoading && <p className="aviso">Carregando painel...</p>}
 
         {isError && (
@@ -129,8 +134,6 @@ function PainelGestor() {
 
             <CardAlertasDeProducao alertas={alertas} />
             <CardEpocaDoAno alertas={alertas} />
-
-            {/* Os cards de KPIs (subprojeto C) entram abaixo. */}
           </>
         )}
       </div>
