@@ -12,6 +12,7 @@ import { clientContactsRouter, contactRouter } from './routes/contact.routes';
 import { erpRouter } from './routes/erp.routes';
 import { healthRouter } from './routes/health.routes';
 import { clientInsightsRouter, insightsRouter } from './routes/insights.routes';
+import { dashboardRouter } from './routes/kpis.routes';
 import { recurrenceRouter } from './routes/recurrence.routes';
 import { clientStockMessageRouter, stockMessagesRouter } from './routes/stock-message.routes';
 import { clientVisitsRouter, visitRouter } from './routes/visit.routes';
@@ -45,6 +46,7 @@ app.use('/clients/:id/stock-message', clientStockMessageRouter);
 app.use('/stock-messages', stockMessagesRouter);
 app.use('/clients/:id/insights', clientInsightsRouter);
 app.use('/insights', insightsRouter);
+app.use('/dashboard', dashboardRouter);
 app.use('/contacts', contactRouter);
 app.use('/clients/:id/visits', clientVisitsRouter);
 // Corpo binário apenas para as imagens de check-in: o filtro de `type`
