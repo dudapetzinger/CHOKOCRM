@@ -26,6 +26,7 @@ import { NavInferior } from '../components/NavInferior';
 import { BadgeCor } from '../components/BadgeCor';
 import { RecorrenciaCard } from '../components/RecorrenciaCard';
 import { DadosErpCard } from '../components/DadosErpCard';
+import { InsightsCard } from '../components/InsightsCard';
 import { MensagemEstoqueCard } from '../components/MensagemEstoqueCard';
 import { useAuth } from '../auth/useAuth';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
@@ -663,6 +664,8 @@ export function ClienteDetalhePage() {
         />
 
         <DadosErpCard clienteId={id!} />
+
+        <InsightsCard clienteId={id!} />
 
         <MensagemEstoqueCard
           clienteId={id!}

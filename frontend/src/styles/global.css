@@ -234,6 +234,12 @@ button {
   color: var(--vermelho);
 }
 
+/* Card de alerta (.card.aviso-atencao): o título herda a cor do alerta em
+   vez do marrom padrão de .card-titulo (docs/prototipo/painel.html) */
+.aviso-atencao .card-titulo {
+  color: inherit;
+}
+
 /* ==========================================================================
    8. Tela de login
    Cabeçalho de marca (logotipo textual, sem imagens) e área central.
@@ -794,4 +800,62 @@ button {
   width: auto;
   padding: 8px 14px;
   font-size: 13px;
+}
+
+/* ==========================================================================
+   20. Filtro de horizonte e insights (.filtro-periodo / .insight)
+   Pílulas "Próximos 30 · 60 · 90 · 180 dias" (components/FiltroHorizonte.tsx,
+   ver docs/prototipo/painel.html) e os blocos de sugestão do card "Insights
+   e sugestões" da ficha do cliente. As pílulas são <button>, então repetem o
+   reset de .filtro-cores (seção 18); o rótulo "Próximos" fica na mesma linha
+   delas, sem a margem inferior do protótipo, onde ficava acima do grupo.
+   ========================================================================== */
+.filtro-rotulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texto);
+  margin: 0;
+}
+
+.filtro-periodo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filtro-periodo .badge-pilula {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  cursor: pointer;
+}
+
+.insight {
+  padding: 12px 0;
+  border-top: 1px solid var(--marrom-100);
+}
+
+.insight:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.insight-titulo {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--marrom-900);
+  margin: 0 0 6px 0;
+}
+
+.insight .etiqueta {
+  margin-bottom: 8px;
+}
+
+/* Resultado do horizonte anterior, mantido na tela enquanto o novo carrega
+   (isPlaceholderData em InsightsCard.tsx) */
+.insights-atualizando {
+  opacity: 0.55;
+  transition: opacity 0.15s;
 }
