@@ -25,6 +25,18 @@ export async function findVigentes(dia: DataCalendario): Promise<SeasonalEvent[]
   });
 }
 
+/**
+ * Eventos cujo `dataFim` (dia do evento) cai em `[de, ate]`, ambos
+ * inclusivos, do mais próximo ao mais distante — base dos insights sazonais.
+ * Compara em meia-noite UTC, como `findVigentes`.
+ */
+export async function findNoIntervalo(de: DataCalendario, ate: DataCalendario): Promise<SeasonalEvent[]> {
+  return prisma.seasonalEvent.findMany({
+    where: { dataFim: { gte: inicioUtcDoDia(de), lte: inicioUtcDoDia(ate) } },
+    orderBy: { dataFim: 'asc' },
+  });
+}
+
 export async function findById(id: string): Promise<SeasonalEvent | null> {
   return prisma.seasonalEvent.findUnique({ where: { id } });
 }
@@ -35,6 +47,7 @@ export async function upsertMany(eventos: EventoSazonalSeed[]): Promise<void> {
     await prisma.seasonalEvent.upsert({
       where: { nome: evento.nome },
       update: {
+        chave: evento.chave,
         dataInicio: evento.dataInicio,
         dataFim: evento.dataFim,
         produtosSugeridos: evento.produtosSugeridos,

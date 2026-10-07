@@ -17,6 +17,14 @@ enum ResultadoVisita {
   SEM_VENDA
 }
 
+enum EventoSazonal {
+  PASCOA
+  DIA_DAS_MAES
+  NAMORADOS
+  DIA_DOS_PAIS
+  NATAL
+}
+
 model User {
   id              String                @id @default(uuid())
   nome            String
@@ -120,6 +128,7 @@ model StockMessage {
 model SeasonalEvent {
   id                String         @id @default(uuid())
   nome              String         @unique
+  chave             EventoSazonal
   dataInicio        DateTime       @map("data_inicio") @db.Date
   dataFim           DateTime       @map("data_fim") @db.Date
   produtosSugeridos String[]       @map("produtos_sugeridos")

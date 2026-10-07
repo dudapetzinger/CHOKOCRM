@@ -205,6 +205,7 @@ async function criarEventoVigenteHoje(nome = 'Evento Teste', produtosSugeridos =
   return prisma.seasonalEvent.create({
     data: {
       nome,
+      chave: 'PASCOA',
       dataInicio: ontem,
       dataFim: amanha,
       produtosSugeridos,
