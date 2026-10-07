@@ -29,3 +29,11 @@ export async function list(filtro: { clientId?: string }): Promise<StockMessageC
     orderBy: { dataGeracao: 'desc' },
   });
 }
+
+/** Mensagens geradas no período, só com o cliente (indicadores do painel, UC14); `dataGeracao` entre `inicio` e `fim`, inclusive. */
+export async function listNoPeriodo(inicio: Date, fim: Date): Promise<{ clientId: string }[]> {
+  return prisma.stockMessage.findMany({
+    where: { dataGeracao: { gte: inicio, lte: fim } },
+    select: { clientId: true },
+  });
+}

@@ -50,3 +50,14 @@ export async function contatoPertenceAoCliente(contactId: string, clientId: stri
   const contato = await prisma.contact.findFirst({ where: { id: contactId, clientId }, select: { id: true } });
   return contato !== null;
 }
+
+/** Visitas do período para os indicadores do painel (UC14): só o que as regras usam; `dataHora` entre `inicio` e `fim`, inclusive. */
+export async function listNoPeriodo(
+  inicio: Date,
+  fim: Date,
+): Promise<{ clientId: string; resultado: ResultadoVisita; dataHora: Date }[]> {
+  return prisma.visit.findMany({
+    where: { dataHora: { gte: inicio, lte: fim } },
+    select: { clientId: true, resultado: true, dataHora: true },
+  });
+}
