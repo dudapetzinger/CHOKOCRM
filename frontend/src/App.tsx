@@ -7,6 +7,7 @@ import { NovoClientePage } from './pages/NovoClientePage';
 import { ClienteDetalhePage } from './pages/ClienteDetalhePage';
 import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
+import { PainelPage } from './pages/PainelPage';
 
 export function App() {
   return (
@@ -51,6 +52,14 @@ export function App() {
             element={
               <RequireAuth>
                 <AgendaPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/painel"
+            element={
+              <RequireAuth>
+                <PainelPage />
               </RequireAuth>
             }
           />

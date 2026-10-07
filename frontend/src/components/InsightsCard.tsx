@@ -11,7 +11,9 @@ import { useInsights } from '../hooks/useInsights';
 import { mensagemErroApi } from '../services/clients';
 import { formatarDataCalendario } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
+import { descreverPrazo } from '../lib/descreverPrazo';
 import type { AcaoSugerida, Insights, Sugestao } from '../services/insights';
+import { AvisoSimulado } from './AvisoSimulado';
 import { FiltroHorizonte, HORIZONTE_PADRAO_DIAS } from './FiltroHorizonte';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os insights.';
@@ -73,8 +75,8 @@ function renderizarConteudo(insights: Insights): ReactElement {
 
           {insights.eventosSemHistorico.map((evento) => (
             <p key={evento.id} className="campo-ajuda">
-              {evento.nome} em {evento.diasAteEvento} dias — sem histórico de compras no mesmo período do ano
-              passado.
+              {evento.nome} {descreverPrazo(evento.diasAteEvento)} — sem histórico de compras no mesmo período
+              do ano passado.
             </p>
           ))}
 
@@ -118,9 +120,7 @@ export function InsightsCard({ clienteId }: Props) {
         Insights e sugestões
       </h2>
 
-      {insights?.status === 'OK' && insights.simulado && (
-        <p className="aviso">Dados simulados — integração com o ERP ainda não está disponível.</p>
-      )}
+      {insights?.status === 'OK' && insights.simulado && <AvisoSimulado />}
 
       {mostrarFiltro && <FiltroHorizonte valor={horizonteDias} onChange={setHorizonteDias} />}
 

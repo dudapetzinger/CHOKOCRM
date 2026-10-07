@@ -593,11 +593,13 @@ button {
 
 /* ==========================================================================
    16. Navegação inferior (.nav-inferior)
-   Barra fixa com os atalhos das telas internas: Clientes e Agenda. Não
-   aparece na tela de login. Uso (ver components/NavInferior.tsx):
+   Barra fixa com os atalhos das telas internas: Clientes, Agenda e, só para
+   o gestor, Painel. Não aparece na tela de login. Uso (ver
+   components/NavInferior.tsx):
    <nav class="nav-inferior" aria-label="Navegação principal">
      <NavLink to="/clientes"><span class="icone">👥</span>Clientes</NavLink>
      <NavLink to="/agenda"><span class="icone">🗓️</span>Agenda</NavLink>
+     <NavLink to="/painel"><span class="icone">📊</span>Painel</NavLink>
    </nav>
    A classe "ativo" marca a aba da tela atual. Toda tela que renderiza a
    barra deve somar `.conteudo-com-nav` à `.conteudo`, para reservar o
@@ -858,4 +860,37 @@ button {
 .insights-atualizando {
   opacity: 0.55;
   transition: opacity 0.15s;
+}
+
+/* ==========================================================================
+   21. Alertas de produção (.alerta-producao)
+   Um bloco por produto e evento no card "⚠️ Alertas de produção" do Painel
+   do gestor (pages/PainelPage.tsx), com o mesmo respiro dos blocos de
+   .insight. O título e os links herdam a cor do alerta (.card.aviso-atencao),
+   como o título do card; o link segue sublinhado, então não depende só da cor.
+   ========================================================================== */
+.alerta-producao {
+  padding: 12px 0;
+  border-top: 1px solid var(--marrom-100);
+}
+
+.alerta-producao:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.alerta-titulo {
+  font-size: 15px;
+  font-weight: 700;
+  color: inherit;
+  margin: 0 0 6px 0;
+}
+
+.alerta-producao p {
+  margin: 0;
+}
+
+.alerta-producao a {
+  color: inherit;
+  font-weight: 700;
 }

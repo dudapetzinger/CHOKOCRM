@@ -9,6 +9,7 @@ import { mensagemErroApi } from '../services/clients';
 import { formatarData } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
 import type { DadosErp, NivelEstoque } from '../services/erp';
+import { AvisoSimulado } from './AvisoSimulado';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do ERP.';
 
@@ -43,9 +44,7 @@ function renderizarConteudo(dadosErp: DadosErp): ReactElement {
     case 'OK':
       return (
         <>
-          {dadosErp.simulado && (
-            <p className="aviso">Dados simulados — integração com o ERP ainda não está disponível.</p>
-          )}
+          {dadosErp.simulado && <AvisoSimulado />}
 
           <p className="cliente-info">
             {dadosErp.ultimaVenda

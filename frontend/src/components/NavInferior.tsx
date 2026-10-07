@@ -1,11 +1,14 @@
 /**
- * Navegação inferior fixa das telas internas (Clientes/Agenda). Não aparece
- * na tela de login, de novo cliente nem no check-in (ver .nav-inferior em
- * styles/global.css).
+ * Navegação inferior fixa das telas internas (Clientes/Agenda e, só para o
+ * gestor, Painel). Não aparece na tela de login, de novo cliente nem no
+ * check-in (ver .nav-inferior em styles/global.css).
  */
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../auth/useAuth';
 
 export function NavInferior() {
+  const { user } = useAuth();
+
   return (
     <nav className="nav-inferior" aria-label="Navegação principal">
       <NavLink to="/clientes" className={({ isActive }) => (isActive ? 'ativo' : undefined)}>
@@ -16,6 +19,12 @@ export function NavInferior() {
         <span className="icone" aria-hidden="true">🗓️</span>
         Agenda
       </NavLink>
+      {user?.role === 'GESTOR' && (
+        <NavLink to="/painel" className={({ isActive }) => (isActive ? 'ativo' : undefined)}>
+          <span className="icone" aria-hidden="true">📊</span>
+          Painel
+        </NavLink>
+      )}
     </nav>
   );
 }
