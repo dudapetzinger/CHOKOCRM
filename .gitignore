@@ -146,6 +146,10 @@ vite.config.ts.timestamp-*
 .DS_Store
 .env.local
 
+# Memória e resumo locais do scripts/wizard-azure.sh (nunca versionar)
+.wizard-azure.local.env
+.wizard-azure.local.md
+
 # Fotos de comprovação de check-in (nunca versionadas)
 backend/uploads/
 .superpowers/
