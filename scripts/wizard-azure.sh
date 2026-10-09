@@ -454,8 +454,9 @@ _configuracoes_app() {
 
 _checklist_desligar() {
   printf '%s\n' \
+    "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Desabilitar (Disable), para não receber alertas com a produção desligada (o nome pode variar)." \
     "- [ ] App Service: escalar o plano $PLAN para F1 (Gratuito) — mantém o app, as configurações e o endereço; desligue o Always On antes, se o portal exigir. Parar só o app não zera o custo: quem cobra é o plano." \
-    "- [ ] Alternativa: deletar o plano $PLAN. O portal pode exigir apagar o $APP junto; nesse caso, religar = refazer o passo 5 e atualizar VITE_API_URL e o publish profile no GitHub." \
+    "- [ ] Alternativa: deletar o plano $PLAN. O portal pode exigir apagar o $APP junto — o que apaga também /home/uploads e as fotos de check-in; nesse caso, religar = refazer o passo 5 e atualizar VITE_API_URL e o publish profile no GitHub." \
     "- [ ] PostgreSQL: $PG → Visão geral → Parar. Atenção: o Azure religa sozinho um servidor parado após 7 dias — se a pausa for maior, pare de novo." \
     "- [ ] Conferir o gasto em Gerenciamento de Custos (alertas de 40 % e 70 % do orçamento de US\$ 100)."
 }
@@ -465,6 +466,7 @@ _checklist_religar() {
     "- [ ] PostgreSQL: $PG → Visão geral → Iniciar (aguarde o status Pronto)." \
     "- [ ] App Service: escalar o plano $PLAN de volta para B1 e religar o Always On (se o plano foi deletado, criar de novo seguindo o passo 5 deste wizard)." \
     "- [ ] Deploy: gh workflow run deploy.yml (ou um push na main)." \
+    "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Habilitar (Enable) (o nome pode variar)." \
     "- [ ] Conferir o job smoke verde em $URL_GITHUB/actions e o teste de disponibilidade verde no $AI."
 }
 
@@ -830,8 +832,9 @@ open_url "$SCM_URL"
 note "Endereço do SSH do Kudu (pode variar). Alternativa: portal → $APP → Ferramentas de"
 note "Desenvolvimento → SSH → Ir. (o nome do menu pode variar)"
 step "No terminal SSH, rode:  cd /home/site/wwwroot && npm run db:seed"
-note "Se o seed disser que DATABASE_URL não está definida, rode antes: export DATABASE_URL='<a do passo 2>'"
-warn "Rode o seed uma vez só: ele é para a base vazia e parte dos dados pode duplicar."
+note "Se o seed disser que DATABASE_URL ou JWT_SECRET não está definida, rode antes:"
+note "  export DATABASE_URL='<a do passo 2>' JWT_SECRET='<qualquer valor não vazio; para o seed, serve>'"
+warn "Basta rodar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção."
 pause "Enter quando o seed terminar"
 
 # ── 12. Desligar / religar ────────────────────────────────────────────────

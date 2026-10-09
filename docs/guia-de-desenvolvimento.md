@@ -1,6 +1,6 @@
 # ChokoCRM — Guia de Desenvolvimento
 
-Como preparar o ambiente, executar o projeto e rodar os testes na sua máquina. A arquitetura e as decisões técnicas estão em [arquitetura.md](arquitetura.md); o escopo e o cronograma, em [especificacao-tecnica.md](especificacao-tecnica.md).
+Como preparar o ambiente, executar o projeto e rodar os testes na sua máquina — e como a produção no Azure é publicada e operada. A arquitetura e as decisões técnicas estão em [arquitetura.md](arquitetura.md); o escopo e o cronograma, em [especificacao-tecnica.md](especificacao-tecnica.md).
 
 ## Sumário
 
@@ -12,6 +12,7 @@ Como preparar o ambiente, executar o projeto e rodar os testes na sua máquina. 
 6. [Testes e lint](#6-testes-e-lint)
 7. [Portas e endereços](#7-portas-e-endereços)
 8. [Problemas comuns](#8-problemas-comuns)
+9. [Produção no Azure](#9-produção-no-azure)
 
 ---
 
@@ -56,6 +57,8 @@ Mais duas controlam o provedor de ERP simulado da Etapa 5 (ver `backend/src/prov
 | `ERP_PROVIDER` | `mock` | Provedor de ERP em uso (`mock` por ora). |
 | `ERP_MOCK_FALHAR` | `false` | Força o mock a responder "indisponível" para demonstrar o fluxo de exceção da ficha (UC11 E3). |
 
+A `APPLICATIONINSIGHTS_CONNECTION_STRING` fica vazia em desenvolvimento, o que mantém a telemetria do Application Insights desligada. Os valores de produção estão em [Configurações do App Service](#92-configurações-do-app-service).
+
 ## 3. Subindo o ambiente com Docker Compose
 
 Na raiz do repositório:
@@ -94,7 +97,7 @@ O seed é determinístico e cria clientes com contatos, um histórico de visitas
 | Representante | `eduarda@chokolaten.com.br` | `chokocrm123` |
 | Gestor | `gestor@chokolaten.com.br` | `chokocrm123` |
 
-São contas fictícias, definidas em `backend/prisma/seed.ts` e válidas apenas no banco local — nunca em produção.
+São contas fictícias de demonstração, definidas em `backend/prisma/seed.ts`. O mesmo seed popula a produção de demonstração ([Seed em produção](#95-seed-em-produção)), que só fica ligada nas janelas de uso ([Produção no Azure](#9-produção-no-azure)); essas credenciais também valem lá — e, como estão publicadas aqui, a produção só deve guardar dados de demonstração.
 
 **Migration da Etapa 6B (`seasonal_event_chave`).** Ela acrescenta a coluna `chave` (enum `EventoSazonal`: `PASCOA`, `DIA_DAS_MAES`, `NAMORADOS`, `DIA_DOS_PAIS`, `NATAL`) a `seasonal_events` em quatro passos: cria o enum, adiciona a coluna anulável, preenche as linhas que já existem a partir do prefixo de `nome` ("Páscoa 2026" vira `PASCOA`, "Natal 2026" vira `NATAL`, e assim por diante) e só então a torna `NOT NULL`. Por isso um banco de desenvolvimento já semeado pela Etapa 6A migra com `npm run db:migrate`, sem perder os eventos nem precisar de novo seed. Um `nome` fora desse padrão deixaria a `chave` nula e o último passo falharia — de propósito: a migration não inventa chave. O `prisma migrate` passa a apontar essa migration como falhada, e num banco de desenvolvimento o caminho é recomeçar pelo volume (ver "Problemas comuns"). Não há variável de ambiente nova: o horizonte e os limiares dos insights ficam em `backend/src/config/sazonalidade.ts`.
 
@@ -146,7 +149,7 @@ npm run lint
 npm run build
 ```
 
-Esses mesmos comandos rodam no pipeline de integração contínua ([ci.yml](../.github/workflows/ci.yml)) a cada push e pull request.
+Esses mesmos comandos rodam no pipeline de integração contínua ([ci.yml](../.github/workflows/ci.yml)) a cada push e pull request. Lá, o backend roda `npm test -- --coverage`, que grava `backend/coverage/lcov.info` para o SonarCloud; localmente, a cobertura só é coletada se você passar `--coverage`.
 
 ## 7. Portas e endereços
 
@@ -166,3 +169,144 @@ Esses mesmos comandos rodam no pipeline de integração contínua ([ci.yml](../.
 **`prisma migrate` reclama de estado divergente, ou aponta uma migration falhada.** Dois casos levam a isso: o histórico de migrations do banco não bate com o do repositório e, na migration da Etapa 6B (`seasonal_event_chave`), um `nome` de evento fora do padrão, que faz o passo `NOT NULL` falhar e deixa a migration registrada como falhada. Em desenvolvimento, apagar o volume e recomeçar resolve nos dois: `docker compose down -v`, subir de novo e repetir migrate e seed. Nunca faça isso contra um banco que não seja o de desenvolvimento local.
 
 **Containers antigos do projeto atrapalhando.** `docker compose ps -a` lista o que ficou para trás; `docker compose down --remove-orphans` limpa os órfãos.
+
+## 9. Produção no Azure
+
+A produção roda no Azure ([ADR-007](arquitetura.md#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)) e só é publicada pelo GitHub Actions. Ela fica ligada apenas nas janelas de uso — testes e apresentações — e desligada entre elas, para poupar o crédito de US$ 100 da assinatura Azure for Students.
+
+| Serviço | Endereço |
+|---------|----------|
+| Frontend (Static Web Apps) | `<a definir pelo wizard>` |
+| API (App Service) | `<a definir pelo wizard>` |
+| Healthcheck da API | `<a definir pelo wizard>` |
+
+### 9.1 Recursos
+
+| Recurso | Nome | Configuração |
+|---------|------|--------------|
+| Grupo de recursos | `rg-chokocrm` | Brazil South; East US 2 se a assinatura não oferecer B1/B1ms na região |
+| PostgreSQL Flexible Server | `pg-chokocrm` | Burstable B1ms, 32 GiB, PostgreSQL 16, banco `chokocrm`; acesso público liberado para serviços do Azure |
+| Application Insights | `ai-chokocrm` | Baseado em workspace; teste de disponibilidade em `/health` |
+| Plano do App Service | `plan-chokocrm` | Linux, Básico B1 |
+| App Service | `app-chokocrm-api` | Node 22 LTS; Always On ligado; comando de inicialização `npm run start:prod`; credenciais de publicação por autenticação básica do SCM ligadas |
+| Static Web App | `swa-chokocrm` | Plano Free; origem da implantação "Outro" |
+
+Fora o grupo de recursos, os nomes aceitam um sufixo (ex.: `-pac8`) para quando algum já estiver ocupado no Azure: o wizard pergunta no primeiro passo e aplica a todos.
+
+### 9.2 Configurações do App Service
+
+Ficam em Configurações → Variáveis de ambiente → Configurações de aplicativo. Os segredos da aplicação (`DATABASE_URL`, `JWT_SECRET`, connection string) existem só aí — nem no repositório, nem nos secrets do GitHub. O bloco "Produção (Azure App Service)" do `backend/.env.example` traz a mesma lista com valores fictícios.
+
+| Variável | Valor | Para quê |
+|----------|-------|----------|
+| `NODE_ENV` | `production` | Obrigatória: o padrão é `development`, que formata os logs com o `pino-pretty` — dependência de desenvolvimento, fora do pacote publicado. Em `production`, o pino emite JSON. |
+| `DATABASE_URL` | `postgresql://<usuário>:<senha>@pg-chokocrm.postgres.database.azure.com:5432/chokocrm?sslmode=require` | Conexão com o Flexible Server, com TLS obrigatório. |
+| `JWT_SECRET` | 48 bytes aleatórios em base64, gerados pelo wizard | Assina os tokens de autenticação; trocá-lo encerra as sessões abertas. |
+| `JWT_EXPIRES_IN` | `8h` | Validade do token. |
+| `FRONTEND_URL` | URL do Static Web App, sem barra no fim | Única origem aceita pelo CORS — precisa ser idêntica à que aparece no navegador. |
+| `UPLOADS_DIR` | `/home/uploads` | Fotos de check-in no disco persistente do App Service ([ADR-010](arquitetura.md#adr-010--armazenamento-de-arquivos-atrás-de-interface-com-driver-em-disco-na-etapa-3)). |
+| `AGENDA_JOB_ENABLED` | `true` | Liga o job diário de alertas da agenda. |
+| `AGENDA_JOB_CRON` | `0 6 * * *` | Horário do job, no fuso `America/Sao_Paulo`. |
+| `ERP_PROVIDER` | `mock` | Provedor de ERP simulado. |
+| `ERP_MOCK_FALHAR` | `false` | Mock respondendo normalmente. |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Connection string do `ai-chokocrm` | Liga a telemetria (`backend/src/telemetria.ts`); vazia, a API sobe sem ela. |
+| `SCM_DO_BUILD_DURING_DEPLOYMENT` | `false` | O App Service não refaz o build: o pacote já chega compilado do GitHub Actions. |
+| `WEBSITE_RUN_FROM_PACKAGE` | `0` | O pacote é extraído em `/home/site/wwwroot` em vez de montado só para leitura — é onde o seed roda ([9.5](#95-seed-em-produção)). |
+
+A `PORT` não entra na lista: o App Service a injeta, e a API a lê pelo `env.PORT` (o padrão 3000 só vale fora do Azure).
+
+### 9.3 Como o deploy acontece
+
+1. Um push na `main` dispara o CI ([ci.yml](../.github/workflows/ci.yml)): jobs `backend` (lint, testes com cobertura e build), `frontend` (lint e build), `sonarcloud` (depois dos dois) e `workflows-lint` (actionlint).
+2. Quando o CI desse push termina verde, o `workflow_run` dispara o deploy ([deploy.yml](../.github/workflows/deploy.yml)) sobre o mesmo commit. CI de pull request não publica nada, e um deploy espera o anterior terminar (`concurrency: producao`).
+   - **`api`:** `npm ci`, `npm run build` e `npm ci --omit=dev`; o `azure/webapps-deploy` envia a pasta `backend/` inteira — `dist/`, `prisma/`, `src/` (que o seed usa) e `node_modules/` só com as dependências de produção — ao App Service, autenticado pelo publish profile. O start (`npm run start:prod`) aplica as migrations pendentes (`prisma migrate deploy`) e sobe a API.
+   - **`web`:** build do frontend com a `VITE_API_URL` embutida e upload de `frontend/dist` ao Static Web Apps, autenticado pelo deployment token. O `frontend/public/staticwebapp.config.json` devolve o `index.html` nas rotas da SPA (fora `/assets/*`) e acrescenta o cabeçalho `X-Content-Type-Options: nosniff`.
+   - **`smoke`:** espera até 2 minutos (24 tentativas de 5 s) por `"status":"ok"` em `<VITE_API_URL>/health` e confere que a URL do Static Web App responde.
+3. À mão, `gh workflow run deploy.yml` (ou "Run workflow" na aba Actions) dispara o deploy por `workflow_dispatch`: é o caminho para religar a produção e para publicar quando o CI ficou vermelho por motivo alheio ao código. Esse disparo não consulta o CI — publica o último commit da branch escolhida (a `main`, por padrão).
+
+O workflow usa estes secrets e variables do repositório (Settings → Secrets and variables → Actions):
+
+| Nome | Tipo | Origem |
+|------|------|--------|
+| `AZURE_WEBAPP_PUBLISH_PROFILE` | secret | App Service → Baixar perfil de publicação |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | secret | Static Web App → Gerenciar token de implantação |
+| `SONAR_TOKEN` | secret | SonarCloud → My Account → Security (usado pelo CI) |
+| `AZURE_WEBAPP_NAME` | variable | Nome do App Service |
+| `VITE_API_URL` | variable | URL da API (`https://` + domínio padrão do App Service) |
+| `SWA_URL` | variable | URL do Static Web App |
+
+### 9.4 Wizard dos passos manuais
+
+O repositório não cria nada no Azure: os recursos, o SonarCloud e os secrets do GitHub são passos manuais, roteirizados em `scripts/wizard-azure.sh`. O wizard conduz um passo por vez — abre a página certa, diz o que preencher, pede o valor resultante e confere o formato (e, com `curl`, se a URL responde). Ele roda no Git Bash, de qualquer pasta do repositório:
+
+```bash
+bash scripts/wizard-azure.sh            # execução real
+bash scripts/wizard-azure.sh --dry-run  # ensaio
+```
+
+São 12 passos: grupo de recursos, nomes e região; PostgreSQL; Application Insights; Static Web App; App Service (configurações, comando de inicialização e publish profile); teste de disponibilidade; orçamento; SonarCloud; secrets e variables no GitHub; primeiro deploy; seed; e os checklists de desligar e religar. No passo 9, se as chaves informadas para o SonarCloud diferirem das do `sonar-project.properties`, o wizard atualiza o arquivo, que precisa ser commitado antes do push do passo 10.
+
+- **O que ele lembra:** os valores não secretos — sufixo, região, URLs, chaves do SonarCloud e caminho do publish profile — ficam em `.wizard-azure.local.env` e voltam como padrão numa nova execução. No fim, um resumo sem segredos (recursos, URLs, situação dos secrets e variables, configurações e os dois checklists) é gravado em `.wizard-azure.local.md`. Os dois arquivos estão no `.gitignore`.
+- **O que não persiste:** `DATABASE_URL`, `JWT_SECRET`, connection string, tokens e o conteúdo do publish profile ficam só na memória do processo; numa nova execução, é preciso copiá-los de novo do portal. O `JWT_SECRET` é gerado de novo a cada execução — se o App Service já tem um, mantenha o existente.
+- **`--dry-run`:** não abre o navegador, não chama `curl` nem `gh` e não grava nada no repositório; a memória e o resumo vão para arquivos temporários.
+
+O wizard conta com estas ferramentas, e cada uma tem um plano B:
+
+| Ferramenta | Para quê | Sem ela |
+|------------|----------|---------|
+| `gh` autenticado (`gh auth login`) | Define os secrets e as variables no passo 9 | O wizard avisa e eles ficam para definir à mão, nos mesmos nomes |
+| `curl` | Confere se as URLs respondem e espera o `/health` no passo 10 | Cada checagem falha e o wizard pergunta se segue mesmo assim |
+| `openssl` | Gera o `JWT_SECRET` | Usa `/dev/urandom` |
+| Área de transferência (`clip.exe` no Windows) | Copia os segredos para o portal sem mostrá-los na tela | Pede para colar a partir da sua anotação |
+
+### 9.5 Seed em produção
+
+Uma vez, depois do primeiro deploy verde: abra o SSH do App Service (portal → `app-chokocrm-api` → Ferramentas de Desenvolvimento → SSH) e rode:
+
+```bash
+cd /home/site/wwwroot && npm run db:seed
+```
+
+O `npm run db:seed` chama `prisma db seed`, que executa `tsx prisma/seed.ts` (`backend/prisma.config.ts`), e o seed importa módulos de `src/` em TypeScript. Como o pacote é montado com `npm ci --omit=dev`, `prisma` e `tsx` estão em `dependencies` no `backend/package.json` — o `prisma` também é quem roda o `migrate deploy` do start. O seed carrega `src/config/env.ts`, que exige `DATABASE_URL` e `JWT_SECRET`: se ele reclamar que alguma não está definida, exporte as duas na sessão antes (`export DATABASE_URL='...' JWT_SECRET='...'`) — a `DATABASE_URL` é a mesma das configurações, e para o seed qualquer valor não vazio de `JWT_SECRET` serve. Basta rodar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção.
+
+### 9.6 Logs e monitoramento
+
+- **Log stream do App Service** (portal → `app-chokocrm-api` → Monitoramento → Fluxo de log): saída do processo — as migrations do start, a linha "Telemetria do Application Insights ativa" e os logs JSON do pino. É o primeiro lugar a olhar quando o `smoke` falha.
+- **Application Insights** (`ai-chokocrm`): requisições, dependências (inclusive o Postgres) e exceções da API. Em Disponibilidade fica o teste padrão `health-api` — `GET /health` a cada 5 minutos, de três regiões, esperando HTTP 200 —, com regra de alerta por e-mail. Ele fica vermelho até o primeiro deploy; com o Postgres parado, o `/health` responde 503 — por isso o checklist de desligar desabilita o teste ([9.8](#98-desligar-e-religar-entre-janelas)).
+- **GitHub Actions:** os logs de cada job do CI e do Deploy; o `smoke` diz em qual tentativa a API respondeu, ou que ela não respondeu em 2 minutos.
+
+### 9.7 Avisos operacionais
+
+- **`SONAR_TOKEN` antes do primeiro push com o `ci.yml` novo.** Sem ele, o job `sonarcloud` falha, o CI fica vermelho e o deploy automático não roda.
+- **"Credenciais de publicação de autenticação básica do SCM" (SCM Basic Auth Publishing Credentials) ligadas** em Configurações gerais do App Service: o download do publish profile e o deploy por ele dependem disso.
+- **O domínio padrão do App Service pode ter sufixo aleatório** (opção "Nome de host padrão exclusivo e seguro"), e o do Static Web App é sempre um nome aleatório. Por isso a `VITE_API_URL` e a `SWA_URL` são copiadas do portal, e não montadas a partir do nome do recurso.
+- **A `VITE_API_URL` é embutida no build do frontend.** Trocar a variable só vale depois de um novo deploy.
+- **`FRONTEND_URL` igual à URL do Static Web App**, sem barra no fim: o CORS compara a origem exatamente.
+- **O publish profile contém as credenciais de deploy.** Salve-o fora do repositório e apague-o depois de cadastrá-lo como secret (o wizard avisa se ele estiver dentro do repositório).
+- **Scripts shell com fim de linha LF.** O `.gitattributes` força `eol=lf` em `*.sh`: o bash falha com CRLF, e o `core.autocrlf=true` do Windows converteria no checkout.
+
+### 9.8 Desligar e religar entre janelas
+
+O wizard imprime estes checklists no último passo e os grava no resumo.
+
+**Desligar:**
+
+- [ ] Application Insights: `ai-chokocrm` → Disponibilidade → teste `health-api` → Desabilitar (Disable), para não receber alertas com a produção desligada (o nome pode variar).
+- [ ] App Service: escalar o plano `plan-chokocrm` para F1 (Gratuito) — mantém o app, as configurações e o endereço; desligue o Always On antes, se o portal exigir. Parar só o app não zera o custo: quem cobra é o plano.
+- [ ] Alternativa: deletar o plano. O portal pode exigir apagar o App Service junto — o que apaga também `/home/uploads` e as fotos de check-in; nesse caso, religar é refazer o passo 5 do wizard e atualizar a `VITE_API_URL` e o publish profile no GitHub.
+- [ ] PostgreSQL: `pg-chokocrm` → Visão geral → Parar. O Azure religa sozinho um servidor parado após 7 dias — se a pausa for maior, pare de novo.
+- [ ] Conferir o gasto em Gerenciamento de Custos.
+
+**Religar:**
+
+- [ ] PostgreSQL: `pg-chokocrm` → Visão geral → Iniciar (aguarde o status Pronto).
+- [ ] App Service: escalar o plano `plan-chokocrm` de volta para B1 e religar o Always On (se o plano foi deletado, criá-lo de novo pelo passo 5 do wizard).
+- [ ] Deploy: `gh workflow run deploy.yml` (ou um push na `main`).
+- [ ] Application Insights: `ai-chokocrm` → Disponibilidade → teste `health-api` → Habilitar (Enable) (o nome pode variar).
+- [ ] Conferir o job `smoke` verde no GitHub Actions e o teste de disponibilidade verde no Application Insights.
+
+### 9.9 Custos e orçamento
+
+- **Orçamento:** em Gerenciamento de Custos, `orcamento-chokocrm`, de US$ 100 sobre a assinatura, com alertas de gasto real em 40 % e 70 % por e-mail. Se a assinatura de estudante não permitir orçamento, o crédito é acompanhado pelo Hub de Educação do portal.
+- **Quem custa:** o plano B1 do App Service e o PostgreSQL B1ms; o Static Web Apps está no plano Free, e a ingestão do Application Insights precisa ficar dentro da cota gratuita ([ADR-009](arquitetura.md#adr-009--análise-estática-e-monitoramento-obrigatórios)). Com tudo ligado direto, a estimativa é de US$ 28–30 por mês — o crédito duraria cerca de três meses.
+- **Sem cartão:** a Azure for Students não cobra cartão; zerar o crédito desativa a assinatura e derruba a produção. Por isso as janelas de uso e os checklists acima.

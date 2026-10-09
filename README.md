@@ -1,5 +1,8 @@
 # ChokoCRM
 
+[![CI](https://github.com/dudapetzinger/CHOKOCRM/actions/workflows/ci.yml/badge.svg)](https://github.com/dudapetzinger/CHOKOCRM/actions/workflows/ci.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=dudapetzinger_CHOKOCRM&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=dudapetzinger_CHOKOCRM)
+
 CRM web mobile-first para os representantes comerciais da **Chokolaten** (chocolates artesanais, Pomerode/SC), integrado ao ERP da Senior Sistemas.
 
 Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Universitário — Católica de Santa Catarina, desenvolvido em parceria com a Chokolaten.
@@ -91,15 +94,17 @@ A estratégia está na [seção 10 da especificação técnica](docs/especificac
 
 ## 11. Integração e entrega contínuas
 
-O workflow de CI roda lint, testes e build a cada push e pull request na `main`, com um PostgreSQL de serviço para os testes de integração. A entrega contínua publica a `main` no Azure — API em App Service, frontend em Static Web Apps e banco em PostgreSQL Flexible Server — sem nenhuma etapa manual de deploy.
+O workflow de CI roda, a cada push na `main` e a cada pull request, lint, testes e build do backend e do frontend — com um PostgreSQL de serviço para os testes de integração —, a análise do SonarCloud e o actionlint sobre os workflows. Quando o CI de um push na `main` termina verde, o workflow de deploy publica a API no App Service (com o banco em PostgreSQL Flexible Server) e o frontend no Static Web Apps e confere os dois com um smoke test; as migrations rodam no start da API, sem nenhuma etapa manual de deploy. O mesmo workflow pode ser disparado à mão, para religar a produção.
 
-→ [.github/workflows/ci.yml](.github/workflows/ci.yml) · [ADR-007](docs/arquitetura.md#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)
+**Produção:** `<a definir pelo wizard>` — fica ligada só nas janelas de uso (testes e apresentações), para poupar o crédito do Azure for Students; fora delas, o endereço pode não responder.
+
+→ [.github/workflows/ci.yml](.github/workflows/ci.yml) · [.github/workflows/deploy.yml](.github/workflows/deploy.yml) · [Produção no Azure](docs/guia-de-desenvolvimento.md#9-produção-no-azure) · [ADR-007](docs/arquitetura.md#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)
 
 ## 12. Qualidade e observabilidade
 
-Análise estática de código pelo SonarCloud, executada como job do pipeline de CI. Em produção, logs estruturados com identificador de requisição, endpoint `GET /health` que verifica também a conexão com o banco, e Azure Application Insights coletando erros, métricas e disponibilidade.
+Análise estática de código pelo SonarCloud, executada como job do pipeline de CI com a cobertura dos testes do backend; o quality gate aparece no badge acima e no painel do SonarCloud, sem bloquear o pipeline. Em produção, logs estruturados com identificador de requisição, endpoint `GET /health` que verifica também a conexão com o banco, e Azure Application Insights recebendo requisições, dependências e exceções da API, com um teste de disponibilidade em `GET /health` que avisa por e-mail quando a API cai.
 
-→ [ADR-009](docs/arquitetura.md#adr-009--análise-estática-e-monitoramento-obrigatórios) · [seção 5.2 do documento de arquitetura](docs/arquitetura.md#52-observabilidade-e-operação)
+→ [ADR-009](docs/arquitetura.md#adr-009--análise-estática-e-monitoramento-obrigatórios) · [seção 5.2 do documento de arquitetura](docs/arquitetura.md#52-observabilidade-e-operação) · [logs e monitoramento em produção](docs/guia-de-desenvolvimento.md#96-logs-e-monitoramento)
 
 ## 13. Cronograma de entregas
 
