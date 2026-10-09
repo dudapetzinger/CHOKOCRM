@@ -465,9 +465,11 @@ _checklist_religar() {
   printf '%s\n' \
     "- [ ] PostgreSQL: $PG → Visão geral → Iniciar (aguarde o status Pronto)." \
     "- [ ] App Service: escalar o plano $PLAN de volta para B1 e religar o Always On (se o plano foi deletado, criar de novo seguindo o passo 5 deste wizard)." \
+    "- [ ] Se o App Service foi recriado, ele ganhou um endereço (hostname) novo: atualizar a URL do teste de disponibilidade health-api no Application Insights (https://<novo endereço>/health) e a VITE_API_URL no GitHub (variável do repositório), e disparar o deploy de novo." \
     "- [ ] Deploy: gh workflow run deploy.yml (ou um push na main)." \
     "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Habilitar (Enable) (o nome pode variar)." \
-    "- [ ] Conferir o job smoke verde em $URL_GITHUB/actions e o teste de disponibilidade verde no $AI."
+    "- [ ] Conferir o job smoke verde em $URL_GITHUB/actions e o teste de disponibilidade verde no $AI." \
+    "- [ ] Antes da apresentação: conferir no Painel se as cores e a agenda ainda contam a história esperada; se não, registrar check-ins novos nos clientes-chave pelo próprio app. Não rodar o seed de novo para corrigir: ele não renova as visitas de clientes que já têm visitas."
 }
 
 _status_secret() {

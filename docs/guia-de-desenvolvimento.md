@@ -219,7 +219,7 @@ A `PORT` não entra na lista: o App Service a injeta, e a API a lê pelo `env.PO
 
 1. Um push na `main` dispara o CI ([ci.yml](../.github/workflows/ci.yml)): jobs `backend` (lint, testes com cobertura e build), `frontend` (lint e build), `sonarcloud` (depois dos dois) e `workflows-lint` (actionlint).
 2. Quando o CI desse push termina verde, o `workflow_run` dispara o deploy ([deploy.yml](../.github/workflows/deploy.yml)) sobre o mesmo commit. CI de pull request não publica nada, e um deploy espera o anterior terminar (`concurrency: producao`).
-   - **`api`:** `npm ci`, `npm run build` e `npm ci --omit=dev`; o `azure/webapps-deploy` envia a pasta `backend/` inteira — `dist/`, `prisma/`, `src/` (que o seed usa) e `node_modules/` só com as dependências de produção — ao App Service, autenticado pelo publish profile. O start (`npm run start:prod`) aplica as migrations pendentes (`prisma migrate deploy`) e sobe a API.
+   - **`api`:** `npm ci`, `npm run build` e `npm ci --omit=dev`; o `azure/webapps-deploy` envia a pasta `backend/` inteira — `dist/`, `prisma/`, `src/` (que o seed usa) e `node_modules/` só com as dependências de produção — ao App Service, autenticado pelo publish profile. O start (`npm run start:prod`) aplica as migrations pendentes (`prisma migrate deploy`) e sobe a API; o script chama o Prisma direto pelo Node (`node node_modules/prisma/build/index.js`), sem depender dos links de `node_modules/.bin`, que o zip deploy pode não preservar no Linux.
    - **`web`:** build do frontend com a `VITE_API_URL` embutida e upload de `frontend/dist` ao Static Web Apps, autenticado pelo deployment token. O `frontend/public/staticwebapp.config.json` devolve o `index.html` nas rotas da SPA (fora `/assets/*`) e acrescenta o cabeçalho `X-Content-Type-Options: nosniff`.
    - **`smoke`:** espera até 2 minutos (24 tentativas de 5 s) por `"status":"ok"` em `<VITE_API_URL>/health` e confere que a URL do Static Web App responde.
 3. À mão, `gh workflow run deploy.yml` (ou "Run workflow" na aba Actions) dispara o deploy por `workflow_dispatch`: é o caminho para religar a produção e para publicar quando o CI ficou vermelho por motivo alheio ao código. Esse disparo não consulta o CI — publica o último commit da branch escolhida (a `main`, por padrão).
@@ -267,7 +267,7 @@ Uma vez, depois do primeiro deploy verde: abra o SSH do App Service (portal → 
 cd /home/site/wwwroot && npm run db:seed
 ```
 
-O `npm run db:seed` chama `prisma db seed`, que executa `tsx prisma/seed.ts` (`backend/prisma.config.ts`), e o seed importa módulos de `src/` em TypeScript. Como o pacote é montado com `npm ci --omit=dev`, `prisma` e `tsx` estão em `dependencies` no `backend/package.json` — o `prisma` também é quem roda o `migrate deploy` do start. O seed carrega `src/config/env.ts`, que exige `DATABASE_URL` e `JWT_SECRET`: se ele reclamar que alguma não está definida, exporte as duas na sessão antes (`export DATABASE_URL='...' JWT_SECRET='...'`) — a `DATABASE_URL` é a mesma das configurações, e para o seed qualquer valor não vazio de `JWT_SECRET` serve. Basta rodar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção.
+O `npm run db:seed` chama `prisma db seed`, que executa `node --import tsx prisma/seed.ts` (`backend/prisma.config.ts`; pelo mesmo motivo, sem passar pelo `.bin/tsx`), e o seed importa módulos de `src/` em TypeScript. Como o pacote é montado com `npm ci --omit=dev`, `prisma` e `tsx` estão em `dependencies` no `backend/package.json` — o `prisma` também é quem roda o `migrate deploy` do start. O seed carrega `src/config/env.ts`, que exige `DATABASE_URL` e `JWT_SECRET`: se ele reclamar que alguma não está definida, exporte as duas na sessão antes (`export DATABASE_URL='...' JWT_SECRET='...'`) — a `DATABASE_URL` é a mesma das configurações, e para o seed qualquer valor não vazio de `JWT_SECRET` serve. Basta rodar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção.
 
 ### 9.6 Logs e monitoramento
 
@@ -301,9 +301,11 @@ O wizard imprime estes checklists no último passo e os grava no resumo.
 
 - [ ] PostgreSQL: `pg-chokocrm` → Visão geral → Iniciar (aguarde o status Pronto).
 - [ ] App Service: escalar o plano `plan-chokocrm` de volta para B1 e religar o Always On (se o plano foi deletado, criá-lo de novo pelo passo 5 do wizard).
+- [ ] Se o App Service foi recriado, ele ganhou um endereço (hostname) novo: atualizar a URL do teste de disponibilidade `health-api` no Application Insights (`https://<novo endereço>/health`) e a `VITE_API_URL` no GitHub (variável do repositório), e disparar o deploy de novo.
 - [ ] Deploy: `gh workflow run deploy.yml` (ou um push na `main`).
 - [ ] Application Insights: `ai-chokocrm` → Disponibilidade → teste `health-api` → Habilitar (Enable) (o nome pode variar).
 - [ ] Conferir o job `smoke` verde no GitHub Actions e o teste de disponibilidade verde no Application Insights.
+- [ ] Antes da apresentação: conferir no Painel se as cores e a agenda ainda contam a história esperada; se não, registrar check-ins novos nos clientes-chave pelo próprio app. Não rodar o seed de novo para corrigir: ele não renova as visitas de clientes que já têm visitas.
 
 ### 9.9 Custos e orçamento
 
