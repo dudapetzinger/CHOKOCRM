@@ -2,6 +2,8 @@ name: CI
 on:
   push: { branches: [main] }
   pull_request:
+permissions:
+  contents: read
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -24,8 +26,13 @@ jobs:
       - run: npm ci
       - run: npx prisma migrate deploy
       - run: npm run lint
-      - run: npm test
+      - run: npm test -- --coverage
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-backend
+          path: backend/coverage/lcov.info
+          if-no-files-found: error
   frontend:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: frontend } }
@@ -36,3 +43,27 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+  sonarcloud:
+    # PR de fork não recebe SONAR_TOKEN: o job é pulado e o CI segue verde.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/download-artifact@v4
+        with:
+          name: cobertura-backend
+          path: backend/coverage
+      # O jest grava `SF:src/...` (relativo a backend/); o scanner roda na raiz do repositório.
+      - name: Reescrever caminhos do lcov relativos à raiz
+        run: sed -i 's#^SF:#SF:backend/#' backend/coverage/lcov.info
+      - uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  workflows-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo rhysd/actionlint:latest
