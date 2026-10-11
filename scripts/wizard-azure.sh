@@ -191,7 +191,7 @@ finish() {
 # Replace the example below. Set TOTAL_STAGES to match the stages you write.
 # ──────────────────────────────────────────────────────────────────────────
 
-TOTAL_STAGES=12
+TOTAL_STAGES=11
 
 # ── Modo de execução, caminhos e memória de re-execução ───────────────────
 DRY_RUN=0
@@ -441,7 +441,7 @@ _configuracoes_app() {
     "DATABASE_URL = (segredo — a do passo 2)" \
     "JWT_SECRET = $jwt" \
     "JWT_EXPIRES_IN = 8h" \
-    "FRONTEND_URL = $SWA_URL" \
+    "FRONTEND_URL = $VITE_API_URL" \
     "UPLOADS_DIR = /home/uploads" \
     "AGENDA_JOB_ENABLED = true" \
     "AGENDA_JOB_CRON = 0 6 * * *" \
@@ -449,14 +449,15 @@ _configuracoes_app() {
     "ERP_MOCK_FALHAR = false" \
     "APPLICATIONINSIGHTS_CONNECTION_STRING = (segredo — a do passo 3)" \
     "SCM_DO_BUILD_DURING_DEPLOYMENT = false" \
-    "WEBSITE_RUN_FROM_PACKAGE = 0"
+    "WEBSITE_RUN_FROM_PACKAGE = 0" \
+    "WEB_DIR = /home/site/wwwroot/web"
 }
 
 _checklist_desligar() {
   printf '%s\n' \
     "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Desabilitar (Disable), para não receber alertas com a produção desligada (o nome pode variar)." \
     "- [ ] App Service: escalar o plano $PLAN para F1 (Gratuito) — mantém o app, as configurações e o endereço; desligue o Always On antes, se o portal exigir. Parar só o app não zera o custo: quem cobra é o plano." \
-    "- [ ] Alternativa: deletar o plano $PLAN. O portal pode exigir apagar o $APP junto — o que apaga também /home/uploads e as fotos de check-in; nesse caso, religar = refazer o passo 5 e atualizar VITE_API_URL e o publish profile no GitHub." \
+    "- [ ] Alternativa: deletar o plano $PLAN. O portal pode exigir apagar o $APP junto — o que apaga também /home/uploads e as fotos de check-in; nesse caso, religar = refazer o passo 4 e atualizar VITE_API_URL e o publish profile no GitHub." \
     "- [ ] PostgreSQL: $PG → Visão geral → Parar. Atenção: o Azure religa sozinho um servidor parado após 7 dias — se a pausa for maior, pare de novo." \
     "- [ ] Conferir o gasto em Gerenciamento de Custos (alertas de 40 % e 70 % do orçamento de US\$ 100)."
 }
@@ -464,8 +465,8 @@ _checklist_desligar() {
 _checklist_religar() {
   printf '%s\n' \
     "- [ ] PostgreSQL: $PG → Visão geral → Iniciar (aguarde o status Pronto)." \
-    "- [ ] App Service: escalar o plano $PLAN de volta para B1 e religar o Always On (se o plano foi deletado, criar de novo seguindo o passo 5 deste wizard)." \
-    "- [ ] Se o App Service foi recriado, ele ganhou um endereço (hostname) novo: atualizar a URL do teste de disponibilidade health-api no Application Insights (https://<novo endereço>/health) e a VITE_API_URL no GitHub (variável do repositório), e disparar o deploy de novo." \
+    "- [ ] App Service: escalar o plano $PLAN de volta para B1 e religar o Always On (se o plano foi deletado, criar de novo seguindo o passo 4 deste wizard)." \
+    "- [ ] Se o App Service foi recriado, ele ganhou um endereço (hostname) novo: atualizar a FRONTEND_URL nas configurações do App Service (é esse mesmo endereço), a URL do teste de disponibilidade health-api no Application Insights (https://<novo endereço>/health) e a VITE_API_URL no GitHub (variável do repositório), e disparar o deploy de novo." \
     "- [ ] Deploy: gh workflow run deploy.yml (ou um push na main)." \
     "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Habilitar (Enable) (o nome pode variar)." \
     "- [ ] Conferir o job smoke verde em $URL_GITHUB/actions e o teste de disponibilidade verde no $AI." \
@@ -503,25 +504,22 @@ _gravar_resumo() {
     printf '| Grupo de recursos | %s |\n' "$RG"
     printf '| PostgreSQL Flexible Server (B1ms, 16, banco chokocrm) | %s |\n' "$PG"
     printf '| Application Insights | %s |\n' "$AI"
-    printf '| Static Web App (Free) | %s |\n' "$SWA"
     printf '| Plano do App Service (B1) | %s |\n' "$PLAN"
     printf '| App Service (Linux, Node 22) | %s |\n\n' "$APP"
 
     printf '## URLs\n\n'
     printf -- '- API: %s\n' "$VITE_API_URL"
     printf -- '- Health: %s/health\n' "$VITE_API_URL"
-    printf -- '- Frontend: %s\n' "$SWA_URL"
+    printf -- '- Frontend (servido pela API): %s/\n' "$VITE_API_URL"
     printf -- '- SSH do App Service: %s\n' "$SCM_URL"
     printf -- '- GitHub Actions: %s/actions\n\n' "$URL_GITHUB"
 
     printf '## GitHub — variables\n\n| Nome | Valor | Situação |\n|---|---|---|\n'
     printf '| AZURE_WEBAPP_NAME | %s | %s |\n' "$AZURE_WEBAPP_NAME" "$(_status_var AZURE_WEBAPP_NAME)"
-    printf '| VITE_API_URL | %s | %s |\n' "$VITE_API_URL" "$(_status_var VITE_API_URL)"
-    printf '| SWA_URL | %s | %s |\n\n' "$SWA_URL" "$(_status_var SWA_URL)"
+    printf '| VITE_API_URL | %s | %s |\n\n' "$VITE_API_URL" "$(_status_var VITE_API_URL)"
 
     printf '## GitHub — secrets (só os nomes)\n\n| Nome | Situação |\n|---|---|\n'
     printf '| AZURE_WEBAPP_PUBLISH_PROFILE | %s |\n' "$(_status_secret AZURE_WEBAPP_PUBLISH_PROFILE)"
-    printf '| AZURE_STATIC_WEB_APPS_API_TOKEN | %s |\n' "$(_status_secret AZURE_STATIC_WEB_APPS_API_TOKEN)"
     printf '| SONAR_TOKEN | %s |\n\n' "$(_status_secret SONAR_TOKEN)"
 
     printf '## SonarCloud (sonar-project.properties)\n\n'
@@ -552,10 +550,10 @@ fi
 stage "Grupo de recursos, nomes e região"
 say "Você vai precisar de: assinatura Azure for Students ativa, conta no GitHub com"
 say "acesso a $REPO_GITHUB e o gh autenticado (gh auth login). Reserve cerca de 1 hora."
-warn "Não faça push da main antes do passo 10: o CI novo precisa do SONAR_TOKEN e o deploy, dos secrets."
+warn "Não faça push da main antes do passo 9: o CI novo precisa do SONAR_TOKEN e o deploy, dos secrets."
 if (( ! DRY_RUN )); then
   if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1 </dev/null; then
-    warn "gh ausente ou não autenticado: no passo 9 os secrets/variables terão de ser definidos à mão."
+    warn "gh ausente ou não autenticado: no passo 8 os secrets/variables terão de ser definidos à mão."
   fi
 fi
 printf '\n'
@@ -571,18 +569,18 @@ write_env SUFIXO "$SUFIXO"
 RG="rg-chokocrm"
 PG="pg-chokocrm${SUFIXO}"
 AI="ai-chokocrm${SUFIXO}"
-SWA="swa-chokocrm${SUFIXO}"
 PLAN="plan-chokocrm${SUFIXO}"
 APP="app-chokocrm-api${SUFIXO}"
 AZURE_WEBAPP_NAME="$APP"
-note "Nomes: $RG · $PG · $AI · $SWA · $PLAN · $APP"
+note "Nomes: $RG · $PG · $AI · $PLAN · $APP"
 printf '\n'
-say "Região: Brazil South se o plano B1 (App Service) e o B1ms (PostgreSQL) estiverem"
-say "disponíveis para a sua assinatura; senão, East US 2."
-step "Para conferir sem criar nada: abra os formulários de criação dos passos 2 e 5, escolha a"
+say "Região: Canada Central. A assinatura Azure for Students do projeto só permite criar recursos"
+say "em algumas regiões (policy 'Allowed resource deployment regions'), e Canada Central é uma delas."
+step "Para conferir sem criar nada: abra os formulários de criação dos passos 2 e 4, escolha a"
 step "região e veja se Standard_B1ms e Básico B1 aparecem; depois cancele."
-note "Se uma criação falhar com RequestDisallowedByPolicy, a assinatura de estudante não aceita a região: use East US 2."
-_pedir_texto REGIAO "Região [Brazil South]:" '^[A-Za-z0-9 ]+$' "nome da região, ex.: Brazil South" "Brazil South"
+note "Se uma criação falhar com RequestDisallowedByPolicy, a região não é permitida: confira a lista em"
+note "Política (Policy) → Atribuições da assinatura e use uma das regiões permitidas. (o nome do menu pode variar)"
+_pedir_texto REGIAO "Região [Canada Central]:" '^[A-Za-z0-9 ]+$' "nome da região, ex.: Canada Central" "Canada Central"
 write_env REGIAO "$REGIAO"
 open_url "https://portal.azure.com/#browse/resourcegroups"
 step "+ Criar → Assinatura: Azure for Students → Grupo de recursos: $RG → Região: $REGIAO."
@@ -615,7 +613,7 @@ if [[ "$DATABASE_URL" != *"@${PG}.postgres.database.azure.com:5432/"* ]]; then
   warn "O host não é ${PG}.postgres.database.azure.com — confira se é o servidor certo."
 fi
 say "${GREEN}✓${RESET} DATABASE_URL no formato esperado."
-note "Guarde-a num gerenciador de senhas: vai para o App Service (passo 5) e pode ser útil no seed (passo 11)."
+note "Guarde-a num gerenciador de senhas: vai para o App Service (passo 4) e pode ser útil no seed (passo 10)."
 pause "Enter para continuar"
 
 # ── 3. Application Insights ───────────────────────────────────────────────
@@ -633,24 +631,7 @@ _pedir_segredo APPLICATIONINSIGHTS_CONNECTION_STRING "Cole a connection string (
 say "${GREEN}✓${RESET} Connection string no formato esperado (não é gravada em disco)."
 pause "Enter para continuar"
 
-# ── 4. Static Web App ─────────────────────────────────────────────────────
-stage "Static Web App ($SWA)"
-open_url "https://portal.azure.com/#create/hub"
-step "Pesquise 'Static Web App' (Aplicativo Web Estático) → Criar."
-step "Grupo $RG · nome $SWA · plano Gratuito (Free) · origem da implantação: Outro (Other)."
-note "A região pedida no formulário é só a da API gerenciada (não usada): aceite a sugerida. (o nome do campo pode variar)"
-step "Revisar + criar → Criar → Ir para o recurso."
-step "Na Visão geral, copie a URL (https://<nome-aleatório>.azurestaticapps.net)."
-_pedir_url SWA_URL "URL do Static Web App:" "azurestaticapps.net"
-write_env SWA_URL "$SWA_URL"
-step "Ainda na Visão geral: Gerenciar token de implantação (Manage deployment token) → copie o token."
-note "(o nome do botão pode variar)"
-_pedir_segredo AZURE_STATIC_WEB_APPS_API_TOKEN "Cole o token de implantação (entrada oculta):" \
-  '^[^[:space:]]{20,}$' "uma sequência longa, sem espaços"
-say "${GREEN}✓${RESET} Token recebido (fica só na memória até o passo 9)."
-pause "Enter para continuar"
-
-# ── 5. App Service ────────────────────────────────────────────────────────
+# ── 4. App Service ────────────────────────────────────────────────────────
 stage "App Service ($APP) no plano B1 ($PLAN)"
 open_url "https://portal.azure.com/#create/Microsoft.WebSite"
 step "Básico: grupo $RG · nome $APP · Publicar: Código · Pilha de runtime: Node 22 LTS ·"
@@ -662,6 +643,7 @@ step "Monitoramento: Application Insights = Não (a API usa o SDK; a connection 
 note "(os nomes das abas podem variar)"
 step "Revisar + criar → Criar → Ir para o recurso."
 step "Na Visão geral, copie o Domínio padrão (Default domain) e cole com https:// na frente."
+note "É o endereço da API e também do frontend: o App Service serve os dois."
 _pedir_url VITE_API_URL "URL da API (https://<domínio padrão>):" "azurewebsites.net"
 if [[ "$VITE_API_URL" != "https://$APP"* ]]; then
   warn "O domínio não começa com $APP — confira se é o App Service certo."
@@ -682,7 +664,7 @@ _copiar JWT_SECRET "$JWT_SECRET"
 _copiar APPLICATIONINSIGHTS_CONNECTION_STRING "$APPLICATIONINSIGHTS_CONNECTION_STRING"
 _limpar_area_de_transferencia
 step "Aplicar → Confirmar (o app reinicia)."
-pause "Enter quando as 13 configurações estiverem salvas"
+pause "Enter quando as 14 configurações estiverem salvas"
 
 printf '\n'
 step "Configurações → Configuração → Configurações gerais (Configuration → General settings):"
@@ -696,13 +678,13 @@ pause "Enter quando estiver salvo"
 printf '\n'
 step "Visão geral → Baixar perfil de publicação (Download publish profile) e salve o arquivo"
 step ".PublishSettings fora do repositório (ex.: Downloads)."
-warn "O arquivo contém as credenciais de deploy: apague-o depois do passo 9."
+warn "O arquivo contém as credenciais de deploy: apague-o depois do passo 8."
 _pedir_publish_profile
 write_env PUBLISH_PROFILE_PATH "$PUBLISH_PROFILE_PATH"
 say "${GREEN}✓${RESET} Perfil de publicação encontrado (o conteúdo não é mostrado)."
 pause "Enter para continuar"
 
-# ── 6. Teste de disponibilidade ───────────────────────────────────────────
+# ── 5. Teste de disponibilidade ───────────────────────────────────────────
 stage "Teste de disponibilidade no Application Insights"
 open_url "https://portal.azure.com/"
 step "Abra o recurso $AI (busca do portal) → Investigar → Disponibilidade → + Adicionar teste padrão"
@@ -712,10 +694,10 @@ step "Nome: health-api · URL: $VITE_API_URL/health · Frequência: 5 minutos."
 step "Locais de teste: 3 (ex.: Brazil South, East US, South Central US) · critério: HTTP 200."
 step "Alertas: habilitado. Depois, em Alertas → Regras de alerta, abra a regra do teste e"
 step "adicione um grupo de ações com notificação por e-mail."
-note "O teste fica vermelho até o primeiro deploy (passo 10): é esperado."
+note "O teste fica vermelho até o primeiro deploy (passo 9): é esperado."
 pause "Enter quando o teste e o alerta estiverem criados"
 
-# ── 7. Orçamento ──────────────────────────────────────────────────────────
+# ── 6. Orçamento ──────────────────────────────────────────────────────────
 stage "Orçamento de US\$ 100 com alertas"
 open_url "https://portal.azure.com/"
 step "Pesquise 'Gerenciamento de Custos' (Cost Management) → Orçamentos (Budgets) → + Adicionar."
@@ -726,7 +708,7 @@ note "(o nome do menu pode variar) Se a assinatura de estudante não permitir or
 note "crédito pelo Hub de Educação (Education) do portal."
 pause "Enter quando o orçamento estiver criado"
 
-# ── 8. SonarCloud ─────────────────────────────────────────────────────────
+# ── 7. SonarCloud ─────────────────────────────────────────────────────────
 stage "SonarCloud"
 SONAR_ORG_ATUAL=$(_prop_sonar sonar.organization)
 SONAR_KEY_ATUAL=$(_prop_sonar sonar.projectKey)
@@ -752,10 +734,10 @@ step "My Account → Security → Generate Tokens: nome chokocrm-ci → Generate
 note "(o nome do menu pode variar)"
 _pedir_segredo SONAR_TOKEN "Cole o SONAR_TOKEN (entrada oculta):" '^[^[:space:]]{20,}$' \
   "uma sequência longa, sem espaços"
-say "${GREEN}✓${RESET} Token recebido (fica só na memória até o passo 9)."
+say "${GREEN}✓${RESET} Token recebido (fica só na memória até o passo 8)."
 pause "Enter para continuar"
 
-# ── 9. GitHub ─────────────────────────────────────────────────────────────
+# ── 8. GitHub ─────────────────────────────────────────────────────────────
 stage "GitHub: secrets, variables e sonar-project.properties"
 SONAR_SITUACAO="inalterado"
 if [[ "$SONAR_ORGANIZATION" != "$SONAR_ORG_ATUAL" || "$SONAR_PROJECT_KEY" != "$SONAR_KEY_ATUAL" ]]; then
@@ -768,7 +750,7 @@ if [[ "$SONAR_ORGANIZATION" != "$SONAR_ORG_ATUAL" || "$SONAR_PROJECT_KEY" != "$S
       -e "s/^sonar\.projectKey=.*/sonar.projectKey=${SONAR_PROJECT_KEY}/" \
       "$SONAR_PROPS"
     SONAR_SITUACAO="atualizado — commitar antes do push"
-    warn "$SONAR_PROPS foi atualizado: commite-o antes do push do passo 10."
+    warn "$SONAR_PROPS foi atualizado: commite-o antes do push do passo 9."
   fi
 else
   note "$SONAR_PROPS já tem esses valores: nada a mudar."
@@ -779,11 +761,9 @@ warn "senão o job sonarcloud falha, o CI fica vermelho e o deploy automático n
 printf '\n'
 say "Definindo secrets e variables em $REPO_GITHUB:"
 set_secret AZURE_WEBAPP_PUBLISH_PROFILE "$(cat "$PUBLISH_PROFILE_PATH")"
-set_secret AZURE_STATIC_WEB_APPS_API_TOKEN "$AZURE_STATIC_WEB_APPS_API_TOKEN"
 set_secret SONAR_TOKEN "$SONAR_TOKEN"
 set_var AZURE_WEBAPP_NAME "$AZURE_WEBAPP_NAME"
 set_var VITE_API_URL "$VITE_API_URL"
-set_var SWA_URL "$SWA_URL"
 if (( ${#SKIPPED[@]} )); then
   printf '\n'
   warn "Algo ficou pendente: defina à mão (mesmos nomes) em"
@@ -794,17 +774,17 @@ fi
 note "Agora apague o arquivo do perfil de publicação: $PUBLISH_PROFILE_PATH"
 pause "Enter para continuar"
 
-# ── 10. Primeiro deploy ───────────────────────────────────────────────────
+# ── 9. Primeiro deploy ────────────────────────────────────────────────────
 stage "Primeiro deploy"
-say "O deploy roda no GitHub Actions: CI verde na main → workflow Deploy (api → web → smoke)."
-step "Se o $SONAR_PROPS mudou no passo 9, commite-o."
+say "O deploy roda no GitHub Actions: CI verde na main → workflow Deploy (api → smoke)."
+step "Se o $SONAR_PROPS mudou no passo 8, commite-o."
 step "Envie a main: git push origin main (os commits locais da Etapa 6D vão junto e disparam o CI)."
 note "Se o CI já estiver verde no GitHub e o Deploy não tiver rodado, dispare à mão: gh workflow run deploy.yml"
 open_url "$URL_GITHUB/actions"
 step "Acompanhe CI → Deploy até o job smoke ficar verde (o primeiro start roda as migrations)."
 pause "Enter quando o Deploy terminar"
 if (( DRY_RUN )); then
-  note "(dry-run) pularia a espera por $VITE_API_URL/health"
+  note "(dry-run) pularia a espera por $VITE_API_URL/health e a checagem do frontend em $VITE_API_URL/"
 else
   SAUDAVEL=0
   for ((tentativa = 1; tentativa <= 24; tentativa++)); do
@@ -818,6 +798,12 @@ else
   done
   if (( SAUDAVEL )); then
     say "${GREEN}✓${RESET} API saudável em $VITE_API_URL/health"
+    TIPO_SITE=$(curl -fsS --max-time 15 -o /dev/null -w '%{content_type}' "$VITE_API_URL/" 2>/dev/null </dev/null || true)
+    if [[ "$TIPO_SITE" == text/html* ]]; then
+      say "${GREEN}✓${RESET} Frontend no ar em $VITE_API_URL/"
+    else
+      warn "$VITE_API_URL/ não respondeu com uma página HTML: confira o job api e a configuração WEB_DIR."
+    fi
   else
     warn "A API não respondeu \"status\":\"ok\" em 2 minutos."
     note "Veja os logs em $APP → Monitoramento → Fluxo de log (Log stream) e os jobs em $URL_GITHUB/actions."
@@ -825,7 +811,7 @@ else
   fi
 fi
 
-# ── 11. Seed ──────────────────────────────────────────────────────────────
+# ── 10. Seed ──────────────────────────────────────────────────────────────
 stage "Seed dos dados de demonstração"
 HOST_API="${VITE_API_URL#https://}"
 SCM_URL="https://${HOST_API%%.*}.scm.${HOST_API#*.}/webssh/host"
@@ -839,7 +825,7 @@ note "  export DATABASE_URL='<a do passo 2>' JWT_SECRET='<qualquer valor não va
 warn "Basta rodar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção."
 pause "Enter quando o seed terminar"
 
-# ── 12. Desligar / religar ────────────────────────────────────────────────
+# ── 11. Desligar / religar ────────────────────────────────────────────────
 stage "Desligar entre janelas e religar"
 say "Desligar entre janelas de uso (guarde o crédito de US\$ 100):"
 _checklist_desligar | sed 's/^/  /'

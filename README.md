@@ -94,9 +94,9 @@ A estratégia está na [seção 10 da especificação técnica](docs/especificac
 
 ## 11. Integração e entrega contínuas
 
-O workflow de CI roda, a cada push na `main` e a cada pull request, lint, testes e build do backend e do frontend — com um PostgreSQL de serviço para os testes de integração —, a análise do SonarCloud e o actionlint sobre os workflows. Quando o CI de um push na `main` termina verde, o workflow de deploy publica a API no App Service (com o banco em PostgreSQL Flexible Server) e o frontend no Static Web Apps e confere os dois com um smoke test; as migrations rodam no start da API, sem nenhuma etapa manual de deploy. O mesmo workflow pode ser disparado à mão, para religar a produção.
+O workflow de CI roda, a cada push na `main` e a cada pull request, lint, testes e build do backend e do frontend — com um PostgreSQL de serviço para os testes de integração —, a análise do SonarCloud e o actionlint sobre os workflows. Quando o CI de um push na `main` termina verde, o workflow de deploy publica a API e o frontend num pacote só no App Service — a própria API serve o frontend —, com o banco em PostgreSQL Flexible Server, e confere os dois com um smoke test; as migrations rodam no start da API, sem nenhuma etapa manual de deploy. O mesmo workflow pode ser disparado à mão, para religar a produção.
 
-**Produção:** `<a definir pelo wizard>` — fica ligada só nas janelas de uso (testes e apresentações), para poupar o crédito do Azure for Students; fora delas, o endereço pode não responder.
+**Produção:** `<a definir pelo wizard>` (frontend e API no mesmo endereço) — fica ligada só nas janelas de uso (testes e apresentações), para poupar o crédito do Azure for Students; fora delas, o endereço pode não responder.
 
 → [.github/workflows/ci.yml](.github/workflows/ci.yml) · [.github/workflows/deploy.yml](.github/workflows/deploy.yml) · [Produção no Azure](docs/guia-de-desenvolvimento.md#9-produção-no-azure) · [ADR-007](docs/arquitetura.md#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)
 

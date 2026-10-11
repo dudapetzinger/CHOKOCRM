@@ -1,8 +1,11 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { env } from './config/env';
 import { AppError } from './errors/AppError';
 import { ErrorCode } from './errors/errorCodes';
+import { logger } from './lib/logger';
 import { errorHandler } from './middlewares/errorHandler';
 import { requestLogger } from './middlewares/requestLogger';
 import { agendaRouter } from './routes/agenda.routes';
@@ -19,8 +22,9 @@ import { clientVisitsRouter, visitRouter } from './routes/visit.routes';
 
 export const app: Express = express();
 
-// Habilita o frontend (origem separada em dev, ver frontend/.env.example)
-// a consumir a API. Autenticação usa Bearer token (sem cookies), então
+// Habilita o frontend (origem separada em dev, ver frontend/.env.example;
+// em produção a mesma origem da API, ver WEB_DIR abaixo) a consumir a API.
+// Autenticação usa Bearer token (sem cookies), então
 // `credentials` não precisa ser habilitado. Usa uma função (em vez de uma
 // string estática) para que apenas requisições com Origin === FRONTEND_URL
 // recebam Access-Control-Allow-Origin — origens diferentes seguem sem o
@@ -56,6 +60,50 @@ app.use(
   express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '5mb' }),
   visitRouter,
 );
+
+// Frontend (build do Vite) servido pela própria API em produção — um host só
+// no App Service (ADR-007). Fica depois dos routers: a API sempre tem
+// prioridade. Arquivos de `assets/` têm hash no nome e podem ficar em cache
+// para sempre; o `index.html` é revalidado a cada navegação.
+if (env.WEB_DIR) {
+  const webDir = path.resolve(env.WEB_DIR);
+  if (existsSync(webDir)) {
+    const pastaAssets = path.join(webDir, 'assets') + path.sep;
+    app.use(
+      express.static(webDir, {
+        index: false,
+        setHeaders: (res, arquivo) => {
+          res.setHeader('X-Content-Type-Options', 'nosniff');
+          if (arquivo.startsWith(pastaAssets)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          }
+        },
+      }),
+    );
+    // Fallback da SPA: a raiz e as navegações do browser (Accept com
+    // text/html) recebem o index.html, e o React Router resolve a rota. O
+    // `fetch` do frontend manda `*/*` e segue para o 404 JSON abaixo.
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      const ehLeitura = req.method === 'GET' || req.method === 'HEAD';
+      const ehNavegacao = req.path === '/' || (req.headers.accept ?? '').includes('text/html');
+      if (!ehLeitura || !ehNavegacao) {
+        next();
+        return;
+      }
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      // `root` (em vez de caminho absoluto): a checagem de dotfiles do `send`
+      // vale só para o caminho relativo, não para os segmentos do WEB_DIR
+      // (ex.: um WEB_DIR sob `.cache/`). Se os headers já saíram (cliente
+      // desconectou no meio), não há resposta de erro a mandar.
+      res.sendFile('index.html', { root: webDir }, (err) => {
+        if (err && !res.headersSent) next(err);
+      });
+    });
+  } else {
+    logger.warn({ webDir }, 'WEB_DIR não existe: a API sobe sem servir o frontend');
+  }
+}
 
 app.use((_req: Request, _res: Response, next: NextFunction) => {
   next(new AppError(ErrorCode.NOT_FOUND, 'Rota não encontrada.', 404));

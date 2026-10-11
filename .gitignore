@@ -153,3 +153,6 @@ vite.config.ts.timestamp-*
 # Fotos de comprovação de check-in (nunca versionadas)
 backend/uploads/
 .superpowers/
+
+# Build do frontend copiado para o backend no deploy (WEB_DIR)
+backend/web/

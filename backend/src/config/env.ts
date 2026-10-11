@@ -28,6 +28,9 @@ export const envSchema = z.object({
     .transform((v) => v === 'true'),
   // Vazia = telemetria do Application Insights desligada (dev, testes, CI).
   APPLICATIONINSIGHTS_CONNECTION_STRING: z.string().default(''),
+  // Pasta com o build do frontend (frontend/dist) servida pela própria API.
+  // Vazia = a API não serve o frontend (dev, testes, CI).
+  WEB_DIR: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;
