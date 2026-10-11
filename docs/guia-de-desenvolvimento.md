@@ -178,8 +178,8 @@ A API e o frontend ficam num host só: o App Service publica a API e serve tamb�
 
 | Serviço | Endereço |
 |---------|----------|
-| Frontend e API (App Service) | `<a definir pelo wizard>` |
-| Healthcheck da API | `<a definir pelo wizard>` |
+| Frontend e API (App Service) | <https://app-chokocrm-api-cscvc7aserd4c4g9.canadacentral-01.azurewebsites.net> |
+| Healthcheck da API | <https://app-chokocrm-api-cscvc7aserd4c4g9.canadacentral-01.azurewebsites.net/health> |
 
 ### 9.1 Recursos
 
