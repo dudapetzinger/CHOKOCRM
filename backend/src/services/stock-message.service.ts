@@ -4,7 +4,7 @@ import * as clientRepository from '../repositories/client.repository';
 import * as stockMessageRepository from '../repositories/stock-message.repository';
 import * as userRepository from '../repositories/user.repository';
 import type { GerarMensagemInput } from '../schemas/stock-message.schema';
-import type { UsuarioAutenticado } from './client.service';
+import { exigirClienteDaCarteira, type UsuarioAutenticado } from './client.service';
 import { eventoVigente } from './seasonal-event.service';
 import { montarLinkWhatsapp, montarMensagemDeEstoque, normalizarTelefone } from './stock-message.template';
 
@@ -57,6 +57,8 @@ export async function propor(
   if (!cliente) {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
   }
+
+  exigirClienteDaCarteira(cliente, usuario);
 
   const usuarioLogado = await userRepository.findById(usuario.id);
   const evento = await eventoVigente(hoje);
@@ -122,9 +124,10 @@ function paraStockMessageDTO(registro: stockMessageRepository.StockMessageComRel
 
 /**
  * Gera e grava a mensagem de estoque (UC12): nada é gravado se qualquer
- * checagem falhar. Ordem das checagens: cliente existe (404) -> ativo
- * (409) -> contato pertence ao cliente (400) -> telefone normalizável
- * (400) -> evento vigente -> grava -> monta o link do WhatsApp.
+ * checagem falhar. Ordem das checagens: cliente existe (404) -> da
+ * carteira do representante (403) -> ativo (409) -> contato pertence ao
+ * cliente (400) -> telefone normalizável (400) -> evento vigente -> grava
+ * -> monta o link do WhatsApp.
  */
 export async function gerar(
   clientId: string,
@@ -136,6 +139,8 @@ export async function gerar(
   if (!cliente) {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
   }
+
+  exigirClienteDaCarteira(cliente, usuario);
 
   if (!cliente.ativo) {
     throw new AppError(ErrorCode.CONFLICT, MENSAGEM_CLIENTE_INATIVO, 409);

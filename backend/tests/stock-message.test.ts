@@ -213,6 +213,21 @@ async function criarEventoVigenteHoje(nome = 'Evento Teste', produtosSugeridos =
   });
 }
 
+/** Cria um segundo representante (sem clientes na carteira) e devolve o token dele. */
+async function logarOutroRepresentante(): Promise<string> {
+  const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+  await prisma.user.create({
+    data: {
+      nome: 'Outro Representante',
+      email: 'outro.stock-message-teste@chokolaten.com.br',
+      role: 'REPRESENTANTE',
+      senhaHash,
+    },
+  });
+
+  return logar('outro.stock-message-teste@chokolaten.com.br');
+}
+
 describe('GET /clients/:id/stock-message/proposta', () => {
   it('sem token 401', async () => {
     const res = await request(app).get(`/clients/${clienteAtivoId}/stock-message/proposta`);
@@ -237,6 +252,18 @@ describe('GET /clients/:id/stock-message/proposta', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('cliente de outra carteira 403', async () => {
+    const tokenOutro = await logarOutroRepresentante();
+
+    const res = await request(app)
+      .get(`/clients/${clienteAtivoId}/stock-message/proposta`)
+      .set('Authorization', `Bearer ${tokenOutro}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.body.error.message).toBe('Cliente de outra carteira.');
   });
 
   it('devolve contatos, telefoneCliente, evento null e texto genérico com o nome do contato principal', async () => {
@@ -307,6 +334,20 @@ describe('POST /clients/:id/stock-message', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('cliente de outra carteira 403 e nada gravado', async () => {
+    const tokenOutro = await logarOutroRepresentante();
+
+    const res = await request(app)
+      .post(`/clients/${clienteAtivoId}/stock-message`)
+      .set('Authorization', `Bearer ${tokenOutro}`)
+      .send({ texto: 'Olá, como está o estoque de chocolates?' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.body.error.message).toBe('Cliente de outra carteira.');
+    expect(await prisma.stockMessage.count()).toBe(0);
   });
 
   it('cliente inativo 409', async () => {

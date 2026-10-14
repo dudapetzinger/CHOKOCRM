@@ -64,6 +64,21 @@ async function logar(email: string): Promise<string> {
   return login.body.token;
 }
 
+/** Cria um segundo representante (sem clientes na carteira) e devolve o token dele. */
+async function logarOutroRepresentante(): Promise<string> {
+  const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+  await prisma.user.create({
+    data: {
+      nome: 'Outro Representante',
+      email: 'outro.visits-teste@chokolaten.com.br',
+      role: 'REPRESENTANTE',
+      senhaHash,
+    },
+  });
+
+  return logar('outro.visits-teste@chokolaten.com.br');
+}
+
 beforeEach(async () => {
   await truncateAllTables();
 
@@ -254,6 +269,22 @@ describe('POST /clients/:id/visits', () => {
     expect(res.body.error.code).toBe('FORBIDDEN');
   });
 
+  it('recusa check-in em cliente de outra carteira', async () => {
+    const tokenOutro = await logarOutroRepresentante();
+
+    const res = await request(app)
+      .post(`/clients/${clienteId}/visits`)
+      .set('Authorization', `Bearer ${tokenOutro}`)
+      .send(payloadCheckIn());
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.body.error.message).toBe('Cliente de outra carteira.');
+
+    const gravadas = await prisma.visit.count({ where: { clientId: clienteId } });
+    expect(gravadas).toBe(0);
+  });
+
   /**
    * Data/hora só é aceita como ISO 8601. Sem isso, qualquer valor que o
    * `new Date()` do JavaScript engole vira uma visita gravada em 1970 —
@@ -399,17 +430,7 @@ describe('PATCH /visits/:id', () => {
 
   it('recusa edição por quem não é o autor', async () => {
     const id = await criarVisitaRetornandoId();
-
-    const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
-    await prisma.user.create({
-      data: {
-        nome: 'Outro Representante',
-        email: 'outro.visits-teste@chokolaten.com.br',
-        role: 'REPRESENTANTE',
-        senhaHash,
-      },
-    });
-    const tokenOutro = await logar('outro.visits-teste@chokolaten.com.br');
+    const tokenOutro = await logarOutroRepresentante();
 
     const res = await request(app)
       .patch(`/visits/${id}`)

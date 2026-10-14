@@ -80,12 +80,21 @@ export async function findById(id: string): Promise<ClientComContatos | null> {
 /**
  * Lista clientes com o contato principal (quando existir) já embutido,
  * pronta para a projeção do contrato `GET /clients` (ver client.service.ts).
+ * Com `representanteId`, só a carteira daquele representante.
  */
-export async function list(params: { search?: string; ativoFiltro: AtivoFiltro }): Promise<ClientComContatoPrincipal[]> {
+export async function list(params: {
+  search?: string;
+  ativoFiltro: AtivoFiltro;
+  representanteId?: string;
+}): Promise<ClientComContatoPrincipal[]> {
   const filtros: Prisma.ClientWhereInput[] = [];
 
   if (params.ativoFiltro === 'ativos') {
     filtros.push({ ativo: true });
+  }
+
+  if (params.representanteId) {
+    filtros.push({ representanteId: params.representanteId });
   }
 
   if (params.search) {

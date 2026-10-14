@@ -12,7 +12,7 @@ export async function putRecurrence(req: Request, res: Response, next: NextFunct
     const input = updateRecurrenceSchema.parse(req.body);
     const usuario = usuarioAutenticado(req);
 
-    const cliente = await recurrenceService.alterarRecorrencia(clientId, usuario.id, input);
+    const cliente = await recurrenceService.alterarRecorrencia(clientId, usuario, input);
     res.status(200).json(cliente);
   } catch (err) {
     next(err);

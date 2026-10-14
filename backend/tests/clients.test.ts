@@ -112,6 +112,32 @@ const CLIENTE_INATIVO: ClienteFixture = {
   ],
 };
 
+/** Dono da "outra carteira" nos testes da regra de carteira. */
+const OUTRO_REPRESENTANTE = {
+  nome: 'Marcos Hoffmann',
+  email: 'marcos.clients-teste@chokolaten.com.br',
+  role: 'REPRESENTANTE' as const,
+};
+
+const CLIENTE_GASPAR: ClienteFixture = {
+  razaoSocial: 'Mercearia Gaspar Comércio de Alimentos Ltda',
+  nomeFantasia: 'Mercearia Gaspar',
+  cnpj: '11222333000505',
+  cidade: 'Gaspar',
+  endereco: 'Rua Coronel Aristiliano Ramos, 300 - Centro, Gaspar/SC',
+  telefone: '(47) 3332-4040',
+  email: 'contato@merceariagaspar.com.br',
+  contatos: [
+    {
+      nome: 'Paulo Schmitt',
+      cargo: 'Proprietário',
+      telefone: '(47) 99966-4040',
+      email: 'paulo.schmitt@merceariagaspar.com.br',
+      principal: true,
+    },
+  ],
+};
+
 /** Procura, entre ERP-1001 e ERP-1300, um erpId cujo perfil tenha `mesesSemCompra >= minMeses`. */
 function encontrarErpIdComMesesSemCompra(minMeses: number): string {
   for (let i = 1001; i <= 1300; i++) {
@@ -169,6 +195,23 @@ async function criarVisita(clienteId: string, diasAtras: number, resultado: Resu
       resultado,
     },
   });
+}
+
+/**
+ * Cria um segundo representante, dono só da Mercearia Gaspar, para os
+ * testes da regra de carteira (o representante principal fica com os
+ * três clientes do `beforeEach`).
+ */
+async function criarOutraCarteira(): Promise<{ tokenOutro: string; clienteOutroId: string }> {
+  const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+  const outro = await prisma.user.create({ data: { ...OUTRO_REPRESENTANTE, senhaHash } });
+  const clienteOutroId = await criarClienteFixture(CLIENTE_GASPAR, outro.id);
+
+  return { tokenOutro: await logar(OUTRO_REPRESENTANTE.email), clienteOutroId };
+}
+
+function idsDaLista(body: { data: { id: string }[] }): string[] {
+  return body.data.map((cliente) => cliente.id);
 }
 
 beforeEach(async () => {
@@ -250,6 +293,48 @@ describe('GET /clients', () => {
 
     const inativo = res.body.data.find((c: { nomeFantasia: string }) => c.nomeFantasia === 'Doceria Jaraguá');
     expect(inativo).toBeUndefined();
+  });
+
+  it('representante lista só a própria carteira', async () => {
+    const { tokenOutro, clienteOutroId } = await criarOutraCarteira();
+    const blumenauId = await idDoClientePorNomeFantasia('Café Blumenau');
+    const pomerodeId = await idDoClientePorNomeFantasia('Empório Pomerode');
+
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${token}`);
+    const resOutro = await request(app).get('/clients').set('Authorization', `Bearer ${tokenOutro}`);
+
+    expect(res.status).toBe(200);
+    expect(idsDaLista(res.body)).toEqual([blumenauId, pomerodeId]);
+    expect(resOutro.status).toBe(200);
+    expect(idsDaLista(resOutro.body)).toEqual([clienteOutroId]);
+  });
+
+  it('gestor lista todos os clientes, de qualquer carteira', async () => {
+    const { clienteOutroId } = await criarOutraCarteira();
+    const blumenauId = await idDoClientePorNomeFantasia('Café Blumenau');
+    const pomerodeId = await idDoClientePorNomeFantasia('Empório Pomerode');
+
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(idsDaLista(res.body)).toEqual([blumenauId, pomerodeId, clienteOutroId]);
+  });
+
+  it('busca do representante não encontra cliente de outra carteira', async () => {
+    const { clienteOutroId } = await criarOutraCarteira();
+
+    const res = await request(app)
+      .get('/clients')
+      .query({ search: 'Gaspar' })
+      .set('Authorization', `Bearer ${token}`);
+    const resGestor = await request(app)
+      .get('/clients')
+      .query({ search: 'Gaspar' })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+    expect(idsDaLista(resGestor.body)).toEqual([clienteOutroId]);
   });
 
   it('search "pomerode" (case-insensitive) encontra exatamente 1 cliente', async () => {
@@ -571,6 +656,30 @@ describe('GET /clients/:id', () => {
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
+  it('representante recebe 404 na ficha de cliente de outra carteira', async () => {
+    const { clienteOutroId } = await criarOutraCarteira();
+
+    const res = await request(app).get(`/clients/${clienteOutroId}`).set('Authorization', `Bearer ${token}`);
+    const resInexistente = await request(app)
+      .get(`/clients/${ID_INEXISTENTE}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+    // Mesma mensagem do cliente inexistente: a resposta não revela que o cliente existe.
+    expect(res.body.error.message).toBe(resInexistente.body.error.message);
+  });
+
+  it('gestor abre a ficha de cliente de qualquer carteira', async () => {
+    const { clienteOutroId } = await criarOutraCarteira();
+
+    const res = await request(app).get(`/clients/${clienteOutroId}`).set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(clienteOutroId);
+    expect(res.body.representante.nome).toBe(OUTRO_REPRESENTANTE.nome);
+  });
+
   it('cliente existente responde 200 com contatos ordenados (principal primeiro)', async () => {
     const id = await idDoClientePorNomeFantasia('Empório Pomerode');
 
@@ -688,6 +797,22 @@ describe('PUT /clients/:id', () => {
     expect(res.body.error.code).toBe('FORBIDDEN');
   });
 
+  it('representante não altera cliente de outra carteira', async () => {
+    const { clienteOutroId } = await criarOutraCarteira();
+
+    const res = await request(app)
+      .put(`/clients/${clienteOutroId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ telefone: '(47) 3000-0000' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.body.error.message).toBe('Cliente de outra carteira.');
+
+    const salvo = await prisma.client.findUniqueOrThrow({ where: { id: clienteOutroId } });
+    expect(salvo.telefone).toBe(CLIENTE_GASPAR.telefone);
+  });
+
   it('com representanteId por gestor transfere a carteira', async () => {
     const id = await idDoClientePorNomeFantasia('Café Blumenau');
     const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
@@ -706,6 +831,7 @@ describe('PUT /clients/:id', () => {
       .send({ representanteId: outroRepresentante.id });
 
     expect(res.status).toBe(200);
+    expect(res.body.representante.id).toBe(outroRepresentante.id);
 
     const salvo = await prisma.client.findUniqueOrThrow({ where: { id } });
     expect(salvo.representanteId).toBe(outroRepresentante.id);

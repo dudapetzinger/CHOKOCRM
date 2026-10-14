@@ -29,7 +29,7 @@ export async function postVisit(req: Request, res: Response, next: NextFunction)
     const input = createVisitSchema.parse(req.body);
     const usuario = usuarioAutenticado(req);
 
-    const visita = await visitService.createVisit(clientId, usuario.id, input);
+    const visita = await visitService.createVisit(clientId, usuario, input);
     res.status(201).json(visita);
   } catch (err) {
     next(err);

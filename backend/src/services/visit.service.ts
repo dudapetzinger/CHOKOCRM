@@ -7,6 +7,7 @@ import * as clientRepository from '../repositories/client.repository';
 import * as visitRepository from '../repositories/visit.repository';
 import type { VisitComRelacoes } from '../repositories/visit.repository';
 import type { CreateVisitInput, UpdateVisitInput } from '../schemas/visit.schema';
+import { exigirClienteDaCarteira, type UsuarioAutenticado } from './client.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CLIENTE_INATIVO = 'Cliente inativo não recebe check-in.';
@@ -48,12 +49,18 @@ export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
   };
 }
 
-async function exigirClienteAtivo(clientId: string): Promise<void> {
+/**
+ * Check-in novo exige, nesta ordem: cliente existe (404) -> é da carteira
+ * do representante (403) -> está ativo (409).
+ */
+async function exigirClienteAtivoDaCarteira(clientId: string, usuario: UsuarioAutenticado): Promise<void> {
   const cliente = await clientRepository.findById(clientId);
 
   if (!cliente) {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
   }
+
+  exigirClienteDaCarteira(cliente, usuario);
 
   if (!cliente.ativo) {
     throw new AppError(ErrorCode.CONFLICT, MENSAGEM_CLIENTE_INATIVO, 409);
@@ -82,10 +89,10 @@ export async function listVisitsByClient(clientId: string): Promise<VisitaDTO[]>
 
 export async function createVisit(
   clientId: string,
-  userId: string,
+  usuario: UsuarioAutenticado,
   input: CreateVisitInput,
 ): Promise<VisitaDTO> {
-  await exigirClienteAtivo(clientId);
+  await exigirClienteAtivoDaCarteira(clientId, usuario);
 
   if (input.contactId) {
     const pertence = await visitRepository.contatoPertenceAoCliente(input.contactId, clientId);
@@ -96,7 +103,7 @@ export async function createVisit(
 
   const visita = await visitRepository.create({
     clientId,
-    userId,
+    userId: usuario.id,
     contactId: input.contactId,
     dataHora: input.dataHora ?? new Date(),
     descricao: input.descricao,

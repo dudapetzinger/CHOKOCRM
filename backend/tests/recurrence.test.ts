@@ -146,6 +146,32 @@ describe('PUT /clients/:id/recurrence', () => {
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
+  it('representante de outra carteira responde 403 e nada é gravado', async () => {
+    const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+    await prisma.user.create({
+      data: {
+        nome: 'Outro Representante',
+        email: 'outro.recurrence-teste@chokolaten.com.br',
+        role: 'REPRESENTANTE',
+        senhaHash,
+      },
+    });
+    const tokenOutro = await logar('outro.recurrence-teste@chokolaten.com.br');
+
+    const res = await request(app)
+      .put(`/clients/${clienteId}/recurrence`)
+      .set('Authorization', `Bearer ${tokenOutro}`)
+      .send(payload());
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.body.error.message).toBe('Cliente de outra carteira.');
+
+    const salvo = await prisma.client.findUniqueOrThrow({ where: { id: clienteId } });
+    expect(salvo.recorrenciaDias).toBe(15);
+    expect(await prisma.visitScheduleChange.count({ where: { clientId: clienteId } })).toBe(0);
+  });
+
   it('altera a recorrência, grava o histórico e devolve a ficha', async () => {
     const res = await request(app)
       .put(`/clients/${clienteId}/recurrence`)
