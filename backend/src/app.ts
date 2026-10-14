@@ -18,6 +18,7 @@ import { clientInsightsRouter, insightsRouter } from './routes/insights.routes';
 import { dashboardRouter } from './routes/kpis.routes';
 import { recurrenceRouter } from './routes/recurrence.routes';
 import { clientStockMessageRouter, stockMessagesRouter } from './routes/stock-message.routes';
+import { usersRouter } from './routes/user.routes';
 import { clientVisitsRouter, visitRouter } from './routes/visit.routes';
 
 export const app: Express = express();
@@ -51,6 +52,7 @@ app.use('/stock-messages', stockMessagesRouter);
 app.use('/clients/:id/insights', clientInsightsRouter);
 app.use('/insights', insightsRouter);
 app.use('/dashboard', dashboardRouter);
+app.use('/users', usersRouter);
 app.use('/contacts', contactRouter);
 app.use('/clients/:id/visits', clientVisitsRouter);
 // Corpo binário apenas para as imagens de check-in: o filtro de `type`

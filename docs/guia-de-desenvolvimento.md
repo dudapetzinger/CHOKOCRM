@@ -90,12 +90,13 @@ npm run db:migrate
 npm run db:seed
 ```
 
-O seed é determinístico e cria clientes com contatos, um histórico de visitas suficiente para exercitar a classificação por cor, dois usuários de desenvolvimento e, desde a Etapa 6A, os eventos sazonais (`SeasonalEvent`) do ano corrente e do seguinte — usados pela mensagem de consulta de estoque (UC12) e pelo módulo de insights (UC13 e UC15); o `upsert` por `nome` torna o seed idempotente, então rodá-lo de novo não duplica eventos, e desde a Etapa 6B ele grava e atualiza também a `chave` de cada evento:
+O seed é determinístico e cria 13 clientes com contatos (9 na carteira da Eduarda e 4 na do Rafael), um histórico de visitas suficiente para exercitar a classificação por cor, três usuários de desenvolvimento e, desde a Etapa 6A, os eventos sazonais (`SeasonalEvent`) do ano corrente e do seguinte — usados pela mensagem de consulta de estoque (UC12) e pelo módulo de insights (UC13 e UC15); o `upsert` por `nome` torna o seed idempotente, então rodá-lo de novo não duplica eventos, e desde a Etapa 6B ele grava e atualiza também a `chave` de cada evento:
 
 | Perfil | E-mail | Senha |
 |--------|--------|-------|
-| Representante | `eduarda@chokolaten.com.br` | `chokocrm123` |
-| Gestor | `gestor@chokolaten.com.br` | `chokocrm123` |
+| Representante (Eduarda Fischer) | `eduarda@chokolaten.com.br` | `chokocrm123` |
+| Representante (Rafael Schmitt) | `rafael@chokolaten.com.br` | `chokocrm123` |
+| Gestor (Maicon Krüger) | `gestor@chokolaten.com.br` | `chokocrm123` |
 
 São contas fictícias de demonstração, definidas em `backend/prisma/seed.ts`. O mesmo seed popula a produção de demonstração ([Seed em produção](#95-seed-em-produção)), que só fica ligada nas janelas de uso ([Produção no Azure](#9-produção-no-azure)); essas credenciais também valem lá — e, como estão publicadas aqui, a produção só deve guardar dados de demonstração.
 

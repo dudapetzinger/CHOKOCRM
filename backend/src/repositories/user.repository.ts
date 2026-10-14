@@ -10,5 +10,9 @@ export async function findById(id: string): Promise<User | null> {
 }
 
 export async function listByRole(role: Role): Promise<Pick<User, 'id' | 'nome'>[]> {
-  return prisma.user.findMany({ where: { role }, select: { id: true, nome: true } });
+  return prisma.user.findMany({
+    where: { role },
+    select: { id: true, nome: true },
+    orderBy: { nome: 'asc' },
+  });
 }

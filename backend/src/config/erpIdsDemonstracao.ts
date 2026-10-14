@@ -20,6 +20,21 @@
  *   retorna `NAO_ENCONTRADO`.
  * - Padaria Vale Europeu e Confeitaria Rota das Cachoeiras → sem `erpId`
  *   (`null`) — a consulta retorna `SEM_ERP_ID`.
+ *
+ * Carteira do Rafael (Etapa 7), calibrada com o mesmo gerador (o estoque do
+ * mock avança numa grade de 15 em 15 dias, então "item baixo" vale para a
+ * data da calibração; `ERP-1043` e `ERP-1026` seguiram baixos em Natal por
+ * 20 dias seguidos):
+ * - Empório do Vale Brusque → `ERP-1043` (`mesesSemCompra` 0): compra recente,
+ *   então a visita AMARELA não é rebaixada; o estoque mais recente tem item
+ *   BAIXO de Natal (SKUs de `SKUS_SUGERIDOS.NATAL`), bom para demonstrar o
+ *   insight de reposição sazonal.
+ * - Casa de Chás Itajaí → `ERP-1026` (`mesesSemCompra` 1): também com item
+ *   BAIXO de Natal; a cor LARANJA da visita de 20 dias não muda com a
+ *   compra.
+ * - Mercearia Alto Vale → `ERP-1009` (`mesesSemCompra` 0) e Padaria
+ *   Confeitaria Indaial → `ERP-1008` (`mesesSemCompra` 2): sem visita, logo
+ *   VERMELHO; só preenchem o histórico da ficha.
  */
 export const ERP_IDS_DEMONSTRACAO: Record<string, string | null> = {
   'Empório Pomerode': 'ERP-1001',
@@ -31,6 +46,10 @@ export const ERP_IDS_DEMONSTRACAO: Record<string, string | null> = {
   'Empório do Chocolate': 'ERP-1000-0',
   'Padaria Vale Europeu': null,
   'Confeitaria Rota das Cachoeiras': null,
+  'Empório do Vale Brusque': 'ERP-1043',
+  'Casa de Chás Itajaí': 'ERP-1026',
+  'Mercearia Alto Vale': 'ERP-1009',
+  'Padaria Confeitaria Indaial': 'ERP-1008',
 };
 
 export const ERP_ID_EMPORIO = 'ERP-1001';
