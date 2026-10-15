@@ -1,0 +1,285 @@
+/* ChokoCRM — formulários e botões (Etapa 7).
+   Campos arredondados com fundo creme suave em vez de borda escura, anel de
+   foco laranja, rótulo acima (13 px / 600) e ajuda/erro abaixo. Botões:
+   um .btn-primario (preenchido) por tela, .btn-secundario (contornado) e
+   .btn-perigo (texto vermelho discreto). Também o controle segmentado
+   (SegmentadoResultado, SeletorRecorrencia) e a área de texto que cresce
+   (AreaTextoCrescente). */
+
+/* ==========================================================================
+   Campo (.campo): rótulo, controle, ajuda e erro empilhados
+   ========================================================================== */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+  margin-bottom: var(--espaco-5);
+}
+
+.campo label,
+.campo-rotulo {
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semi);
+  color: var(--texto);
+}
+
+/* Texto de apoio abaixo de um campo e mensagem de erro de validação.
+   Usados dentro de um `.campo` e também soltos após outros elementos (ex.:
+   `.contato-principal-opcao` em ContatoFields), por isso só margem positiva,
+   nunca negativa, para não sobrepor o elemento anterior. */
+.campo-ajuda {
+  font-size: var(--texto-xs);
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+.erro-campo {
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semi);
+  color: var(--vermelho);
+  margin: var(--espaco-1) 0 0;
+}
+
+/* ==========================================================================
+   Controles: input, select, textarea
+   :where() deixa a especificidade em zero, para qualquer regra de tela
+   poder ajustar sem disputa. Checkbox, rádio e arquivo ficam de fora.
+   ========================================================================== */
+:where(
+    input:not(
+        [type='checkbox'],
+        [type='radio'],
+        [type='file'],
+        [type='range'],
+        [type='color'],
+        [type='hidden'],
+        [type='submit'],
+        [type='button'],
+        [type='reset'],
+        [type='image']
+      ),
+    select,
+    textarea
+  ) {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--espaco-3) var(--espaco-4);
+  border: 1.5px solid var(--campo-borda);
+  border-radius: var(--raio);
+  background-color: var(--campo-fundo);
+  color: var(--texto);
+  /* 17 px: acima de 16 px o iOS não dá zoom ao focar o campo */
+  font-size: var(--texto-md);
+  line-height: 1.45;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background-color 0.15s;
+}
+
+:where(input, select, textarea)::placeholder {
+  color: var(--texto-suave);
+  opacity: 1;
+}
+
+/* Foco: borda e anel laranja; o contorno transparente aparece no modo de
+   alto contraste do sistema, onde o box-shadow é descartado. */
+:where(input, select, textarea):focus-visible {
+  outline: 2px solid transparent;
+  border-color: var(--laranja);
+  box-shadow: var(--anel-foco);
+  background-color: var(--branco);
+}
+
+:where(input, select, textarea)[aria-invalid='true'] {
+  border-color: var(--vermelho);
+}
+
+:where(input, select, textarea):disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+:where(select) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: calc(var(--espaco-4) * 2 + 12px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235d4037' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--espaco-4) center;
+  background-size: 12px 8px;
+}
+
+:where(textarea) {
+  resize: vertical;
+}
+
+/* ==========================================================================
+   Área de texto que cresce (AreaTextoCrescente) e contador de caracteres
+   ========================================================================== */
+.area-texto-crescente {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-1);
+}
+
+/* A altura é ajustada pelo componente (até 8 linhas), então sem alça */
+.area-texto-crescente textarea {
+  resize: none;
+}
+
+.contador {
+  align-self: flex-end;
+  font-size: var(--texto-xs);
+  color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   Botões
+   ========================================================================== */
+.btn-primario,
+.btn-secundario,
+.btn-perigo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espaco-2);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--espaco-3) var(--espaco-5);
+  border: 1.5px solid transparent;
+  border-radius: var(--raio);
+  font-size: var(--texto-md);
+  font-weight: var(--peso-forte);
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.btn-primario:focus-visible,
+.btn-secundario:focus-visible,
+.btn-perigo:focus-visible {
+  outline: 2px solid var(--laranja);
+  outline-offset: 2px;
+}
+
+.btn-primario:disabled,
+.btn-secundario:disabled,
+.btn-perigo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Primário: a ação principal da tela, preenchido (um por tela) */
+.btn-primario {
+  background-color: var(--marrom-900);
+  color: var(--branco);
+  box-shadow: var(--sombra-1);
+}
+
+.btn-primario:hover:not(:disabled) {
+  background-color: var(--marrom-700);
+}
+
+/* Secundário: contornado, para as demais ações */
+.btn-secundario {
+  background-color: transparent;
+  color: var(--marrom-900);
+  border-color: var(--marrom-700);
+}
+
+.btn-secundario:hover:not(:disabled) {
+  background-color: var(--creme);
+}
+
+/* Perigo: texto vermelho discreto, sem contorno (inativar, remover).
+   Vem depois de .btn-secundario para valer também em
+   "btn-secundario btn-perigo". */
+.btn-perigo {
+  background-color: transparent;
+  color: var(--vermelho);
+  border-color: transparent;
+}
+
+.btn-perigo:hover:not(:disabled) {
+  background-color: var(--vermelho-suave);
+  color: var(--vermelho-texto);
+}
+
+/* Confirmação de ação destrutiva: preenchido em vermelho */
+.btn-primario.btn-perigo {
+  background-color: var(--vermelho);
+  color: var(--branco);
+}
+
+.btn-primario.btn-perigo:hover:not(:disabled) {
+  background-color: var(--vermelho-texto);
+  color: var(--branco);
+}
+
+/* ==========================================================================
+   Controle segmentado (.segmentado)
+   Grupo de opções lado a lado (role="radiogroup"), usado no resultado da
+   visita (SegmentadoResultado) e na recorrência (SeletorRecorrencia).
+   ========================================================================== */
+.segmentado {
+  display: flex;
+  gap: var(--espaco-1);
+  padding: var(--espaco-1);
+  background-color: var(--campo-fundo);
+  border: 1.5px solid var(--campo-borda);
+  border-radius: var(--raio);
+}
+
+.segmentado-opcao {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--espaco-2) var(--espaco-1);
+  border: none;
+  border-radius: var(--raio-sm);
+  background-color: transparent;
+  color: var(--texto);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-semi);
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    box-shadow 0.15s;
+}
+
+/* Só com mouse: no toque o hover "gruda" e parece outra opção marcada */
+@media (hover: hover) {
+  .segmentado-opcao[aria-checked='false']:hover {
+    background-color: rgba(255, 255, 255, 0.35);
+  }
+}
+
+.segmentado-opcao[aria-checked='true'] {
+  background-color: var(--branco);
+  color: var(--marrom-900);
+  font-weight: var(--peso-forte);
+  box-shadow: var(--sombra-1);
+}
+
+.segmentado-opcao:focus-visible {
+  outline: 2px solid var(--laranja);
+  outline-offset: 1px;
+}
+
+/* Seletor de recorrência: atalhos e, abaixo, o campo de "Outro" */
+.seletor-recorrencia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+}
+
+.seletor-recorrencia-outro {
+  max-width: 160px;
+}

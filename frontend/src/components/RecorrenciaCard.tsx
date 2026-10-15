@@ -10,6 +10,8 @@ import { useState, type FormEvent } from 'react';
 import { useAlterarRecorrencia } from '../hooks/useRecorrencia';
 import { FAIXA_RECORRENCIA_SUGERIDA, mensagemErroApi, type RecorrenciaChange } from '../services/clients';
 import { formatarData } from '../lib/formatarData';
+import { AreaTextoCrescente } from './AreaTextoCrescente';
+import { SeletorRecorrencia } from './SeletorRecorrencia';
 
 const MENSAGEM_ERRO_ALTERAR = 'Não foi possível alterar a recorrência.';
 
@@ -22,7 +24,8 @@ type Props = {
 
 export function RecorrenciaCard({ clienteId, recorrenciaDias, historico, podeAlterar }: Props) {
   const [editando, setEditando] = useState(false);
-  const [valorDias, setValorDias] = useState('');
+  // Número vindo do SeletorRecorrencia; o campo "Outro" vazio chega como NaN
+  const [valorDias, setValorDias] = useState(Number.NaN);
   const [justificativa, setJustificativa] = useState('');
   const [erroValidacao, setErroValidacao] = useState<string | null>(null);
   const [erroJustificativa, setErroJustificativa] = useState<string | null>(null);
@@ -30,7 +33,7 @@ export function RecorrenciaCard({ clienteId, recorrenciaDias, historico, podeAlt
   const mutationAlterar = useAlterarRecorrencia(clienteId);
 
   function entrarModoEdicao(): void {
-    setValorDias(String(recorrenciaDias));
+    setValorDias(recorrenciaDias);
     setJustificativa('');
     setErroValidacao(null);
     setErroJustificativa(null);
@@ -44,9 +47,8 @@ export function RecorrenciaCard({ clienteId, recorrenciaDias, historico, podeAlt
     setErroJustificativa(null);
   }
 
-  const numeroDias = Number(valorDias);
+  const numeroDias = valorDias;
   const foraDaFaixa =
-    valorDias.trim() !== '' &&
     Number.isInteger(numeroDias) &&
     numeroDias >= 1 &&
     numeroDias <= 365 &&
@@ -107,14 +109,7 @@ export function RecorrenciaCard({ clienteId, recorrenciaDias, historico, podeAlt
 
           <div className="campo">
             <label htmlFor="recorrencia-dias">Recorrência de visitas em dias</label>
-            <input
-              type="number"
-              id="recorrencia-dias"
-              min={1}
-              max={365}
-              value={valorDias}
-              onChange={(event) => setValorDias(event.target.value)}
-            />
+            <SeletorRecorrencia id="recorrencia-dias" valor={valorDias} onChange={setValorDias} />
             {erroValidacao && (
               <p className="erro-campo" role="alert">
                 {erroValidacao}
@@ -128,10 +123,11 @@ export function RecorrenciaCard({ clienteId, recorrenciaDias, historico, podeAlt
 
           <div className="campo">
             <label htmlFor="recorrencia-justificativa">Justificativa</label>
-            <textarea
+            <AreaTextoCrescente
               id="recorrencia-justificativa"
               value={justificativa}
               onChange={(event) => setJustificativa(event.target.value)}
+              placeholder="Ex.: Cliente pediu visitas mais espaçadas na baixa temporada."
             />
             {erroJustificativa && (
               <p className="erro-campo" role="alert">
@@ -162,7 +158,10 @@ export function RecorrenciaCard({ clienteId, recorrenciaDias, historico, podeAlt
 
       <h3 className="card-titulo">Histórico de alterações</h3>
       {historico.length === 0 ? (
-        <p className="campo-ajuda">Nenhuma alteração registrada.</p>
+        <p className="vazio">
+          <span className="vazio-emoji" aria-hidden="true">🔁</span>
+          <span>Nenhuma alteração registrada.</span>
+        </p>
       ) : (
         historico.map((mudanca) => (
           <p className="cliente-info" key={mudanca.id}>

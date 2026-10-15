@@ -27,7 +27,12 @@ export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarF
   const [ocupado, setOcupado] = useState(false);
 
   if (visitas.length === 0) {
-    return <p className="campo-ajuda">Nenhuma visita registrada para este cliente.</p>;
+    return (
+      <p className="vazio">
+        <span className="vazio-emoji" aria-hidden="true">📝</span>
+        <span>Nenhuma visita registrada para este cliente.</span>
+      </p>
+    );
   }
 
   async function salvarDescricao(visitaId: string) {

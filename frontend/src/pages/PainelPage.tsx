@@ -71,7 +71,10 @@ function CardAlertasDeProducao({ alertas }: { alertas: Alertas }) {
       )}
 
       {!temAlertas && !todosIndisponiveis && (
-        <p className="campo-ajuda">Nenhum alerta de produção para os próximos {alertas.horizonteDias} dias.</p>
+        <p className="vazio">
+          <span className="vazio-emoji" aria-hidden="true">✅</span>
+          <span>Nenhum alerta de produção para os próximos {alertas.horizonteDias} dias.</span>
+        </p>
       )}
     </section>
   );
@@ -92,7 +95,10 @@ function CardEpocaDoAno({ alertas }: { alertas: Alertas }) {
       ))}
 
       {alertas.eventos.length === 0 && (
-        <p className="campo-ajuda">Nenhum evento sazonal nos próximos {alertas.horizonteDias} dias.</p>
+        <p className="vazio">
+          <span className="vazio-emoji" aria-hidden="true">📅</span>
+          <span>Nenhum evento sazonal nos próximos {alertas.horizonteDias} dias.</span>
+        </p>
       )}
     </section>
   );

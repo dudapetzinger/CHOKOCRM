@@ -48,7 +48,10 @@ function ConteudoKpis({ kpis }: { kpis: Kpis }) {
       {kpis.simulado && <AvisoSimulado />}
 
       {kpis.semDados && (
-        <p className="aviso">Nenhuma visita ou mensagem registrada no período — indicadores zerados.</p>
+        <p className="vazio">
+          <span className="vazio-emoji" aria-hidden="true">📊</span>
+          <span>Nenhuma visita ou mensagem registrada no período — indicadores zerados.</span>
+        </p>
       )}
 
       <div className="grade-kpi">
@@ -81,7 +84,10 @@ function ConteudoKpis({ kpis }: { kpis: Kpis }) {
       <h3 className="card-subtitulo">Distribuição por cor</h3>
 
       {clientesAtivos === 0 ? (
-        <p className="campo-ajuda">Nenhum cliente ativo.</p>
+        <p className="vazio">
+          <span className="vazio-emoji" aria-hidden="true">👤</span>
+          <span>Nenhum cliente ativo.</span>
+        </p>
       ) : (
         <>
           <div className="barra-distribuicao" role="img" aria-label={descreverDistribuicao(kpis)}>

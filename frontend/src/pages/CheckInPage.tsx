@@ -10,8 +10,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { comprimirImagem } from '../lib/comprimirImagem';
 import { getCliente, mensagemErroApi } from '../services/clients';
 import type { ClienteCompleto } from '../services/clients';
-import { registrarCheckIn, enviarFoto, ROTULO_RESULTADO } from '../services/visits';
+import { registrarCheckIn, enviarFoto } from '../services/visits';
 import type { ResultadoVisita } from '../services/visits';
+import { AreaTextoCrescente } from '../components/AreaTextoCrescente';
+import { SegmentadoResultado } from '../components/SegmentadoResultado';
 
 /** `datetime-local` espera `YYYY-MM-DDTHH:mm` no fuso do dispositivo. */
 function agoraParaCampoLocal(): string {
@@ -19,8 +21,6 @@ function agoraParaCampoLocal(): string {
   const deslocamento = agora.getTimezoneOffset() * 60 * 1000;
   return new Date(agora.getTime() - deslocamento).toISOString().slice(0, 16);
 }
-
-const RESULTADOS: ResultadoVisita[] = ['VENDA', 'NEGOCIACAO', 'SEM_VENDA'];
 
 export function CheckInPage() {
   const { id } = useParams<{ id: string }>();
@@ -114,26 +114,29 @@ export function CheckInPage() {
         {erro && <p className="erro-campo">{erro}</p>}
 
         <form className="card" onSubmit={salvar}>
-          <label className="campo">
-            <span className="etiqueta">Data e hora da visita</span>
-            <input type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />
-            <span className="campo-ajuda">Já vem preenchido com agora; ajuste para lançar uma visita anterior.</span>
-          </label>
+          <div className="campo">
+            <label htmlFor="checkin-data-hora">Data e hora da visita</label>
+            <input
+              id="checkin-data-hora"
+              type="datetime-local"
+              value={dataHora}
+              onChange={(e) => setDataHora(e.target.value)}
+              aria-describedby="checkin-data-hora-ajuda"
+              required
+            />
+            <span id="checkin-data-hora-ajuda" className="campo-ajuda">
+              Já vem preenchido com agora; ajuste para lançar uma visita anterior.
+            </span>
+          </div>
 
-          <label className="campo">
-            <span className="etiqueta">Resultado</span>
-            <select value={resultado} onChange={(e) => setResultado(e.target.value as ResultadoVisita)}>
-              {RESULTADOS.map((opcao) => (
-                <option key={opcao} value={opcao}>
-                  {ROTULO_RESULTADO[opcao]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="campo">
+            <span className="campo-rotulo">Resultado</span>
+            <SegmentadoResultado valor={resultado} onChange={setResultado} rotulo="Resultado" />
+          </div>
 
-          <label className="campo">
-            <span className="etiqueta">Contato atendido (opcional)</span>
-            <select value={contactId} onChange={(e) => setContactId(e.target.value)}>
+          <div className="campo">
+            <label htmlFor="checkin-contato">Contato atendido (opcional)</label>
+            <select id="checkin-contato" value={contactId} onChange={(e) => setContactId(e.target.value)}>
               <option value="">Não informar</option>
               {cliente?.contatos.map((contato) => (
                 <option key={contato.id} value={contato.id}>
@@ -141,22 +144,24 @@ export function CheckInPage() {
                 </option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="campo">
-            <span className="etiqueta">O que aconteceu na visita</span>
-            <textarea
+          <div className="campo">
+            <label htmlFor="checkin-descricao">O que aconteceu na visita</label>
+            <AreaTextoCrescente
+              id="checkin-descricao"
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
               rows={4}
-              placeholder="Ex.: reposição do mostruário; pediu catálogo de Páscoa."
+              placeholder="Ex.: Reposição do mostruário e pedido de trufas para o fim de semana."
               required
             />
-          </label>
+          </div>
 
           <div className="campo">
-            <span className="etiqueta">Foto de comprovação (opcional)</span>
+            <label htmlFor="checkin-foto">Foto de comprovação (opcional)</label>
             <input
+              id="checkin-foto"
               type="file"
               accept="image/*"
               capture="environment"

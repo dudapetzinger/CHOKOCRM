@@ -1,0 +1,68 @@
+/* ChokoCRM — tokens de design (Etapa 7).
+   Fonte única de cores, espaçamentos, raios, sombras e tipografia. As cores
+   da marca (marrom, laranja, creme) vêm do protótipo da Etapa 1 e mantêm
+   os nomes; os pares `--*-texto` sobre `--*-suave` têm contraste AA. */
+:root {
+  /* Cores da marca */
+  --marrom-900: #3e2723;
+  --marrom-700: #5d4037;
+  --marrom-100: #d7ccc8;
+  --creme: #faf3e9;
+  --branco: #ffffff;
+  --texto: #2b2118;
+  --texto-suave: #7a6a5d;
+
+  /* Cores de classificação (verde/amarelo/laranja/vermelho) */
+  --verde: #2e7d32;
+  --amarelo: #f9a825;
+  --laranja: #ef6c00;
+  --vermelho: #c62828;
+
+  /* Fundos suaves e texto sobre eles (contraste AA) */
+  --verde-suave: #e6f4ea;
+  --amarelo-suave: #fff4d6;
+  --laranja-suave: #ffe8d6;
+  --vermelho-suave: #fde3e3;
+  --verde-texto: #1b5e20;
+  --amarelo-texto: #8a5a00;
+  --laranja-texto: #a14a00;
+  --vermelho-texto: #8e1c1c;
+
+  /* Espaçamento (escala de 4 px) */
+  --espaco-1: 4px;
+  --espaco-2: 8px;
+  --espaco-3: 12px;
+  --espaco-4: 16px;
+  --espaco-5: 24px;
+  --espaco-6: 32px;
+
+  /* Raios */
+  --raio-sm: 8px;
+  --raio: 14px;
+  --raio-lg: 20px;
+  --raio-pilula: 999px;
+
+  /* Sombras: 1 para cartões e listas, 2 para o que flutua (botões, menus) */
+  --sombra-1: 0 1px 2px rgba(62, 39, 35, 0.06), 0 2px 8px rgba(62, 39, 35, 0.08);
+  --sombra-2: 0 4px 16px rgba(62, 39, 35, 0.16);
+  /* Nome antigo, ainda usado pelas seções do global.css não reescritas */
+  --sombra: var(--sombra-1);
+
+  /* Tipografia (fontes servidas pelo app via @fontsource, ver main.tsx) */
+  --fonte-titulos: 'Fraunces', Georgia, serif;
+  --fonte-texto: 'Manrope', system-ui, sans-serif;
+  --texto-xs: 13px;
+  --texto-sm: 15px;
+  --texto-md: 17px;
+  --texto-lg: 20px;
+  --texto-xl: 24px;
+  --texto-2xl: 30px;
+  --peso-regular: 400;
+  --peso-semi: 600;
+  --peso-forte: 700;
+
+  /* Formulários: fundo creme suave em vez de borda escura, foco laranja */
+  --campo-fundo: #f6eee3;
+  --campo-borda: #eadfd1;
+  --anel-foco: 0 0 0 3px rgba(239, 108, 0, 0.35);
+}

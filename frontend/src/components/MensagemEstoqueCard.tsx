@@ -217,7 +217,10 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
       )}
 
       {!mensagensCarregando && !mensagensComErro && (!mensagens || mensagens.length === 0) && (
-        <p className="campo-ajuda">Nenhuma mensagem gerada para este cliente.</p>
+        <p className="vazio">
+          <span className="vazio-emoji" aria-hidden="true">💬</span>
+          <span>Nenhuma mensagem gerada para este cliente.</span>
+        </p>
       )}
 
       {!mensagensCarregando &&

@@ -83,7 +83,10 @@ function renderizarConteudo(insights: Insights): ReactElement {
           {/* `insights.horizonteDias` (e não o estado local): enquanto o horizonte novo carrega, o
               dado anterior continua na tela e a mensagem precisa falar do horizonte desse dado. */}
           {insights.sugestoes.length === 0 && insights.eventosSemHistorico.length === 0 && (
-            <p className="campo-ajuda">Nenhum evento sazonal nos próximos {insights.horizonteDias} dias.</p>
+            <p className="vazio">
+              <span className="vazio-emoji" aria-hidden="true">📅</span>
+              <span>Nenhum evento sazonal nos próximos {insights.horizonteDias} dias.</span>
+            </p>
           )}
         </>
       );

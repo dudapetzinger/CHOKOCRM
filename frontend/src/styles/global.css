@@ -1,27 +1,14 @@
 /* ChokoCRM — estilos globais do frontend.
-   Tokens de cor, raio e sombra e componentes básicos herdados do protótipo
-   navegável (Etapa 1), ver docs/prototipo/css/estilo.css.
-   Mobile-first — largura de referência 390px, container centralizado
-   max-width 480px. */
+   Componentes básicos herdados do protótipo navegável (Etapa 1), ver
+   docs/prototipo/css/estilo.css. Mobile-first — largura de referência
+   390px, container centralizado max-width 480px.
 
-/* ==========================================================================
-   1. Tokens de design
-   ========================================================================== */
-:root {
-  --marrom-900: #3e2723;
-  --marrom-700: #5d4037;
-  --marrom-100: #d7ccc8;
-  --creme: #faf3e9;
-  --branco: #ffffff;
-  --texto: #2b2118;
-  --texto-suave: #7a6a5d;
-  --verde: #2e7d32;
-  --amarelo: #f9a825;
-  --laranja: #ef6c00;
-  --vermelho: #c62828;
-  --raio: 12px;
-  --sombra: 0 1px 4px rgba(62, 39, 35, 0.12);
-}
+   1. Tokens, tipografia, formulários e botões ficam em arquivos próprios
+   (Etapa 7), importados aqui — o @import precisa vir antes de qualquer
+   outra regra. */
+@import './tokens.css';
+@import './tipografia.css';
+@import './formularios.css';
 
 /* ==========================================================================
    2. Reset mínimo e base
@@ -40,12 +27,10 @@ body,
   min-height: 100%;
 }
 
+/* Fonte, tamanho e altura de linha do corpo: ver tipografia.css */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
   background-color: var(--marrom-100);
   color: var(--texto);
-  font-size: 16px;
-  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -53,11 +38,7 @@ h1,
 h2,
 h3,
 p {
-  margin: 0 0 12px 0;
-}
-
-button {
-  font-family: inherit;
+  margin: 0 0 var(--espaco-3) 0;
 }
 
 /* Container mobile-first: centraliza o "app" em telas largas, sem exceder 480px */
@@ -123,97 +104,32 @@ button {
 /* ==========================================================================
    4. Cartões (.card)
    ========================================================================== */
+/* Mesmo raio e sombra em todos os cartões, com mais respiro (Etapa 7) */
 .card {
   background-color: var(--branco);
   border-radius: var(--raio);
-  box-shadow: var(--sombra);
-  padding: 16px;
-  margin-bottom: 12px;
+  box-shadow: var(--sombra-1);
+  padding: var(--espaco-5) var(--espaco-4);
+  margin-bottom: var(--espaco-4);
 }
 
+/* Fonte dos títulos (Fraunces): ver tipografia.css */
 .card-titulo {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--texto-lg);
+  font-weight: var(--peso-semi);
   color: var(--marrom-900);
-  margin: 0 0 12px 0;
+  margin: 0 0 var(--espaco-4) 0;
+}
+
+/* Subtítulo no meio do cartão (ex.: "Histórico de alterações" depois do
+   formulário de recorrência): respiro acima para separar dos botões */
+.card-titulo:not(:first-child) {
+  margin-top: var(--espaco-5);
 }
 
 /* ==========================================================================
-   5. Botões
+   5–6. Botões e campos de formulário: ver formularios.css
    ========================================================================== */
-.btn-primario,
-.btn-secundario {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 14px 20px;
-  border-radius: var(--raio);
-  font-size: 16px;
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
-  border: 1.5px solid transparent;
-  text-align: center;
-}
-
-.btn-primario {
-  background-color: var(--marrom-900);
-  color: var(--branco);
-}
-
-.btn-primario:hover,
-.btn-primario:focus-visible {
-  background-color: var(--marrom-700);
-}
-
-.btn-primario:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.btn-secundario {
-  background-color: transparent;
-  color: var(--marrom-900);
-  border-color: var(--marrom-700);
-}
-
-.btn-secundario:hover,
-.btn-secundario:focus-visible {
-  background-color: var(--marrom-100);
-}
-
-/* ==========================================================================
-   6. Campos de formulário (.campo)
-   ========================================================================== */
-.campo {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
-}
-
-.campo label {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--texto);
-}
-
-.campo input {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--marrom-100);
-  border-radius: var(--raio);
-  font-size: 15px;
-  font-family: inherit;
-  color: var(--texto);
-  background-color: var(--branco);
-}
-
-.campo input:focus {
-  outline: none;
-  border-color: var(--marrom-700);
-}
 
 /* ==========================================================================
    7. Avisos (.aviso)
@@ -254,15 +170,17 @@ button {
 
 .marca {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: var(--espaco-6);
 }
 
+/* Logotipo maior na entrada do app (Etapa 7); fonte Fraunces em tipografia.css */
 .marca-logo {
-  font-size: 30px;
-  font-weight: 800;
+  font-size: calc(var(--texto-2xl) * 1.4);
+  font-weight: var(--peso-forte);
+  line-height: 1.1;
   color: var(--marrom-900);
-  letter-spacing: -0.01em;
-  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--espaco-2) 0;
 }
 
 .marca-logo span {
@@ -405,25 +323,8 @@ button {
 }
 
 /* ==========================================================================
-   12. Campo de ajuda e erro (.campo-ajuda / .erro-campo)
-   Texto de apoio abaixo de um campo e mensagem de erro de validação
-   client-side, associada ao campo correspondente. Usados tanto dentro de
-   um `.campo` (filho extra do flex column, ver seção 6) quanto soltos após
-   outros elementos (ex.: `.contato-principal-opcao` em ContatoFields) — por
-   isso usam margem positiva, nunca negativa, evitando sobrepor o elemento
-   anterior em qualquer um dos dois contextos.
+   12. Campo de ajuda e erro (.campo-ajuda / .erro-campo): ver formularios.css
    ========================================================================== */
-.campo-ajuda {
-  font-size: 12px;
-  color: var(--texto-suave);
-  margin: 0;
-}
-
-.erro-campo {
-  font-size: 12px;
-  color: var(--vermelho);
-  margin: 4px 0 0;
-}
 
 /* ==========================================================================
    13. Ficha do cliente (dados e contatos)
@@ -460,46 +361,33 @@ button {
 }
 
 /* ==========================================================================
-   14. Ações e confirmações (.acoes-linha / .confirmacao / .btn-perigo)
+   14. Ações e confirmações (.acoes-linha / .confirmacao)
    Grupo de botões lado a lado e cartão de confirmação para ações sensíveis
-   (inativar cliente, remover contato).
+   (inativar cliente, remover contato). O .btn-perigo está em formularios.css.
    ========================================================================== */
 .acoes-linha {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--espaco-2);
+  margin-top: var(--espaco-2);
 }
 
 .acoes-linha .btn-primario,
-.acoes-linha .btn-secundario {
+.acoes-linha .btn-secundario,
+.acoes-linha .btn-perigo {
   width: auto;
   flex: 1 1 auto;
-  padding: 10px 14px;
-  font-size: 14px;
+  min-height: 44px;
+  padding: var(--espaco-2) var(--espaco-4);
+  font-size: var(--texto-sm);
 }
 
 .confirmacao {
   background-color: var(--creme);
   border: 1px solid var(--marrom-100);
   border-radius: var(--raio);
-  padding: 12px 14px;
-  margin-top: 8px;
-}
-
-.btn-perigo {
-  color: var(--vermelho);
-  border-color: var(--vermelho);
-}
-
-.btn-perigo.btn-primario {
-  background-color: var(--vermelho);
-  color: var(--branco);
-}
-
-.btn-perigo.btn-secundario:hover,
-.btn-perigo.btn-secundario:focus-visible {
-  background-color: #fdecea;
+  padding: var(--espaco-3) var(--espaco-4);
+  margin-top: var(--espaco-2);
 }
 
 /* ==========================================================================
@@ -970,4 +858,29 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ==========================================================================
+   23. Estados vazios (.vazio)
+   Frase curta com um emoji à frente, no lugar de listas sem itens:
+     <p class="vazio"><span class="vazio-emoji" aria-hidden="true">🗂️</span>
+       <span>Nenhum cliente cadastrado ainda.</span></p>
+   O emoji é decorativo (aria-hidden); o texto fica num <span> próprio.
+   ========================================================================== */
+.vazio {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+  margin: 0 0 var(--espaco-3) 0;
+  padding: var(--espaco-3) var(--espaco-4);
+  border-radius: var(--raio);
+  background-color: var(--creme);
+  color: var(--texto-suave);
+  font-size: var(--texto-sm);
+}
+
+.vazio-emoji {
+  flex-shrink: 0;
+  font-size: var(--texto-lg);
+  line-height: 1;
 }

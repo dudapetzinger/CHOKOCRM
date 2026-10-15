@@ -1,0 +1,45 @@
+/* ChokoCRM — tipografia (Etapa 7).
+   Fraunces nos títulos, Manrope no texto; escala de tamanhos e pesos em
+   tokens.css. Corpo em 17 px (--texto-md), confortável no celular. */
+body {
+  font-family: var(--fonte-texto);
+  font-size: var(--texto-md);
+  font-weight: var(--peso-regular);
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+.card-titulo,
+.marca-logo {
+  font-family: var(--fonte-titulos);
+  font-weight: var(--peso-semi);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: var(--texto-xl);
+}
+
+h2 {
+  font-size: var(--texto-lg);
+}
+
+h3 {
+  font-size: var(--texto-md);
+}
+
+strong,
+b {
+  font-weight: var(--peso-forte);
+}
+
+/* Botões e controles de formulário herdam a fonte do texto */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}

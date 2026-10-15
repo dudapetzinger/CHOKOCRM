@@ -50,7 +50,10 @@ export function AgendaPage() {
         )}
 
         {!isLoading && !isError && data && semVisitas && (
-          <p className="aviso">Nenhuma visita atrasada ou prevista para hoje.</p>
+          <p className="vazio">
+            <span className="vazio-emoji" aria-hidden="true">🗓️</span>
+            <span>Nenhuma visita atrasada ou prevista para hoje.</span>
+          </p>
         )}
 
         {!isLoading && !isError && data && data.atrasadas.length > 0 && (

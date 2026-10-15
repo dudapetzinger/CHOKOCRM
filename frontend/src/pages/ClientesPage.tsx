@@ -78,10 +78,13 @@ export function ClientesPage() {
         )}
 
         {!isLoading && !isError && data && data.length === 0 && (
-          <p className="aviso">
-            {buscaAtrasada || cor
-              ? 'Nenhum cliente encontrado para esta busca ou filtro.'
-              : 'Nenhum cliente cadastrado ainda.'}
+          <p className="vazio">
+            <span className="vazio-emoji" aria-hidden="true">🗂️</span>
+            <span>
+              {buscaAtrasada || cor
+                ? 'Nenhum cliente encontrado para esta busca ou filtro.'
+                : 'Nenhum cliente cadastrado ainda.'}
+            </span>
           </p>
         )}
 
