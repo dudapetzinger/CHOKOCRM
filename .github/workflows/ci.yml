@@ -42,7 +42,13 @@ jobs:
         with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
       - run: npm ci
       - run: npm run lint
+      - run: npm test -- --coverage
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-frontend
+          path: frontend/coverage/lcov.info
+          if-no-files-found: error
   sonarcloud:
     # PR de fork não recebe SONAR_TOKEN: o job é pulado e o CI segue verde.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
@@ -58,6 +64,13 @@ jobs:
       # O jest grava `SF:src/...` (relativo a backend/); o scanner roda na raiz do repositório.
       - name: Reescrever caminhos do lcov relativos à raiz
         run: sed -i 's#^SF:#SF:backend/#' backend/coverage/lcov.info
+      - uses: actions/download-artifact@v4
+        with:
+          name: cobertura-frontend
+          path: frontend/coverage
+      # O vitest grava `SF:src/...` (relativo a frontend/), como o jest no backend.
+      - name: Reescrever caminhos do lcov do frontend relativos à raiz
+        run: sed -i 's#^SF:#SF:frontend/#' frontend/coverage/lcov.info
       - uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
