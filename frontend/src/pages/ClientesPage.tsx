@@ -1,19 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/useAuth';
-import { CORES, listClients, mensagemErroApi, ROTULO_COR, type Cor } from '../services/clients';
+import { listClients, mensagemErroApi, type ClienteListItem } from '../services/clients';
+import { AbasSituacao, CORES_DA_ABA, type Aba } from '../components/AbasSituacao';
 import { BadgeCor } from '../components/BadgeCor';
+import { EtiquetaSituacao } from '../components/EtiquetaSituacao';
+import { LegendaSituacao } from '../components/LegendaSituacao';
 import { NavInferior } from '../components/NavInferior';
+import { descreverSituacao } from '../lib/descreverSituacao';
 import { iniciais } from '../lib/iniciais';
+import { ordenarPorUrgencia } from '../lib/ordenarPorUrgencia';
 
 const ATRASO_BUSCA_MS = 300;
+
+function contarPorAba(clientes: readonly ClienteListItem[]): Record<Aba, number> {
+  const contar = (aba: Aba) => clientes.filter((cliente) => CORES_DA_ABA[aba].includes(cliente.cor)).length;
+  return {
+    PRIORIDADE: contar('PRIORIDADE'),
+    ATENCAO: contar('ATENCAO'),
+    EM_DIA: contar('EM_DIA'),
+    TODOS: clientes.length,
+  };
+}
 
 export function ClientesPage() {
   const { logout, user } = useAuth();
   const [busca, setBusca] = useState('');
   const [buscaAtrasada, setBuscaAtrasada] = useState('');
-  const [cor, setCor] = useState<Cor | null>(null);
+  // null até os dados chegarem pela primeira vez; depois, a escolha do usuário.
+  const [aba, setAba] = useState<Aba | null>(null);
+  // O seletor de representante do gestor chega na Task 8; por ora, a carteira toda.
+  const representanteId: string | undefined = undefined;
+  const ehGestor = user?.role === 'GESTOR';
 
   useEffect(() => {
     const timer = setTimeout(() => setBuscaAtrasada(busca.trim()), ATRASO_BUSCA_MS);
@@ -21,9 +40,33 @@ export function ClientesPage() {
   }, [busca]);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['clients', buscaAtrasada, cor],
-    queryFn: () => listClients({ search: buscaAtrasada || undefined, cor: cor ?? undefined }),
+    queryKey: ['clients', buscaAtrasada, representanteId],
+    queryFn: () => listClients({ search: buscaAtrasada || undefined, representanteId }),
   });
+
+  const contagens = useMemo(() => (data ? contarPorAba(data) : null), [data]);
+
+  // Aba inicial decidida uma vez, quando os dados chegam: Prioridade se
+  // houver alguém nela, senão Todos. Depois disso quem manda é o usuário.
+  if (aba === null && contagens) {
+    setAba(contagens.PRIORIDADE > 0 ? 'PRIORIDADE' : 'TODOS');
+  }
+
+  const visiveis = useMemo(() => {
+    if (!data || aba === null) {
+      return [];
+    }
+    return ordenarPorUrgencia(data.filter((cliente) => CORES_DA_ABA[aba].includes(cliente.cor)));
+  }, [data, aba]);
+
+  function mensagemVazia(): string {
+    if (data && data.length > 0) {
+      return 'Nenhum cliente nesta aba.';
+    }
+    return buscaAtrasada
+      ? 'Nenhum cliente encontrado para esta busca ou filtro.'
+      : 'Nenhum cliente cadastrado ainda.';
+  }
 
   return (
     <div className="container">
@@ -47,27 +90,12 @@ export function ClientesPage() {
           />
         </div>
 
-        <div className="filtro-cores">
-          <button
-            type="button"
-            className={`badge-pilula${cor === null ? ' ativo' : ''}`}
-            aria-pressed={cor === null}
-            onClick={() => setCor(null)}
-          >
-            Todas
-          </button>
-          {CORES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`badge-pilula${cor === c ? ' ativo' : ''}`}
-              aria-pressed={cor === c}
-              onClick={() => setCor(c)}
-            >
-              <span className={`badge-${c.toLowerCase()}`} aria-hidden="true" /> {ROTULO_COR[c]}
-            </button>
-          ))}
-        </div>
+        {contagens && aba !== null && (
+          <div className="situacao-barra">
+            <AbasSituacao valor={aba} onChange={setAba} contagens={contagens} />
+            <LegendaSituacao />
+          </div>
+        )}
 
         {isLoading && <p className="aviso">Carregando clientes...</p>}
 
@@ -77,26 +105,23 @@ export function ClientesPage() {
           </p>
         )}
 
-        {!isLoading && !isError && data && data.length === 0 && (
+        {!isLoading && !isError && data && visiveis.length === 0 && (
           <p className="vazio">
             <span className="vazio-emoji" aria-hidden="true">🗂️</span>
-            <span>
-              {buscaAtrasada || cor
-                ? 'Nenhum cliente encontrado para esta busca ou filtro.'
-                : 'Nenhum cliente cadastrado ainda.'}
-            </span>
+            <span>{mensagemVazia()}</span>
           </p>
         )}
 
-        {!isLoading && !isError && data && data.length > 0 && (
+        {!isLoading && !isError && visiveis.length > 0 && (
           <div className="lista">
-            {data.map((cliente) => (
+            {visiveis.map((cliente) => (
               <Link key={cliente.id} className="item-lista" to={`/clientes/${cliente.id}`}>
                 <span className="avatar">{iniciais(cliente.nomeFantasia)}</span>
                 <span className="info">
                   <span className="nome">{cliente.nomeFantasia}</span>
                   <span className="cidade">{cliente.cidade}</span>
-                  <span className="cidade">Rep.: {cliente.representante.nome}</span>
+                  <EtiquetaSituacao cor={cliente.cor} texto={descreverSituacao(cliente)} />
+                  {ehGestor && <span className="cidade">Rep.: {cliente.representante.nome}</span>}
                 </span>
                 <BadgeCor cor={cliente.cor} />
               </Link>

@@ -115,13 +115,20 @@ export type UpdateContatoInput = Partial<ContatoInput>;
 
 type ListClientsResponse = { data: ClienteListItem[] };
 
-export function listClients(params: { search?: string; cor?: Cor } = {}): Promise<ClienteListItem[]> {
+/**
+ * Lista a carteira inteira (o filtro por aba/cor é feito no cliente, ver
+ * ClientesPage). `representanteId` só faz efeito para o gestor; para o
+ * representante o backend sempre devolve a própria carteira.
+ */
+export function listClients(
+  params: { search?: string; representanteId?: string } = {},
+): Promise<ClienteListItem[]> {
   const query = new URLSearchParams();
   if (params.search) {
     query.set('search', params.search);
   }
-  if (params.cor) {
-    query.set('color', params.cor);
+  if (params.representanteId) {
+    query.set('representanteId', params.representanteId);
   }
   const qs = query.toString();
   return api.get<ListClientsResponse>(`/clients${qs ? `?${qs}` : ''}`).then((resposta) => resposta.data);

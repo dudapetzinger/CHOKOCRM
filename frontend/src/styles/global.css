@@ -262,6 +262,13 @@ p {
   color: var(--texto-suave);
 }
 
+/* Etiqueta de situação abaixo da cidade (seção 17): ocupa só a largura do
+   texto, não a linha toda da coluna. */
+.item-lista .info .etiqueta-situacao {
+  align-self: flex-start;
+  margin: var(--espaco-1) 0 2px;
+}
+
 /* ==========================================================================
    10. Botão flutuante ("+ Novo cliente")
    Réplica do botão flutuante do protótipo (docs/prototipo/clientes.html),
@@ -584,24 +591,107 @@ p {
   border-color: var(--marrom-700);
 }
 
-/* ==========================================================================
-   18. Filtro de cores (.filtro-cores)
-   Barra de pílulas de cor para filtrar a lista de clientes por
-   classificação (ver docs/prototipo/clientes.html).
-   ========================================================================== */
-.filtro-cores {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 2px 2px 6px;
-  margin-bottom: 4px;
+/* Etiqueta de situação (Etapa 7): pílula com o fundo suave da cor da
+   classificação e o texto pronto de lib/descreverSituacao.ts (os pares
+   --*-texto sobre --*-suave têm contraste AA). Uso
+   (components/EtiquetaSituacao.tsx):
+     <span class="etiqueta-situacao etiqueta-laranja">Vencendo · 16 dias sem visita</span> */
+.etiqueta-situacao {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px var(--espaco-2);
+  border-radius: var(--raio-pilula);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semi);
+  line-height: 1.4;
 }
 
-.filtro-cores .badge-pilula {
+.etiqueta-verde { background-color: var(--verde-suave); color: var(--verde-texto); }
+.etiqueta-amarelo { background-color: var(--amarelo-suave); color: var(--amarelo-texto); }
+.etiqueta-laranja { background-color: var(--laranja-suave); color: var(--laranja-texto); }
+.etiqueta-vermelho { background-color: var(--vermelho-suave); color: var(--vermelho-texto); }
+
+/* ==========================================================================
+   18. Abas de situação e legenda (.situacao-barra / .abas-situacao /
+   .legenda-situacao)
+   Na lista de clientes, as pílulas "Prioridade · Atenção · Em dia · Todos"
+   (components/AbasSituacao.tsx, com a contagem de cada aba) e, à direita,
+   o botão "?" que abre a régua das situações (components/LegendaSituacao.tsx,
+   um <details> cujo conteúdo flutua abaixo da barra). As pílulas quebram
+   linha se não couberem (no celular, 2 linhas), para as quatro contagens
+   ficarem visíveis sem rolagem; alvo de toque de 44 px.
+   ========================================================================== */
+.situacao-barra {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espaco-2);
+  margin-bottom: var(--espaco-2);
+}
+
+.abas-situacao {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-2);
+}
+
+.abas-situacao .badge-pilula {
   appearance: none;
   -webkit-appearance: none;
   margin: 0;
+  min-height: 44px;
+  padding: 0 var(--espaco-3);
+  cursor: pointer;
+}
+
+.legenda-situacao {
   flex-shrink: 0;
+}
+
+.legenda-situacao summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--raio-pilula);
+  border: 1px solid var(--marrom-100);
+  background-color: var(--branco);
+  color: var(--marrom-900);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-forte);
+  list-style: none;
+  cursor: pointer;
+}
+
+.legenda-situacao summary::-webkit-details-marker {
+  display: none;
+}
+
+.legenda-situacao[open] summary {
+  background-color: var(--marrom-100);
+  border-color: var(--marrom-700);
+}
+
+.legenda-situacao-texto {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 0;
+  padding: var(--espaco-3) var(--espaco-4) var(--espaco-3) var(--espaco-6);
+  background-color: var(--branco);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-2);
+  font-size: var(--texto-sm);
+  color: var(--texto);
+}
+
+.legenda-situacao-texto li + li {
+  margin-top: var(--espaco-1);
 }
 
 /* ==========================================================================
@@ -697,7 +787,7 @@ p {
    Pílulas "Próximos 30 · 60 · 90 · 180 dias" (components/FiltroHorizonte.tsx,
    ver docs/prototipo/painel.html) e os blocos de sugestão do card "Insights
    e sugestões" da ficha do cliente. As pílulas são <button>, então repetem o
-   reset de .filtro-cores (seção 18); o rótulo "Próximos" fica na mesma linha
+   reset de .abas-situacao (seção 18); o rótulo "Próximos" fica na mesma linha
    delas, sem a margem inferior do protótipo, onde ficava acima do grupo.
    ========================================================================== */
 .filtro-rotulo {
