@@ -4,7 +4,7 @@ import * as clientRepository from '../repositories/client.repository';
 import * as stockMessageRepository from '../repositories/stock-message.repository';
 import * as userRepository from '../repositories/user.repository';
 import type { GerarMensagemInput } from '../schemas/stock-message.schema';
-import { exigirClienteDaCarteira, type UsuarioAutenticado } from './client.service';
+import { exigirClienteDaCarteira, representanteEfetivo, type UsuarioAutenticado } from './carteira';
 import { eventoVigente } from './seasonal-event.service';
 import { montarLinkWhatsapp, montarMensagemDeEstoque, normalizarTelefone } from './stock-message.template';
 
@@ -185,8 +185,15 @@ export async function gerar(
   };
 }
 
-/** Histórico de mensagens geradas (UC12), mais recente primeiro. */
-export async function listar(filtro: { clientId?: string }): Promise<StockMessageDTO[]> {
-  const registros = await stockMessageRepository.list(filtro);
+/**
+ * Histórico de mensagens geradas (UC12), mais recente primeiro. O
+ * representante vê só as de clientes da própria carteira (mesmo com
+ * `clientId` de outra carteira, que devolve lista vazia); o gestor, todas.
+ */
+export async function listar(filtro: { clientId?: string }, usuario: UsuarioAutenticado): Promise<StockMessageDTO[]> {
+  const registros = await stockMessageRepository.list({
+    clientId: filtro.clientId,
+    representanteId: representanteEfetivo(usuario),
+  });
   return registros.map(paraStockMessageDTO);
 }

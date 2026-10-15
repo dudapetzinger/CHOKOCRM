@@ -117,6 +117,16 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
+/** Cria outro usuário (representante de outra carteira, ou gestor) e devolve o token dele. */
+async function logarOutroUsuario(role: 'REPRESENTANTE' | 'GESTOR'): Promise<string> {
+  const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+  const email = `${role.toLowerCase()}.outro.contacts-teste@chokolaten.com.br`;
+  await prisma.user.create({ data: { nome: `Outro ${role}`, email, role, senhaHash } });
+
+  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+  return login.body.token;
+}
+
 function payloadContatoNovo(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     nome: 'Cláudia Petry',
@@ -145,6 +155,20 @@ describe('POST /clients/:id/contacts', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('representante de outra carteira responde 403 e nada é gravado', async () => {
+    const id = await idDoClientePorNomeFantasia('Padaria Itoupava');
+    const tokenOutro = await logarOutroUsuario('REPRESENTANTE');
+
+    const res = await request(app)
+      .post(`/clients/${id}/contacts`)
+      .set('Authorization', `Bearer ${tokenOutro}`)
+      .send(payloadContatoNovo());
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.message).toBe('Cliente de outra carteira.');
+    expect(await prisma.contact.count({ where: { clientId: id } })).toBe(2);
   });
 
   it('dados inválidos (email ausente) responde 400 VALIDATION_ERROR', async () => {
@@ -233,6 +257,34 @@ describe('PUT /contacts/:id', () => {
     expect(res.body.principal).toBe(false);
   });
 
+  it('representante de outra carteira responde 403 e o contato não muda', async () => {
+    const contato = await contatoDoClientePorNome('Ricardo Lenz');
+    const tokenOutro = await logarOutroUsuario('REPRESENTANTE');
+
+    const res = await request(app)
+      .put(`/contacts/${contato.id}`)
+      .set('Authorization', `Bearer ${tokenOutro}`)
+      .send({ cargo: 'Cargo alterado por outra carteira' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.message).toBe('Cliente de outra carteira.');
+    const intacto = await prisma.contact.findUniqueOrThrow({ where: { id: contato.id } });
+    expect(intacto.cargo).toBe('Gerente');
+  });
+
+  it('gestor continua alterando contato de qualquer carteira', async () => {
+    const contato = await contatoDoClientePorNome('Ricardo Lenz');
+    const tokenGestor = await logarOutroUsuario('GESTOR');
+
+    const res = await request(app)
+      .put(`/contacts/${contato.id}`)
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .send({ cargo: 'Gerente Comercial' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.cargo).toBe('Gerente Comercial');
+  });
+
   it('promove contato secundário a principal e rebaixa o anterior na mesma transação', async () => {
     const secundario = await contatoDoClientePorNome('Ricardo Lenz');
 
@@ -280,6 +332,17 @@ describe('DELETE /contacts/:id', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('representante de outra carteira responde 403 e o contato continua lá', async () => {
+    const contato = await contatoDoClientePorNome('Ricardo Lenz');
+    const tokenOutro = await logarOutroUsuario('REPRESENTANTE');
+
+    const res = await request(app).delete(`/contacts/${contato.id}`).set('Authorization', `Bearer ${tokenOutro}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.message).toBe('Cliente de outra carteira.');
+    expect(await prisma.contact.findUnique({ where: { id: contato.id } })).not.toBeNull();
   });
 
   it('exclui contato secundário e responde 204', async () => {

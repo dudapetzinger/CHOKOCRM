@@ -30,8 +30,14 @@ export async function listByClient(clientId: string): Promise<VisitComRelacoes[]
   });
 }
 
-export async function findById(id: string): Promise<VisitComRelacoes | null> {
-  return prisma.visit.findUnique({ where: { id }, include: INCLUDE_RELACOES });
+export type VisitComCarteira = VisitComRelacoes & { client: { representanteId: string } };
+
+/** Visita com a carteira do cliente, para a regra de carteira nas rotas por id. */
+export async function findById(id: string): Promise<VisitComCarteira | null> {
+  return prisma.visit.findUnique({
+    where: { id },
+    include: { ...INCLUDE_RELACOES, client: { select: { representanteId: true } } },
+  });
 }
 
 export async function updateDescricao(id: string, descricao: string): Promise<VisitComRelacoes> {
@@ -51,13 +57,19 @@ export async function contatoPertenceAoCliente(contactId: string, clientId: stri
   return contato !== null;
 }
 
-/** Visitas do período para os indicadores do painel (UC14): só o que as regras usam; `dataHora` entre `inicio` e `fim`, inclusive. */
+/**
+ * Visitas do período para os indicadores do painel (UC14): só o que as regras
+ * usam; `dataHora` entre `inicio` e `fim`, inclusive. Com `representanteId`,
+ * só visitas a clientes da carteira dele (a carteira do cliente, não o autor
+ * da visita).
+ */
 export async function listNoPeriodo(
   inicio: Date,
   fim: Date,
+  representanteId?: string,
 ): Promise<{ clientId: string; resultado: ResultadoVisita; dataHora: Date }[]> {
   return prisma.visit.findMany({
-    where: { dataHora: { gte: inicio, lte: fim } },
+    where: { dataHora: { gte: inicio, lte: fim }, ...(representanteId ? { client: { representanteId } } : {}) },
     select: { clientId: true, resultado: true, dataHora: true },
   });
 }

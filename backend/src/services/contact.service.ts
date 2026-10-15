@@ -4,6 +4,7 @@ import { ErrorCode } from '../errors/errorCodes';
 import * as clientRepository from '../repositories/client.repository';
 import * as contactRepository from '../repositories/contact.repository';
 import type { CreateContactInput, UpdateContactInput } from '../schemas/contact.schema';
+import { exigirClienteDaCarteira, type UsuarioAutenticado } from './carteira';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CONTATO_NAO_ENCONTRADO = 'Contato não encontrado.';
@@ -30,21 +31,38 @@ function toDTO(contact: Contact): ContatoDTO {
   };
 }
 
-export async function createContact(clientId: string, input: CreateContactInput): Promise<ContatoDTO> {
+/**
+ * Escrita de contatos segue a regra de carteira: cliente (ou contato)
+ * existe (404) -> o cliente é da carteira do representante (403) -> regras
+ * do contato principal (409). O gestor segue podendo alterar qualquer um.
+ */
+export async function createContact(
+  clientId: string,
+  usuario: UsuarioAutenticado,
+  input: CreateContactInput,
+): Promise<ContatoDTO> {
   const cliente = await clientRepository.findById(clientId);
   if (!cliente) {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
   }
 
+  exigirClienteDaCarteira(cliente, usuario);
+
   const contato = await contactRepository.createPromovendoPrincipal(clientId, input);
   return toDTO(contato);
 }
 
-export async function updateContact(id: string, input: UpdateContactInput): Promise<ContatoDTO> {
+export async function updateContact(
+  id: string,
+  usuario: UsuarioAutenticado,
+  input: UpdateContactInput,
+): Promise<ContatoDTO> {
   const existente = await contactRepository.findById(id);
   if (!existente) {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CONTATO_NAO_ENCONTRADO, 404);
   }
+
+  exigirClienteDaCarteira(existente.client, usuario);
 
   if (existente.principal && input.principal === false) {
     throw new AppError(ErrorCode.PRINCIPAL_OBRIGATORIO, MENSAGEM_PRINCIPAL_OBRIGATORIO, 409);
@@ -54,11 +72,13 @@ export async function updateContact(id: string, input: UpdateContactInput): Prom
   return toDTO(atualizado);
 }
 
-export async function deleteContact(id: string): Promise<void> {
+export async function deleteContact(id: string, usuario: UsuarioAutenticado): Promise<void> {
   const existente = await contactRepository.findById(id);
   if (!existente) {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CONTATO_NAO_ENCONTRADO, 404);
   }
+
+  exigirClienteDaCarteira(existente.client, usuario);
 
   if (existente.principal) {
     throw new AppError(ErrorCode.PRINCIPAL_OBRIGATORIO, MENSAGEM_PRINCIPAL_OBRIGATORIO, 409);

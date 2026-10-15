@@ -1,5 +1,3 @@
-import { AppError } from '../errors/AppError';
-import { ErrorCode } from '../errors/errorCodes';
 import { erpProvider } from '../providers/erp';
 import {
   ErpIndisponivelError,
@@ -11,9 +9,10 @@ import {
 } from '../providers/erp/ErpProvider';
 import * as clientRepository from '../repositories/client.repository';
 import { logger } from '../lib/logger';
+// De `carteira`, não de `client.service`: este depende daqui (`consultarUltimasVendas`).
+import { exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
 import { dataCalendario, fimDoDia, inicioDoDia, somarDias } from './classificacao.service';
 
-const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const DIAS_DE_VOLUME = 90;
 
 /**
@@ -189,14 +188,16 @@ export function resumirEstoque(historico: StockSnapshot[]): ResumoEstoque | null
 
 /**
  * Dados de venda/estoque do cliente no ERP (UC11): busca o cliente, resolve
- * o `erpId` e consulta o provedor. Qualquer `ErpIndisponivelError` vira
+ * o `erpId` e consulta o provedor. Cliente de outra carteira responde ao
+ * representante como inexistente (404). Qualquer `ErpIndisponivelError` vira
  * `{ status: 'INDISPONIVEL' }` — outros erros propagam para o errorHandler.
  */
-export async function obterDadosErp(clientId: string, hoje: Date = new Date()): Promise<DadosErpDTO> {
-  const cliente = await clientRepository.findById(clientId);
-  if (!cliente) {
-    throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
-  }
+export async function obterDadosErp(
+  clientId: string,
+  usuario: UsuarioAutenticado,
+  hoje: Date = new Date(),
+): Promise<DadosErpDTO> {
+  const cliente = exigirClienteVisivel(await clientRepository.findById(clientId), usuario);
 
   if (!cliente.erpId) {
     return { status: 'SEM_ERP_ID' };

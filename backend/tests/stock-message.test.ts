@@ -549,6 +549,42 @@ describe('GET /stock-messages', () => {
     expect(res.body.data[0].cliente.id).toBe(clienteAtivoId);
   });
 
+  it('representante lista só as mensagens de clientes da própria carteira, inclusive com ?clientId', async () => {
+    const mensagemAtivo = await prisma.stockMessage.create({
+      data: {
+        clientId: clienteAtivoId,
+        userId: representanteId,
+        textoFinal: 'Mensagem do cliente ativo',
+        dataGeracao: new Date('2026-01-01T12:00:00Z'),
+      },
+    });
+    const mensagemOutro = await prisma.stockMessage.create({
+      data: {
+        clientId: clienteOutroId,
+        userId: representanteId,
+        textoFinal: 'Mensagem do cliente que muda de carteira',
+        dataGeracao: new Date('2026-01-02T12:00:00Z'),
+      },
+    });
+    const tokenOutro = await logarOutroRepresentante();
+    const outro = await prisma.user.findUniqueOrThrow({ where: { email: 'outro.stock-message-teste@chokolaten.com.br' } });
+    await prisma.client.update({ where: { id: clienteOutroId }, data: { representanteId: outro.id } });
+
+    const resA = await request(app).get('/stock-messages').set('Authorization', `Bearer ${token}`);
+    const resOutro = await request(app).get('/stock-messages').set('Authorization', `Bearer ${tokenOutro}`);
+    const resOutroFiltrado = await request(app)
+      .get(`/stock-messages?clientId=${clienteAtivoId}`)
+      .set('Authorization', `Bearer ${tokenOutro}`);
+
+    expect(resA.status).toBe(200);
+    expect(resA.body.data.map((m: { id: string }) => m.id)).toEqual([mensagemAtivo.id]);
+    // A carteira é a do cliente, não a do autor: a mensagem de A vai junto com o cliente transferido.
+    expect(resOutro.status).toBe(200);
+    expect(resOutro.body.data.map((m: { id: string }) => m.id)).toEqual([mensagemOutro.id]);
+    expect(resOutroFiltrado.status).toBe(200);
+    expect(resOutroFiltrado.body.data).toEqual([]);
+  });
+
   it('?clientId inválido 400', async () => {
     const res = await request(app)
       .get('/stock-messages?clientId=nao-eh-uuid')

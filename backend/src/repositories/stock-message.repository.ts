@@ -21,19 +21,37 @@ export async function create(data: CreateStockMessageData): Promise<StockMessage
   return prisma.stockMessage.create({ data, include: INCLUDE_RELACOES });
 }
 
-/** Histórico de mensagens geradas (UC12): mais recente primeiro, opcionalmente filtrado por cliente. */
-export async function list(filtro: { clientId?: string }): Promise<StockMessageComRelacoes[]> {
+/**
+ * Histórico de mensagens geradas (UC12): mais recente primeiro, opcionalmente
+ * filtrado por cliente e/ou pela carteira (`Client.representanteId`) do
+ * cliente.
+ */
+export async function list(filtro: {
+  clientId?: string;
+  representanteId?: string;
+}): Promise<StockMessageComRelacoes[]> {
   return prisma.stockMessage.findMany({
-    where: filtro.clientId ? { clientId: filtro.clientId } : undefined,
+    where: {
+      ...(filtro.clientId ? { clientId: filtro.clientId } : {}),
+      ...(filtro.representanteId ? { client: { representanteId: filtro.representanteId } } : {}),
+    },
     include: INCLUDE_RELACOES,
     orderBy: { dataGeracao: 'desc' },
   });
 }
 
-/** Mensagens geradas no período, só com o cliente (indicadores do painel, UC14); `dataGeracao` entre `inicio` e `fim`, inclusive. */
-export async function listNoPeriodo(inicio: Date, fim: Date): Promise<{ clientId: string }[]> {
+/**
+ * Mensagens geradas no período, só com o cliente (indicadores do painel,
+ * UC14); `dataGeracao` entre `inicio` e `fim`, inclusive. Com
+ * `representanteId`, só mensagens a clientes da carteira dele.
+ */
+export async function listNoPeriodo(
+  inicio: Date,
+  fim: Date,
+  representanteId?: string,
+): Promise<{ clientId: string }[]> {
   return prisma.stockMessage.findMany({
-    where: { dataGeracao: { gte: inicio, lte: fim } },
+    where: { dataGeracao: { gte: inicio, lte: fim }, ...(representanteId ? { client: { representanteId } } : {}) },
     select: { clientId: true },
   });
 }

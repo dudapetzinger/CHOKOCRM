@@ -39,6 +39,8 @@ import { obterAlertasDeProducao, obterInsights, type InsightsDTO } from '../src/
 
 const HOJE = new Date('2026-10-07T12:00:00Z');
 const CLIENTE_ID = 'cliente-1';
+/** A regra de carteira não barra o gestor; os casos de carteira estão em `insights.test.ts`. */
+const GESTOR = { id: 'gestor-1', role: 'GESTOR' as const };
 
 /** Linha de `SeasonalEvent` como o Prisma devolve: colunas `@db.Date` à meia-noite UTC. */
 function eventoDoBanco(id: string, nome: string, chave: EventoSazonal, dataFim: string): SeasonalEvent {
@@ -71,6 +73,7 @@ function clienteAtivo(id: string, erpId: string | null): ClienteParaAgenda {
     recorrenciaDias: 15,
     erpId,
     visits: [],
+    representante: { id: 'rep-1', nome: 'Representante' },
   };
 }
 
@@ -156,14 +159,14 @@ describe('obterInsights', () => {
   it('404 cliente inexistente; SEM_ERP_ID sem erpId', async () => {
     findById.mockResolvedValueOnce(null);
 
-    const erro = await obterInsights('nao-existe', 90, HOJE).catch((err: unknown) => err);
+    const erro = await obterInsights('nao-existe', GESTOR, 90, HOJE).catch((err: unknown) => err);
 
     expect(erro).toBeInstanceOf(AppError);
     expect(erro).toMatchObject({ code: ErrorCode.NOT_FOUND, statusCode: 404, message: 'Cliente não encontrado.' });
 
     findById.mockResolvedValueOnce(clienteDaFicha(null));
 
-    await expect(obterInsights(CLIENTE_ID, 90, HOJE)).resolves.toEqual({ status: 'SEM_ERP_ID' });
+    await expect(obterInsights(CLIENTE_ID, GESTOR, 90, HOJE)).resolves.toEqual({ status: 'SEM_ERP_ID' });
     expect(findById).toHaveBeenCalledWith(CLIENTE_ID);
     expect(findNoIntervalo).not.toHaveBeenCalled();
     expect(consultarVendas).not.toHaveBeenCalled();
@@ -173,7 +176,7 @@ describe('obterInsights', () => {
     findById.mockResolvedValue(clienteDaFicha('ERP-1001'));
     findNoIntervalo.mockResolvedValue([]);
 
-    await expect(obterInsights(CLIENTE_ID, 90, HOJE)).resolves.toEqual({
+    await expect(obterInsights(CLIENTE_ID, GESTOR, 90, HOJE)).resolves.toEqual({
       status: 'OK',
       simulado: true,
       horizonteDias: 90,
@@ -189,7 +192,7 @@ describe('obterInsights', () => {
     findNoIntervalo.mockResolvedValue([NATAL_2026]);
     vendasDoMock(HOJE);
 
-    const resultado = await obterInsights(CLIENTE_ID, 90, HOJE);
+    const resultado = await obterInsights(CLIENTE_ID, GESTOR, 90, HOJE);
 
     expect(consultarVendas).toHaveBeenCalledTimes(1);
     expect(consultarVendas).toHaveBeenCalledWith('ERP-1001', {
@@ -241,7 +244,7 @@ describe('obterInsights', () => {
       { data: new Date('2025-12-01T12:00:00Z'), valor: 101.58, produtos: [{ sku: 'CX-PRESENTE', nome: 'Caixa presente sortida', quantidade: 3 }] },
     ]);
 
-    const [sugestao] = sugestoesDe(await obterInsights(CLIENTE_ID, 90, HOJE));
+    const [sugestao] = sugestoesDe(await obterInsights(CLIENTE_ID, GESTOR, 90, HOJE));
 
     expect(acaoPorVariacao(0.19603)).toBe('CRIAR_PROMOCAO'); // sem arredondar, a ação discordaria do número exibido
     expect(sugestao).toMatchObject({
@@ -261,7 +264,7 @@ describe('obterInsights', () => {
     findNoIntervalo.mockResolvedValue([NAMORADOS_2027, MAES_2027]);
     vendasDoMock(hoje);
 
-    const resultado = await obterInsights(CLIENTE_ID, 180, hoje);
+    const resultado = await obterInsights(CLIENTE_ID, GESTOR, 180, hoje);
 
     // Base do Dia das Mães 2026 (10/05) começa em 2025-04-10; janela dos Namorados 2026 termina em 2026-06-12.
     expect(consultarVendas).toHaveBeenCalledTimes(1);
@@ -294,7 +297,7 @@ describe('obterInsights', () => {
     findNoIntervalo.mockResolvedValue([PASCOA_2027, NATAL_2026]);
     vendasDoMock(HOJE);
 
-    await expect(obterInsights(CLIENTE_ID, 180, HOJE)).resolves.toEqual({
+    await expect(obterInsights(CLIENTE_ID, GESTOR, 180, HOJE)).resolves.toEqual({
       status: 'OK',
       simulado: true,
       horizonteDias: 180,
@@ -312,7 +315,7 @@ describe('obterInsights', () => {
     findNoIntervalo.mockResolvedValue([NATAL_2026]);
     consultarVendas.mockResolvedValue(null);
 
-    await expect(obterInsights(CLIENTE_ID, 90, HOJE)).resolves.toEqual({ status: 'INDISPONIVEL' });
+    await expect(obterInsights(CLIENTE_ID, GESTOR, 90, HOJE)).resolves.toEqual({ status: 'INDISPONIVEL' });
   });
 
   it('simulado reflete erpSimulado()', async () => {
@@ -320,10 +323,10 @@ describe('obterInsights', () => {
     findNoIntervalo.mockResolvedValue([]);
 
     erpSimulado.mockReturnValue(false);
-    await expect(obterInsights(CLIENTE_ID, 90, HOJE)).resolves.toMatchObject({ status: 'OK', simulado: false });
+    await expect(obterInsights(CLIENTE_ID, GESTOR, 90, HOJE)).resolves.toMatchObject({ status: 'OK', simulado: false });
 
     erpSimulado.mockReturnValue(true);
-    await expect(obterInsights(CLIENTE_ID, 90, HOJE)).resolves.toMatchObject({ status: 'OK', simulado: true });
+    await expect(obterInsights(CLIENTE_ID, GESTOR, 90, HOJE)).resolves.toMatchObject({ status: 'OK', simulado: true });
   });
 });
 
@@ -365,7 +368,7 @@ describe('obterAlertasDeProducao', () => {
 
     const resultado = await obterAlertasDeProducao(90, HOJE);
 
-    expect(listAtivosParaAgenda).toHaveBeenCalledWith();
+    expect(listAtivosParaAgenda).toHaveBeenCalledWith(undefined);
     expect(consultarItensBaixosEmLote).toHaveBeenCalledTimes(1);
     expect(consultarItensBaixosEmLote).toHaveBeenCalledWith(['ERP-1001', 'ERP-1002', 'ERP-1003', 'ERP-1002']);
     expect(resultado.clientesConsultados).toBe(4);
@@ -397,6 +400,16 @@ describe('obterAlertasDeProducao', () => {
         ],
       },
     ]);
+  });
+
+  it('com representanteId lista só os clientes ativos daquela carteira', async () => {
+    findNoIntervalo.mockResolvedValue([NATAL_2026]);
+    listAtivosParaAgenda.mockResolvedValue([]);
+    consultarItensBaixosEmLote.mockResolvedValue({ itensPorErpId: new Map(), indisponiveis: [] });
+
+    await obterAlertasDeProducao(90, HOJE, 'rep-b');
+
+    expect(listAtivosParaAgenda).toHaveBeenCalledWith('rep-b');
   });
 
   it('eventos do horizonte vêm com produtosSugeridos e dataEvento AAAA-MM-DD', async () => {

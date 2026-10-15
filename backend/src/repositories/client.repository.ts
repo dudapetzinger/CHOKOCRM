@@ -36,12 +36,15 @@ export type ClienteParaAgenda = {
   recorrenciaDias: number;
   erpId: string | null;
   visits: { dataHora: Date; resultado: ResultadoVisita }[];
+  /** Dono da carteira, exibido nos itens da agenda. */
+  representante: { id: string; nome: string };
 };
 
 /**
- * Clientes ativos elegíveis para a agenda do dia (UC10): sem
- * `representanteId`, todos os representantes (visão do gestor); com
- * `representanteId`, só a carteira daquele representante.
+ * Clientes ativos elegíveis para a agenda do dia (UC10), também base dos
+ * indicadores (UC14) e dos alertas (UC15): sem `representanteId`, todos os
+ * representantes (visão do gestor); com `representanteId`, só a carteira
+ * daquele representante.
  */
 export async function listAtivosParaAgenda(representanteId?: string): Promise<ClienteParaAgenda[]> {
   return prisma.client.findMany({
@@ -54,6 +57,7 @@ export async function listAtivosParaAgenda(representanteId?: string): Promise<Cl
       recorrenciaDias: true,
       erpId: true,
       visits: SELECT_ULTIMA_VISITA,
+      representante: { select: { id: true, nome: true } },
     },
   });
 }

@@ -78,10 +78,19 @@ export const updateClientSchema = z
 
 export type UpdateClientInput = z.infer<typeof updateClientSchema>;
 
+/**
+ * Filtro `?representanteId=` das visões agregadas (lista de clientes,
+ * agenda, indicadores, alertas). Só o gestor o usa de fato; para o
+ * representante o service ignora o valor (ver `representanteEfetivo`), mas
+ * o formato é validado para todos.
+ */
+export const representanteIdFiltroSchema = z.string().uuid('Identificador do representante inválido.').optional();
+
 export const listClientsQuerySchema = z.object({
   search: z.string().trim().min(1).optional(),
   ativo: z.string().optional(),
   color: z.enum(CORES, { message: 'Cor deve ser VERDE, AMARELO, LARANJA ou VERMELHO.' }).optional(),
+  representanteId: representanteIdFiltroSchema,
 });
 
 export type ListClientsQuery = z.infer<typeof listClientsQuerySchema>;

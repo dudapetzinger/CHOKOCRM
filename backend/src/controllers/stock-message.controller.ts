@@ -33,11 +33,11 @@ export async function postStockMessage(req: Request, res: Response, next: NextFu
   }
 }
 
-/** `GET /stock-messages?clientId=` — histórico global, sem filtro de carteira. */
+/** `GET /stock-messages?clientId=` — histórico global para o gestor; o representante vê só a própria carteira. */
 export async function getStockMessages(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = listarQuerySchema.parse(req.query);
-    const data = await stockMessageService.listar(query);
+    const data = await stockMessageService.listar(query, usuarioAutenticado(req));
     res.status(200).json({ data });
   } catch (err) {
     next(err);

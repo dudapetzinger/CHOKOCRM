@@ -18,6 +18,8 @@ export type AgendaItem = {
   proximaVisita: DataCalendario;
   diasAtraso: number;
   rebaixadoPorVenda: boolean;
+  /** Dono da carteira do cliente (não o autor da última visita). */
+  representante: { id: string; nome: string };
 };
 
 export type Agenda = { atrasadas: AgendaItem[]; hoje: AgendaItem[] };
@@ -77,6 +79,7 @@ export function montarAgenda(
       proximaVisita,
       diasAtraso,
       rebaixadoPorVenda,
+      representante: cliente.representante,
     };
 
     if (diasAtraso > 0) {

@@ -37,13 +37,22 @@ export type KpisDTO = {
   simulado: boolean;
 };
 
-export async function obterKpis(periodoDias: number, hoje: Date = new Date()): Promise<KpisDTO> {
+/**
+ * Com `representanteId`, todos os números se restringem à carteira daquele
+ * representante: clientes ativos dele e visitas/mensagens a esses clientes
+ * (a carteira do cliente decide, não o autor). Sem ele, a empresa toda.
+ */
+export async function obterKpis(
+  periodoDias: number,
+  hoje: Date = new Date(),
+  representanteId?: string,
+): Promise<KpisDTO> {
   const { inicio, fim } = periodoDeAnalise(dataCalendario(hoje), periodoDias);
 
   const [visitas, mensagens, ativos] = await Promise.all([
-    visitRepository.listNoPeriodo(inicioDoDia(inicio), fimDoDia(fim)),
-    stockMessageRepository.listNoPeriodo(inicioDoDia(inicio), fimDoDia(fim)),
-    clientRepository.listAtivosParaAgenda(),
+    visitRepository.listNoPeriodo(inicioDoDia(inicio), fimDoDia(fim), representanteId),
+    stockMessageRepository.listNoPeriodo(inicioDoDia(inicio), fimDoDia(fim), representanteId),
+    clientRepository.listAtivosParaAgenda(representanteId),
   ]);
 
   const ultimasVendas = await consultarUltimasVendas(ativos.map((cliente) => cliente.erpId));

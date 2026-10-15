@@ -16,7 +16,7 @@ const TIPOS_DE_IMAGEM_ACEITOS = ['image/jpeg', 'image/png', 'image/webp'];
 export async function getVisitsByClient(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const clientId = idParamSchema.parse(req.params.id);
-    const data = await visitService.listVisitsByClient(clientId);
+    const data = await visitService.listVisitsByClient(clientId, usuarioAutenticado(req));
     res.status(200).json({ data });
   } catch (err) {
     next(err);
@@ -42,7 +42,7 @@ export async function patchVisit(req: Request, res: Response, next: NextFunction
     const input = updateVisitSchema.parse(req.body);
     const usuario = usuarioAutenticado(req);
 
-    const visita = await visitService.updateDescricao(visitId, usuario.id, input);
+    const visita = await visitService.updateDescricao(visitId, usuario, input);
     res.status(200).json(visita);
   } catch (err) {
     next(err);
@@ -65,7 +65,7 @@ export async function putVisitFoto(req: Request, res: Response, next: NextFuncti
       throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_CORPO_VAZIO, 400);
     }
 
-    const visita = await visitService.anexarFoto(visitId, usuario.id, req.body);
+    const visita = await visitService.anexarFoto(visitId, usuario, req.body);
     res.status(200).json(visita);
   } catch (err) {
     next(err);
@@ -75,7 +75,7 @@ export async function putVisitFoto(req: Request, res: Response, next: NextFuncti
 export async function getVisitFoto(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const visitId = idParamSchema.parse(req.params.id);
-    const { conteudo, contentType } = await visitService.lerFoto(visitId);
+    const { conteudo, contentType } = await visitService.lerFoto(visitId, usuarioAutenticado(req));
 
     res.status(200).type(contentType).set('Cache-Control', 'private, max-age=3600').send(conteudo);
   } catch (err) {

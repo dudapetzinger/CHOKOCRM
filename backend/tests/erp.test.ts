@@ -118,6 +118,21 @@ describe('GET /clients/:id/erp', () => {
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
+  it('representante de outra carteira recebe 404, como cliente inexistente', async () => {
+    const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+    await prisma.user.create({
+      data: { nome: 'Outro Representante', email: 'outro.erp-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    });
+    const tokenOutro = await logar('outro.erp-teste@chokolaten.com.br');
+
+    const res = await request(app)
+      .get(`/clients/${clienteConhecidoId}/erp`)
+      .set('Authorization', `Bearer ${tokenOutro}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toBe('Cliente não encontrado.');
+  });
+
   it('cliente sem erpId responde 200 SEM_ERP_ID', async () => {
     const res = await request(app)
       .get(`/clients/${clienteSemErpIdId}/erp`)
@@ -192,7 +207,7 @@ describe('GET /clients/:id/erp', () => {
     const hojeCal = dataCalendario(hoje);
     const espiaoVolume = jest.spyOn(erpProvider, 'getPurchaseVolume');
 
-    await erpService.obterDadosErp(clienteConhecidoId, hoje);
+    await erpService.obterDadosErp(clienteConhecidoId, { id: representanteId, role: 'REPRESENTANTE' }, hoje);
 
     expect(espiaoVolume).toHaveBeenCalledWith('ERP-1001', {
       inicio: inicioDoDia(somarDias(hojeCal, -90)),
@@ -327,7 +342,7 @@ describe('erp.service — consultas para insights', () => {
       .spyOn(erpProvider, 'getStockHistory')
       .mockResolvedValueOnce([snapshot('2026-09-01', 'C', 4, 'BAIXO'), snapshot('2026-09-01', 'D', 30, 'NORMAL')]);
 
-    const dados = await erpService.obterDadosErp(clienteConhecidoId);
+    const dados = await erpService.obterDadosErp(clienteConhecidoId, { id: representanteId, role: 'REPRESENTANTE' });
 
     expect(dados.status).toBe('OK');
     expect(dados.status === 'OK' && dados.estoque).toEqual({

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import type { ResultadoVisita } from '@prisma/client';
@@ -202,12 +203,12 @@ async function criarVisita(clienteId: string, diasAtras: number, resultado: Resu
  * testes da regra de carteira (o representante principal fica com os
  * três clientes do `beforeEach`).
  */
-async function criarOutraCarteira(): Promise<{ tokenOutro: string; clienteOutroId: string }> {
+async function criarOutraCarteira(): Promise<{ tokenOutro: string; clienteOutroId: string; outroId: string }> {
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
   const outro = await prisma.user.create({ data: { ...OUTRO_REPRESENTANTE, senhaHash } });
   const clienteOutroId = await criarClienteFixture(CLIENTE_GASPAR, outro.id);
 
-  return { tokenOutro: await logar(OUTRO_REPRESENTANTE.email), clienteOutroId };
+  return { tokenOutro: await logar(OUTRO_REPRESENTANTE.email), clienteOutroId, outroId: outro.id };
 }
 
 function idsDaLista(body: { data: { id: string }[] }): string[] {
@@ -484,6 +485,54 @@ describe('GET /clients', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.some((c: { nomeFantasia: string }) => c.nomeFantasia === 'Empório Pomerode')).toBe(true);
+  });
+});
+
+describe('GET /clients com representanteId', () => {
+  it('gestor com ?representanteId=<B> lista só a carteira de B', async () => {
+    const { clienteOutroId, outroId } = await criarOutraCarteira();
+
+    const res = await request(app)
+      .get('/clients')
+      .query({ representanteId: outroId })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(idsDaLista(res.body)).toEqual([clienteOutroId]);
+  });
+
+  it('gestor com representanteId de usuário inexistente recebe lista vazia', async () => {
+    const res = await request(app)
+      .get('/clients')
+      .query({ representanteId: randomUUID() })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+
+  it('representante A com ?representanteId=<B> continua vendo a própria carteira', async () => {
+    const { outroId } = await criarOutraCarteira();
+    const blumenauId = await idDoClientePorNomeFantasia('Café Blumenau');
+    const pomerodeId = await idDoClientePorNomeFantasia('Empório Pomerode');
+
+    const res = await request(app)
+      .get('/clients')
+      .query({ representanteId: outroId })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(idsDaLista(res.body)).toEqual([blumenauId, pomerodeId]);
+  });
+
+  it('representanteId que não é uuid responde 400 VALIDATION_ERROR', async () => {
+    const res = await request(app)
+      .get('/clients')
+      .query({ representanteId: 'abc' })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
 

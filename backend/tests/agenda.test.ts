@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import type { ResultadoVisita } from '@prisma/client';
@@ -217,5 +218,59 @@ describe('GET /agenda/today', () => {
     expect(item).toBeDefined();
     expect(item.cor).toBe('VERDE');
     expect(item.rebaixadoPorVenda).toBe(false);
+  });
+});
+
+describe('GET /agenda/today com representanteId', () => {
+  it('gestor com ?representanteId=<B> vê só a carteira de B', async () => {
+    const res = await request(app)
+      .get('/agenda/today')
+      .query({ representanteId: representanteBId })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.atrasadas.map((item: { id: string }) => item.id)).toEqual([clienteBId]);
+    expect(res.body.data.hoje).toEqual([]);
+  });
+
+  it('gestor com representanteId de usuário inexistente recebe listas vazias', async () => {
+    const res = await request(app)
+      .get('/agenda/today')
+      .query({ representanteId: randomUUID() })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ atrasadas: [], hoje: [] });
+  });
+
+  it('representante A com ?representanteId=<B> continua vendo a própria carteira', async () => {
+    const res = await request(app)
+      .get('/agenda/today')
+      .query({ representanteId: representanteBId })
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.atrasadas.map((item: { id: string }) => item.id)).toEqual([clienteAtrasadoId]);
+    expect(res.body.data.hoje.map((item: { id: string }) => item.id)).toEqual([clienteHojeId]);
+  });
+
+  it('item traz o representante dono da carteira, para o gestor e para o representante', async () => {
+    const resGestor = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenGestor}`);
+    const resA = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenA}`);
+
+    const itemB = resGestor.body.data.atrasadas.find((item: { id: string }) => item.id === clienteBId);
+    expect(itemB.representante).toEqual({ id: representanteBId, nome: REPRESENTANTE_B.nome });
+    const [itemA] = resA.body.data.hoje;
+    expect(itemA.representante).toEqual({ id: representanteAId, nome: REPRESENTANTE_A.nome });
+  });
+
+  it('representanteId que não é uuid responde 400 VALIDATION_ERROR', async () => {
+    const res = await request(app)
+      .get('/agenda/today')
+      .query({ representanteId: 'abc' })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

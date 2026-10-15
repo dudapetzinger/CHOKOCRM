@@ -32,6 +32,7 @@ function clienteAtivo(id: string, erpId: string | null, ultimaVisita: UltimaVisi
     recorrenciaDias: 15,
     erpId,
     visits: ultimaVisita ? [ultimaVisita] : [],
+    representante: { id: 'rep-1', nome: 'Representante' },
   };
 }
 
@@ -62,7 +63,20 @@ afterEach(() => {
 });
 
 describe('obterKpis', () => {
-  it('consulta visitas e mensagens com inicioDoDia("2026-09-08") e fimDoDia("2026-10-07") para 30 dias, e lista os ativos sem argumento', async () => {
+  it('com representanteId restringe visitas, mensagens e ativos à carteira daquele representante', async () => {
+    listaVisitas.mockResolvedValue([]);
+    listaMensagens.mockResolvedValue([]);
+    listAtivosParaAgenda.mockResolvedValue([]);
+    consultarUltimasVendas.mockResolvedValue(new Map());
+
+    await obterKpis(30, HOJE, 'rep-b');
+
+    expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), 'rep-b');
+    expect(listaMensagens).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), 'rep-b');
+    expect(listAtivosParaAgenda).toHaveBeenCalledWith('rep-b');
+  });
+
+  it('consulta visitas e mensagens com inicioDoDia("2026-09-08") e fimDoDia("2026-10-07") para 30 dias, e sem representanteId não filtra carteira', async () => {
     listaVisitas.mockResolvedValue([]);
     listaMensagens.mockResolvedValue([]);
     listAtivosParaAgenda.mockResolvedValue([clienteAtivo('a', 'ERP-A', null)]);
@@ -71,11 +85,11 @@ describe('obterKpis', () => {
     await obterKpis(30, HOJE);
 
     expect(listaVisitas).toHaveBeenCalledTimes(1);
-    expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'));
+    expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), undefined);
     expect(listaMensagens).toHaveBeenCalledTimes(1);
-    expect(listaMensagens).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'));
+    expect(listaMensagens).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), undefined);
     expect(listAtivosParaAgenda).toHaveBeenCalledTimes(1);
-    expect(listAtivosParaAgenda).toHaveBeenCalledWith();
+    expect(listAtivosParaAgenda).toHaveBeenCalledWith(undefined);
     expect(consultarUltimasVendas).toHaveBeenCalledWith(['ERP-A']);
   });
 

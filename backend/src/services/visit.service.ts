@@ -5,9 +5,9 @@ import { detectarImagem } from '../lib/imageType';
 import { fileStorage } from '../storage';
 import * as clientRepository from '../repositories/client.repository';
 import * as visitRepository from '../repositories/visit.repository';
-import type { VisitComRelacoes } from '../repositories/visit.repository';
+import type { VisitComCarteira, VisitComRelacoes } from '../repositories/visit.repository';
 import type { CreateVisitInput, UpdateVisitInput } from '../schemas/visit.schema';
-import { exigirClienteDaCarteira, type UsuarioAutenticado } from './client.service';
+import { ehDeOutraCarteira, exigirClienteDaCarteira, exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CLIENTE_INATIVO = 'Cliente inativo não recebe check-in.';
@@ -70,18 +70,11 @@ async function exigirClienteAtivoDaCarteira(clientId: string, usuario: UsuarioAu
 /**
  * A leitura da timeline **não** exige cliente ativo: o histórico de um
  * cliente inativado continua legível (e editável pelo autor); o que se
- * bloqueia é check-in novo em carteira desativada.
+ * bloqueia é check-in novo em carteira desativada. Cliente de outra
+ * carteira responde ao representante como inexistente (404).
  */
-async function exigirClienteExistente(clientId: string): Promise<void> {
-  const cliente = await clientRepository.findById(clientId);
-
-  if (!cliente) {
-    throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
-  }
-}
-
-export async function listVisitsByClient(clientId: string): Promise<VisitaDTO[]> {
-  await exigirClienteExistente(clientId);
+export async function listVisitsByClient(clientId: string, usuario: UsuarioAutenticado): Promise<VisitaDTO[]> {
+  exigirClienteVisivel(await clientRepository.findById(clientId), usuario);
 
   const visitas = await visitRepository.listByClient(clientId);
   return visitas.map(toVisitaDTO);
@@ -113,33 +106,40 @@ export async function createVisit(
   return toVisitaDTO(visita);
 }
 
-async function exigirVisitaDoAutor(visitId: string, userId: string): Promise<VisitComRelacoes> {
+/**
+ * Alterar um check-in exige, nesta ordem: visita existe (404) -> é do autor
+ * (403) -> o cliente ainda é da carteira dele (403; o cliente pode ter sido
+ * transferido depois do check-in).
+ */
+async function exigirVisitaDoAutor(visitId: string, usuario: UsuarioAutenticado): Promise<VisitComCarteira> {
   const visita = await visitRepository.findById(visitId);
 
   if (!visita) {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_VISITA_NAO_ENCONTRADA, 404);
   }
 
-  if (visita.userId !== userId) {
+  if (visita.userId !== usuario.id) {
     throw new AppError(ErrorCode.FORBIDDEN, MENSAGEM_APENAS_AUTOR, 403);
   }
+
+  exigirClienteDaCarteira(visita.client, usuario);
 
   return visita;
 }
 
 export async function updateDescricao(
   visitId: string,
-  userId: string,
+  usuario: UsuarioAutenticado,
   input: UpdateVisitInput,
 ): Promise<VisitaDTO> {
-  await exigirVisitaDoAutor(visitId, userId);
+  await exigirVisitaDoAutor(visitId, usuario);
 
   const visita = await visitRepository.updateDescricao(visitId, input.descricao);
   return toVisitaDTO(visita);
 }
 
-export async function anexarFoto(visitId: string, userId: string, conteudo: Buffer): Promise<VisitaDTO> {
-  const visita = await exigirVisitaDoAutor(visitId, userId);
+export async function anexarFoto(visitId: string, usuario: UsuarioAutenticado, conteudo: Buffer): Promise<VisitaDTO> {
+  const visita = await exigirVisitaDoAutor(visitId, usuario);
 
   if (visita.fotoPath !== null) {
     throw new AppError(ErrorCode.CONFLICT, MENSAGEM_FOTO_JA_EXISTE, 409);
@@ -157,10 +157,14 @@ export async function anexarFoto(visitId: string, userId: string, conteudo: Buff
   return toVisitaDTO(atualizada);
 }
 
-export async function lerFoto(visitId: string): Promise<{ conteudo: Buffer; contentType: string }> {
+/** Visita de cliente de outra carteira responde ao representante como inexistente (404). */
+export async function lerFoto(
+  visitId: string,
+  usuario: UsuarioAutenticado,
+): Promise<{ conteudo: Buffer; contentType: string }> {
   const visita = await visitRepository.findById(visitId);
 
-  if (!visita) {
+  if (!visita || ehDeOutraCarteira(visita.client, usuario)) {
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_VISITA_NAO_ENCONTRADA, 404);
   }
 

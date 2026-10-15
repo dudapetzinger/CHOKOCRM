@@ -1,10 +1,16 @@
-import { Prisma, type Role } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import * as clientRepository from '../repositories/client.repository';
 import type { ClientComContatoPrincipal, ClientComContatos } from '../repositories/client.repository';
 import * as userRepository from '../repositories/user.repository';
 import type { CreateClientInput, ListClientsQuery, UpdateClientInput } from '../schemas/client.schema';
+import {
+  exigirClienteDaCarteira,
+  exigirClienteVisivel,
+  representanteEfetivo,
+  type UsuarioAutenticado,
+} from './carteira';
 import { classificacaoDoCliente, type Cor } from './classificacao.service';
 import { consultarUltimasVendas } from './erp.service';
 
@@ -14,9 +20,11 @@ const MENSAGEM_CONTATO_PRINCIPAL_UNICO = 'Cadastro exige exatamente um contato m
 const MENSAGEM_SOMENTE_REPRESENTANTE_CADASTRA = 'Somente representante cadastra cliente em carteira.';
 const MENSAGEM_SOMENTE_GESTOR_TRANSFERE = 'Somente o gestor transfere um cliente de carteira.';
 const MENSAGEM_REPRESENTANTE_INVALIDO = 'Representante informado não existe ou não é representante.';
-const MENSAGEM_CLIENTE_DE_OUTRA_CARTEIRA = 'Cliente de outra carteira.';
 
-export type UsuarioAutenticado = { id: string; role: Role };
+// A regra de carteira vive em `carteira.ts`, que não depende de
+// `erp.service` (este já é dependência daqui; ver o import circular evitado
+// em `erp.service.ts`). Reexportada para quem a busca junto da regra de clientes.
+export { exigirClienteDaCarteira, representanteEfetivo, type UsuarioAutenticado };
 
 export type ClienteListItemDTO = {
   id: string;
@@ -164,31 +172,13 @@ function mapPrismaUniqueError(err: unknown): unknown {
 }
 
 /**
- * Regra de carteira: o representante só enxerga e altera clientes da
- * própria carteira (`Client.representanteId`); o gestor enxerga todos.
- */
-function ehDeOutraCarteira(cliente: { representanteId: string }, usuario: UsuarioAutenticado): boolean {
-  return usuario.role === 'REPRESENTANTE' && cliente.representanteId !== usuario.id;
-}
-
-/**
- * Regra de carteira para escrita (403). O gestor passa direto: as rotas de
- * escrita que ele não pode usar já barram em `requireRole`. Chamada logo
- * após confirmar que o cliente existe.
- */
-export function exigirClienteDaCarteira(cliente: { representanteId: string }, usuario: UsuarioAutenticado): void {
-  if (ehDeOutraCarteira(cliente, usuario)) {
-    throw new AppError(ErrorCode.FORBIDDEN, MENSAGEM_CLIENTE_DE_OUTRA_CARTEIRA, 403);
-  }
-}
-
-/**
  * Regra de carteira na listagem: o representante vê só os próprios
- * clientes (inclusive na busca); o gestor vê todos.
+ * clientes (inclusive na busca), ignorando `representanteId`; o gestor vê
+ * todos ou, com `representanteId`, só a carteira daquele representante.
  */
 export async function listClients(query: ListClientsQuery, usuario: UsuarioAutenticado): Promise<ClienteListItemDTO[]> {
   const ativoFiltro = query.ativo === 'todos' ? 'todos' : 'ativos';
-  const representanteId = usuario.role === 'REPRESENTANTE' ? usuario.id : undefined;
+  const representanteId = representanteEfetivo(usuario, query.representanteId);
   const hoje = new Date();
   const clientes = await clientRepository.list({ search: query.search, ativoFiltro, representanteId });
   const ultimasVendas = await consultarUltimasVendas(clientes.map((cliente) => cliente.erpId));
@@ -206,11 +196,7 @@ export async function listClients(query: ListClientsQuery, usuario: UsuarioAuten
  */
 export async function getClientById(id: string, usuario: UsuarioAutenticado): Promise<ClienteCompletoDTO> {
   const hoje = new Date();
-  const cliente = await clientRepository.findById(id);
-
-  if (!cliente || ehDeOutraCarteira(cliente, usuario)) {
-    throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
-  }
+  const cliente = exigirClienteVisivel(await clientRepository.findById(id), usuario);
 
   const ultimasVendas = await consultarUltimasVendas([cliente.erpId]);
   const ultimaVenda = ultimasVendas.get(cliente.erpId ?? '') ?? null;

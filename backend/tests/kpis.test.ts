@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
@@ -209,5 +210,95 @@ describe('GET /dashboard/kpis', () => {
     expect(res.body.visitas.total).toBe(0);
     expect(res.body.conversaoEmVendas.percentual).toBeNull();
     expect(res.body.taxaDeRegistro).toEqual({ numerador: 0, denominador: 3, percentual: 0 });
+  });
+});
+
+describe('GET /dashboard/kpis com representanteId', () => {
+  /**
+   * Carteira de B: um cliente ativo com duas visitas no período — uma do
+   * próprio B e uma do representante principal (autor de outra carteira,
+   * que ainda assim conta para B: o filtro é a carteira do cliente) — e uma
+   * mensagem de estoque.
+   */
+  async function criarCarteiraB(): Promise<string> {
+    const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+    const representanteB = await prisma.user.create({
+      data: { nome: 'Bruno Alencar', email: 'bruno.kpis-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    });
+    const clienteDeB = await prisma.client.create({
+      data: {
+        razaoSocial: 'Bombons Indaial Comércio Ltda',
+        nomeFantasia: 'Bombons Indaial',
+        cnpj: '11222333000505',
+        cidade: 'Indaial',
+        endereco: 'Rua Tiradentes, 10',
+        telefone: '(47) 3333-0000',
+        email: 'contato@bombonsindaial.com.br',
+        recorrenciaDias: 15,
+        representanteId: representanteB.id,
+      },
+    });
+    await prisma.visit.createMany({
+      data: [
+        { clientId: clienteDeB.id, userId: representanteB.id, dataHora: haDias(4), descricao: 'Visita.', resultado: 'VENDA' },
+        { clientId: clienteDeB.id, userId: representanteId, dataHora: haDias(6), descricao: 'Visita.', resultado: 'SEM_VENDA' },
+      ],
+    });
+    await prisma.stockMessage.create({
+      data: { clientId: clienteDeB.id, userId: representanteB.id, textoFinal: 'Mensagem de B.', dataGeracao: haDias(1) },
+    });
+
+    return representanteB.id;
+  }
+
+  it('gestor com ?representanteId=<B> recebe os indicadores só da carteira de B', async () => {
+    const representanteBId = await criarCarteiraB();
+
+    const res = await request(app)
+      .get('/dashboard/kpis')
+      .query({ representanteId: representanteBId })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.clientesAtivos).toBe(1);
+    expect(res.body.visitas.total).toBe(2);
+    expect(res.body.conversaoEmVendas).toEqual({ numerador: 1, denominador: 2, percentual: 50 });
+    expect(res.body.taxaDeRegistro).toEqual({ numerador: 1, denominador: 1, percentual: 100 });
+    expect(res.body.inativos.total).toBe(0);
+    expect(res.body.semDados).toBe(false);
+  });
+
+  it('gestor com representanteId de usuário inexistente recebe zeros', async () => {
+    const res = await request(app)
+      .get('/dashboard/kpis')
+      .query({ representanteId: randomUUID() })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.clientesAtivos).toBe(0);
+    expect(res.body.visitas.total).toBe(0);
+    expect(res.body.taxaDeRegistro.denominador).toBe(0);
+    expect(res.body.inativos.total).toBe(0);
+    expect(res.body.semDados).toBe(true);
+  });
+
+  it('representante continua recebendo 403, mesmo com representanteId', async () => {
+    const res = await request(app)
+      .get('/dashboard/kpis')
+      .query({ representanteId: representanteId })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('representanteId que não é uuid responde 400 VALIDATION_ERROR', async () => {
+    const res = await request(app)
+      .get('/dashboard/kpis')
+      .query({ representanteId: 'abc' })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

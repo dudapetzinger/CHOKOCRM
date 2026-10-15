@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
@@ -261,5 +262,98 @@ describe('GET /insights/manager-alerts', () => {
     expect(res.body.clientesConsultados).toBe(2);
     expect(res.body.clientesIndisponiveis).toBeGreaterThan(0);
     expect(res.body.alertas).toEqual([]);
+  });
+});
+
+/** Segundo representante, dono só de um cliente ativo com `erpId`. */
+async function criarCarteiraB(): Promise<{ representanteBId: string; clienteDeBId: string; tokenB: string }> {
+  const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+  const representanteB = await prisma.user.create({
+    data: { nome: 'Bruno Alencar', email: 'bruno.insights-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+  });
+  const clienteDeB = await prisma.client.create({
+    data: {
+      razaoSocial: 'Bombons Indaial Comércio Ltda',
+      nomeFantasia: 'Bombons Indaial',
+      cnpj: '11222333000505',
+      cidade: 'Indaial',
+      endereco: 'Rua Tiradentes, 10',
+      telefone: '(47) 3333-0000',
+      email: 'contato@bombonsindaial.com.br',
+      recorrenciaDias: 15,
+      representanteId: representanteB.id,
+      erpId: 'ERP-1003',
+    },
+  });
+
+  return {
+    representanteBId: representanteB.id,
+    clienteDeBId: clienteDeB.id,
+    tokenB: await logar('bruno.insights-teste@chokolaten.com.br'),
+  };
+}
+
+describe('GET /clients/:id/insights na regra de carteira', () => {
+  it('representante recebe 404 nos insights de cliente de outra carteira', async () => {
+    const { clienteDeBId } = await criarCarteiraB();
+
+    const res = await request(app).get(`/clients/${clienteDeBId}/insights`).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toBe('Cliente não encontrado.');
+  });
+});
+
+describe('GET /insights/manager-alerts com representanteId', () => {
+  it('gestor com ?representanteId=<B> recebe alertas só dos clientes de B', async () => {
+    await criarNatalEmDias(40);
+    const { representanteBId, clienteDeBId } = await criarCarteiraB();
+
+    const res = await request(app)
+      .get('/insights/manager-alerts')
+      .query({ representanteId: representanteBId })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.clientesConsultados).toBe(1);
+    for (const alerta of res.body.alertas) {
+      for (const cliente of alerta.clientes) {
+        expect(cliente.id).toBe(clienteDeBId);
+      }
+    }
+  });
+
+  it('gestor com representanteId de usuário inexistente recebe zero clientes e nenhum alerta', async () => {
+    await criarNatalEmDias(40);
+
+    const res = await request(app)
+      .get('/insights/manager-alerts')
+      .query({ representanteId: randomUUID() })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.eventos).toHaveLength(1);
+    expect(res.body.clientesConsultados).toBe(0);
+    expect(res.body.alertas).toEqual([]);
+  });
+
+  it('representante continua recebendo 403, mesmo com representanteId', async () => {
+    const res = await request(app)
+      .get('/insights/manager-alerts')
+      .query({ representanteId })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('representanteId que não é uuid responde 400 VALIDATION_ERROR', async () => {
+    const res = await request(app)
+      .get('/insights/manager-alerts')
+      .query({ representanteId: 'abc' })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

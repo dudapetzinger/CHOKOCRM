@@ -2,8 +2,11 @@ import type { Contact } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import type { CreateContactInput, UpdateContactInput } from '../schemas/contact.schema';
 
-export async function findById(id: string): Promise<Contact | null> {
-  return prisma.contact.findUnique({ where: { id } });
+export type ContactComCarteira = Contact & { client: { representanteId: string } };
+
+/** Contato com a carteira do cliente, para a regra de carteira nas rotas por id. */
+export async function findById(id: string): Promise<ContactComCarteira | null> {
+  return prisma.contact.findUnique({ where: { id }, include: { client: { select: { representanteId: true } } } });
 }
 
 /**

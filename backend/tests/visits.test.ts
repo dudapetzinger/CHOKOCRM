@@ -371,6 +371,18 @@ describe('GET /clients/:id/visits', () => {
     expect(res.body.data).toHaveLength(1);
   });
 
+  it('representante recebe 404 na timeline de cliente de outra carteira', async () => {
+    await criarVisita('Visita da outra carteira.', '2026-09-18T13:00:00.000Z');
+    const tokenOutro = await logarOutroRepresentante();
+
+    const res = await request(app)
+      .get(`/clients/${clienteId}/visits`)
+      .set('Authorization', `Bearer ${tokenOutro}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toBe('Cliente não encontrado.');
+  });
+
   it('responde 404 para cliente inexistente', async () => {
     const res = await request(app)
       .get(`/clients/${ID_INEXISTENTE}/visits`)
@@ -439,6 +451,21 @@ describe('PATCH /visits/:id', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('recusa edição pelo autor quando o cliente passou para outra carteira', async () => {
+    const id = await criarVisitaRetornandoId();
+    await logarOutroRepresentante();
+    const outro = await prisma.user.findUniqueOrThrow({ where: { email: 'outro.visits-teste@chokolaten.com.br' } });
+    await prisma.client.update({ where: { id: clienteId }, data: { representanteId: outro.id } });
+
+    const res = await request(app)
+      .patch(`/visits/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ descricao: 'Editando depois da transferência.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.message).toBe('Cliente de outra carteira.');
   });
 
   it('recusa o gestor editando', async () => {

@@ -1,6 +1,4 @@
 import { MAX_PRODUTOS_MAIS_COMPRADOS } from '../config/sazonalidade';
-import { AppError } from '../errors/AppError';
-import { ErrorCode } from '../errors/errorCodes';
 import * as clientRepository from '../repositories/client.repository';
 import type { ClienteParaAgenda } from '../repositories/client.repository';
 import * as seasonalEventRepository from '../repositories/seasonal-event.repository';
@@ -12,6 +10,7 @@ import {
   somarDias,
   type DataCalendario,
 } from './classificacao.service';
+import { exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
 import { consultarItensBaixosEmLote, consultarVendas, erpSimulado } from './erp.service';
 import {
   acaoPorVariacao,
@@ -31,8 +30,6 @@ import {
   type EventoProximo,
   type Janela,
 } from './insights.regras';
-
-const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 
 /**
  * Insights sazonais do cliente (UC13) e alertas de produção do gestor (UC15):
@@ -117,14 +114,17 @@ function arredondarCentavos(valor: number): number {
  * consulta de vendas ao ERP; evento sem base ou sem compra na janela vai para
  * `eventosSemHistorico`. `erpId` desconhecido no ERP (vendas vazias) cai aí
  * para todos os eventos — não há status `NAO_ENCONTRADO`, porque a
- * pré-condição do UC13 é "histórico disponível". `hoje` é parametrizável para
- * os testes fixarem a data.
+ * pré-condição do UC13 é "histórico disponível". Cliente de outra carteira
+ * responde ao representante como inexistente (404). `hoje` é parametrizável
+ * para os testes fixarem a data.
  */
-export async function obterInsights(clientId: string, horizonteDias: number, hoje: Date = new Date()): Promise<InsightsDTO> {
-  const cliente = await clientRepository.findById(clientId);
-  if (!cliente) {
-    throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
-  }
+export async function obterInsights(
+  clientId: string,
+  usuario: UsuarioAutenticado,
+  horizonteDias: number,
+  hoje: Date = new Date(),
+): Promise<InsightsDTO> {
+  const cliente = exigirClienteVisivel(await clientRepository.findById(clientId), usuario);
 
   if (!cliente.erpId) {
     return { status: 'SEM_ERP_ID' };
@@ -197,9 +197,13 @@ export async function obterInsights(clientId: string, horizonteDias: number, hoj
  * consultados. Clientes cujo `erpId` o ERP não respondeu ficam fora do
  * cruzamento (não se sabe o estoque deles) e entram em
  * `clientesIndisponiveis`, para a tela avisar que a lista pode estar
- * incompleta.
+ * incompleta. Com `representanteId`, só os clientes da carteira dele.
  */
-export async function obterAlertasDeProducao(horizonteDias: number, hoje: Date = new Date()): Promise<AlertasDTO> {
+export async function obterAlertasDeProducao(
+  horizonteDias: number,
+  hoje: Date = new Date(),
+  representanteId?: string,
+): Promise<AlertasDTO> {
   const eventos = await eventosDoHorizonte(dataCalendario(hoje), horizonteDias);
 
   if (eventos.length === 0) {
@@ -213,7 +217,7 @@ export async function obterAlertasDeProducao(horizonteDias: number, hoje: Date =
     };
   }
 
-  const clientes = (await clientRepository.listAtivosParaAgenda()).filter(
+  const clientes = (await clientRepository.listAtivosParaAgenda(representanteId)).filter(
     (cliente): cliente is ClienteParaAgenda & { erpId: string } => Boolean(cliente.erpId),
   );
   const { itensPorErpId, indisponiveis } = await consultarItensBaixosEmLote(clientes.map((cliente) => cliente.erpId));

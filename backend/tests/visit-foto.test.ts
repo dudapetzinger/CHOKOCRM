@@ -172,6 +172,16 @@ describe('PUT /visits/:id/foto', () => {
     expect(res.body.error.code).toBe('FORBIDDEN');
   });
 
+  it('recusa anexo pelo autor quando o cliente passou para outra carteira', async () => {
+    const outro = await prisma.user.findUniqueOrThrow({ where: { email: 'outro.foto-teste@chokolaten.com.br' } });
+    await prisma.client.update({ where: { id: clienteId }, data: { representanteId: outro.id } });
+
+    const res = await anexarFoto(visitaId, token, JPEG_VALIDO);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.message).toBe('Cliente de outra carteira.');
+  });
+
   it('responde 404 para visita inexistente', async () => {
     const res = await anexarFoto(ID_INEXISTENTE, token, JPEG_VALIDO);
 
@@ -186,6 +196,15 @@ describe('GET /visits/:id/foto', () => {
 
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('representante de outra carteira recebe 404, como visita inexistente', async () => {
+    await anexarFoto(visitaId, token, JPEG_VALIDO);
+
+    const res = await request(app).get(`/visits/${visitaId}/foto`).set('Authorization', `Bearer ${tokenOutro}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toBe('Visita não encontrada.');
   });
 
   it('responde 404 quando a visita não tem foto', async () => {

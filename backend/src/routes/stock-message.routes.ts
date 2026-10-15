@@ -15,7 +15,10 @@ clientStockMessageRouter.use(authJwt);
 clientStockMessageRouter.get('/proposta', requireRole('REPRESENTANTE'), getProposta);
 clientStockMessageRouter.post('/', requireRole('REPRESENTANTE'), postStockMessage);
 
-/** Router para o histórico global, montado em `/stock-messages`. Leitura liberada para qualquer papel. */
+/**
+ * Router para o histórico, montado em `/stock-messages`. Leitura liberada
+ * para qualquer papel; o representante vê só a própria carteira.
+ */
 export const stockMessagesRouter = Router();
 
 stockMessagesRouter.use(authJwt);

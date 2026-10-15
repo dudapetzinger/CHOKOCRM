@@ -16,6 +16,7 @@ function clienteFabricado(overrides: Partial<ClienteParaAgenda> & { id: string }
     recorrenciaDias: 15,
     erpId: null,
     visits: [],
+    representante: { id: 'rep-1', nome: 'Representante' },
     ...overrides,
   };
 }
@@ -102,6 +103,18 @@ describe('montarAgenda', () => {
       { id: 'zulu', cor: 'VERMELHO', diasAtraso: 40 },
       { id: 'larancia', cor: 'LARANJA', diasAtraso: 20 },
     ]);
+  });
+
+  it('repassa o representante dono da carteira para o item', () => {
+    const doDia = clienteFabricado({
+      id: 'hoje',
+      representante: { id: 'rep-b', nome: 'Bruno Alencar' },
+      visits: [{ dataHora: diasAtras(15), resultado: 'VENDA' }],
+    });
+
+    const agenda = montarAgenda([doDia], hoje);
+
+    expect(agenda.hoje[0]?.representante).toEqual({ id: 'rep-b', nome: 'Bruno Alencar' });
   });
 
   it('montarAgenda aplica o rebaixamento pelo mapa de últimas vendas', () => {
