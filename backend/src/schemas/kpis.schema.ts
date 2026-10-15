@@ -18,3 +18,11 @@ export const periodoQuerySchema = z.object({
     .default(PERIODO_PADRAO_DIAS),
   representanteId: representanteIdFiltroSchema,
 });
+
+/**
+ * Query das vendas mensais da carteira: só `?representanteId=` (a janela é
+ * fixa, 12 meses). Parâmetros desconhecidos são ignorados.
+ */
+export const vendasMensaisQuerySchema = z.object({
+  representanteId: representanteIdFiltroSchema,
+});

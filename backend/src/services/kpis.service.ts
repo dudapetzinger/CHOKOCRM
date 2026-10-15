@@ -1,9 +1,11 @@
 import * as clientRepository from '../repositories/client.repository';
 import * as stockMessageRepository from '../repositories/stock-message.repository';
+import * as userRepository from '../repositories/user.repository';
 import * as visitRepository from '../repositories/visit.repository';
 import { classificacaoDoCliente, dataCalendario, fimDoDia, inicioDoDia } from './classificacao.service';
 import { consultarUltimasVendas, erpSimulado } from './erp.service';
 import {
+  agruparPorRepresentante,
   contarInativos,
   contarVisitas,
   conversaoEmVendas,
@@ -11,7 +13,9 @@ import {
   mediaDeVisitasPorCliente,
   periodoDeAnalise,
   taxaDeRegistro,
+  visitasPorSemana,
   type DistribuicaoPorCor,
+  type KpiRepresentante,
   type Proporcao,
 } from './kpis.regras';
 
@@ -34,6 +38,15 @@ export type KpisDTO = {
   /** Nenhuma visita nem mensagem no período (UC14 A1). */
   semDados: boolean;
   /** `erpSimulado()` — a cor composta consulta o ERP. */
+  simulado: boolean;
+};
+
+export type KpisPorRepresentanteDTO = {
+  /** Mesmo objeto de `KpisDTO.periodo`. */
+  periodo: KpisDTO['periodo'];
+  representantes: KpiRepresentante[];
+  /** Só com `representanteId`: visitas à carteira dele por semana (segunda a domingo). */
+  porSemana?: { inicio: string; visitas: number }[];
   simulado: boolean;
 };
 
@@ -77,6 +90,41 @@ export async function obterKpis(
     conversaoEmVendas: conversaoEmVendas(visitas),
     inativos: { total: contarInativos(distribuicao), distribuicao },
     semDados: visitas.length === 0 && mensagens.length === 0,
+    simulado: erpSimulado(),
+  };
+}
+
+/**
+ * Comparativo por representante no período, pela carteira do cliente: sem
+ * `representanteId`, todos os usuários REPRESENTANTE (mesmo sem cliente nem
+ * visita); com ele, só aquele (lista vazia se o id não for de um
+ * representante) e a série semanal de visitas à carteira dele.
+ */
+export async function obterKpisPorRepresentante(
+  periodoDias: number,
+  hoje: Date = new Date(),
+  representanteId?: string,
+): Promise<KpisPorRepresentanteDTO> {
+  const { inicio, fim } = periodoDeAnalise(dataCalendario(hoje), periodoDias);
+
+  const [visitas, ativos, todosOsRepresentantes] = await Promise.all([
+    visitRepository.listNoPeriodo(inicioDoDia(inicio), fimDoDia(fim), representanteId),
+    clientRepository.listAtivosParaAgenda(representanteId),
+    userRepository.listByRole('REPRESENTANTE'),
+  ]);
+
+  const representantes = representanteId
+    ? todosOsRepresentantes.filter((representante) => representante.id === representanteId)
+    : todosOsRepresentantes;
+
+  return {
+    periodo: { dias: periodoDias, inicio, fim },
+    representantes: agruparPorRepresentante(
+      visitas,
+      ativos.map((cliente) => ({ representanteId: cliente.representante.id })),
+      representantes,
+    ),
+    ...(representanteId ? { porSemana: visitasPorSemana(visitas, inicio, fim) } : {}),
     simulado: erpSimulado(),
   };
 }

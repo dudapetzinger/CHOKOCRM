@@ -15,3 +15,19 @@ export async function getKpis(req: Request, res: Response, next: NextFunction): 
     next(err);
   }
 }
+
+export async function getKpisPorRepresentante(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { periodoDias, representanteId } = periodoQuerySchema.parse(req.query);
+    const usuario = usuarioAutenticado(req);
+
+    const kpis = await kpisService.obterKpisPorRepresentante(
+      periodoDias,
+      new Date(),
+      representanteEfetivo(usuario, representanteId),
+    );
+    res.status(200).json(kpis);
+  } catch (err) {
+    next(err);
+  }
+}

@@ -103,8 +103,8 @@ describe('obterKpis', () => {
     consultarUltimasVendas.mockResolvedValue(new Map());
     // Visitas de a (VENDA) e b (SEM_VENDA); mensagem só do cliente c.
     listaVisitas.mockResolvedValue([
-      { clientId: 'a', resultado: 'VENDA', dataHora: diasAtras(2) },
-      { clientId: 'b', resultado: 'SEM_VENDA', dataHora: diasAtras(20) },
+      { clientId: 'a', resultado: 'VENDA', dataHora: diasAtras(2), representanteId: 'rep-1' },
+      { clientId: 'b', resultado: 'SEM_VENDA', dataHora: diasAtras(20), representanteId: 'rep-1' },
     ]);
     listaMensagens.mockResolvedValue([{ clientId: 'c' }]);
 
@@ -127,7 +127,7 @@ describe('obterKpis', () => {
       clienteAtivo('a', 'ERP-A', { dataHora: diasAtras(3), resultado: 'VENDA' }),
     ]);
     consultarUltimasVendas.mockResolvedValue(new Map([['ERP-A', diasAtras(70)]]));
-    listaVisitas.mockResolvedValue([{ clientId: 'a', resultado: 'VENDA', dataHora: diasAtras(3) }]);
+    listaVisitas.mockResolvedValue([{ clientId: 'a', resultado: 'VENDA', dataHora: diasAtras(3), representanteId: 'rep-1' }]);
     listaMensagens.mockResolvedValue([]);
 
     const kpis = await obterKpis(30, HOJE);
@@ -141,7 +141,7 @@ describe('obterKpis', () => {
       clienteAtivo('a', 'ERP-A', { dataHora: diasAtras(3), resultado: 'VENDA' }),
     ]);
     consultarUltimasVendas.mockResolvedValue(new Map([['ERP-A', null]]));
-    listaVisitas.mockResolvedValue([{ clientId: 'a', resultado: 'VENDA', dataHora: diasAtras(3) }]);
+    listaVisitas.mockResolvedValue([{ clientId: 'a', resultado: 'VENDA', dataHora: diasAtras(3), representanteId: 'rep-1' }]);
     listaMensagens.mockResolvedValue([]);
 
     erpSimulado.mockReturnValue(false);
@@ -162,8 +162,8 @@ describe('obterKpis', () => {
     ]);
     consultarUltimasVendas.mockResolvedValue(new Map());
     listaVisitas.mockResolvedValue([
-      { clientId: 'a', resultado: 'SEM_VENDA', dataHora: diasAtras(5) },
-      { clientId: 'inativado', resultado: 'VENDA', dataHora: diasAtras(6) },
+      { clientId: 'a', resultado: 'SEM_VENDA', dataHora: diasAtras(5), representanteId: 'rep-1' },
+      { clientId: 'inativado', resultado: 'VENDA', dataHora: diasAtras(6), representanteId: 'rep-1' },
     ]);
     listaMensagens.mockResolvedValue([]);
 

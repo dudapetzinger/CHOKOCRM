@@ -1,6 +1,6 @@
 import type { ResultadoVisita } from '@prisma/client';
 import { CORES_INATIVAS } from '../config/kpis';
-import { CORES, somarDias, type Cor, type DataCalendario } from './classificacao.service';
+import { CORES, dataCalendario, diasEntre, somarDias, type Cor, type DataCalendario } from './classificacao.service';
 
 /**
  * Regras puras dos indicadores do painel do gestor (UC14) — mesmo papel de
@@ -73,4 +73,72 @@ export function distribuicaoPorCor(cores: Cor[]): DistribuicaoPorCor {
 /** Soma das cores de `CORES_INATIVAS`. */
 export function contarInativos(distribuicao: DistribuicaoPorCor): number {
   return CORES_INATIVAS.reduce((total, cor) => total + distribuicao[cor], 0);
+}
+
+/** Linha do comparativo por representante: números da carteira dele no período. */
+export type KpiRepresentante = {
+  id: string;
+  nome: string;
+  clientesAtivos: number;
+  visitas: number;
+  conversaoEmVendas: Proporcao;
+};
+
+/**
+ * Indicadores por representante, pela carteira do cliente (não pelo autor da
+ * visita). Todo representante de `representantes` aparece, mesmo sem cliente
+ * nem visita; visitas de carteira fora da lista são ignoradas. Ordem:
+ * `visitas` desc, depois `nome`.
+ */
+export function agruparPorRepresentante(
+  visitas: (VisitaDoPeriodo & { representanteId: string })[],
+  clientes: { representanteId: string }[],
+  representantes: { id: string; nome: string }[],
+): KpiRepresentante[] {
+  return representantes
+    .map(({ id, nome }) => {
+      const visitasDaCarteira = visitas.filter((visita) => visita.representanteId === id);
+
+      return {
+        id,
+        nome,
+        clientesAtivos: clientes.filter((cliente) => cliente.representanteId === id).length,
+        visitas: visitasDaCarteira.length,
+        conversaoEmVendas: conversaoEmVendas(visitasDaCarteira),
+      };
+    })
+    .sort((a, b) => b.visitas - a.visitas || a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+/** Segunda-feira da semana de `data` (a própria, se já for segunda). */
+function segundaDaSemana(data: DataCalendario): DataCalendario {
+  const diaDaSemana = new Date(`${data}T00:00:00.000Z`).getUTCDay(); // 0 = domingo
+
+  return somarDias(data, -((diaDaSemana + 6) % 7));
+}
+
+/**
+ * Visitas por semana (segunda a domingo) cobrindo `[inicio, fim]`: a primeira
+ * semana começa na segunda em ou antes de `inicio`; semanas sem visita entram
+ * com 0. Cada visita conta no seu dia de calendário no `FUSO_HORARIO`; visitas
+ * fora das semanas são ignoradas.
+ */
+export function visitasPorSemana(
+  visitas: { dataHora: Date }[],
+  inicio: DataCalendario,
+  fim: DataCalendario,
+): { inicio: DataCalendario; visitas: number }[] {
+  const primeiraSegunda = segundaDaSemana(inicio);
+  const quantidade = Math.floor(diasEntre(primeiraSegunda, fim) / 7) + 1;
+  const semanas = Array.from({ length: quantidade }, (_, i) => ({
+    inicio: somarDias(primeiraSegunda, i * 7),
+    visitas: 0,
+  }));
+
+  for (const visita of visitas) {
+    const semana = semanas[Math.floor(diasEntre(primeiraSegunda, dataCalendario(visita.dataHora)) / 7)];
+    if (semana) semana.visitas += 1;
+  }
+
+  return semanas;
 }

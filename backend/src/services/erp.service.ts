@@ -143,6 +143,25 @@ export async function consultarVendas(erpId: string, periodo: Period): Promise<S
 }
 
 /**
+ * Vendas de cada `erpId` no período (para o gráfico de vendas mensais). O que
+ * o ERP não conseguiu responder vai para `indisponiveis` e fica fora do mapa
+ * — um único warn para o lote —, para quem chama distinguir "sem venda" de
+ * "não sei".
+ */
+export async function consultarVendasEmLote(
+  erpIds: (string | null)[],
+  periodo: Period,
+): Promise<{ vendasPorErpId: Map<string, Sale[]>; indisponiveis: string[] }> {
+  const { resultados, indisponiveis } = await consultarEmLote(
+    erpIds,
+    (erpId) => erpProvider.getSales(erpId, periodo),
+    'ERP indisponível ao consultar vendas em lote',
+  );
+
+  return { vendasPorErpId: resultados, indisponiveis };
+}
+
+/**
  * Itens em nível BAIXO no snapshot de estoque mais recente de cada `erpId`
  * (para os alertas de produção). `erpId` sem histórico (desconhecido no ERP)
  * fica com lista vazia; o que o ERP não conseguiu responder vai para

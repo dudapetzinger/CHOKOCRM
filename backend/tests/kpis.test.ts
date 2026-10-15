@@ -213,44 +213,44 @@ describe('GET /dashboard/kpis', () => {
   });
 });
 
+/**
+ * Carteira de B: um cliente ativo com duas visitas no período — uma do
+ * próprio B e uma do representante principal (autor de outra carteira,
+ * que ainda assim conta para B: o filtro é a carteira do cliente) — e uma
+ * mensagem de estoque.
+ */
+async function criarCarteiraB(): Promise<string> {
+  const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+  const representanteB = await prisma.user.create({
+    data: { nome: 'Bruno Alencar', email: 'bruno.kpis-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+  });
+  const clienteDeB = await prisma.client.create({
+    data: {
+      razaoSocial: 'Bombons Indaial Comércio Ltda',
+      nomeFantasia: 'Bombons Indaial',
+      cnpj: '11222333000505',
+      cidade: 'Indaial',
+      endereco: 'Rua Tiradentes, 10',
+      telefone: '(47) 3333-0000',
+      email: 'contato@bombonsindaial.com.br',
+      recorrenciaDias: 15,
+      representanteId: representanteB.id,
+    },
+  });
+  await prisma.visit.createMany({
+    data: [
+      { clientId: clienteDeB.id, userId: representanteB.id, dataHora: haDias(4), descricao: 'Visita.', resultado: 'VENDA' },
+      { clientId: clienteDeB.id, userId: representanteId, dataHora: haDias(6), descricao: 'Visita.', resultado: 'SEM_VENDA' },
+    ],
+  });
+  await prisma.stockMessage.create({
+    data: { clientId: clienteDeB.id, userId: representanteB.id, textoFinal: 'Mensagem de B.', dataGeracao: haDias(1) },
+  });
+
+  return representanteB.id;
+}
+
 describe('GET /dashboard/kpis com representanteId', () => {
-  /**
-   * Carteira de B: um cliente ativo com duas visitas no período — uma do
-   * próprio B e uma do representante principal (autor de outra carteira,
-   * que ainda assim conta para B: o filtro é a carteira do cliente) — e uma
-   * mensagem de estoque.
-   */
-  async function criarCarteiraB(): Promise<string> {
-    const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
-    const representanteB = await prisma.user.create({
-      data: { nome: 'Bruno Alencar', email: 'bruno.kpis-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
-    });
-    const clienteDeB = await prisma.client.create({
-      data: {
-        razaoSocial: 'Bombons Indaial Comércio Ltda',
-        nomeFantasia: 'Bombons Indaial',
-        cnpj: '11222333000505',
-        cidade: 'Indaial',
-        endereco: 'Rua Tiradentes, 10',
-        telefone: '(47) 3333-0000',
-        email: 'contato@bombonsindaial.com.br',
-        recorrenciaDias: 15,
-        representanteId: representanteB.id,
-      },
-    });
-    await prisma.visit.createMany({
-      data: [
-        { clientId: clienteDeB.id, userId: representanteB.id, dataHora: haDias(4), descricao: 'Visita.', resultado: 'VENDA' },
-        { clientId: clienteDeB.id, userId: representanteId, dataHora: haDias(6), descricao: 'Visita.', resultado: 'SEM_VENDA' },
-      ],
-    });
-    await prisma.stockMessage.create({
-      data: { clientId: clienteDeB.id, userId: representanteB.id, textoFinal: 'Mensagem de B.', dataGeracao: haDias(1) },
-    });
-
-    return representanteB.id;
-  }
-
   it('gestor com ?representanteId=<B> recebe os indicadores só da carteira de B', async () => {
     const representanteBId = await criarCarteiraB();
 
@@ -300,5 +300,111 @@ describe('GET /dashboard/kpis com representanteId', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('GET /dashboard/kpis/por-representante', () => {
+  type LinhaRepresentante = { id: string; nome: string; visitas: number };
+
+  it('sem token responde 401', async () => {
+    const res = await request(app).get('/dashboard/kpis/por-representante');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('representante responde 403, mesmo com representanteId', async () => {
+    const res = await request(app)
+      .get('/dashboard/kpis/por-representante')
+      .query({ representanteId })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('periodoDias inválido responde 400 VALIDATION_ERROR', async () => {
+    const res = await request(app)
+      .get('/dashboard/kpis/por-representante')
+      .query({ periodoDias: 60 })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('gestor recebe todos os representantes pela carteira do cliente, ordenados por visitas; sem porSemana', async () => {
+    const representanteBId = await criarCarteiraB();
+    const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+    const semCarteira = await prisma.user.create({
+      data: { nome: 'Carla Dias', email: 'carla.kpis-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    });
+
+    const res = await request(app)
+      .get('/dashboard/kpis/por-representante')
+      .query({ periodoDias: 30 })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.periodo.dias).toBe(30);
+    expect(typeof res.body.periodo.inicio).toBe('string');
+    expect(res.body.porSemana).toBeUndefined();
+    expect(typeof res.body.simulado).toBe('boolean');
+    // Eduarda: A (−2 VENDA, −10 SEM_VENDA) e D inativo (−3 VENDA); a visita dela ao cliente de B conta para B.
+    // O gestor não entra; Carla, sem carteira, aparece zerada.
+    expect(res.body.representantes).toEqual([
+      {
+        id: representanteId,
+        nome: REPRESENTANTE.nome,
+        clientesAtivos: 3,
+        visitas: 3,
+        conversaoEmVendas: { numerador: 2, denominador: 3, percentual: 67 },
+      },
+      {
+        id: representanteBId,
+        nome: 'Bruno Alencar',
+        clientesAtivos: 1,
+        visitas: 2,
+        conversaoEmVendas: { numerador: 1, denominador: 2, percentual: 50 },
+      },
+      {
+        id: semCarteira.id,
+        nome: 'Carla Dias',
+        clientesAtivos: 0,
+        visitas: 0,
+        conversaoEmVendas: { numerador: 0, denominador: 0, percentual: null },
+      },
+    ]);
+  });
+
+  it('periodoDias=365 inclui as visitas antigas da carteira', async () => {
+    const res = await request(app)
+      .get('/dashboard/kpis/por-representante')
+      .query({ periodoDias: 365 })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.representantes.map((r: LinhaRepresentante) => r.visitas)).toEqual([5]);
+  });
+
+  it('com representanteId traz só ele e porSemana, cuja soma é igual a visitas', async () => {
+    const representanteBId = await criarCarteiraB();
+
+    const res = await request(app)
+      .get('/dashboard/kpis/por-representante')
+      .query({ representanteId: representanteBId })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.periodo.dias).toBe(30);
+    expect(res.body.representantes.map((r: LinhaRepresentante) => r.id)).toEqual([representanteBId]);
+    expect(res.body.representantes[0].visitas).toBe(2);
+
+    const porSemana: { inicio: string; visitas: number }[] = res.body.porSemana;
+    expect(porSemana.length).toBeGreaterThanOrEqual(5);
+    expect(porSemana.reduce((soma, semana) => soma + semana.visitas, 0)).toBe(2);
+    // Semanas começam na segunda; a primeira em ou até 6 dias antes do início do período.
+    expect(porSemana.every((semana) => new Date(`${semana.inicio}T00:00:00Z`).getUTCDay() === 1)).toBe(true);
+    expect(porSemana[0]!.inicio <= res.body.periodo.inicio).toBe(true);
+    expect(porSemana[porSemana.length - 1]!.inicio <= res.body.periodo.fim).toBe(true);
   });
 });

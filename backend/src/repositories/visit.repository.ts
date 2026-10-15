@@ -61,15 +61,18 @@ export async function contatoPertenceAoCliente(contactId: string, clientId: stri
  * Visitas do período para os indicadores do painel (UC14): só o que as regras
  * usam; `dataHora` entre `inicio` e `fim`, inclusive. Com `representanteId`,
  * só visitas a clientes da carteira dele (a carteira do cliente, não o autor
- * da visita).
+ * da visita). `representanteId` de cada item é o dono da carteira do cliente,
+ * para o comparativo por representante.
  */
 export async function listNoPeriodo(
   inicio: Date,
   fim: Date,
   representanteId?: string,
-): Promise<{ clientId: string; resultado: ResultadoVisita; dataHora: Date }[]> {
-  return prisma.visit.findMany({
+): Promise<{ clientId: string; resultado: ResultadoVisita; dataHora: Date; representanteId: string }[]> {
+  const visitas = await prisma.visit.findMany({
     where: { dataHora: { gte: inicio, lte: fim }, ...(representanteId ? { client: { representanteId } } : {}) },
-    select: { clientId: true, resultado: true, dataHora: true },
+    select: { clientId: true, resultado: true, dataHora: true, client: { select: { representanteId: true } } },
   });
+
+  return visitas.map(({ client, ...visita }) => ({ ...visita, representanteId: client.representanteId }));
 }
