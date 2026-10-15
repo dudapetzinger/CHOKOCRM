@@ -23,3 +23,27 @@ export function formatarDataHora(iso: string): string {
   if (Number.isNaN(data.getTime())) return iso;
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(data);
 }
+
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/**
+ * Mês 'AAAA-MM' (ou data 'AAAA-MM-DD') como "nov/25", para eixos de gráfico.
+ * Abreviações fixas, sem o ponto que o `Intl` põe em pt-BR ("nov."). Entrada
+ * fora do padrão volta como veio.
+ */
+export function formatarMesCurto(aaaaMm: string): string {
+  const partes = /^(\d{4})-(\d{2})/.exec(aaaaMm);
+  const mes = partes ? MESES_CURTOS[Number(partes[2]) - 1] : undefined;
+  if (!partes || !mes) return aaaaMm;
+  return `${mes}/${partes[1].slice(2)}`;
+}
+
+/** Data de calendário 'AAAA-MM-DD' como "dd/mm" (sem `Date`, como `formatarDataCalendario`). */
+export function formatarDiaMes(aaaaMmDd: string): string {
+  return formatarDataCalendario(aaaaMmDd).slice(0, 5);
+}
+
+/** O mês local de `hoje` como 'AAAA-MM'. */
+export function mesAtual(hoje: Date = new Date()): string {
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+}

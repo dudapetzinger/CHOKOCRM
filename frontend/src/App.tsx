@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { RequireAuth } from './auth/RequireAuth';
@@ -8,7 +9,9 @@ import { NovoClientePage } from './pages/NovoClientePage';
 import { ClienteDetalhePage } from './pages/ClienteDetalhePage';
 import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
-import { PainelPage } from './pages/PainelPage';
+
+// O Painel (só do gestor) carrega o Recharts: fica num pedaço à parte, baixado só quando aberto.
+const PainelPage = lazy(() => import('./pages/PainelPage'));
 
 export function App() {
   return (
@@ -61,7 +64,9 @@ export function App() {
               path="/painel"
               element={
                 <RequireAuth>
-                  <PainelPage />
+                  <Suspense fallback={<p className="aviso">Carregando painel...</p>}>
+                    <PainelPage />
+                  </Suspense>
                 </RequireAuth>
               }
             />

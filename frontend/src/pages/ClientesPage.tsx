@@ -4,13 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/useAuth';
 import { listClients, mensagemErroApi, type ClienteListItem } from '../services/clients';
 import { AbasSituacao, CORES_DA_ABA, type Aba } from '../components/AbasSituacao';
-import { BadgeCor } from '../components/BadgeCor';
-import { EtiquetaSituacao } from '../components/EtiquetaSituacao';
+import { ItemListaCliente } from '../components/ItemListaCliente';
 import { LegendaSituacao } from '../components/LegendaSituacao';
 import { NavInferior } from '../components/NavInferior';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
-import { descreverSituacao } from '../lib/descreverSituacao';
-import { iniciais } from '../lib/iniciais';
 import { ordenarPorUrgencia } from '../lib/ordenarPorUrgencia';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 
@@ -119,16 +116,7 @@ export function ClientesPage() {
         {!isLoading && !isError && visiveis.length > 0 && (
           <div className="lista">
             {visiveis.map((cliente) => (
-              <Link key={cliente.id} className="item-lista" to={`/clientes/${cliente.id}`}>
-                <span className="avatar">{iniciais(cliente.nomeFantasia)}</span>
-                <span className="info">
-                  <span className="nome">{cliente.nomeFantasia}</span>
-                  <span className="cidade">{cliente.cidade}</span>
-                  <EtiquetaSituacao cor={cliente.cor} texto={descreverSituacao(cliente)} />
-                  {ehGestor && <span className="cidade">Rep.: {cliente.representante.nome}</span>}
-                </span>
-                <BadgeCor cor={cliente.cor} />
-              </Link>
+              <ItemListaCliente key={cliente.id} cliente={cliente} mostrarRepresentante={ehGestor} />
             ))}
           </div>
         )}

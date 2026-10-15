@@ -849,10 +849,10 @@ p {
 
 /* ==========================================================================
    21. Alertas de produção (.alerta-producao)
-   Um bloco por produto e evento no card "⚠️ Alertas de produção" do Painel
-   do gestor (pages/PainelPage.tsx), com o mesmo respiro dos blocos de
-   .insight. O título e os links herdam a cor do alerta (.card.aviso-atencao),
-   como o título do card; o link segue sublinhado, então não depende só da cor.
+   Um bloco por produto e evento nos "⚠️ Alertas de produção" do Painel do
+   gestor (components/graficos/BarrasAlertasProducao.tsx), com o mesmo respiro
+   dos blocos de .insight. O título e os links herdam a cor do texto em volta;
+   o link segue sublinhado, então não depende só da cor.
    ========================================================================== */
 .alerta-producao {
   padding: 12px 0;
@@ -873,6 +873,7 @@ p {
 
 .alerta-producao p {
   margin: 0;
+  font-size: var(--texto-sm);
 }
 
 .alerta-producao a {
@@ -881,12 +882,12 @@ p {
 }
 
 /* ==========================================================================
-   22. Indicadores do gestor (.grade-kpi / .barra-distribuicao)
-   Card "Indicadores" do Painel (components/KpisCard.tsx, UC14, Etapa 6C; ver
-   docs/prototipo/painel.html): grade 2x2 de números e barra segmentada da
-   distribuição de clientes ativos por cor, em CSS puro (sem biblioteca de
-   gráfico): cada segmento cresce com `flex-grow` inline igual à contagem.
-   A legenda reaproveita .badge-pilula + BadgeCor.
+   22. Painel do gestor (.grade-kpi / .barra-distribuicao / .grafico)
+   Números de visitas (components/KpisCard.tsx, UC14, Etapa 6C): grade 2x2.
+   Distribuição de clientes ativos por cor (components/DistribuicaoPorCor.tsx):
+   barra segmentada em CSS puro, cada segmento cresce com `flex-grow` inline
+   igual à contagem; a legenda reaproveita .badge-pilula + BadgeCor. Gráficos
+   do Recharts e barras dos alertas de produção (Etapa 7): ver abaixo.
    ========================================================================== */
 .grade-kpi {
   display: grid;
@@ -957,6 +958,60 @@ p {
   gap: 8px;
 }
 
+/* Gráficos do Painel (Etapa 7, components/graficos): cada gráfico é uma
+   <figure> com a legenda acima do desenho do Recharts; as cores do SVG vêm
+   dos tokens (graficos/tema.ts). A tabela com os números fica escondida
+   (.visualmente-oculto, seção 24) para os leitores de tela. */
+.grafico {
+  /* Âncora da tabela escondida (position: absolute), que fica junto do gráfico */
+  position: relative;
+  margin: var(--espaco-4) 0 0 0;
+}
+
+.grafico-legenda {
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semi);
+  color: var(--texto-suave);
+  margin: 0 0 var(--espaco-2) 0;
+}
+
+/* Subtítulo que abre uma parte nova dentro do mesmo bloco */
+.subtitulo-bloco {
+  margin-top: var(--espaco-5);
+}
+
+/* Barras dos alertas de produção (graficos/BarrasAlertasProducao.tsx), em
+   CSS puro: trilho suave, preenchimento laranja com largura inline
+   (clientes / maior alerta) e o número escrito ao lado. */
+.alerta-barra {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  margin: 0 0 var(--espaco-2) 0;
+}
+
+.alerta-barra-trilho {
+  flex: 1;
+  height: 10px;
+  border-radius: var(--raio-pilula);
+  background-color: var(--laranja-suave);
+  overflow: hidden;
+}
+
+.alerta-barra-valor {
+  display: block;
+  height: 100%;
+  border-radius: var(--raio-pilula);
+  background-color: var(--laranja);
+}
+
+.alerta-barra-numero {
+  flex-shrink: 0;
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semi);
+  color: var(--texto);
+}
+
 /* ==========================================================================
    23. Estados vazios (.vazio)
    Frase curta com um emoji à frente, no lugar de listas sem itens:
@@ -980,4 +1035,21 @@ p {
   flex-shrink: 0;
   font-size: var(--texto-lg);
   line-height: 1;
+}
+
+/* ==========================================================================
+   24. Conteúdo só para leitores de tela (.visualmente-oculto)
+   Fora da vista, mas na árvore de acessibilidade: as tabelas com os números
+   dos gráficos do Painel (components/graficos/FiguraGrafico.tsx).
+   ========================================================================== */
+.visualmente-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
