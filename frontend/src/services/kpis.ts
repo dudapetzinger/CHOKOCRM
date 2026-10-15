@@ -26,6 +26,11 @@ export type Kpis = {
   simulado: boolean;
 };
 
-export function buscarKpis(periodoDias: number): Promise<Kpis> {
-  return api.get<Kpis>(`/dashboard/kpis?periodoDias=${periodoDias}`);
+/** `representanteId` só faz efeito para o gestor; vai na query só quando definido. */
+export function buscarKpis(periodoDias: number, representanteId?: string): Promise<Kpis> {
+  const query = new URLSearchParams({ periodoDias: String(periodoDias) });
+  if (representanteId) {
+    query.set('representanteId', representanteId);
+  }
+  return api.get<Kpis>(`/dashboard/kpis?${query}`);
 }

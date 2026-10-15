@@ -113,9 +113,10 @@ function ConteudoKpis({ kpis }: { kpis: Kpis }) {
   );
 }
 
-export function KpisCard() {
+/** `representanteId`: o escolhido no seletor do gestor; `undefined` = carteira toda. */
+export function KpisCard({ representanteId }: { representanteId?: string }) {
   const [periodoDias, setPeriodoDias] = useState(PERIODO_PADRAO_DIAS);
-  const { data: kpis, isLoading, isError, error, isPlaceholderData } = useKpis(periodoDias);
+  const { data: kpis, isLoading, isError, error, isPlaceholderData } = useKpis(periodoDias, representanteId);
 
   return (
     <section className="card" aria-labelledby="titulo-kpis">

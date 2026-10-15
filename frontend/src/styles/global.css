@@ -771,6 +771,13 @@ p {
   color: var(--texto-suave);
 }
 
+/* Etiqueta de situação abaixo do nome (Etapa 7), como em .item-lista: ocupa
+   só a largura do texto. */
+.agenda-item .info .etiqueta-situacao {
+  align-self: flex-start;
+  margin: var(--espaco-1) 0 2px;
+}
+
 .agenda-item [class^="badge-"] {
   flex-shrink: 0;
 }

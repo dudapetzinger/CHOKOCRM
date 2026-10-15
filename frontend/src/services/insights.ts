@@ -60,6 +60,11 @@ export function buscarInsights(clienteId: string, horizonteDias: number): Promis
   return api.get<Insights>(`/clients/${clienteId}/insights?horizonteDias=${horizonteDias}`);
 }
 
-export function buscarAlertasDeProducao(horizonteDias: number): Promise<Alertas> {
-  return api.get<Alertas>(`/insights/manager-alerts?horizonteDias=${horizonteDias}`);
+/** `representanteId` só faz efeito para o gestor; vai na query só quando definido. */
+export function buscarAlertasDeProducao(horizonteDias: number, representanteId?: string): Promise<Alertas> {
+  const query = new URLSearchParams({ horizonteDias: String(horizonteDias) });
+  if (representanteId) {
+    query.set('representanteId', representanteId);
+  }
+  return api.get<Alertas>(`/insights/manager-alerts?${query}`);
 }

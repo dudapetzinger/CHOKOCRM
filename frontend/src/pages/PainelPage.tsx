@@ -4,7 +4,8 @@
  * por cor, `KpisCard`), os alertas de produção
  * (produtos sugeridos para um evento sazonal próximo que estão com estoque
  * baixo em clientes da carteira) e a "Época do ano" com os eventos do
- * horizonte escolhido. Só o gestor vê o conteúdo; para o representante a rota
+ * horizonte escolhido, tudo filtrado pelo representante escolhido no seletor
+ * (Etapa 7). Só o gestor vê o conteúdo; para o representante a rota
  * existe, mas mostra apenas um aviso (a aba também não aparece na navegação).
  */
 import { Fragment, useState } from 'react';
@@ -14,10 +15,12 @@ import { AvisoSimulado } from '../components/AvisoSimulado';
 import { FiltroHorizonte, HORIZONTE_PADRAO_DIAS } from '../components/FiltroHorizonte';
 import { KpisCard } from '../components/KpisCard';
 import { NavInferior } from '../components/NavInferior';
+import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { useAlertasDeProducao } from '../hooks/useInsights';
 import { descreverPrazo } from '../lib/descreverPrazo';
 import { formatarDataCalendario } from '../lib/formatarData';
 import { listarComE } from '../lib/listarComE';
+import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
 import type { AlertaProducao, Alertas } from '../services/insights';
 
@@ -106,13 +109,17 @@ function CardEpocaDoAno({ alertas }: { alertas: Alertas }) {
 
 function PainelGestor() {
   const [horizonteDias, setHorizonteDias] = useState(HORIZONTE_PADRAO_DIAS);
-  const { data: alertas, isLoading, isError, error, isPlaceholderData } = useAlertasDeProducao(horizonteDias);
+  const representanteId = useRepresentanteSelecionado();
+  const { data: alertas, isLoading, isError, error, isPlaceholderData } = useAlertasDeProducao(
+    horizonteDias,
+    representanteId,
+  );
 
   // O filtro fica fora da área de resultados: continua na tela enquanto o horizonte novo carrega e
   // depois de um erro, para o gestor sempre poder escolher outro horizonte.
   return (
     <>
-      <KpisCard />
+      <KpisCard representanteId={representanteId} />
 
       <FiltroHorizonte valor={horizonteDias} onChange={setHorizonteDias} />
 
@@ -160,6 +167,8 @@ export function PainelPage() {
       </header>
 
       <div className="conteudo conteudo-com-nav">
+        <SeletorRepresentante />
+
         {user?.role === 'GESTOR' ? (
           <PainelGestor />
         ) : (

@@ -27,11 +27,14 @@ export function useInsights(clienteId: string | undefined, horizonteDias: number
   });
 }
 
-/** `keepPreviousData` pelo mesmo motivo de `useInsights`: trocar o horizonte não esvazia o Painel. */
-export function useAlertasDeProducao(horizonteDias: number) {
+/**
+ * `keepPreviousData` pelo mesmo motivo de `useInsights`: trocar o horizonte (ou
+ * o representante escolhido pelo gestor, Etapa 7) não esvazia o Painel.
+ */
+export function useAlertasDeProducao(horizonteDias: number, representanteId?: string) {
   return useQuery({
-    queryKey: ['insights', 'manager-alerts', horizonteDias],
-    queryFn: () => buscarAlertasDeProducao(horizonteDias),
+    queryKey: ['insights', 'manager-alerts', horizonteDias, representanteId ?? 'todos'],
+    queryFn: () => buscarAlertasDeProducao(horizonteDias, representanteId),
     retry: false,
     placeholderData: keepPreviousData,
   });

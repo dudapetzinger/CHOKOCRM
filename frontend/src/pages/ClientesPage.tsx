@@ -8,9 +8,11 @@ import { BadgeCor } from '../components/BadgeCor';
 import { EtiquetaSituacao } from '../components/EtiquetaSituacao';
 import { LegendaSituacao } from '../components/LegendaSituacao';
 import { NavInferior } from '../components/NavInferior';
+import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { descreverSituacao } from '../lib/descreverSituacao';
 import { iniciais } from '../lib/iniciais';
 import { ordenarPorUrgencia } from '../lib/ordenarPorUrgencia';
+import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 
 const ATRASO_BUSCA_MS = 300;
 
@@ -30,8 +32,8 @@ export function ClientesPage() {
   const [buscaAtrasada, setBuscaAtrasada] = useState('');
   // null até os dados chegarem pela primeira vez; depois, a escolha do usuário.
   const [aba, setAba] = useState<Aba | null>(null);
-  // O seletor de representante do gestor chega na Task 8; por ora, a carteira toda.
-  const representanteId: string | undefined = undefined;
+  // Representante escolhido pelo gestor no seletor; `undefined` = carteira toda.
+  const representanteId = useRepresentanteSelecionado();
   const ehGestor = user?.role === 'GESTOR';
 
   useEffect(() => {
@@ -78,6 +80,8 @@ export function ClientesPage() {
       </header>
 
       <div className="conteudo conteudo-com-flutuante conteudo-com-nav">
+        <SeletorRepresentante />
+
         <div className="campo">
           <label htmlFor="busca">Buscar cliente</label>
           <input

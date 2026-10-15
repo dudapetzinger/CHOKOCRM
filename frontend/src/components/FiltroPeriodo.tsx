@@ -7,7 +7,7 @@
 import { FiltroPilulas } from './FiltroPilulas';
 
 export const PERIODO_PADRAO_DIAS = 30;
-const PERIODOS_DIAS = [30, 90, 365] as const;
+const OPCOES_PERIODO = [30, 90, 365].map((dias) => ({ valor: dias, rotulo: `${dias} dias` }));
 
 type Props = {
   valor: number;
@@ -19,8 +19,7 @@ export function FiltroPeriodo({ valor, onChange }: Props) {
     <FiltroPilulas
       rotulo="Período"
       ariaLabel="Período de análise dos indicadores"
-      opcoes={PERIODOS_DIAS}
-      sufixo="dias"
+      opcoes={OPCOES_PERIODO}
       valor={valor}
       onChange={onChange}
     />

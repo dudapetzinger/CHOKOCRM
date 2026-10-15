@@ -1,28 +1,33 @@
 /**
  * Agenda do dia (UC10, Etapa 4): visitas atrasadas e previstas para hoje,
  * priorizadas pela cor de classificação do cliente. O representante vê só a
- * própria carteira; o gestor vê todos os clientes (ver `GET /agenda/today`).
+ * própria carteira; o gestor vê todos os clientes ou só os do representante
+ * escolhido no seletor (ver `GET /agenda/today`). Com o seletor em "Todos", cada
+ * linha diz de qual representante é o cliente.
  */
 import { useAuth } from '../auth/useAuth';
 import { NavInferior } from '../components/NavInferior';
 import { AgendaItemRow } from '../components/AgendaItemRow';
+import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { useAgenda } from '../hooks/useAgenda';
+import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
 import type { AgendaItem } from '../services/agenda';
 
 function linhaDiasAtraso(item: AgendaItem): string {
-  return `${item.diasAtraso} ${item.diasAtraso === 1 ? 'dia' : 'dias'} de atraso`;
+  return `Próxima visita venceu há ${item.diasAtraso} ${item.diasAtraso === 1 ? 'dia' : 'dias'}`;
 }
 
-function linhaDiasHoje(item: AgendaItem): string {
-  if (item.diasSemVisita === null) return 'Nunca visitado';
-  return `${item.diasSemVisita} ${item.diasSemVisita === 1 ? 'dia' : 'dias'} sem visita`;
+function linhaDiasHoje(): string {
+  return 'Visita prevista para hoje';
 }
 
 export function AgendaPage() {
   const { logout, user } = useAuth();
-  const { data, isLoading, isError, error } = useAgenda();
+  const representanteId = useRepresentanteSelecionado();
+  const { data, isLoading, isError, error } = useAgenda(representanteId);
   const podeCheckIn = user?.role === 'REPRESENTANTE';
+  const mostrarRepresentante = user?.role === 'GESTOR' && representanteId === undefined;
 
   const semVisitas = data && data.atrasadas.length === 0 && data.hoje.length === 0;
 
@@ -36,6 +41,8 @@ export function AgendaPage() {
       </header>
 
       <div className="conteudo conteudo-com-nav">
+        <SeletorRepresentante />
+
         <p className="campo-ajuda">
           Clientes com visita atrasada ou prevista para hoje, priorizados pela cor de classificação — vermelho e
           laranja antes de amarelo e verde.
@@ -61,7 +68,13 @@ export function AgendaPage() {
             <h2 className="card-titulo">Atrasadas</h2>
             <div className="agenda-lista">
               {data.atrasadas.map((item) => (
-                <AgendaItemRow key={item.id} item={item} linhaDias={linhaDiasAtraso(item)} podeCheckIn={podeCheckIn} />
+                <AgendaItemRow
+                  key={item.id}
+                  item={item}
+                  linhaDias={linhaDiasAtraso(item)}
+                  podeCheckIn={podeCheckIn}
+                  mostrarRepresentante={mostrarRepresentante}
+                />
               ))}
             </div>
           </>
@@ -72,7 +85,13 @@ export function AgendaPage() {
             <h2 className="card-titulo">Hoje</h2>
             <div className="agenda-lista">
               {data.hoje.map((item) => (
-                <AgendaItemRow key={item.id} item={item} linhaDias={linhaDiasHoje(item)} podeCheckIn={podeCheckIn} />
+                <AgendaItemRow
+                  key={item.id}
+                  item={item}
+                  linhaDias={linhaDiasHoje()}
+                  podeCheckIn={podeCheckIn}
+                  mostrarRepresentante={mostrarRepresentante}
+                />
               ))}
             </div>
           </>
