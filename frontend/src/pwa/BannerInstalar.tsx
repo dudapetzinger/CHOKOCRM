@@ -92,9 +92,13 @@ export function BannerInstalar() {
     if (!evento) return;
     // O `prompt()` só vale uma vez por evento: depois dele, o banner sai.
     setEvento(null);
-    await evento.prompt();
-    const escolha = await evento.userChoice;
-    if (escolha?.outcome === 'dismissed') dispensar();
+    try {
+      await evento.prompt();
+      const escolha = await evento.userChoice;
+      if (escolha?.outcome === 'dismissed') dispensar();
+    } catch {
+      // O navegador recusou o diálogo (evento já usado, página sem foco): o banner já saiu; não há o que fazer.
+    }
   }
 
   return (

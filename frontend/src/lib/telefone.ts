@@ -12,12 +12,13 @@ export function somenteDigitos(telefone: string): string {
 
 /**
  * Número internacional (55 + DDD + número) só com dígitos, ou vazio se não
- * houver dígitos. Um número nacional tem 10–11 dígitos; com 12–13 dígitos e
+ * houver dígitos; um único zero inicial (tronco, "047 …") é descartado. Um número nacional tem 10–11 dígitos; com 12–13 dígitos e
  * começando por 55, já vem com o código do país e não ganha outro (assim o
  * DDD 55, do RS, sem código do país continua recebendo o prefixo).
  */
 export function telefoneParaWaMe(telefone: string): string {
-  const digitos = somenteDigitos(telefone);
+  // Zero de tronco ("047 99900-8080", "(047) 3333-4444"): não faz parte do número.
+  const digitos = somenteDigitos(telefone).replace(/^0/, '');
   if (digitos === '') {
     return '';
   }

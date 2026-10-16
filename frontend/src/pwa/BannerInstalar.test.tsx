@@ -53,6 +53,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  Reflect.deleteProperty(navigator, 'standalone');
   removerSimulacaoDeLargura();
 });
 
@@ -156,6 +157,58 @@ describe('BannerInstalar', () => {
 
     expect(screen.queryByRole('button', { name: 'Agora não' })).not.toBeInTheDocument();
     expect(window.matchMedia).toHaveBeenCalledWith('(display-mode: standalone)');
+  });
+
+  it('"dismissed" no diálogo do navegador esconde o banner e grava a dispensa', async () => {
+    const usuario = userEvent.setup();
+    renderizar();
+    const evento = dispararPodeInstalar('dismissed');
+
+    await usuario.click(screen.getByRole('button', { name: 'Instalar o ChokoCRM' }));
+
+    expect(evento.prompt).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Agora não' })).not.toBeInTheDocument();
+    expect(localStorage.getItem(CHAVE_INSTALAR_DISPENSADO)).not.toBeNull();
+  });
+
+  it('"accepted" no diálogo não grava a dispensa', async () => {
+    const usuario = userEvent.setup();
+    renderizar();
+    dispararPodeInstalar('accepted');
+
+    await usuario.click(screen.getByRole('button', { name: 'Instalar o ChokoCRM' }));
+
+    expect(localStorage.getItem(CHAVE_INSTALAR_DISPENSADO)).toBeNull();
+  });
+
+  it('se o prompt() do navegador for rejeitado, o componente não quebra (a rejeição é tratada; o Vitest falharia a execução com uma sem tratamento)', async () => {
+    const usuario = userEvent.setup();
+    renderizar();
+    const evento = dispararPodeInstalar();
+    evento.prompt.mockRejectedValue(new DOMException('já usado', 'InvalidStateError'));
+
+    await usuario.click(screen.getByRole('button', { name: 'Instalar o ChokoCRM' }));
+    await act(async () => {
+      await new Promise((resolver) => setTimeout(resolver, 0));
+    });
+
+    expect(evento.prompt).toHaveBeenCalledTimes(1);
+    // O evento só vale uma vez: o banner saiu (sem evento e fora do iOS, não há o que oferecer).
+    expect(screen.queryByRole('button', { name: 'Instalar o ChokoCRM' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Agora não' })).not.toBeInTheDocument();
+    expect(localStorage.getItem(CHAVE_INSTALAR_DISPENSADO)).toBeNull();
+  });
+
+  it('no iOS aberto da tela inicial (navigator.standalone) → nunca aparece', () => {
+    simularUserAgent(UA_IPHONE);
+    // `navigator.standalone` só existe no Safari do iOS: o jsdom não o define.
+    Object.defineProperty(navigator, 'standalone', { configurable: true, value: true });
+    renderizar();
+
+    expect(screen.queryByRole('button', { name: 'Agora não' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('No iPhone: toque em Compartilhar e depois em "Adicionar à Tela de Início".'),
+    ).not.toBeInTheDocument();
   });
 
   it('sem usuário logado → não aparece; o evento fica guardado e o banner surge depois do login', () => {

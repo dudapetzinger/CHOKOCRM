@@ -28,6 +28,7 @@ function criarBuild(dir: string): string {
   mkdirSync(path.join(dir, 'assets'), { recursive: true });
   writeFileSync(path.join(dir, 'index.html'), INDEX_HTML);
   writeFileSync(path.join(dir, 'assets', 'app.js'), APP_JS);
+  writeFileSync(path.join(dir, 'assets', 'sw.js'), SW_JS);
   writeFileSync(path.join(dir, 'sw.js'), SW_JS);
   writeFileSync(path.join(dir, 'registerSW.js'), SW_JS);
   writeFileSync(path.join(dir, 'workbox-1a2b3c4d.js'), SW_JS);
@@ -82,6 +83,12 @@ describe('frontend servido pela API (WEB_DIR)', () => {
     expect(res.headers['cache-control']).toBe('no-cache');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
     expect(res.text).toBe(SW_JS);
+  });
+
+  it('um arquivo chamado sw.js dentro de /assets/ continua com cache imutável (só o sw.js da raiz é no-cache)', async () => {
+    const res = await request(app).get('/assets/sw.js');
+    expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
   });
 
   it('registerSW.js e workbox-*.js na raiz também saem sem cache', async () => {
