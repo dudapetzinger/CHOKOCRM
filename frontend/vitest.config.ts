@@ -14,6 +14,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['src/test/setup.ts'],
+    // O jsdom é lento no CI (a maior parte do tempo da suíte): 15 s por teste
+    // em vez de 5 s, para um teste lento não reprovar o job e travar o deploy.
+    testTimeout: 15000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

@@ -75,7 +75,7 @@ describe('BannerInstalar', () => {
   });
 
   it('"Instalar o ChokoCRM" abre o diálogo do navegador; depois do appinstalled o banner some', async () => {
-    const usuario = userEvent.setup();
+    const usuario = userEvent.setup({ delay: null });
     renderizar();
     const evento = dispararPodeInstalar();
 
@@ -89,7 +89,7 @@ describe('BannerInstalar', () => {
   });
 
   it('"Agora não" → some e grava a data na chave', async () => {
-    const usuario = userEvent.setup();
+    const usuario = userEvent.setup({ delay: null });
     renderizar();
     dispararPodeInstalar();
 
@@ -128,7 +128,7 @@ describe('BannerInstalar', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError');
     });
-    const usuario = userEvent.setup();
+    const usuario = userEvent.setup({ delay: null });
     renderizar();
     dispararPodeInstalar();
 
@@ -160,7 +160,7 @@ describe('BannerInstalar', () => {
   });
 
   it('"dismissed" no diálogo do navegador esconde o banner e grava a dispensa', async () => {
-    const usuario = userEvent.setup();
+    const usuario = userEvent.setup({ delay: null });
     renderizar();
     const evento = dispararPodeInstalar('dismissed');
 
@@ -172,7 +172,7 @@ describe('BannerInstalar', () => {
   });
 
   it('"accepted" no diálogo não grava a dispensa', async () => {
-    const usuario = userEvent.setup();
+    const usuario = userEvent.setup({ delay: null });
     renderizar();
     dispararPodeInstalar('accepted');
 
@@ -182,7 +182,7 @@ describe('BannerInstalar', () => {
   });
 
   it('se o prompt() do navegador for rejeitado, o componente não quebra (a rejeição é tratada; o Vitest falharia a execução com uma sem tratamento)', async () => {
-    const usuario = userEvent.setup();
+    const usuario = userEvent.setup({ delay: null });
     renderizar();
     const evento = dispararPodeInstalar();
     evento.prompt.mockRejectedValue(new DOMException('já usado', 'InvalidStateError'));

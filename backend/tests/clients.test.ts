@@ -511,6 +511,16 @@ describe('GET /clients com representanteId', () => {
     expect(res.body.data).toEqual([]);
   });
 
+  it('gestor com representanteId de um usuário GESTOR recebe lista vazia', async () => {
+    const res = await request(app)
+      .get('/clients')
+      .query({ representanteId: gestorId })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+
   it('representante A com ?representanteId=<B> continua vendo a própria carteira', async () => {
     const { outroId } = await criarOutraCarteira();
     const blumenauId = await idDoClientePorNomeFantasia('Café Blumenau');

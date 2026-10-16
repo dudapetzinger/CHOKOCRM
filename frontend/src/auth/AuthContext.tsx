@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { api, clearToken, setToken, setUnauthorizedHandler } from '../services/api';
 import { AuthContext, type UsuarioAutenticado, type AuthContextValue } from './auth-context';
 
@@ -23,19 +24,27 @@ function lerUsuarioSalvo(): UsuarioAutenticado | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UsuarioAutenticado | null>(lerUsuarioSalvo);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  async function login(email: string, senha: string): Promise<void> {
-    const resultado = await api.post<LoginResposta>('/auth/login', { email, senha });
-    setToken(resultado.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(resultado.user));
-    setUser(resultado.user);
-  }
+  // Desde a Etapa 7 cada usuário vê só a própria carteira (spec 5.0): o cache
+  // de quem saiu não pode aparecer, nem por um instante, para quem entra.
+  const login = useCallback(
+    async (email: string, senha: string): Promise<void> => {
+      const resultado = await api.post<LoginResposta>('/auth/login', { email, senha });
+      setToken(resultado.token);
+      localStorage.setItem(USER_KEY, JSON.stringify(resultado.user));
+      queryClient.clear();
+      setUser(resultado.user);
+    },
+    [queryClient],
+  );
 
-  function logout(): void {
+  const logout = useCallback((): void => {
     clearToken();
     localStorage.removeItem(USER_KEY);
+    queryClient.clear();
     setUser(null);
-  }
+  }, [queryClient]);
 
   // Token expirado/inválido em qualquer chamada autenticada (ver api.ts):
   // encerra a sessão local e manda de volta para /login.
@@ -47,9 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUnauthorizedHandler(handleUnauthorized);
     return () => setUnauthorizedHandler(null);
-  }, [navigate]);
+  }, [navigate, logout]);
 
-  const value = useMemo<AuthContextValue>(() => ({ user, login, logout }), [user]);
+  const value = useMemo<AuthContextValue>(() => ({ user, login, logout }), [user, login, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

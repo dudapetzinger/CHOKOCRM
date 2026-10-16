@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthContext, type Role } from '../auth/auth-context';
 import { RepresentanteProvider } from '../representante/RepresentanteContext';
+import { ApiError } from '../services/api';
 import { buscarAgendaDoDia, type Agenda, type AgendaItem } from '../services/agenda';
 import { removerSimulacaoDeLargura, simularLargura } from '../test/simularLargura';
 import { AgendaPage } from './AgendaPage';
@@ -48,7 +49,7 @@ function renderizarComo(role: Role, agenda: Agenda) {
     logout: vi.fn(),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={auth}>
         <RepresentanteProvider>
@@ -59,6 +60,7 @@ function renderizarComo(role: Role, agenda: Agenda) {
       </AuthContext.Provider>
     </QueryClientProvider>,
   );
+  return { queryClient };
 }
 
 beforeEach(() => {
@@ -118,6 +120,17 @@ describe('AgendaPage (celular)', () => {
     expect(screen.getByText('Rep.: Rafael Schmitt')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Check-in' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('com a agenda já carregada, um refetch que falha por rede mantém as visitas e mostra o aviso acima', async () => {
+    const { queryClient } = renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [] });
+    expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
+
+    vi.mocked(buscarAgendaDoDia).mockRejectedValue(new ApiError('NETWORK', 'Você está sem internet.'));
+    await act(() => queryClient.refetchQueries({ queryKey: ['agenda'] }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Você está sem internet.');
+    expect(screen.getByText('Doces da Vovó')).toBeInTheDocument();
   });
 });
 

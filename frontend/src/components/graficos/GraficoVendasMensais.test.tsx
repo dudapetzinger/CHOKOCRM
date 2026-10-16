@@ -48,4 +48,26 @@ describe('GraficoVendasMensais', () => {
     expect(within(linhas[2]).getByRole('rowheader')).toHaveTextContent('abr/26');
     expect(within(linhas[2]).getAllByRole('cell')[2]).toHaveTextContent('Páscoa');
   });
+
+  it('marca o mês de hoje como em curso (parcial): ponto próprio, tabela e resumo', () => {
+    const { container } = render(<GraficoVendasMensais meses={MESES} eventos={EVENTOS} largura={600} />);
+
+    // Hoje é 14/06/2026: junho ainda não fechou; maio, sim.
+    const linhas = within(screen.getByRole('table')).getAllByRole('row');
+    expect(within(linhas[4]).getByRole('rowheader')).toHaveTextContent('jun/26 (em curso)');
+    expect(within(linhas[3]).getByRole('rowheader')).toHaveTextContent(/^mai\/26$/);
+
+    const resumo = within(screen.getByRole('figure')).getByRole('img').getAttribute('aria-label');
+    expect(resumo).toContain('jun/26 (em curso): R$');
+
+    expect(container.querySelectorAll('.ponto-mes-em-curso')).toHaveLength(1);
+  });
+
+  it('sem o mês de hoje na série, nenhum ponto fica marcado como em curso', () => {
+    vi.setSystemTime(new Date(2026, 8, 14, 10));
+    const { container } = render(<GraficoVendasMensais meses={MESES} eventos={EVENTOS} largura={600} />);
+
+    expect(screen.queryByText(/em curso/)).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.ponto-mes-em-curso')).toHaveLength(0);
+  });
 });

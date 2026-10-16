@@ -40,7 +40,7 @@ export function useVendasMensais(representanteId?: string) {
  */
 export function useClientesDaCarteira(representanteId?: string) {
   return useQuery({
-    queryKey: ['clients', '', representanteId],
+    queryKey: ['clients', '', representanteId ?? 'todos'],
     queryFn: () => listClients({ representanteId }),
   });
 }

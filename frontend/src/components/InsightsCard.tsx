@@ -137,7 +137,7 @@ export function InsightsCard({ clienteId }: Props) {
           </p>
         )}
 
-        {!isLoading && !isError && insights && renderizarConteudo(insights)}
+        {insights && renderizarConteudo(insights)}
       </div>
     </section>
   );

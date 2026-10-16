@@ -83,7 +83,9 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
     return moldura(<p className="aviso">Carregando dados do cliente...</p>);
   }
 
-  if (isError || !cliente) {
+  // Sem ficha nenhuma para mostrar, só o erro. Com a ficha no cache, o erro de
+  // um refetch (rede caída) vira um aviso acima dela (spec 5.7).
+  if (!cliente) {
     return moldura(
       <p className="aviso aviso-atencao" role="alert">
         {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
@@ -96,6 +98,12 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
 
   return moldura(
     <>
+      {isError && (
+        <p className="aviso aviso-atencao" role="alert">
+          {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
+        </p>
+      )}
+
       {mensagemSucesso && <p className="aviso">{mensagemSucesso}</p>}
 
       <CabecalhoCliente cliente={cliente} mostrarRepresentante={ehGestor} />

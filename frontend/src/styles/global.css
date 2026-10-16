@@ -1175,16 +1175,11 @@ p {
 
 /* ==========================================================================
    25. App instalável (ADR-012): faixas de aviso e convite para instalar
-   .avisos-app fica preso no topo, acima de tudo (sem internet, versão
-   nova); vazio, não ocupa espaço. O .banner-instalar rola com a página e
-   some com "Agora não" (src/pwa/).
+   .avisos-app (sem internet, versão nova) fica no fluxo normal, acima da
+   barra superior: não é sticky, para nunca cobrir o "Sair"/"Voltar" da
+   barra, que gruda no topo ao rolar; vazio, não ocupa espaço. O
+   .banner-instalar rola com a página e some com "Agora não" (src/pwa/).
    ========================================================================== */
-.avisos-app {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-}
-
 .avisos-app:empty {
   display: none;
 }

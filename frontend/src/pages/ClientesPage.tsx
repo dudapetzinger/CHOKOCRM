@@ -42,7 +42,16 @@ export function ClientesPage() {
   const [aba, setAba] = useState<Aba | null>(null);
   // Representante escolhido pelo gestor no seletor; `undefined` = carteira toda.
   const representanteId = useRepresentanteSelecionado();
+  const representante = representanteId ?? 'todos';
   const ehGestor = user?.role === 'GESTOR';
+  const [representanteDaAba, setRepresentanteDaAba] = useState(representante);
+
+  // Outro representante no seletor: a aba padrão é escolhida de novo com a
+  // carteira dele (ajuste de estado no render, como no RepresentanteProvider).
+  if (representante !== representanteDaAba) {
+    setRepresentanteDaAba(representante);
+    setAba(null);
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => setBuscaAtrasada(busca.trim()), ATRASO_BUSCA_MS);
@@ -57,15 +66,20 @@ export function ClientesPage() {
     }
   }, [desktop, clienteAbertoId]);
 
+  // Trocar a busca mantém a lista anterior até a nova chegar (a barra de abas
+  // não pisca); trocar o representante não, porque a carteira é outra.
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['clients', buscaAtrasada, representanteId],
+    queryKey: ['clients', buscaAtrasada, representante],
     queryFn: () => listClients({ search: buscaAtrasada || undefined, representanteId }),
+    placeholderData: (dadosAnteriores, consultaAnterior) =>
+      consultaAnterior?.queryKey[2] === representante ? dadosAnteriores : undefined,
   });
 
   const contagens = useMemo(() => (data ? contarPorAba(data) : null), [data]);
 
-  // Aba inicial decidida uma vez, quando os dados chegam: Prioridade se
-  // houver alguém nela, senão Todos. Depois disso quem manda é o usuário.
+  // Aba inicial decidida quando os dados chegam (e de novo a cada troca de
+  // representante): Prioridade se houver alguém nela, senão Todos. Depois
+  // disso quem manda é o usuário.
   if (aba === null && contagens) {
     setAba(contagens.PRIORIDADE > 0 ? 'PRIORIDADE' : 'TODOS');
   }
@@ -113,26 +127,28 @@ export function ClientesPage() {
 
       {isLoading && <p className="aviso">Carregando clientes...</p>}
 
+      {/* Com a lista já carregada, o erro de um refetch (rede caída) vira só um
+          aviso acima dela: o que está no cache continua visível (spec 5.7). */}
       {isError && (
         <p className="aviso aviso-atencao" role="alert">
           {mensagemErroApi(error, 'Não foi possível carregar os clientes.')}
         </p>
       )}
 
-      {!isLoading && !isError && data && visiveis.length === 0 && (
+      {data && visiveis.length === 0 && (
         <p className="vazio">
           <span className="vazio-emoji" aria-hidden="true">🗂️</span>
           <span>{mensagemVazia()}</span>
         </p>
       )}
 
-      {!isLoading && !isError && visiveis.length > 0 && (
+      {visiveis.length > 0 && (
         <div className="lista">
           {visiveis.map((cliente) => (
             <ItemListaCliente
               key={cliente.id}
               cliente={cliente}
-              mostrarRepresentante={ehGestor}
+              mostrarRepresentante={ehGestor && representanteId === undefined}
               ativo={desktop && cliente.id === clienteAbertoId}
             />
           ))}

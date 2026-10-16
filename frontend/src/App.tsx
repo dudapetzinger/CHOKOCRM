@@ -9,6 +9,7 @@ import { NovoClientePage } from './pages/NovoClientePage';
 import { ClienteDetalhePage } from './pages/ClienteDetalhePage';
 import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
+import { LimiteDeErroDeCarregamento } from './components/LimiteDeErroDeCarregamento';
 import { useLarguraDesktop } from './lib/useLarguraDesktop';
 import { AvisoNovaVersao } from './pwa/AvisoNovaVersao';
 import { AvisoSemRede } from './pwa/AvisoSemRede';
@@ -33,8 +34,8 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <RepresentanteProvider>
-          {/* PWA (ADR-012): faixas de sem internet e de versão nova, presas no
-              topo; abaixo, o convite para instalar (só com usuário logado). */}
+          {/* PWA (ADR-012): faixas de sem internet e de versão nova, acima da
+              barra superior; abaixo, o convite para instalar (só com usuário logado). */}
           <div className="avisos-app">
             <AvisoSemRede />
             <AvisoNovaVersao />
@@ -78,9 +79,19 @@ export function App() {
               path="/painel"
               element={
                 <RequireAuth>
-                  <Suspense fallback={<p className="aviso">Carregando painel...</p>}>
-                    <PainelPage />
-                  </Suspense>
+                  <LimiteDeErroDeCarregamento>
+                    <Suspense
+                      fallback={
+                        <div className="container">
+                          <div className="conteudo">
+                            <p className="aviso">Carregando painel...</p>
+                          </div>
+                        </div>
+                      }
+                    >
+                      <PainelPage />
+                    </Suspense>
+                  </LimiteDeErroDeCarregamento>
                 </RequireAuth>
               }
             />

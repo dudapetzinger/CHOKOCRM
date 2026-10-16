@@ -282,6 +282,22 @@ describe('GET /dashboard/kpis com representanteId', () => {
     expect(res.body.semDados).toBe(true);
   });
 
+  it('gestor com representanteId de um usuário GESTOR recebe zeros', async () => {
+    const gestor = await prisma.user.findUniqueOrThrow({ where: { email: GESTOR.email } });
+
+    const res = await request(app)
+      .get('/dashboard/kpis')
+      .query({ representanteId: gestor.id })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.clientesAtivos).toBe(0);
+    expect(res.body.visitas.total).toBe(0);
+    expect(res.body.taxaDeRegistro.denominador).toBe(0);
+    expect(res.body.inativos.total).toBe(0);
+    expect(res.body.semDados).toBe(true);
+  });
+
   it('representante continua recebendo 403, mesmo com representanteId', async () => {
     const res = await request(app)
       .get('/dashboard/kpis')

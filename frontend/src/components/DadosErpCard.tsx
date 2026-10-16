@@ -105,7 +105,7 @@ export function DadosErpCard({ clienteId }: Props) {
         </p>
       )}
 
-      {!isLoading && !isError && dadosErp && renderizarConteudo(dadosErp)}
+      {dadosErp && renderizarConteudo(dadosErp)}
     </section>
   );
 }

@@ -94,13 +94,15 @@ export function AgendaPage() {
 
         {isLoading && <p className="aviso">Carregando agenda...</p>}
 
+        {/* Com a agenda já carregada, o erro de um refetch (rede caída) vira só
+            um aviso acima dela: o que está no cache continua visível (spec 5.7). */}
         {isError && (
           <p className="aviso aviso-atencao" role="alert">
             {mensagemErroApi(error, 'Não foi possível carregar a agenda.')}
           </p>
         )}
 
-        {!isLoading && !isError && data && desktop && (
+        {data && desktop && (
           <LayoutDuasColunas
             esquerda={
               <SecaoAgenda
@@ -125,7 +127,7 @@ export function AgendaPage() {
           />
         )}
 
-        {!isLoading && !isError && data && !desktop && (
+        {data && !desktop && (
           <>
             {semVisitas && (
               <p className="vazio">

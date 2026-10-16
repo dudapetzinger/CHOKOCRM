@@ -93,7 +93,7 @@ export function KpisCard({ periodoDias, representanteId }: { periodoDias: number
         </p>
       )}
 
-      {!isLoading && !isError && kpis && <ConteudoKpis kpis={kpis} />}
+      {kpis && <ConteudoKpis kpis={kpis} />}
     </div>
   );
 }

@@ -470,7 +470,7 @@ _checklist_religar() {
     "- [ ] Deploy: gh workflow run deploy.yml (ou um push na main)." \
     "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Habilitar (Enable) (o nome pode variar)." \
     "- [ ] Conferir o job smoke verde em $URL_GITHUB/actions e o teste de disponibilidade verde no $AI." \
-    "- [ ] Antes da apresentação: conferir no Painel se as cores e a agenda ainda contam a história esperada; se não, registrar check-ins novos nos clientes-chave pelo próprio app. Não rodar o seed de novo para corrigir: ele não renova as visitas de clientes que já têm visitas."
+    "- [ ] Antes da apresentação (1 ou 2 dias antes, depois de religar o B1): rodar o seed por SSH (cd /home/site/wwwroot && npm run db:seed) e conferir no Painel as cores, a agenda, o seletor \"Todos · Eduarda · Rafael\" e os alertas de produção. O seed só grava visitas em cliente que ainda não tem nenhuma (para os clientes da Eduarda, registrar check-ins novos nos clientes-chave pelo próprio app) e devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção."
 }
 
 _status_secret() {

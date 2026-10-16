@@ -12,7 +12,9 @@
  *      clientes mais urgentes.
  * No fim, a "Época do ano" com os eventos do horizonte. No desktop (≥ 768 px),
  * o bloco 1 fica à esquerda e os demais à direita. Tudo filtrado pelo
- * representante do seletor. Só o gestor vê o conteúdo; para o representante a
+ * representante do seletor. Com um bloco já carregado, o erro de um refetch
+ * (rede caída) aparece como aviso acima do conteúdo, que continua visível
+ * (spec 5.7). Só o gestor vê o conteúdo; para o representante a
  * rota existe, mas mostra apenas um aviso (a aba também não aparece na
  * navegação).
  */
@@ -44,11 +46,11 @@ import type { Alertas } from '../services/insights';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar o painel.';
 
-function SemDadosNoPeriodo() {
+function SemDadosNoPeriodo({ texto = 'Sem dados no período.' }: { texto?: string }) {
   return (
     <p className="vazio">
       <span className="vazio-emoji" aria-hidden="true">📊</span>
-      <span>Sem dados no período.</span>
+      <span>{texto}</span>
     </p>
   );
 }
@@ -94,7 +96,7 @@ function BlocoVisitas({ periodoDias, representanteId }: { periodoDias: number; r
           </p>
         )}
 
-        {!isLoading && !isError && data && <GraficoDeVisitas dados={data} representanteId={representanteId} />}
+        {data && <GraficoDeVisitas dados={data} representanteId={representanteId} />}
       </div>
     </section>
   );
@@ -106,21 +108,21 @@ function VendasMensaisDoBloco({ representanteId }: { representanteId?: string })
   if (isLoading) {
     return <p className="aviso">Carregando vendas mensais...</p>;
   }
-  if (isError) {
-    return (
-      <p className="aviso aviso-atencao" role="alert">
-        {mensagemErroApi(error, 'Não foi possível carregar as vendas mensais.')}
-      </p>
-    );
-  }
+  const avisoDeErro = isError ? (
+    <p className="aviso aviso-atencao" role="alert">
+      {mensagemErroApi(error, 'Não foi possível carregar as vendas mensais.')}
+    </p>
+  ) : null;
   if (!data) {
-    return null;
+    return avisoDeErro;
   }
 
   return (
     <>
+      {avisoDeErro}
+
       {data.meses.every(({ total }) => total === 0) ? (
-        <SemDadosNoPeriodo />
+        <SemDadosNoPeriodo texto="Sem vendas nos últimos 12 meses." />
       ) : (
         <GraficoVendasMensais meses={data.meses} eventos={data.eventos} />
       )}
@@ -166,7 +168,7 @@ function BlocoEstoque({ representanteId, horizonteDias, onHorizonteChange, consu
           </p>
         )}
 
-        {!isLoading && !isError && alertas && (
+        {alertas && (
           <>
             {/* Indisponível para todos: as barras já avisam; aqui só a falha parcial. */}
             {alertas.clientesIndisponiveis > 0 && alertas.clientesIndisponiveis < alertas.clientesConsultados && (
@@ -212,7 +214,7 @@ function BlocoClientesEsfriando({ periodoDias, representanteId }: { periodoDias:
         </p>
       )}
 
-      {!isLoading && !isError && clientes && (
+      {clientes && (
         <ListaClientesEsfriando clientes={clientes} mostrarRepresentante={representanteId === undefined} />
       )}
     </section>
@@ -274,9 +276,7 @@ function PainelGestor() {
 
             <BlocoClientesEsfriando periodoDias={periodoDias} representanteId={representanteId} />
 
-            {!consultaDeAlertas.isLoading && !consultaDeAlertas.isError && alertas && (
-              <CardEpocaDoAno alertas={alertas} />
-            )}
+            {alertas && <CardEpocaDoAno alertas={alertas} />}
           </>
         }
       />

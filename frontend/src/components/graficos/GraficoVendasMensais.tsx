@@ -11,6 +11,10 @@
  * horizontal, se atropelariam na largura do celular), com um halo da cor do
  * cartão por cima da linha; o marcador é um fio esmaecido, para não competir
  * com a série.
+ *
+ * O mês de hoje ainda não fechou: o ponto dele é vazado e tracejado, e o
+ * tooltip, a tabela e o resumo dizem "(em curso)", para a queda do último
+ * ponto não ser lida como queda de vendas.
  */
 import {
   CartesianGrid,
@@ -22,6 +26,7 @@ import {
   XAxis,
   YAxis,
   ZIndexLayer,
+  type DotItemDotProps,
   type LabelProps,
 } from 'recharts';
 import { formatarMesCurto, mesAtual } from '../../lib/formatarData';
@@ -51,9 +56,14 @@ function eventosPorMes(meses: VendaDoMes[], eventos: EventoNoGrafico[]): Map<str
   return porMes;
 }
 
-function resumir(meses: VendaDoMes[], marcados: Map<string, string>): string {
+/** "out/26", ou "out/26 (em curso)" se for o mês de hoje, que ainda não fechou. */
+function rotuloDoMes(mes: string, hoje: string): string {
+  return mes === hoje ? `${formatarMesCurto(mes)} (em curso)` : formatarMesCurto(mes);
+}
+
+function resumir(meses: VendaDoMes[], marcados: Map<string, string>, hoje: string): string {
   if (meses.length === 0) {
-    return 'Sem vendas no período.';
+    return 'Sem vendas nos últimos 12 meses.';
   }
   const primeiro = meses[0];
   const ultimo = meses[meses.length - 1];
@@ -63,7 +73,7 @@ function resumir(meses: VendaDoMes[], marcados: Map<string, string>): string {
     `Vendas de ${formatarMesCurto(primeiro.mes)} a ${formatarMesCurto(ultimo.mes)}`,
     `maior em ${formatarMesCurto(maior.mes)}, ${formatarMoeda(maior.total)}`,
     `menor em ${formatarMesCurto(menor.mes)}, ${formatarMoeda(menor.total)}`,
-    `${formatarMesCurto(ultimo.mes)}: ${formatarMoeda(ultimo.total)}`,
+    `${rotuloDoMes(ultimo.mes, hoje)}: ${formatarMoeda(ultimo.total)}`,
   ];
   if (marcados.size > 0) {
     const eventos = [...marcados].map(([mes, nomes]) => `${nomes} em ${formatarMesCurto(mes)}`);
@@ -118,6 +128,28 @@ function RotuloDeHoje({ viewBox, value }: LabelProps) {
   );
 }
 
+/** Só o mês de hoje ganha ponto: vazado e tracejado, como um valor ainda parcial. */
+function criarPontoDoMesEmCurso(hoje: string) {
+  return function PontoDoMesEmCurso({ cx, cy, payload }: DotItemDotProps) {
+    if ((payload as VendaDoMes).mes !== hoje || cx === undefined || cy === undefined) {
+      return null;
+    }
+    const cores = coresDoTema();
+    return (
+      <circle
+        className="ponto-mes-em-curso"
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill={cores.superficie}
+        stroke={cores.serie}
+        strokeWidth={2}
+        strokeDasharray="2 2"
+      />
+    );
+  };
+}
+
 export function GraficoVendasMensais({ meses, eventos, largura, altura }: Props) {
   const cores = coresDoTema();
   const alturaFinal = altura ?? ALTURA_PADRAO_GRAFICO;
@@ -128,10 +160,10 @@ export function GraficoVendasMensais({ meses, eventos, largura, altura }: Props)
   return (
     <FiguraGrafico
       legenda="Vendas da carteira nos últimos 12 meses"
-      resumo={resumir(meses, marcados)}
+      resumo={resumir(meses, marcados, hoje)}
       colunas={['Mês', 'Vendas', 'Clientes com dados', 'Evento']}
       linhas={meses.map(({ mes, total, clientesComDados }) => [
-        formatarMesCurto(mes),
+        rotuloDoMes(mes, hoje),
         formatarMoeda(total),
         clientesComDados,
         marcados.get(mes) ?? '',
@@ -165,7 +197,7 @@ export function GraficoVendasMensais({ meses, eventos, largura, altura }: Props)
         />
         <Tooltip
           contentStyle={ESTILO_TOOLTIP}
-          labelFormatter={(mes) => formatarMesCurto(String(mes))}
+          labelFormatter={(mes) => rotuloDoMes(String(mes), hoje)}
           formatter={(total) => [formatarMoeda(Number(total)), 'Vendas']}
         />
         {[...marcados].map(([mes, nomes]) => (
@@ -188,7 +220,7 @@ export function GraficoVendasMensais({ meses, eventos, largura, altura }: Props)
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
-          dot={false}
+          dot={criarPontoDoMesEmCurso(hoje)}
           activeDot={{ r: 5, fill: cores.serie, stroke: cores.superficie, strokeWidth: 2 }}
           isAnimationActive={false}
         />

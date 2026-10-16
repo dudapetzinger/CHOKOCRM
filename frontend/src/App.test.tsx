@@ -1,8 +1,10 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { removerSimulacaoDeLargura, simularLargura } from './test/simularLargura';
-import type { ClienteCompleto, ClienteListItem } from './services/clients';
+import { api } from './services/api';
+import { listClients, type ClienteCompleto, type ClienteListItem } from './services/clients';
 
 /**
  * `/clientes/:id` (rota única `ClientesOuFicha`, Etapa 7): desktop = lista com
@@ -102,6 +104,8 @@ beforeEach(() => {
 
 afterEach(() => {
   rolarParaTopo.mockRestore();
+  vi.restoreAllMocks();
+  vi.mocked(listClients).mockImplementation(async () => LISTA);
   removerSimulacaoDeLargura();
   localStorage.clear();
   window.history.pushState({}, '', '/');
@@ -165,5 +169,55 @@ describe('rota /clientes/:id', () => {
     expect(await screen.findByText('Empório Central')).toBeInTheDocument();
     expect(screen.queryByText('Selecione um cliente')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Voltar' })).not.toBeInTheDocument();
+  });
+});
+
+describe('troca de usuário no mesmo navegador', () => {
+  const LISTA_RAFAEL: ClienteListItem[] = [
+    {
+      id: 'c9',
+      nomeFantasia: 'Padaria Estrela',
+      razaoSocial: 'Padaria Estrela Ltda',
+      cidade: 'Itajaí',
+      telefone: '(47) 3444-5555',
+      ativo: true,
+      contatoPrincipal: null,
+      cor: 'AMARELO',
+      diasSemVisita: 20,
+      representante: { id: 'r2', nome: 'Rafael Schmitt' },
+      rebaixadoPorVenda: false,
+    },
+  ];
+
+  it('sair e entrar como outro usuário não mostra a lista do anterior, nem antes do refetch terminar', async () => {
+    simularLargura(false);
+    const usuario = userEvent.setup({ delay: null });
+    abrirApp('/clientes');
+    expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: 'Sair' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Entrar' })).toBeInTheDocument();
+
+    // A lista do Rafael só chega quando o teste mandar: enquanto isso, nada da carteira da Eduarda.
+    let entregarListaDoRafael: (lista: ClienteListItem[]) => void = () => {};
+    vi.mocked(listClients).mockImplementation(
+      () => new Promise<ClienteListItem[]>((resolver) => (entregarListaDoRafael = resolver)),
+    );
+    vi.spyOn(api, 'post').mockResolvedValue({
+      token: 'token-rafael',
+      user: { id: 'r2', nome: 'Rafael Schmitt', email: 'rafael@exemplo.com', role: 'REPRESENTANTE' },
+    });
+
+    await usuario.type(screen.getByLabelText('E-mail'), 'rafael@exemplo.com');
+    await usuario.type(screen.getByLabelText('Senha'), 'segredo123');
+    await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    expect(await screen.findByText('Carregando clientes...')).toBeInTheDocument();
+    expect(screen.queryByText('Doces da Vovó')).not.toBeInTheDocument();
+    expect(screen.queryByText('Empório Central')).not.toBeInTheDocument();
+
+    entregarListaDoRafael(LISTA_RAFAEL);
+    expect(await screen.findByText('Padaria Estrela')).toBeInTheDocument();
+    expect(screen.queryByText('Doces da Vovó')).not.toBeInTheDocument();
   });
 });

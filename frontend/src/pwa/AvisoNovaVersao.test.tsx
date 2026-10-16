@@ -45,7 +45,7 @@ describe('AvisoNovaVersao', () => {
 
   it('needRefresh (modo prompt) → "Atualizar" ativa o service worker novo', async () => {
     registro.precisaAtualizar = true;
-    const usuario = userEvent.setup();
+    const usuario = userEvent.setup({ delay: null });
     render(<AvisoNovaVersao />);
 
     await usuario.click(screen.getByRole('button', { name: 'Atualizar' }));
