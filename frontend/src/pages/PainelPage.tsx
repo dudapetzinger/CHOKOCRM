@@ -10,7 +10,8 @@
  *      horizonte escolhido;
  *   3. "Quais clientes estão esfriando?" — a distribuição por cor e os cinco
  *      clientes mais urgentes.
- * No fim, a "Época do ano" com os eventos do horizonte. Tudo filtrado pelo
+ * No fim, a "Época do ano" com os eventos do horizonte. No desktop (≥ 768 px),
+ * o bloco 1 fica à esquerda e os demais à direita. Tudo filtrado pelo
  * representante do seletor. Só o gestor vê o conteúdo; para o representante a
  * rota existe, mas mostra apenas um aviso (a aba também não aparece na
  * navegação).
@@ -27,6 +28,7 @@ import { GraficoVisitasPorRepresentante } from '../components/graficos/GraficoVi
 import { GraficoVisitasPorSemana } from '../components/graficos/GraficoVisitasPorSemana';
 import { ListaClientesEsfriando } from '../components/graficos/ListaClientesEsfriando';
 import { KpisCard } from '../components/KpisCard';
+import { LayoutDuasColunas } from '../components/LayoutDuasColunas';
 import { NavInferior } from '../components/NavInferior';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { useClientesDaCarteira, useKpisPorRepresentante, useVendasMensais } from '../hooks/useDashboard';
@@ -258,18 +260,26 @@ function PainelGestor() {
 
       {simulado && <AvisoSimulado />}
 
-      <BlocoVisitas periodoDias={periodoDias} representanteId={representanteId} />
+      <LayoutDuasColunas
+        larguraEsquerda="480px"
+        esquerda={<BlocoVisitas periodoDias={periodoDias} representanteId={representanteId} />}
+        direita={
+          <>
+            <BlocoEstoque
+              representanteId={representanteId}
+              horizonteDias={horizonteDias}
+              onHorizonteChange={setHorizonteDias}
+              consulta={consultaDeAlertas}
+            />
 
-      <BlocoEstoque
-        representanteId={representanteId}
-        horizonteDias={horizonteDias}
-        onHorizonteChange={setHorizonteDias}
-        consulta={consultaDeAlertas}
+            <BlocoClientesEsfriando periodoDias={periodoDias} representanteId={representanteId} />
+
+            {!consultaDeAlertas.isLoading && !consultaDeAlertas.isError && alertas && (
+              <CardEpocaDoAno alertas={alertas} />
+            )}
+          </>
+        }
       />
-
-      <BlocoClientesEsfriando periodoDias={periodoDias} representanteId={representanteId} />
-
-      {!consultaDeAlertas.isLoading && !consultaDeAlertas.isError && alertas && <CardEpocaDoAno alertas={alertas} />}
     </>
   );
 }

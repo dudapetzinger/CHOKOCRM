@@ -5,7 +5,8 @@
 
    1. Tokens, tipografia, formulários e botões ficam em arquivos próprios
    (Etapa 7), importados aqui — o @import precisa vir antes de qualquer
-   outra regra. */
+   outra regra. O layout desktop (≥ 768 px) fica em desktop.css, importado
+   por main.tsx depois deste arquivo para vencer na cascata. */
 @import './tokens.css';
 @import './tipografia.css';
 @import './formularios.css';
@@ -225,6 +226,12 @@ p {
 .item-lista:hover,
 .item-lista:focus-visible {
   background-color: var(--creme);
+}
+
+/* Cliente com a ficha aberta ao lado (Clientes no desktop, desktop.css) */
+.item-lista.ativo {
+  background-color: var(--laranja-suave);
+  box-shadow: inset 4px 0 0 var(--laranja);
 }
 
 .item-lista .avatar {

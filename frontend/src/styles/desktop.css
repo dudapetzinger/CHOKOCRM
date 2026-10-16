@@ -1,0 +1,150 @@
+/* ChokoCRM — layout desktop (≥ 768 px, Etapa 7).
+   Importado por main.tsx logo depois de global.css: um @import no fim de
+   global.css seria ignorado (o @import precisa vir antes de qualquer regra)
+   e, no topo, estas regras perderiam para as de global.css de mesma
+   especificidade. O 768 é o mesmo de LARGURA_DESKTOP_MIN em
+   lib/useLarguraDesktop.ts. Abaixo de 768 nada aqui vale: o celular segue
+   exatamente como em global.css.
+
+   - .container vira uma grade: navegação lateral na 1ª coluna, barra
+     superior e conteúdo na 2ª. Telas sem navegação (login, novo cliente,
+     check-in) usam .container-estreito: uma coluna só, centralizada.
+   - .nav-lateral (NavInferior) deixa de ser a barra fixa de baixo.
+   - .duas-colunas (components/LayoutDuasColunas.tsx): Clientes (lista |
+     ficha), Agenda (Atrasadas | Hoje) e Painel.
+   - De 768 a 1199 a barra lateral fica estreita (ícone sobre o rótulo), e
+     até 1023 as duas colunas dividem o espaço ao meio, para nenhuma ficar
+     espremida num tablet em pé. */
+
+@media (min-width: 768px) {
+  /* ---- Moldura: navegação | (barra superior + conteúdo) ---- */
+  .container {
+    max-width: 1100px;
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    /* `clip` em vez de `hidden`: não cria contêiner de rolagem, então a
+       barra superior e a lateral grudam de fato (position: sticky). */
+    overflow-x: clip;
+  }
+
+  .container > * {
+    grid-column: 2;
+  }
+
+  .container > .nav-lateral {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .container-estreito {
+    max-width: 560px;
+    display: block;
+  }
+
+  /* Sem barra inferior nem botão flutuante sobre o conteúdo: só respiro */
+  .conteudo-com-flutuante,
+  .conteudo-com-nav {
+    padding-bottom: var(--espaco-5);
+  }
+
+  /* ---- Navegação lateral ---- */
+  .nav-lateral {
+    position: sticky;
+    top: 0;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    align-self: start;
+    height: 100vh;
+    max-width: none;
+    margin: 0;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: var(--espaco-1);
+    padding: var(--espaco-3) var(--espaco-2);
+    background-color: var(--marrom-900);
+    border-top: none;
+    box-shadow: none;
+  }
+
+  .nav-lateral a {
+    flex: 0 0 auto;
+    padding: var(--espaco-2) var(--espaco-1);
+    border-radius: var(--raio-sm);
+    color: var(--marrom-100);
+  }
+
+  .nav-lateral a:hover,
+  .nav-lateral a:focus-visible {
+    background-color: var(--marrom-700);
+    color: var(--branco);
+  }
+
+  .nav-lateral a.ativo {
+    background-color: var(--marrom-700);
+    color: var(--branco);
+    box-shadow: inset 3px 0 0 var(--laranja);
+  }
+
+  /* ---- Duas colunas ---- */
+  .duas-colunas {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--espaco-5);
+    align-items: start;
+  }
+
+  .duas-colunas > .coluna {
+    min-width: 0;
+  }
+
+  /* Clientes: a lista rola na própria coluna, presa abaixo da barra
+     superior (56 px), e a ficha rola com a página. O respiro de 2–4 px
+     evita cortar a sombra da lista e o anel de foco. */
+  .clientes-colunas > .coluna:first-child {
+    position: sticky;
+    top: calc(56px + var(--espaco-4));
+    max-height: calc(100vh - 56px - 2 * var(--espaco-4));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: -2px -4px 0;
+    padding: 2px 4px 0;
+  }
+
+  /* "+ Novo cliente" preso ao pé da coluna da lista, sem cobrir a ficha */
+  .flutuante-wrap {
+    position: sticky;
+    left: auto;
+    right: auto;
+    bottom: 0;
+    max-width: none;
+    margin: 0;
+    padding: var(--espaco-2) 0 var(--espaco-4);
+  }
+}
+
+@media (min-width: 1024px) {
+  .duas-colunas {
+    grid-template-columns: minmax(360px, var(--largura-esquerda, 400px)) minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .container {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .nav-lateral {
+    padding: var(--espaco-4) var(--espaco-3);
+  }
+
+  .nav-lateral a {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--espaco-3);
+    padding: var(--espaco-3) var(--espaco-4);
+    font-size: var(--texto-sm);
+    text-align: left;
+  }
+}

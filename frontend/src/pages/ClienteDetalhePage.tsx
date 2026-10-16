@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCliente, mensagemErroApi } from '../services/clients';
@@ -21,8 +21,12 @@ const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do cliente.
  * campo: cabeçalho com situação e atalhos de contato → "Novo check-in" →
  * mensagem de estoque → insights → dados do ERP → histórico de visitas →
  * recorrência → dados cadastrais (recolhidos em `DadosCadastrais`).
+ *
+ * `embutida` (desktop, ao lado da lista de Clientes): só o conteúdo, sem
+ * `.container`, barra "Cliente"/"Voltar" nem navegação — a tela de Clientes
+ * já tem os seus. O título da ficha passa a ser o nome do cliente (h2).
  */
-export function ClienteDetalhePage() {
+export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean }) {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const location = useLocation();
@@ -52,7 +56,15 @@ export function ClienteDetalhePage() {
     enabled: Boolean(id),
   });
 
-  if (isLoading) {
+  /** A página inteira no celular; no desktop embutido, só o conteúdo. */
+  function moldura(conteudo: ReactNode) {
+    if (embutida) {
+      return (
+        <section className="ficha-embutida" aria-label="Ficha do cliente">
+          {conteudo}
+        </section>
+      );
+    }
     return (
       <div className="container">
         <header className="topo">
@@ -61,104 +73,84 @@ export function ClienteDetalhePage() {
             Voltar
           </Link>
         </header>
-        <div className="conteudo conteudo-com-nav">
-          <p className="aviso">Carregando dados do cliente...</p>
-        </div>
+        <div className="conteudo conteudo-com-nav">{conteudo}</div>
         <NavInferior />
       </div>
     );
   }
 
+  if (isLoading) {
+    return moldura(<p className="aviso">Carregando dados do cliente...</p>);
+  }
+
   if (isError || !cliente) {
-    return (
-      <div className="container">
-        <header className="topo">
-          <h1>Cliente</h1>
-          <Link className="topo-acao" to="/clientes">
-            Voltar
-          </Link>
-        </header>
-        <div className="conteudo conteudo-com-nav">
-          <p className="aviso aviso-atencao" role="alert">
-            {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
-          </p>
-        </div>
-        <NavInferior />
-      </div>
+    return moldura(
+      <p className="aviso aviso-atencao" role="alert">
+        {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
+      </p>,
     );
   }
 
   const ehRepresentante = user?.role === 'REPRESENTANTE';
   const ehGestor = user?.role === 'GESTOR';
 
-  return (
-    <div className="container">
-      <header className="topo">
-        <h1>Cliente</h1>
-        <Link className="topo-acao" to="/clientes">
-          Voltar
-        </Link>
-      </header>
+  return moldura(
+    <>
+      {mensagemSucesso && <p className="aviso">{mensagemSucesso}</p>}
 
-      <div className="conteudo conteudo-com-nav">
-        {mensagemSucesso && <p className="aviso">{mensagemSucesso}</p>}
+      <CabecalhoCliente cliente={cliente} mostrarRepresentante={ehGestor} />
 
-        <CabecalhoCliente cliente={cliente} mostrarRepresentante={ehGestor} />
+      {ehRepresentante &&
+        (cliente.ativo ? (
+          <Link className="btn-primario btn-check-in" to={`/clientes/${id}/check-in`}>
+            Novo check-in
+          </Link>
+        ) : (
+          <p className="campo-ajuda aviso-check-in">Cliente inativo não recebe check-in novo.</p>
+        ))}
 
-        {ehRepresentante &&
-          (cliente.ativo ? (
-            <Link className="btn-primario btn-check-in" to={`/clientes/${id}/check-in`}>
-              Novo check-in
-            </Link>
-          ) : (
-            <p className="campo-ajuda aviso-check-in">Cliente inativo não recebe check-in novo.</p>
-          ))}
+      <MensagemEstoqueCard clienteId={id!} podeGerar={ehRepresentante && cliente.ativo} />
 
-        <MensagemEstoqueCard clienteId={id!} podeGerar={ehRepresentante && cliente.ativo} />
+      <InsightsCard clienteId={id!} />
 
-        <InsightsCard clienteId={id!} />
+      <DadosErpCard clienteId={id!} />
 
-        <DadosErpCard clienteId={id!} />
+      <section className="card" aria-labelledby="titulo-visitas">
+        <h2 className="card-titulo" id="titulo-visitas">
+          Histórico de visitas
+        </h2>
 
-        <section className="card" aria-labelledby="titulo-visitas">
-          <h2 className="card-titulo" id="titulo-visitas">
-            Histórico de visitas
-          </h2>
+        {fotoNaoEnviada && (
+          <p className="aviso aviso-atencao" role="alert">
+            O check-in foi salvo, mas a foto não chegou a ser enviada. Você pode anexá-la na visita
+            mais recente, abaixo.
+          </p>
+        )}
 
-          {fotoNaoEnviada && (
-            <p className="aviso aviso-atencao" role="alert">
-              O check-in foi salvo, mas a foto não chegou a ser enviada. Você pode anexá-la na visita
-              mais recente, abaixo.
-            </p>
-          )}
+        {!ehRepresentante && <p className="campo-ajuda">Somente o representante registra visitas.</p>}
 
-          {!ehRepresentante && <p className="campo-ajuda">Somente o representante registra visitas.</p>}
-
-          <VisitTimeline
-            visitas={visitas ?? []}
-            usuarioId={user?.id}
-            onEditarDescricao={async (visitaId, descricao) => {
-              await mutationEditarDescricao.mutateAsync({ visitaId, descricao });
-            }}
-            onAnexarFoto={async (visitaId, arquivo) => {
-              const comprimida = await comprimirImagem(arquivo);
-              await mutationAnexarFoto.mutateAsync({ visitaId, foto: comprimida });
-            }}
-          />
-        </section>
-
-        <RecorrenciaCard
-          clienteId={id!}
-          recorrenciaDias={cliente.recorrenciaDias}
-          historico={cliente.recorrenciaChanges}
-          podeAlterar={ehRepresentante && cliente.ativo}
+        <VisitTimeline
+          visitas={visitas ?? []}
+          usuarioId={user?.id}
+          onEditarDescricao={async (visitaId, descricao) => {
+            await mutationEditarDescricao.mutateAsync({ visitaId, descricao });
+          }}
+          onAnexarFoto={async (visitaId, arquivo) => {
+            const comprimida = await comprimirImagem(arquivo);
+            await mutationAnexarFoto.mutateAsync({ visitaId, foto: comprimida });
+          }}
         />
+      </section>
 
-        <DadosCadastrais cliente={cliente} onMensagemSucesso={setMensagemSucesso} />
-      </div>
+      <RecorrenciaCard
+        clienteId={id!}
+        recorrenciaDias={cliente.recorrenciaDias}
+        historico={cliente.recorrenciaChanges}
+        podeAlterar={ehRepresentante && cliente.ativo}
+      />
 
-      <NavInferior />
-    </div>
+      <DadosCadastrais cliente={cliente} onMensagemSucesso={setMensagemSucesso} />
+    </>,
   );
 }
 

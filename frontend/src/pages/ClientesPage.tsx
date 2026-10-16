@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/useAuth';
 import { listClients, mensagemErroApi, type ClienteListItem } from '../services/clients';
 import { AbasSituacao, CORES_DA_ABA, type Aba } from '../components/AbasSituacao';
 import { ItemListaCliente } from '../components/ItemListaCliente';
+import { LayoutDuasColunas } from '../components/LayoutDuasColunas';
 import { LegendaSituacao } from '../components/LegendaSituacao';
 import { NavInferior } from '../components/NavInferior';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { ordenarPorUrgencia } from '../lib/ordenarPorUrgencia';
+import { useLarguraDesktop } from '../lib/useLarguraDesktop';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
+import { ClienteDetalhePage } from './ClienteDetalhePage';
 
 const ATRASO_BUSCA_MS = 300;
 
@@ -23,8 +26,16 @@ function contarPorAba(clientes: readonly ClienteListItem[]): Record<Aba, number>
   };
 }
 
+/**
+ * Lista de clientes. No desktop (≥ 768 px, Etapa 7) a mesma tela atende
+ * `/clientes` e `/clientes/:id`: a lista à esquerda, com o cliente aberto
+ * destacado, e a ficha dele à direita (ou o aviso para escolher um). No
+ * celular, `/clientes/:id` abre só a ficha (ver `ClientesOuFicha` em App.tsx).
+ */
 export function ClientesPage() {
   const { logout, user } = useAuth();
+  const { id: clienteAbertoId } = useParams<{ id?: string }>();
+  const desktop = useLarguraDesktop();
   const [busca, setBusca] = useState('');
   const [buscaAtrasada, setBuscaAtrasada] = useState('');
   // null até os dados chegarem pela primeira vez; depois, a escolha do usuário.
@@ -37,6 +48,14 @@ export function ClientesPage() {
     const timer = setTimeout(() => setBuscaAtrasada(busca.trim()), ATRASO_BUSCA_MS);
     return () => clearTimeout(timer);
   }, [busca]);
+
+  // No desktop a lista rola na própria coluna; ao abrir outro cliente, a ficha
+  // começa do topo em vez de onde a anterior foi deixada.
+  useEffect(() => {
+    if (desktop && clienteAbertoId) {
+      window.scrollTo({ top: 0 });
+    }
+  }, [desktop, clienteAbertoId]);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['clients', buscaAtrasada, representanteId],
@@ -67,6 +86,69 @@ export function ClientesPage() {
       : 'Nenhum cliente cadastrado ainda.';
   }
 
+  // O botão flutuante vai junto da lista: no celular é `fixed` (o lugar no DOM
+  // não muda nada); no desktop fica preso ao pé da coluna da lista, sem cobrir a ficha.
+  const colunaLista = (
+    <>
+      <SeletorRepresentante />
+
+      <div className="campo">
+        <label htmlFor="busca">Buscar cliente</label>
+        <input
+          type="search"
+          id="busca"
+          name="busca"
+          placeholder="Nome ou cidade"
+          value={busca}
+          onChange={(event) => setBusca(event.target.value)}
+        />
+      </div>
+
+      {contagens && aba !== null && (
+        <div className="situacao-barra">
+          <AbasSituacao valor={aba} onChange={setAba} contagens={contagens} />
+          <LegendaSituacao />
+        </div>
+      )}
+
+      {isLoading && <p className="aviso">Carregando clientes...</p>}
+
+      {isError && (
+        <p className="aviso aviso-atencao" role="alert">
+          {mensagemErroApi(error, 'Não foi possível carregar os clientes.')}
+        </p>
+      )}
+
+      {!isLoading && !isError && data && visiveis.length === 0 && (
+        <p className="vazio">
+          <span className="vazio-emoji" aria-hidden="true">🗂️</span>
+          <span>{mensagemVazia()}</span>
+        </p>
+      )}
+
+      {!isLoading && !isError && visiveis.length > 0 && (
+        <div className="lista">
+          {visiveis.map((cliente) => (
+            <ItemListaCliente
+              key={cliente.id}
+              cliente={cliente}
+              mostrarRepresentante={ehGestor}
+              ativo={desktop && cliente.id === clienteAbertoId}
+            />
+          ))}
+        </div>
+      )}
+
+      {user?.role === 'REPRESENTANTE' && (
+        <div className="flutuante-wrap">
+          <Link to="/clientes/novo" className="botao-flutuante">
+            + Novo cliente
+          </Link>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="container">
       <header className="topo">
@@ -77,58 +159,25 @@ export function ClientesPage() {
       </header>
 
       <div className="conteudo conteudo-com-flutuante conteudo-com-nav">
-        <SeletorRepresentante />
-
-        <div className="campo">
-          <label htmlFor="busca">Buscar cliente</label>
-          <input
-            type="search"
-            id="busca"
-            name="busca"
-            placeholder="Nome ou cidade"
-            value={busca}
-            onChange={(event) => setBusca(event.target.value)}
+        {desktop ? (
+          <LayoutDuasColunas
+            className="clientes-colunas"
+            esquerda={colunaLista}
+            direita={
+              clienteAbertoId ? (
+                <ClienteDetalhePage key={clienteAbertoId} embutida />
+              ) : (
+                <p className="vazio">
+                  <span className="vazio-emoji" aria-hidden="true">👈</span>
+                  <span>Selecione um cliente</span>
+                </p>
+              )
+            }
           />
-        </div>
-
-        {contagens && aba !== null && (
-          <div className="situacao-barra">
-            <AbasSituacao valor={aba} onChange={setAba} contagens={contagens} />
-            <LegendaSituacao />
-          </div>
-        )}
-
-        {isLoading && <p className="aviso">Carregando clientes...</p>}
-
-        {isError && (
-          <p className="aviso aviso-atencao" role="alert">
-            {mensagemErroApi(error, 'Não foi possível carregar os clientes.')}
-          </p>
-        )}
-
-        {!isLoading && !isError && data && visiveis.length === 0 && (
-          <p className="vazio">
-            <span className="vazio-emoji" aria-hidden="true">🗂️</span>
-            <span>{mensagemVazia()}</span>
-          </p>
-        )}
-
-        {!isLoading && !isError && visiveis.length > 0 && (
-          <div className="lista">
-            {visiveis.map((cliente) => (
-              <ItemListaCliente key={cliente.id} cliente={cliente} mostrarRepresentante={ehGestor} />
-            ))}
-          </div>
+        ) : (
+          colunaLista
         )}
       </div>
-
-      {user?.role === 'REPRESENTANTE' && (
-        <div className="flutuante-wrap">
-          <Link to="/clientes/novo" className="botao-flutuante">
-            + Novo cliente
-          </Link>
-        </div>
-      )}
 
       <NavInferior />
     </div>

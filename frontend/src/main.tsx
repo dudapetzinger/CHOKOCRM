@@ -9,6 +9,8 @@ import '@fontsource/manrope/400.css';
 import '@fontsource/manrope/600.css';
 import '@fontsource/manrope/700.css';
 import './styles/global.css';
+// Depois de global.css: as regras de ≥ 768 px precisam vir por último na cascata
+import './styles/desktop.css';
 import App from './App.tsx';
 
 const queryClient = new QueryClient();

@@ -3,13 +3,16 @@
  * priorizadas pela cor de classificação do cliente. O representante vê só a
  * própria carteira; o gestor vê todos os clientes ou só os do representante
  * escolhido no seletor (ver `GET /agenda/today`). Com o seletor em "Todos", cada
- * linha diz de qual representante é o cliente.
+ * linha diz de qual representante é o cliente. No desktop (≥ 768 px), Atrasadas
+ * e Hoje ficam lado a lado e aparecem mesmo vazias.
  */
 import { useAuth } from '../auth/useAuth';
 import { NavInferior } from '../components/NavInferior';
 import { AgendaItemRow } from '../components/AgendaItemRow';
+import { LayoutDuasColunas } from '../components/LayoutDuasColunas';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { useAgenda } from '../hooks/useAgenda';
+import { useLarguraDesktop } from '../lib/useLarguraDesktop';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
 import type { AgendaItem } from '../services/agenda';
@@ -22,12 +25,53 @@ function linhaDiasHoje(): string {
   return 'Visita prevista para hoje';
 }
 
+type SecaoAgendaProps = {
+  titulo: string;
+  itens: AgendaItem[];
+  linhaDias: (item: AgendaItem) => string;
+  podeCheckIn: boolean;
+  mostrarRepresentante: boolean;
+  /** Frase do estado vazio; sem ela, a seção vazia não aparece (celular). */
+  textoVazio?: string;
+};
+
+function SecaoAgenda({ titulo, itens, linhaDias, podeCheckIn, mostrarRepresentante, textoVazio }: SecaoAgendaProps) {
+  if (itens.length === 0 && !textoVazio) {
+    return null;
+  }
+
+  return (
+    <>
+      <h2 className="card-titulo">{titulo}</h2>
+      {itens.length === 0 ? (
+        <p className="vazio">
+          <span className="vazio-emoji" aria-hidden="true">🗓️</span>
+          <span>{textoVazio}</span>
+        </p>
+      ) : (
+        <div className="agenda-lista">
+          {itens.map((item) => (
+            <AgendaItemRow
+              key={item.id}
+              item={item}
+              linhaDias={linhaDias(item)}
+              podeCheckIn={podeCheckIn}
+              mostrarRepresentante={mostrarRepresentante}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function AgendaPage() {
   const { logout, user } = useAuth();
   const representanteId = useRepresentanteSelecionado();
   const { data, isLoading, isError, error } = useAgenda(representanteId);
   const podeCheckIn = user?.role === 'REPRESENTANTE';
   const mostrarRepresentante = user?.role === 'GESTOR' && representanteId === undefined;
+  const desktop = useLarguraDesktop();
 
   const semVisitas = data && data.atrasadas.length === 0 && data.hoje.length === 0;
 
@@ -56,44 +100,55 @@ export function AgendaPage() {
           </p>
         )}
 
-        {!isLoading && !isError && data && semVisitas && (
-          <p className="vazio">
-            <span className="vazio-emoji" aria-hidden="true">🗓️</span>
-            <span>Nenhuma visita atrasada ou prevista para hoje.</span>
-          </p>
+        {!isLoading && !isError && data && desktop && (
+          <LayoutDuasColunas
+            esquerda={
+              <SecaoAgenda
+                titulo="Atrasadas"
+                itens={data.atrasadas}
+                linhaDias={linhaDiasAtraso}
+                podeCheckIn={podeCheckIn}
+                mostrarRepresentante={mostrarRepresentante}
+                textoVazio="Nenhuma visita atrasada."
+              />
+            }
+            direita={
+              <SecaoAgenda
+                titulo="Hoje"
+                itens={data.hoje}
+                linhaDias={linhaDiasHoje}
+                podeCheckIn={podeCheckIn}
+                mostrarRepresentante={mostrarRepresentante}
+                textoVazio="Nenhuma visita prevista para hoje."
+              />
+            }
+          />
         )}
 
-        {!isLoading && !isError && data && data.atrasadas.length > 0 && (
+        {!isLoading && !isError && data && !desktop && (
           <>
-            <h2 className="card-titulo">Atrasadas</h2>
-            <div className="agenda-lista">
-              {data.atrasadas.map((item) => (
-                <AgendaItemRow
-                  key={item.id}
-                  item={item}
-                  linhaDias={linhaDiasAtraso(item)}
-                  podeCheckIn={podeCheckIn}
-                  mostrarRepresentante={mostrarRepresentante}
-                />
-              ))}
-            </div>
-          </>
-        )}
+            {semVisitas && (
+              <p className="vazio">
+                <span className="vazio-emoji" aria-hidden="true">🗓️</span>
+                <span>Nenhuma visita atrasada ou prevista para hoje.</span>
+              </p>
+            )}
 
-        {!isLoading && !isError && data && data.hoje.length > 0 && (
-          <>
-            <h2 className="card-titulo">Hoje</h2>
-            <div className="agenda-lista">
-              {data.hoje.map((item) => (
-                <AgendaItemRow
-                  key={item.id}
-                  item={item}
-                  linhaDias={linhaDiasHoje()}
-                  podeCheckIn={podeCheckIn}
-                  mostrarRepresentante={mostrarRepresentante}
-                />
-              ))}
-            </div>
+            <SecaoAgenda
+              titulo="Atrasadas"
+              itens={data.atrasadas}
+              linhaDias={linhaDiasAtraso}
+              podeCheckIn={podeCheckIn}
+              mostrarRepresentante={mostrarRepresentante}
+            />
+
+            <SecaoAgenda
+              titulo="Hoje"
+              itens={data.hoje}
+              linhaDias={linhaDiasHoje}
+              podeCheckIn={podeCheckIn}
+              mostrarRepresentante={mostrarRepresentante}
+            />
           </>
         )}
       </div>

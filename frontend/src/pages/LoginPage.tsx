@@ -30,7 +30,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="container">
+    <div className="container container-estreito">
       <main className="tela-login">
         <div className="marca">
           <p className="marca-logo">

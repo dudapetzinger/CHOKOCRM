@@ -109,7 +109,7 @@ export function NovoClientePage() {
   }
 
   return (
-    <div className="container">
+    <div className="container container-estreito">
       <header className="topo">
         <h1>Novo cliente</h1>
         <Link className="topo-acao" to="/clientes">

@@ -1,7 +1,8 @@
 /**
  * Navegação inferior fixa das telas internas (Clientes/Agenda e, só para o
  * gestor, Painel). Não aparece na tela de login, de novo cliente nem no
- * check-in (ver .nav-inferior em styles/global.css).
+ * check-in (ver .nav-inferior em styles/global.css). A partir de 768 px a
+ * classe `nav-lateral` a transforma em barra lateral (styles/desktop.css).
  */
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
@@ -10,7 +11,7 @@ export function NavInferior() {
   const { user } = useAuth();
 
   return (
-    <nav className="nav-inferior" aria-label="Navegação principal">
+    <nav className="nav-inferior nav-lateral" aria-label="Navegação principal">
       <NavLink to="/clientes" className={({ isActive }) => (isActive ? 'ativo' : undefined)}>
         <span className="icone" aria-hidden="true">👥</span>
         Clientes

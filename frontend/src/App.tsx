@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { RequireAuth } from './auth/RequireAuth';
 import { RepresentanteProvider } from './representante/RepresentanteContext';
@@ -9,9 +9,21 @@ import { NovoClientePage } from './pages/NovoClientePage';
 import { ClienteDetalhePage } from './pages/ClienteDetalhePage';
 import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
+import { useLarguraDesktop } from './lib/useLarguraDesktop';
 
 // O Painel (só do gestor) carrega o Recharts: fica num pedaço à parte, baixado só quando aberto.
 const PainelPage = lazy(() => import('./pages/PainelPage'));
+
+/**
+ * `/clientes` e `/clientes/:id` numa rota só (Etapa 7). No desktop as duas
+ * mostram a lista com a ficha ao lado — a mesma rota mantém a lista montada
+ * (busca, aba, rolagem) ao trocar de cliente. No celular, com id, só a ficha.
+ */
+function ClientesOuFicha() {
+  const { id } = useParams<{ id?: string }>();
+  const desktop = useLarguraDesktop();
+  return id && !desktop ? <ClienteDetalhePage /> : <ClientesPage />;
+}
 
 export function App() {
   return (
@@ -21,10 +33,10 @@ export function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route
-              path="/clientes"
+              path="/clientes/:id?"
               element={
                 <RequireAuth>
-                  <ClientesPage />
+                  <ClientesOuFicha />
                 </RequireAuth>
               }
             />
@@ -33,14 +45,6 @@ export function App() {
               element={
                 <RequireAuth>
                   <NovoClientePage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/clientes/:id"
-              element={
-                <RequireAuth>
-                  <ClienteDetalhePage />
                 </RequireAuth>
               }
             />
