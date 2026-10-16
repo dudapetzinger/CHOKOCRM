@@ -197,7 +197,7 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
           <div className="acoes-linha">
             <button
               type="button"
-              className="btn-primario"
+              className="btn-secundario"
               onClick={iniciarGeracao}
               disabled={mutationProposta.isPending}
             >

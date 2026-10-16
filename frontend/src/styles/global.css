@@ -334,10 +334,125 @@ p {
    ========================================================================== */
 
 /* ==========================================================================
-   13. Ficha do cliente (dados e contatos)
-   Linhas de dado do cabeçalho do cliente e bloco de cada contato, ver
-   docs/prototipo/cliente.html.
+   13. Ficha do cliente (cabeçalho, check-in, dados cadastrais e contatos)
+   Ordem da Etapa 7 (spec 5.5): cabeçalho compacto com atalhos de contato,
+   "Novo check-in" e, no fim, os dados cadastrais recolhidos num <details>.
+   Linhas de dado e bloco de cada contato: ver docs/prototipo/cliente.html.
    ========================================================================== */
+/* Cabeçalho (components/CabecalhoCliente.tsx) */
+.cabecalho-cliente {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espaco-2);
+}
+
+.cabecalho-cliente-nome {
+  margin: 0;
+  font-size: var(--texto-xl);
+  color: var(--marrom-900);
+}
+
+.cabecalho-cliente-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-2);
+  margin: 0;
+  font-size: var(--texto-sm);
+  color: var(--texto-suave);
+}
+
+/* Ligar / WhatsApp: pílulas contornadas lado a lado */
+.cabecalho-cliente-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-2);
+  width: 100%;
+  margin-top: var(--espaco-1);
+}
+
+.cabecalho-cliente-acoes .btn-secundario {
+  width: auto;
+  flex: 1 1 0;
+  min-height: 44px;
+  padding: var(--espaco-2) var(--espaco-4);
+  border-radius: var(--raio-pilula);
+  font-size: var(--texto-sm);
+  text-decoration: none;
+}
+
+/* "Novo check-in": o único botão primário da ficha, na largura toda */
+.btn-check-in {
+  margin-bottom: var(--espaco-4);
+  text-decoration: none;
+}
+
+.aviso-check-in {
+  margin: 0 0 var(--espaco-4) 0;
+}
+
+/* Dados cadastrais (components/DadosCadastrais.tsx): fechado por padrão */
+.dados-cadastrais summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espaco-2);
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.dados-cadastrais summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Chevron desenhado com bordas: aponta para a direita fechado, para baixo aberto */
+.dados-cadastrais summary::after {
+  content: '';
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--espaco-1);
+  border-right: 2px solid var(--marrom-700);
+  border-bottom: 2px solid var(--marrom-700);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.dados-cadastrais[open] summary::after {
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dados-cadastrais summary::after {
+    transition: none;
+  }
+}
+
+.dados-cadastrais:not([open]) summary {
+  margin-bottom: 0;
+}
+
+.dados-cadastrais summary:focus-visible {
+  outline: 2px solid var(--laranja);
+  outline-offset: 2px;
+  border-radius: var(--raio-sm);
+}
+
+/* "Dados do cliente" e "Contatos" viram subtítulos dentro do grupo */
+.dados-cadastrais-secao .card-titulo {
+  font-size: var(--texto-md);
+  margin-top: var(--espaco-5);
+  margin-bottom: var(--espaco-3);
+}
+
+.dados-cadastrais-secao + .dados-cadastrais-secao {
+  margin-top: var(--espaco-5);
+  padding-top: var(--espaco-2);
+  border-top: 1px solid var(--marrom-100);
+}
+
 .cliente-info {
   margin: 0 0 4px 0;
   font-size: 14px;
