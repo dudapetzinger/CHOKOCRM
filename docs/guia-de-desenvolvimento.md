@@ -98,11 +98,15 @@ O seed é determinístico e cria 13 clientes com contatos (9 na carteira da Edua
 | Representante (Rafael Schmitt) | `rafael@chokolaten.com.br` | `chokocrm123` |
 | Gestor (Maicon Krüger) | `gestor@chokolaten.com.br` | `chokocrm123` |
 
+A carteira do Rafael (Brusque, Itajaí, Rio do Sul e Indaial) tem menos visitas e nenhuma com venda nos últimos 30 dias, para o painel do gestor mostrar contraste entre os dois representantes; o Maicon, como gestor, vê as duas carteiras e alterna entre elas no seletor de representante. As visitas de demonstração são gravadas relativas ao dia em que o seed roda, então **as cores envelhecem com o calendário**: a cada dia sem visita nova, os clientes andam para laranja e vermelho. O seed só grava visitas em cliente que ainda não tem nenhuma; para renovar as cores no desenvolvimento, apague os dados (os testes já truncam as tabelas, ver [Testes e lint](#6-testes-e-lint), ou `docker compose down -v`) e rode o seed de novo.
+
 São contas fictícias de demonstração, definidas em `backend/prisma/seed.ts`. O mesmo seed popula a produção de demonstração ([Seed em produção](#95-seed-em-produção)), que só fica ligada nas janelas de uso ([Produção no Azure](#9-produção-no-azure)); essas credenciais também valem lá — e, como estão publicadas aqui, a produção só deve guardar dados de demonstração.
 
 **Migration da Etapa 6B (`seasonal_event_chave`).** Ela acrescenta a coluna `chave` (enum `EventoSazonal`: `PASCOA`, `DIA_DAS_MAES`, `NAMORADOS`, `DIA_DOS_PAIS`, `NATAL`) a `seasonal_events` em quatro passos: cria o enum, adiciona a coluna anulável, preenche as linhas que já existem a partir do prefixo de `nome` ("Páscoa 2026" vira `PASCOA`, "Natal 2026" vira `NATAL`, e assim por diante) e só então a torna `NOT NULL`. Por isso um banco de desenvolvimento já semeado pela Etapa 6A migra com `npm run db:migrate`, sem perder os eventos nem precisar de novo seed. Um `nome` fora desse padrão deixaria a `chave` nula e o último passo falharia — de propósito: a migration não inventa chave. O `prisma migrate` passa a apontar essa migration como falhada, e num banco de desenvolvimento o caminho é recomeçar pelo volume (ver "Problemas comuns"). Não há variável de ambiente nova: o horizonte e os limiares dos insights ficam em `backend/src/config/sazonalidade.ts`.
 
 **Etapa 6C.** Sem migration nem variável de ambiente nova: os indicadores do painel do gestor são calculados a cada consulta, e o período padrão e os períodos aceitos ficam em `backend/src/config/kpis.ts`.
+
+**Etapa 7.** Sem migration nem variável de ambiente nova: a carteira já existia (`Client.representanteId`, Etapa 4), e os gráficos do painel são calculados a cada consulta. Muda só o seed — o segundo representante, os quatro clientes dele e o gestor renomeado para Maicon —, então um banco de desenvolvimento antigo recebe tudo isso com `npm run db:seed`, sem duplicar nada (como sempre, o seed devolve aos valores dele os usuários, clientes e contatos de demonstração).
 
 ## 5. Executando sem Docker
 
@@ -130,6 +134,27 @@ npm run dev
 
 Confira que o `DATABASE_URL` do `backend/.env` aponta para `localhost:5432` nesse modo.
 
+### 5.1 Testar o PWA localmente
+
+O service worker e o manifest do PWA ([ADR-012](arquitetura.md#adr-012--pwa-instalável-sem-modo-offline-de-escrita)) só existem no build: o `npm run dev` não registra service worker. Para ver o app instalável, gere o build e sirva-o com o preview do Vite, com a API rodando:
+
+```bash
+cd frontend
+npm run build && npm run preview
+```
+
+O preview sobe em <http://localhost:4173>. O CORS da API só aceita a origem de `FRONTEND_URL` (`http://localhost:5173` no `backend/.env.example`), então, enquanto testa o PWA, troque a `FRONTEND_URL` do `backend/.env` para `http://localhost:4173` e reinicie a API — e volte ao valor original depois. O `localhost` conta como contexto seguro, então o service worker funciona sem HTTPS.
+
+O que esperar, no Chrome ou no Edge (DevTools → Application):
+
+- **Manifest:** nome "ChokoCRM", `start_url` `/clientes`, exibição `standalone` e os três ícones (192, 512 e maskable); o navegador passa a tratar o app como instalável.
+- **Service workers:** `sw.js` ativado, com escopo `/`. Em Cache Storage, só a casca (HTML, JS, CSS, fontes e ícones): nenhuma resposta da API.
+- **Convite para instalar:** depois do login, o cartão "Use o ChokoCRM como app" com o botão "Instalar o ChokoCRM". "Agora não" o esconde por 30 dias (chave `chokocrm:instalar-dispensado` no `localStorage`; apague-a para vê-lo de novo).
+- **Sem rede:** em Network → Offline (ou com a API parada), recarregar continua abrindo a casca, com a faixa "Você está sem internet. Os dados mostrados podem estar desatualizados." no topo; as telas que dependem da API mostram "Você está sem internet.".
+- **Versão nova:** mude algo no frontend, rode `npm run build` de novo, reinicie o preview e recarregue a página — o service worker novo assume e aparece "Nova versão disponível", com o botão "Atualizar", sem recarregar a página sozinho.
+
+O service worker fica registrado só na origem do preview (porta 4173) e não interfere no `npm run dev`; para recomeçar do zero, use Application → Storage → "Clear site data" nessa origem. Os ícones em `frontend/public/` saem de `public/logo.svg`; se o logo mudar, `npm run icones` (script `frontend/scripts/gerar-icones.mjs`) gera os PNGs de novo.
+
 ## 6. Testes e lint
 
 Backend — Jest com Supertest, contra o banco de desenvolvimento:
@@ -142,15 +167,18 @@ npm run lint
 
 Os testes truncam as tabelas para garantir isolamento entre casos, então **rode `npm run db:seed` depois de uma bateria de testes** se quiser voltar a navegar na aplicação com dados. Evite rodar duas baterias em paralelo contra o mesmo banco: elas competem pelas mesmas tabelas.
 
-Frontend — lint e build de produção:
+Frontend — Vitest com Testing Library (desde a Etapa 7), lint e build de produção:
 
 ```bash
 cd frontend
+npm test
 npm run lint
 npm run build
 ```
 
-Esses mesmos comandos rodam no pipeline de integração contínua ([ci.yml](../.github/workflows/ci.yml)) a cada push e pull request. Lá, o backend roda `npm test -- --coverage`, que grava `backend/coverage/lcov.info` para o SonarCloud; localmente, a cobertura só é coletada se você passar `--coverage`.
+Os testes do frontend rodam no jsdom, com os serviços HTTP simulados: não precisam da API nem do banco e podem rodar em paralelo com os do backend. `npm run test:watch` deixa o Vitest observando os arquivos, e `npm test -- --coverage` mostra a tabela de cobertura e grava `frontend/coverage/lcov.info` (a configuração está em `frontend/vitest.config.ts`). Os testes ficam ao lado do código (`*.test.ts` e `*.test.tsx` em `frontend/src/`), e o que é comum a eles em `frontend/src/test/`: o setup do `jest-dom`, a simulação da largura da tela (para o layout de duas colunas) e o substituto do registro do service worker, que não existe no jsdom.
+
+Esses mesmos comandos rodam no pipeline de integração contínua ([ci.yml](../.github/workflows/ci.yml)) a cada push e pull request. Lá, o backend e o frontend rodam `npm test -- --coverage`, que grava `backend/coverage/lcov.info` e `frontend/coverage/lcov.info` para o SonarCloud; localmente, a cobertura só é coletada se você passar `--coverage`. A cobertura de linhas do frontend está em cerca de 59 %; não há gate de cobertura no CI.
 
 ## 7. Portas e endereços
 
@@ -213,13 +241,13 @@ Ficam em Configurações → Variáveis de ambiente → Configurações de aplic
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Connection string do `ai-chokocrm` | Liga a telemetria (`backend/src/telemetria.ts`); vazia, a API sobe sem ela. |
 | `SCM_DO_BUILD_DURING_DEPLOYMENT` | `false` | O App Service não refaz o build: o pacote já chega compilado do GitHub Actions. |
 | `WEBSITE_RUN_FROM_PACKAGE` | `0` | O pacote é extraído em `/home/site/wwwroot` em vez de montado só para leitura — é onde o seed roda ([9.5](#95-seed-em-produção)). |
-| `WEB_DIR` | `/home/site/wwwroot/web` | Pasta do build do frontend dentro do pacote publicado. A API serve os arquivos — `/assets/` com cache longo, todos com `X-Content-Type-Options: nosniff` — e devolve o `index.html` na raiz e nas navegações do browser pelas rotas da SPA. Vazia (padrão em desenvolvimento, testes e CI), a API não serve o frontend; se a pasta não existir, a API sobe assim mesmo e registra um aviso no log. |
+| `WEB_DIR` | `/home/site/wwwroot/web` | Pasta do build do frontend dentro do pacote publicado. A API serve os arquivos — `/assets/` com cache longo, os do PWA na raiz (`sw.js`, `registerSW.js`, `workbox-*.js` e `manifest.webmanifest`) com `Cache-Control: no-cache`, todos com `X-Content-Type-Options: nosniff` — e devolve o `index.html` na raiz e nas navegações do browser pelas rotas da SPA. Vazia (padrão em desenvolvimento, testes e CI), a API não serve o frontend; se a pasta não existir, a API sobe assim mesmo e registra um aviso no log. |
 
 São 14 configurações. A `PORT` não entra na lista: o App Service a injeta, e a API a lê pelo `env.PORT` (o padrão 3000 só vale fora do Azure).
 
 ### 9.3 Como o deploy acontece
 
-1. Um push na `main` dispara o CI ([ci.yml](../.github/workflows/ci.yml)): jobs `backend` (lint, testes com cobertura e build), `frontend` (lint e build), `sonarcloud` (depois dos dois) e `workflows-lint` (actionlint).
+1. Um push na `main` dispara o CI ([ci.yml](../.github/workflows/ci.yml)): jobs `backend` (lint, testes com cobertura e build), `frontend` (lint, testes com cobertura e build), `sonarcloud` (depois dos dois) e `workflows-lint` (actionlint).
 2. Quando o CI desse push termina verde, o `workflow_run` dispara o deploy ([deploy.yml](../.github/workflows/deploy.yml)) sobre o mesmo commit. CI de pull request não publica nada, e um deploy espera o anterior terminar (`concurrency: producao`).
    - **`api`:** `npm ci` e `npm run build` no backend; `npm ci` e `npm run build` no frontend, com a `VITE_API_URL` embutida; cópia de `frontend/dist` para `backend/web`; e `npm ci --omit=dev` no backend. O `azure/webapps-deploy` envia a pasta `backend/` inteira — `dist/`, `prisma/`, `src/` (que o seed usa), `web/` (o frontend) e `node_modules/` só com as dependências de produção — ao App Service, autenticado pelo publish profile. O start (`npm run start:prod`) aplica as migrations pendentes (`prisma migrate deploy`) e sobe a API; o script chama o Prisma direto pelo Node (`node node_modules/prisma/build/index.js`), sem depender dos links de `node_modules/.bin`, que o zip deploy pode não preservar no Linux.
    - **`smoke`:** espera até 2 minutos (24 tentativas de 5 s) por `"status":"ok"` em `<VITE_API_URL>/health`; depois confere que `<VITE_API_URL>/` responde com `Content-Type: text/html` e que uma rota da SPA (`/clientes/qualquer`, com `Accept: text/html`) responde 200 pelo fallback.
@@ -266,7 +294,7 @@ Uma vez, depois do primeiro deploy verde: abra o SSH do App Service (portal → 
 cd /home/site/wwwroot && npm run db:seed
 ```
 
-O `npm run db:seed` chama `prisma db seed`, que executa `node --import tsx prisma/seed.ts` (`backend/prisma.config.ts`; pelo mesmo motivo, sem passar pelo `.bin/tsx`), e o seed importa módulos de `src/` em TypeScript. Como o pacote é montado com `npm ci --omit=dev`, `prisma` e `tsx` estão em `dependencies` no `backend/package.json` — o `prisma` também é quem roda o `migrate deploy` do start. O seed carrega `src/config/env.ts`, que exige `DATABASE_URL` e `JWT_SECRET`: se ele reclamar que alguma não está definida, exporte as duas na sessão antes (`export DATABASE_URL='...' JWT_SECRET='...'`) — a `DATABASE_URL` é a mesma das configurações, e para o seed qualquer valor não vazio de `JWT_SECRET` serve. Basta rodar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção.
+O `npm run db:seed` chama `prisma db seed`, que executa `node --import tsx prisma/seed.ts` (`backend/prisma.config.ts`; pelo mesmo motivo, sem passar pelo `.bin/tsx`), e o seed importa módulos de `src/` em TypeScript. Como o pacote é montado com `npm ci --omit=dev`, `prisma` e `tsx` estão em `dependencies` no `backend/package.json` — o `prisma` também é quem roda o `migrate deploy` do start. O seed carrega `src/config/env.ts`, que exige `DATABASE_URL` e `JWT_SECRET`: se ele reclamar que alguma não está definida, exporte as duas na sessão antes (`export DATABASE_URL='...' JWT_SECRET='...'`) — a `DATABASE_URL` é a mesma das configurações, e para o seed qualquer valor não vazio de `JWT_SECRET` serve. Basta rodar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção. A exceção é quando o próprio seed muda, como na Etapa 7: o Rafael Schmitt, os quatro clientes dele e o gestor renomeado para Maicon Krüger só chegam à produção rodando o seed de novo (ver o checklist de religar em [9.8](#98-desligar-e-religar-entre-janelas)).
 
 ### 9.6 Logs e monitoramento
 
@@ -286,7 +314,7 @@ O `npm run db:seed` chama `prisma db seed`, que executa `node --import tsx prism
 
 ### 9.8 Desligar e religar entre janelas
 
-O wizard imprime estes checklists no último passo e os grava no resumo.
+O wizard imprime estes checklists no último passo e os grava no resumo — sem os itens do seed e dos alertas de produção acrescentados na Etapa 7, que estão só aqui.
 
 **Desligar:**
 
@@ -304,7 +332,9 @@ O wizard imprime estes checklists no último passo e os grava no resumo.
 - [ ] Deploy: `gh workflow run deploy.yml` (ou um push na `main`).
 - [ ] Application Insights: `ai-chokocrm` → Disponibilidade → teste `health-api` → Habilitar (Enable) (o nome pode variar).
 - [ ] Conferir o job `smoke` verde no GitHub Actions e o teste de disponibilidade verde no Application Insights.
-- [ ] Antes da apresentação: conferir no Painel se as cores e a agenda ainda contam a história esperada; se não, registrar check-ins novos nos clientes-chave pelo próprio app. Não rodar o seed de novo para corrigir: ele não renova as visitas de clientes que já têm visitas.
+- [ ] Rodar o seed por SSH de novo ([9.5](#95-seed-em-produção)) uma vez depois da Etapa 7: é ele que cria o Rafael Schmitt e os quatro clientes dele e renomeia o gestor para Maicon Krüger. As visitas do Rafael são gravadas relativas ao dia em que o seed roda e não se renovam numa execução seguinte; para o contraste entre os representantes no Painel valer na apresentação, rode-o o mais perto dela possível (1 ou 2 dias antes). Depois, entrar como Maicon e conferir que o seletor do Painel mostra "Todos · Eduarda · Rafael".
+- [ ] Reconferir os alertas de produção no Painel (bloco "O próximo evento está chegando e o estoque acompanha?"): eles dependem do estoque simulado — que avança de 15 em 15 dias — e dos eventos que caem no horizonte escolhido, e os dois mudam com a data. Os clientes do Rafael em Brusque e Itajaí foram calibrados em outubro com estoque baixo de produtos do Natal (`backend/src/config/erpIdsDemonstracao.ts`), mas isso só vale perto da data da calibração.
+- [ ] Antes da apresentação: conferir no Painel se as cores e a agenda ainda contam a história esperada. As cores do seed envelhecem com o calendário — as visitas de demonstração são relativas ao dia em que o seed rodou —, e rodar o seed de novo não renova as visitas de clientes que já têm visitas (os da Eduarda, semeados no primeiro deploy): para eles, registrar check-ins novos nos clientes-chave pelo próprio app.
 
 ### 9.9 Custos e orçamento
 

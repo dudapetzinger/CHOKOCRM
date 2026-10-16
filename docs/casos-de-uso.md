@@ -14,11 +14,13 @@ Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protó
 
 | Ator | Tipo | Descrição |
 |---|---|---|
-| **Representante Comercial** | Principal, humano | Usuário de campo. Cadastra e mantém clientes, realiza check-ins de visita, consulta agenda, histórico, dados de ERP e insights. |
-| **Gestor** | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Consulta, em modo somente leitura e para todas as carteiras, a lista de clientes, a ficha, o histórico e a agenda do dia, além da recorrência de visitas e seu histórico de alterações; pode transferir um cliente entre representantes. |
+| **Representante Comercial** | Principal, humano | Usuário de campo. Cadastra e mantém os clientes da própria carteira, realiza check-ins de visita, consulta agenda, histórico, dados de ERP e insights — sempre restrito aos clientes da própria carteira (desde a Etapa 7). |
+| **Gestor** | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Consulta, em modo somente leitura e para todas as carteiras — ou para a de um representante, escolhido no seletor de representante —, a lista de clientes, a ficha, o histórico e a agenda do dia, além da recorrência de visitas e seu histórico de alterações; pode transferir um cliente entre representantes. |
 | **Sistema (Agendador)** | Secundário, automatizado | Processo executado diariamente (job agendado, sem intervenção humana) que recalcula a lista de visitas previstas e atrasadas por representante e registra os alertas em log, sem persistir nada. |
 
 **Observação sobre permissões do Gestor:** o Gestor **não** possui todas as permissões do Representante Comercial. Ele autentica-se no sistema (UC01); consulta, em modo somente leitura e para todas as carteiras, a lista de clientes com classificação por cores (UC05), a ficha do cliente (UC06), o histórico de interações (UC08), a agenda do dia (UC10) e as sugestões sazonais da ficha (UC13); visualiza a recorrência de visitas e seu histórico de alterações, sem poder alterá-la; possui o painel de KPIs (UC14) e recebe os alertas de produção (UC15); e pode transferir um cliente entre representantes através de `PUT /clients/:id` (campo `representanteId`). O Gestor **não** cadastra clientes (UC02 responde 400), não registra check-ins de visita (UC07) e não altera a recorrência de visitas (UC09 responde 403).
+
+**Observação sobre a carteira do Representante (Etapa 7):** o Representante Comercial só enxerga e altera os clientes da própria carteira (`Client.representanteId`), regra concentrada em `backend/src/services/carteira.ts` ([ADR-011](arquitetura.md#adr-011--carteira-por-representante-e-agenda-calculada-em-tempo-de-consulta)). Nas leituras — lista (UC05), ficha (UC06), histórico e foto de visita (UC08), dados do ERP (UC11), insights (UC13) e histórico de mensagens de estoque (UC12) —, um cliente de outra carteira responde como inexistente (404, com a mesma mensagem de um registro que não existe — "Cliente não encontrado." ou, na foto, "Visita não encontrada."), para não revelar que existe; a listagem de mensagens de estoque simplesmente não traz as de outra carteira; nas escritas — edição do cliente (UC03), contatos (UC04), check-in, correção de descrição e foto (UC07 e UC08), recorrência (UC09) e mensagem de estoque (UC12) —, a API responde 403 `FORBIDDEN` com a mensagem "Cliente de outra carteira.". O Gestor continua vendo todas as carteiras.
 
 ## 3. Diagrama de visão geral
 
@@ -130,6 +132,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Regras de negócio associadas:**
 - A inativação de cliente é sempre lógica, por meio da flag `ativo`; não há, em nenhum fluxo do sistema, exclusão física do registro do cliente.
+- Desde a Etapa 7, o representante só edita clientes da própria carteira: `PUT /clients/:id` em cliente de outra carteira responde 403 `FORBIDDEN` ("Cliente de outra carteira."). Os botões "Editar dados" e "Inativar cliente" ficam no grupo "Dados cadastrais" da ficha (UC06), recolhido por padrão.
 
 ---
 
@@ -156,6 +159,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Regras de negócio associadas:**
 - O cliente pode ter múltiplos contatos (nome, cargo, telefone, e-mail).
 - Exatamente um contato deve estar marcado como principal a qualquer momento.
+- Desde a Etapa 7, só se gerenciam contatos de clientes da própria carteira: `POST /clients/:id/contacts`, `PUT /contacts/:id` e `DELETE /contacts/:id` em cliente de outra carteira respondem 403 `FORBIDDEN` ("Cliente de outra carteira."). A seção de contatos fica no grupo "Dados cadastrais" da ficha (UC06).
 
 ---
 
@@ -163,18 +167,22 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Ator principal:** Representante Comercial. **Ator secundário:** Gestor (somente consulta).
 
-**Pré-condições:** o representante está autenticado; existem clientes cadastrados.
+**Pré-condições:** o representante está autenticado; existem clientes cadastrados na carteira dele.
 
 **Fluxo principal:**
 1. O representante acessa a lista de clientes.
-2. O sistema calcula, para cada cliente ativo, a cor de classificação em tempo de consulta, conforme a tabela de regras abaixo.
-3. O sistema exibe a lista com nome, cidade e selo (badge) de cor de cada cliente.
-4. O representante busca por nome ou cidade.
-5. O representante filtra por cor.
-6. O sistema atualiza a lista conforme os critérios de busca e filtro aplicados.
+2. O sistema seleciona os clientes ativos da carteira do representante e calcula, para cada um, a cor de classificação em tempo de consulta, conforme a tabela de regras abaixo.
+3. O sistema exibe a lista ordenada por urgência, com nome, cidade, etiqueta de situação — um texto que diz o que a cor significa e há quanto tempo (ex.: "Atrasado · 40 dias sem visita") — e selo (badge) de cor de cada cliente.
+4. O sistema agrupa os clientes em abas por ação, cada uma com a contagem ("Prioridade · 7"): **Prioridade** (laranja e vermelho), **Atenção** (amarelo), **Em dia** (verde) e **Todos**. A lista abre em Prioridade quando ela tem ao menos um cliente; senão, em Todos.
+5. O representante busca por nome ou cidade.
+6. O representante troca de aba.
+7. O sistema atualiza a lista conforme a busca e a aba escolhida, mantendo a ordem por urgência.
 
-**Fluxo alternativo:**
-- **A1** (passos 4–5): nenhum cliente corresponde aos critérios de busca ou filtro informados — o sistema exibe lista vazia com mensagem informativa.
+**Fluxos alternativos:**
+- **A1** (passos 5–6): nenhum cliente corresponde à busca ou à aba — o sistema exibe lista vazia com mensagem informativa ("Nenhum cliente nesta aba." ou "Nenhum cliente encontrado para esta busca ou filtro.").
+- **A2** (passo 4): o ator toca no botão "?" ao lado das abas — o sistema abre a legenda com a régua das situações (regras abaixo).
+- **A3** (passo 1, Gestor): a lista do gestor traz todas as carteiras, e cada cliente mostra também "Rep.: {nome do representante}". O gestor escolhe um representante no seletor no topo da tela (pílulas "Todos · Eduarda · Rafael…", com o primeiro nome de cada representante) e o sistema passa a listar só a carteira dele. A escolha vale também na agenda (UC10) e no painel (UC14) e volta para "Todos" ao recarregar a página ou sair.
+- **A4** (passo 1, tela ≥ 768 px): a lista ocupa a coluna da esquerda e, ao tocar num cliente, a ficha dele (UC06) abre na coluna da direita, na mesma rota `/clientes/:id`, com o cliente aberto destacado na lista.
 
 **Regras de negócio associadas — classificação por cores:**
 
@@ -189,6 +197,22 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - A cor do cliente é **calculada em tempo de consulta**, nunca armazenada.
 - Clientes inativos (UC03) não aparecem na listagem padrão.
 - **Regra composta (Etapa 5):** além do tempo sem visita, a cor também considera a data da última venda do cliente no ERP (UC11). Se a cor calculada pela tabela acima for verde ou amarela e a última venda estiver há mais de 60 dias, o cliente é **rebaixado** um degrau, para laranja; laranja e vermelho não mudam. Sem última venda no ERP — cliente sem identificador de ERP, identificador desconhecido no provedor, ou provedor indisponível —, a cor da tabela acima permanece intacta: a regra só rebaixa, nunca promove. O limiar (60 dias) fica em `config/`, para ajuste fino junto à empresa.
+- **Carteira (Etapa 7):** o representante vê só os clientes da própria carteira (`GET /clients` filtra por `Client.representanteId`, inclusive na busca); o gestor vê todos ou, com `?representanteId=`, a carteira de um representante. Para o representante, o parâmetro é ignorado.
+- **Abas:** a separação por aba é feita na tela, sobre a lista já carregada; o filtro `?color=` da API continua disponível.
+- **Etiqueta de situação** (`frontend/src/lib/descreverSituacao.ts`), com "{n} dias" (ou "há {n} dias") de visita virando "hoje" para 0 e "ontem" para 1:
+
+| Situação | Texto |
+|---|---|
+| Vermelho, nunca visitado | "Nunca visitado" |
+| Vermelho | "Atrasado · {n} dias sem visita" |
+| Laranja por rebaixamento (sem compra no ERP) | "Sem compra há {n} dias" na ficha (UC06); na lista, que não traz o número, "Rebaixado: sem compra há mais de 60 dias" |
+| Laranja | "Vencendo · {n} dias sem visita" |
+| Amarelo | "Visitado sem venda · há {n} dias" |
+| Verde | "Em dia · visita há {n} dias, com venda" |
+
+- **Ordem por urgência** (`frontend/src/lib/ordenarPorUrgencia.ts`), em todas as abas, inclusive Todos: vermelho → laranja → amarelo → verde; dentro da mesma cor, "nunca visitado" primeiro, depois quem está há mais dias sem visita; empate pelo nome.
+- **Legenda** ("?"): "Em dia: visitado há até 15 dias, com venda. Atenção: visitado há até 15 dias, sem venda. Vencendo: 16 a 30 dias sem visita. Atrasado: mais de 30 dias ou nunca visitado. Cliente sem compra no ERP há mais de 60 dias cai para Vencendo." Os números vêm de `frontend/src/config/classificacao.ts`, espelho de `backend/src/config/classificacao.ts`.
+- A cor continua visível no selo à direita de cada cliente: a etiqueta não a substitui, só a explica.
 
 ---
 
@@ -196,23 +220,32 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Ator principal:** Representante Comercial. **Ator secundário:** Gestor (somente consulta).
 
-**Pré-condições:** o cliente está cadastrado no sistema.
+**Pré-condições:** o cliente está cadastrado no sistema e, para o representante, pertence à carteira dele.
 
 **Fluxo principal:**
-1. O representante seleciona um cliente na lista (UC05) ou na agenda do dia (UC10).
-2. O sistema exibe os dados cadastrais do cliente, incluindo a cor de classificação atual (UC05).
-3. O sistema exibe os contatos do cliente (UC04).
-4. O sistema exibe a timeline de visitas em ordem cronológica reversa (UC08).
-5. O sistema exibe os dados de venda e estoque obtidos do ERP (UC11).
-6. O sistema exibe o card "Insights e sugestões" (UC13), com as sugestões do cliente para os eventos sazonais próximos.
+1. O representante seleciona um cliente na lista (UC05) ou na agenda do dia (UC10); o gestor também pode abri-la pela lista de clientes esfriando do painel (UC14).
+2. O sistema exibe o cabeçalho da ficha: nome fantasia, cidade, selo de cor, etiqueta de situação (UC05), o telefone do contato principal (ou, sem ele, o do cliente) com os atalhos "Ligar" (link `tel:`) e "WhatsApp" (link `wa.me`) e, para o gestor, o representante da carteira ("Rep.: {nome}").
+3. Para o representante, o sistema exibe o botão "Novo check-in" (UC07), a ação principal da tela.
+4. O sistema exibe o card "Mensagem de estoque" (UC12).
+5. O sistema exibe o card "Insights e sugestões" (UC13), com as sugestões do cliente para os eventos sazonais próximos.
+6. O sistema exibe os dados de venda e estoque obtidos do ERP (UC11).
+7. O sistema exibe o histórico de visitas em ordem cronológica reversa (UC08).
+8. O sistema exibe a recorrência de visitas e o histórico de alterações dela (UC09).
+9. O sistema exibe, no fim da ficha e **recolhido por padrão**, o grupo "Dados cadastrais": os dados do cliente (razão social, CNPJ, endereço, telefone, e-mail, identificador no ERP), com "Editar dados" e "Inativar cliente" (UC03), e os contatos (UC04).
+
+**Fluxos alternativos:**
+- **A1** (passo 3): cliente inativo — no lugar do botão, o sistema informa "Cliente inativo não recebe check-in novo.".
+- **A2** (passo 1, tela ≥ 768 px): a ficha aberta pela lista de clientes aparece na coluna da direita, ao lado da lista (UC05 A4), sem a barra "Voltar"; aberta em tela estreita, ocupa a tela inteira, como antes.
 
 **Fluxo de exceção:**
-- **E1** (passos 5 e 6): dados do ERP indisponíveis (ex.: provedor fora do ar) — o sistema exibe a seção correspondente (dados do ERP ou insights) com mensagem de indisponibilidade, sem impedir a visualização do restante da ficha.
+- **E1** (passos 5 e 6): dados do ERP indisponíveis (ex.: provedor fora do ar) — o sistema exibe a seção correspondente (insights ou dados do ERP) com mensagem de indisponibilidade, sem impedir a visualização do restante da ficha.
+- **E2** (passo 1): o representante abre, pela URL, um cliente de outra carteira — a API responde 404, exatamente como para um cliente inexistente ("Cliente não encontrado."), e a ficha não é exibida.
 
 **Regras de negócio associadas:**
-- A ficha do cliente consolida dados próprios do cliente e informações provenientes de UC04 (contatos), UC08 (histórico), UC11 (ERP) e UC13 (insights).
-- Este caso de uso é **evolutivo**: a seção de contatos e dados básicos é entregue na Etapa 2, a timeline de visitas na Etapa 3, a cor de classificação na Etapa 4, a seção de ERP na Etapa 5, a mensagem de consulta de estoque (UC12) na Etapa 6A e a seção de insights na Etapa 6B.
-- O card de insights fica na ficha entre os dados do ERP e a mensagem de estoque e é visível a qualquer papel (representante ou gestor).
+- A ficha do cliente consolida dados próprios do cliente e informações provenientes de UC04 (contatos), UC08 (histórico), UC09 (recorrência), UC11 (ERP), UC12 (mensagem de estoque) e UC13 (insights).
+- Este caso de uso é **evolutivo**: a seção de contatos e dados básicos é entregue na Etapa 2, a timeline de visitas na Etapa 3, a cor de classificação na Etapa 4, a seção de ERP na Etapa 5, a mensagem de consulta de estoque (UC12) na Etapa 6A e a seção de insights na Etapa 6B. Na Etapa 7, a ficha foi reorganizada para abrir pelo que se usa em campo — cabeçalho com atalhos de contato, check-in, mensagem, insights e ERP — e os dados cadastrais foram recolhidos num `<details>` no fim; nada foi removido, só reordenado e agrupado.
+- O card de insights fica na ficha entre a mensagem de estoque e os dados do ERP e é visível a qualquer papel (representante ou gestor).
+- Desde a Etapa 7, o representante só abre fichas de clientes da própria carteira; o gestor abre qualquer ficha.
 
 ---
 
@@ -220,14 +253,14 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Ator principal:** Representante Comercial.
 
-**Pré-condições:** o cliente está cadastrado; o representante está autenticado.
+**Pré-condições:** o cliente está cadastrado e pertence à carteira do representante; o representante está autenticado.
 
 **Fluxo principal:**
 1. O representante acessa "novo check-in" a partir da ficha do cliente (UC06) ou da agenda do dia (UC10).
 2. O sistema preenche automaticamente a data e a hora atuais.
 3. O representante pode ajustar manualmente a data/hora, se necessário.
-4. O representante informa a descrição da visita.
-5. O representante escolhe o resultado da visita entre **houve venda**, **em negociação** e **sem venda**.
+4. O representante informa a descrição da visita, numa área de texto que cresce com o conteúdo e mostra a contagem de caracteres.
+5. O representante escolhe o resultado da visita entre **houve venda**, **em negociação** e **sem venda**, em três botões lado a lado ("Venda", "Negociação" e "Sem venda").
 6. O representante pode selecionar o contato atendido, de forma opcional.
 7. O representante pode, opcionalmente, anexar uma foto de comprovação de presença, tirada na hora pela câmera do celular.
 8. O representante confirma o check-in.
@@ -237,8 +270,10 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Fluxo de exceção:**
 - **E1** (passo 9): tentativa de salvar o check-in sem informar a descrição da visita — o sistema bloqueia o salvamento e exibe mensagem indicando que a descrição é obrigatória.
 - **E2** (passo 10): a visita é gravada, mas o envio da foto falha (sinal instável em campo) — o check-in permanece registrado e a timeline oferece anexar a foto depois.
+- **E3** (passo 9): o cliente é de outra carteira — a API responde 403 `FORBIDDEN` com a mensagem "Cliente de outra carteira." e não grava a visita. Pela interface o caso não ocorre, porque o representante só vê clientes da própria carteira (UC05).
 
 **Regras de negócio associadas:**
+- Desde a Etapa 7, o check-in só é aceito em cliente da carteira do representante (`Client.representanteId` igual ao usuário).
 - A descrição da visita é **obrigatória**, com validação tanto no frontend quanto no backend.
 - O resultado da visita é **obrigatório** e assume um de três valores: houve venda, em negociação, sem venda. Apenas "houve venda" conta como venda para a classificação por cores (UC05); "em negociação" registra visita realizada com negócio em andamento.
 - O contato atendido é opcional; quando informado, precisa pertencer ao próprio cliente.
@@ -273,6 +308,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - Não há prazo limite para a edição da descrição.
 - O gestor consulta a timeline, inclusive as fotos, mas não registra nem edita visitas.
 - A timeline de um cliente inativado continua legível e editável; o que se bloqueia é o registro de visita nova.
+- Desde a Etapa 7, o representante só consulta a timeline (`GET /clients/:id/visits`) e as fotos (`GET /visits/:id/foto`) de clientes da própria carteira — fora dela, a API responde 404, como para um registro inexistente. Corrigir a descrição (`PATCH /visits/:id`) e anexar a foto (`PUT /visits/:id/foto`) exigem, além de ser o autor, que o cliente ainda seja da carteira dele: se o cliente foi transferido depois do check-in, a API responde 403 ("Cliente de outra carteira.").
 
 ---
 
@@ -280,12 +316,12 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Ator principal:** Representante Comercial.
 
-**Pré-condições:** o cliente está cadastrado no sistema.
+**Pré-condições:** o cliente está cadastrado no sistema e pertence à carteira do representante.
 
 **Fluxo principal:**
 1. O representante acessa a opção de ajuste de recorrência na ficha do cliente (UC06).
 2. O sistema exibe a recorrência atual, em dias, informando a faixa sugerida de 15 a 30 dias.
-3. O representante informa o novo valor de recorrência.
+3. O representante escolhe o novo valor nos atalhos "15 dias", "20 dias" e "30 dias" ou em "Outro", que abre um campo numérico (de 1 a 365).
 4. O representante informa a justificativa da alteração.
 5. O representante confirma a alteração.
 6. O sistema valida os dados informados.
@@ -297,9 +333,11 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Fluxo de exceção:**
 - **E1** (passo 6): justificativa não informada — o sistema bloqueia a alteração e exibe mensagem indicando que a justificativa é obrigatória.
+- **E2** (passo 6): o cliente é de outra carteira — a API responde 403 `FORBIDDEN` ("Cliente de outra carteira.") e nada é gravado.
 
 **Regras de negócio associadas:**
 - Faixa sugerida de recorrência: 15 a 30 dias.
+- Desde a Etapa 7, só o representante dono da carteira altera a recorrência do cliente (`PUT /clients/:id/recurrence`).
 - Toda alteração de recorrência exige justificativa registrada.
 - Toda alteração é gravada em histórico auditável, contendo quem alterou, quando, o valor anterior, o novo valor e a justificativa.
 
@@ -314,15 +352,17 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Fluxo principal:**
 1. O Sistema (Agendador) executa diariamente, por meio de um job agendado, o cálculo das visitas previstas para o dia (data da última visita + recorrência do cliente) e das visitas atrasadas, por representante.
 2. O representante acessa a tela "Agenda do dia".
-3. O sistema apresenta a lista de clientes com visita prevista para hoje e os clientes com visita atrasada, priorizados pela cor de classificação do cliente (vermelho e laranja com prioridade sobre amarelo e verde).
+3. O sistema apresenta, em duas seções ("Atrasadas" e "Hoje"), os clientes com visita atrasada e os com visita prevista para hoje, priorizados pela cor de classificação do cliente (vermelho e laranja com prioridade sobre amarelo e verde). Cada cliente traz a etiqueta de situação (UC05) e, abaixo dela, a cidade e o prazo ("Próxima visita venceu há 25 dias" ou "Visita prevista para hoje").
 4. O representante seleciona um cliente da agenda para acessar sua ficha (UC06) ou registrar um check-in (UC07).
 
-**Fluxo alternativo:**
+**Fluxos alternativos:**
 - **A1** (passo 3): não há visitas previstas ou atrasadas para o representante no dia — o sistema exibe a agenda vazia, com mensagem informativa.
+- **A2** (passo 2, Gestor): a agenda do gestor traz todas as carteiras e, enquanto o seletor de representante está em "Todos", cada cliente mostra "Rep.: {nome do representante}"; ao escolher um representante no seletor (o mesmo de UC05 A3), a agenda passa a mostrar só a carteira dele. O gestor não tem o atalho de check-in.
+- **A3** (passo 3, tela ≥ 768 px): "Atrasadas" e "Hoje" aparecem lado a lado, mesmo quando uma delas está vazia.
 
 **Regras de negócio associadas:**
 - Próxima visita prevista = data da última visita + recorrência (em dias) do cliente.
-- A agenda é sempre calculada em tempo de consulta, restrita à carteira do representante (`Client.representanteId`, atribuído automaticamente a quem cadastra o cliente; só o gestor transfere um cliente para outro representante); o gestor vê a agenda de todos os representantes.
+- A agenda é sempre calculada em tempo de consulta, restrita à carteira do representante (`Client.representanteId`, atribuído automaticamente a quem cadastra o cliente; só o gestor transfere um cliente para outro representante); o gestor vê a agenda de todos os representantes ou, com `GET /agenda/today?representanteId=`, a de um só (para o representante o parâmetro é ignorado). Cada item da agenda traz o representante da carteira (`representante: { id, nome }`).
 - Um job diário (executado pelo Sistema/Agendador) roda o mesmo cálculo por representante e registra os alertas de visita atrasada/prevista em log estruturado, sem persistir nada; notificação por push ou e-mail fica fora do escopo desta etapa.
 - A priorização da lista segue a cor de classificação do cliente (UC05).
 
@@ -330,7 +370,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 ### UC11 — Consultar dados de venda/estoque do cliente
 
-**Ator principal:** Representante Comercial e Gestor — consulta idêntica para os dois papéis, sem restrição.
+**Ator principal:** Representante Comercial e Gestor — consulta idêntica para os dois papéis; o representante, desde a Etapa 7, só para clientes da própria carteira.
 
 **Pré-condições:** o representante ou o gestor está autenticado; o cliente está cadastrado (o identificador de ERP é opcional em UC02 — ver fluxos de exceção quando ele está ausente ou não é reconhecido pelo provedor).
 
@@ -350,7 +390,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - A consulta responde em quatro estados, conforme os fluxos acima: `OK`, `SEM_ERP_ID`, `NAO_ENCONTRADO` e `INDISPONIVEL`.
 - Os dados de venda e estoque não são persistidos no banco do ChokoCRM; são consultados sob demanda a cada acesso.
 - O aviso "dados simulados" não é um texto fixo da tela: é exibido sempre que o campo `simulado`, informado pelo próprio provedor, for verdadeiro, e desaparece automaticamente quando uma integração real for adotada.
-- A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel.
+- A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel; desde a Etapa 7, o representante só consulta clientes da própria carteira — para um cliente de outra carteira, `GET /clients/:id/erp` responde 404, como para um cliente inexistente.
 - **A partir da Etapa 5**, a última venda consultada aqui alimenta a regra de classificação por cor composta descrita em UC05: clientes visitados recentemente mas sem venda registrada há mais de 60 dias são rebaixados na classificação.
 
 ---
@@ -359,7 +399,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Ator principal:** Representante Comercial. **Ator secundário:** Gestor (não gera mensagens; consulta o histórico na ficha do cliente, junto com o representante).
 
-**Pré-condições:** o cliente está cadastrado no sistema; a geração de mensagem exige, além disso, que o cliente esteja ativo.
+**Pré-condições:** o cliente está cadastrado no sistema e pertence à carteira do representante; a geração de mensagem exige, além disso, que o cliente esteja ativo.
 
 **Fluxo principal:**
 1. O representante aciona "Gerar mensagem" no card "Mensagem de estoque" da ficha do cliente (UC06), disponível apenas quando o cliente está ativo.
@@ -379,13 +419,14 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - **E1** (passo 1): cliente inativo — o sistema não oferece a opção de gerar mensagem na ficha; se acionada mesmo assim, a geração responde com erro (cliente inativo não recebe mensagem de estoque).
 - **E2** (passo 3): o contato escolhido não pertence ao cliente da ficha — o sistema rejeita a geração com mensagem informando que o contato informado não pertence a aquele cliente.
 - **E3** (passo 5): o telefone do destinatário (contato ou cliente) é telefone inválido (sem DDD, prefixo 0800/0300 ou fora do padrão brasileiro) — o sistema rejeita a geração com mensagem informando o telefone inválido, sem registrar a mensagem.
+- **E4** (passos 2 e 5): o cliente é de outra carteira — tanto a proposta (`GET /clients/:id/stock-message/proposta`) quanto a geração (`POST /clients/:id/stock-message`) respondem 403 `FORBIDDEN` ("Cliente de outra carteira."), sem registrar nada.
 
 **Regras de negócio associadas:**
 - O destinatário é um contato do cliente ou o telefone do próprio cliente; este último é sempre oferecido como opção explícita ("Telefone do cliente") e é a única opção quando não há contatos cadastrados (A2). O contato principal do cliente, quando existir, vem pré-selecionado, e a saudação do texto sugerido acompanha o destinatário escolhido — trocar o destinatário troca o nome usado na saudação.
 - O sistema propõe o texto; o representante pode editá-lo livremente antes de confirmar — é o texto final editado que é gravado e que compõe o link.
 - A mensagem é enviada por meio de um link `wa.me` com texto pré-preenchido; o próprio representante revisa e envia pelo WhatsApp, sem envio automático via API e sem confirmação de envio pelo sistema.
 - Toda geração de mensagem é registrada em `StockMessage`, para fins de auditoria e de cálculo da taxa de registro (KPI); o telefone e o contato escolhidos não são persistidos, apenas o texto final.
-- O histórico de mensagens geradas é visível a qualquer papel na ficha do cliente; a listagem `GET /stock-messages` (sem filtro de carteira) está pronta para uso futuro em um painel gerencial.
+- O histórico de mensagens geradas é visível a qualquer papel na ficha do cliente. Desde a Etapa 7, a listagem `GET /stock-messages` respeita a carteira: o representante recebe só as mensagens de clientes da própria carteira (com `?clientId=` de outra carteira, a lista vem vazia), e o gestor recebe todas.
 
 ---
 
@@ -418,7 +459,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - **Ações sugeridas:** variação de +20% ou mais → *Aumentar oferta*; de −20% ou menos → *Ofertar desconto*; entre os dois limiares → *Criar promoção* (texto "as compras … ficaram na média"). Os produtos mais comprados na janela (os três de maior quantidade) entram no texto da sugestão. Os limiares ficam em `config/sazonalidade.ts` (`LIMIAR_VARIACAO_ALTA` e `LIMIAR_VARIACAO_BAIXA`), para ajuste fino junto à empresa, e não são editáveis na tela.
 - A consulta responde em três estados — `OK`, `SEM_ERP_ID` e `INDISPONIVEL` — e, diferentemente de UC11, não há `NAO_ENCONTRADO`: o identificador desconhecido no provedor cai em A1.
 - Os dados vêm do provedor de ERP; o aviso "dados simulados" aparece sempre que a consulta traz dados e o provedor o sinalizar (como em UC11).
-- A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel.
+- A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel; desde a Etapa 7, o representante só consulta clientes da própria carteira — para um cliente de outra carteira, `GET /clients/:id/insights` responde 404, como para um cliente inexistente.
 - Premissa: o período de base precisa de cerca de 26 meses de histórico antes do evento (≈ 760 dias; até ≈ 795 para a Páscoa). O provedor simulado gera 24 meses e só cobre a base por inteiro para eventos a mais de ~2 meses de distância; para eventos mais próximos a base fica truncada, a média é subestimada e a variação, inflada. Um ERP real com 26 meses ou mais de histórico não tem esse limite. Sem nenhuma compra no período de base a sugestão não é gerada.
 
 ---
@@ -430,14 +471,22 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Pré-condições:** o gestor está autenticado (UC01).
 
 **Fluxo principal:**
-1. O gestor acessa a aba "Painel" (`/painel`), exclusiva do papel gestor, onde o card "Indicadores" abre a tela. O período de análise começa em 30 dias.
-2. O sistema (`GET /dashboard/kpis?periodoDias=`) obtém as visitas e as mensagens de estoque geradas no período e a carteira de clientes ativos, e calcula a cor de cada cliente ativo pelo mesmo caminho da lista de clientes (UC05, regra composta com o ERP).
-3. O sistema exibe o período analisado e o número de clientes ativos; os quatro indicadores — visitas no período (com a média por cliente ativo), taxa de registro, conversão em vendas e clientes inativos —; e a distribuição dos clientes ativos por cor, em uma barra com legenda.
-4. O gestor troca o período entre 30, 90 e 365 dias e o sistema recalcula e exibe os indicadores do novo período.
+1. O gestor acessa a aba "Painel" (`/painel`), exclusiva do papel gestor. No topo ficam o seletor de representante (o mesmo da lista de clientes, UC05 A3, em "Todos" por padrão) e o filtro "Período", que começa em 30 dias.
+2. O sistema obtém, para a carteira escolhida (todas, ou a do representante selecionado): os indicadores (`GET /dashboard/kpis?periodoDias=&representanteId=`), calculando a cor de cada cliente ativo pelo mesmo caminho da lista de clientes (UC05, regra composta com o ERP); o comparativo por representante (`GET /dashboard/kpis/por-representante?periodoDias=&representanteId=`); as vendas mês a mês (`GET /dashboard/vendas-mensais?representanteId=`); os alertas de produção (UC15); e a lista de clientes (`GET /clients?representanteId=`).
+3. O sistema organiza a tela em três blocos, cada um com o título em forma de pergunta:
+   - **"Quem está visitando pouco?"** — o período analisado, o número de clientes ativos e os quatro indicadores (visitas no período, com a média por cliente ativo; taxa de registro; conversão em vendas; clientes inativos), seguidos de um gráfico de barras horizontais com uma barra por representante, de comprimento igual às visitas no período e o rótulo "5 visitas · 40% com venda". Com um representante escolhido no seletor, o gráfico passa a ser o das visitas dele por semana no período (uma coluna por semana, de segunda a domingo, com a contagem em cima).
+   - **"O próximo evento está chegando e o estoque acompanha?"** — um gráfico de linha com as vendas da carteira mês a mês nos últimos 12 meses, com um marcador vertical em cada mês de evento sazonal e outro no mês de hoje; abaixo, os alertas de produção (UC15), com uma barra por produto proporcional ao número de clientes com estoque baixo.
+   - **"Quais clientes estão esfriando?"** — a distribuição dos clientes ativos por cor, hoje, em uma barra com legenda, e os cinco clientes mais urgentes entre laranja e vermelho, na ordem da aba Prioridade da lista (UC05), cada um com a etiqueta de situação, o representante (com o seletor em "Todos") e o link para a ficha (UC06).
+   No fim, o card "Época do ano" (UC15). Em tela ≥ 768 px, o primeiro bloco fica na coluna da esquerda e os demais na da direita.
+4. O gestor troca o período entre 30, 90 e 365 dias e o sistema recalcula e exibe os indicadores e o gráfico de visitas do novo período; o gráfico de vendas mensais não depende do período.
+5. O gestor troca o representante no seletor e o sistema recalcula todos os blocos para a carteira escolhida.
 
 **Fluxo alternativo:**
 - **A1** (passo 3): não há dados no período selecionado — nenhuma visita e nenhuma mensagem de estoque registrada (`semDados`) — o sistema exibe os indicadores zerados — a conversão em vendas aparece como "—" ("sem visitas no período"), não como 0 —, com a mensagem "Nenhuma visita ou mensagem registrada no período — indicadores zerados."; a distribuição por cor, que reflete a carteira de hoje, continua na tela.
 - **A2** (passo 3): não há clientes ativos — a taxa de registro não tem denominador e aparece como "—", e o indicador de visitas mostra o total com o apoio "sem clientes ativos" (sem média por cliente); no lugar da barra o sistema exibe "Nenhum cliente ativo.".
+- **A3** (passo 3): nenhuma visita no período (no gráfico por representante ou por semana) ou nenhuma venda nos 12 meses — o gráfico correspondente dá lugar a "Sem dados no período.".
+- **A4** (passo 3): o ERP não responde para parte dos clientes — o gráfico de vendas mensais soma só os que responderam e informa, abaixo, "N clientes sem dados do ERP".
+- **A5** (passo 3): nenhum cliente laranja ou vermelho — no lugar da lista dos mais urgentes, o sistema exibe "Nenhum cliente esfriando.".
 
 **Fluxo de exceção:**
 - **E1** (passo 1): usuário que não é gestor — a API responde 403 e a navegação não mostra a aba "Painel"; se o representante abrir `/painel` pela URL, a página mostra apenas "Painel disponível apenas para o gestor.".
@@ -446,16 +495,20 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Regras de negócio associadas:**
 - Os indicadores são calculados a cada consulta, a partir de `Visit`, `StockMessage` e da classificação por cor; nada é persistido ([ADR-006](arquitetura.md#adr-006--classificação-por-cor-calculada-em-tempo-de-consulta)).
 - **Período:** `?periodoDias=` aceita só 30, 90 ou 365, com padrão 30; qualquer outro valor (ou não numérico) é rejeitado com 400 (`VALIDATION_ERROR`). O período vai de hoje − (N − 1) até hoje, inclusive — 30 dias inclui hoje —, em dias de calendário de `America/Sao_Paulo`. Na tela, o período é escolhido nas opções 30 · 90 · 365 dias, vale só para a tela aberta e não é salvo. Os valores ficam em `config/kpis.ts`.
-- **Visitas no período:** número de check-ins do período, de qualquer cliente; a média é esse total ÷ clientes ativos, com uma casa decimal.
+- **Por representante (Etapa 7):** `?representanteId=` (identificador uuid, opcional; formato inválido responde 400 `VALIDATION_ERROR`) restringe os indicadores, o comparativo, as vendas mensais, os alertas e a lista à carteira daquele representante. "Por representante" é sempre **pela carteira do cliente** (`Client.representanteId`), nunca pelo autor da visita. Um identificador que não é de nenhum representante não casa com nenhum cliente: os números vêm zerados e o comparativo vem vazio.
+- **Visitas no período:** número de check-ins do período, de qualquer cliente da carteira considerada; a média é esse total ÷ clientes ativos, com uma casa decimal.
 - **Taxa de registro:** clientes ativos com pelo menos um check-in **ou** uma mensagem de estoque gerada no período ÷ clientes ativos; cada cliente conta uma vez, e o percentual é inteiro arredondado.
 - **Conversão em vendas:** visitas do período com resultado `VENDA` ÷ visitas do período, também em percentual inteiro arredondado; negociação e visita sem venda não contam como venda.
 - **Clientes inativos:** clientes ativos hoje em LARANJA ou VERMELHO (`CORES_INATIVAS`); a contagem reflete as cores de hoje, independentemente do período escolhido (apoio "laranja e vermelho, hoje"); a distribuição traz as quatro cores, com zero nas que não têm clientes. A cor é a mesma da lista e da ficha, inclusive o rebaixamento por última compra no ERP (UC05); com o ERP indisponível, a cor cai na regra base de visitas, sem derrubar a consulta.
 - Proporção sem denominador (nenhum cliente ativo, nenhuma visita) não tem percentual: a tela mostra "—".
 - Cliente inativado no cadastro (UC03) fica fora da taxa de registro e da distribuição por cor, mas as visitas que ele teve no período ainda contam em "visitas no período" e na conversão.
 - **Época do ano:** não é um filtro destes indicadores; a leitura por sazonalidade é feita pelo card "Época do ano" da mesma tela (UC15), com o horizonte próprio "Próximos".
-- Os indicadores são exclusivos do Gestor (`GET /dashboard/kpis` exige o papel `GESTOR`; o representante recebe 403).
-- O aviso "dados simulados" aparece sempre que a consulta traz dados e o provedor o sinalizar (como em UC11), pois a cor composta consulta o ERP.
-- Fora do escopo desta etapa: indicadores por representante, comparação com o período anterior, filtro por intervalo livre, exportação e a evolução dos inativos ao longo do tempo (a "redução de inativos" da especificação entra aqui como a contagem atual por cor).
+- **Comparativo por representante** (`GET /dashboard/kpis/por-representante`): o mesmo período de `?periodoDias=`; para cada usuário com papel REPRESENTANTE — inclusive quem não tem cliente nem visita —, os clientes ativos da carteira, as visitas no período e a conversão em vendas, com as mesmas regras acima, só agrupadas; ordem por visitas (decrescente) e, no empate, pelo nome. Com `?representanteId=`, só aquele representante e, além disso, `porSemana`: as visitas à carteira dele em cada semana (de segunda a domingo) que cobre o período, a primeira começando na segunda-feira em ou antes do início do período, com zero nas semanas sem visita.
+- **Vendas mensais** (`GET /dashboard/vendas-mensais`): soma do valor das vendas no ERP dos clientes ativos com identificador de ERP, mês a mês ('AAAA-MM'), nos 12 meses que terminam no mês atual, com quantos clientes compraram em cada mês; os marcadores de evento são as datas de `dataDoEvento` (`config/sazonalidade.ts`) do ano atual e do anterior que caem na janela. A janela é fixa e independe do período. Cliente cujo ERP não responde fica fora da soma e é contado em `clientesIndisponiveis`, sem derrubar a resposta.
+- Cada gráfico tem o título em forma de pergunta do bloco, rótulos nos próprios dados e, para leitores de tela, um resumo dos números e uma tabela visualmente oculta com os mesmos valores.
+- Os indicadores são exclusivos do Gestor (`GET /dashboard/kpis`, `GET /dashboard/kpis/por-representante` e `GET /dashboard/vendas-mensais` exigem o papel `GESTOR`; o representante recebe 403).
+- O aviso "dados simulados" aparece sempre que a consulta traz dados e o provedor o sinalizar (como em UC11), pois a cor composta e as vendas mensais consultam o ERP.
+- Fora do escopo: comparação com o período anterior, filtro por intervalo livre, exportação e a evolução dos inativos ao longo do tempo (a "redução de inativos" da especificação entra aqui como a contagem atual por cor). Os indicadores por representante, fora do escopo na Etapa 6C, entraram na Etapa 7.
 
 ---
 
@@ -466,10 +519,10 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Pré-condições:** o gestor está autenticado; existem dados de estoque disponíveis via ERP e eventos sazonais cadastrados.
 
 **Fluxo principal:**
-1. O gestor acessa a aba "Painel" (`/painel`), exclusiva do papel gestor, onde fica o card "Alertas de produção". O horizonte de "evento próximo" começa em 90 dias.
-2. O sistema (`GET /insights/manager-alerts?horizonteDias=`) identifica os eventos sazonais cuja data cai entre hoje e hoje + horizonte e, para cada cliente ativo com identificador de ERP, obtém do provedor de ERP o estoque mais recente.
+1. O gestor acessa a aba "Painel" (`/painel`), exclusiva do papel gestor, onde os "Alertas de produção" ficam no bloco "O próximo evento está chegando e o estoque acompanha?" (UC14). O horizonte de "evento próximo" começa em 90 dias.
+2. O sistema (`GET /insights/manager-alerts?horizonteDias=&representanteId=`) identifica os eventos sazonais cuja data cai entre hoje e hoje + horizonte e, para cada cliente ativo com identificador de ERP — da carteira escolhida no seletor de representante, ou de todas —, obtém do provedor de ERP o estoque mais recente.
 3. O sistema cruza os itens em nível BAIXO de cada cliente com os produtos sugeridos para cada evento do horizonte (por SKU do catálogo do ERP) e identifica as ocorrências em que estoque baixo coincide com alta demanda sazonal prevista.
-4. O sistema exibe um alerta por produto e evento (ex.: "Caixa presente sortida — Natal 2026 em 79 dias"), com o número de clientes com estoque baixo e a lista deles — nome fantasia com link para a ficha (UC06) e a quantidade em estoque —, do estoque mais crítico para o menos crítico. Os alertas vêm do evento mais próximo para o mais distante e, dentro do mesmo evento, do produto com mais clientes afetados para o com menos.
+4. O sistema exibe um alerta por produto e evento (ex.: "Caixa presente sortida — Natal 2026 em 79 dias"), com o número de clientes com estoque baixo — também em uma barra, proporcional ao maior alerta (Etapa 7) — e a lista deles — nome fantasia com link para a ficha (UC06) e a quantidade em estoque —, do estoque mais crítico para o menos crítico. Os alertas vêm do evento mais próximo para o mais distante e, dentro do mesmo evento, do produto com mais clientes afetados para o com menos.
 5. O sistema exibe também o card "Época do ano", com os eventos do horizonte (data, prazo e produtos sugeridos).
 6. O gestor troca o horizonte entre 30, 60, 90 e 180 dias e o sistema recalcula e exibe os alertas do novo horizonte.
 
@@ -484,6 +537,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Regras de negócio associadas:**
 - Um alerta é sinalizado quando estoque baixo coincide com alta demanda sazonal prevista: o item está em nível BAIXO no estoque mais recente do cliente e o seu SKU está entre os produtos sugeridos de um evento que cai no horizonte. Os SKUs de cada evento ficam em `SKUS_SUGERIDOS` (`config/sazonalidade.ts`), por SKU do catálogo do ERP — o texto de `produtos_sugeridos` do evento não entra no cruzamento. O Natal, por exemplo, considera só `CX-PRESENTE` e `BOMB-SORT`, porque o panetone não existe no catálogo do provedor simulado.
 - **Horizonte:** as mesmas regras de UC13 (30 a 180 dias, padrão 90, escolhido na tela e não persistido; fora da faixa a API responde 400 `VALIDATION_ERROR`).
+- **Por representante (Etapa 7):** `?representanteId=` (opcional) restringe o cruzamento aos clientes da carteira daquele representante, pela carteira do cliente; sem ele, entram todas as carteiras.
 - Só entram clientes ativos com identificador de ERP. Cliente inativo ou sem identificador é ignorado; identificador desconhecido no provedor não tem item em nível baixo e, portanto, não gera alerta nem conta como indisponível.
 - Os alertas refletem o estoque do cliente (a loja), não o da fábrica: "produção" aqui é a leitura do gestor sobre a demanda de reposição que vem.
 - Os alertas de produção são direcionados exclusivamente ao Gestor, para apoiar decisões de ajuste de produção (`GET /insights/manager-alerts` exige o papel `GESTOR`).
@@ -512,6 +566,8 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 | UC14 | Visualizar painel de KPIs (Gestor) | Etapa 6 |
 | UC15 | Receber alertas de produção (Gestor) | Etapa 6 |
 
+A Etapa 7 (refino de UX, gráficos e PWA — seção 11 da [especificação técnica](especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)) não cria caso de uso novo; revisa os existentes: a regra de carteira do representante vale para UC03 a UC09 e UC11 a UC13; a lista (UC05) ganha abas por ação, etiqueta de situação e ordem por urgência; a ficha (UC06) é reordenada; o check-in (UC07) e a recorrência (UC09) ganham controles de toque; a agenda (UC10), o painel (UC14) e os alertas (UC15) ganham o seletor de representante do gestor; e o painel (UC14) ganha os gráficos.
+
 ## 6. Cobertura das regras de negócio da especificação (seção 6)
 
 Esta seção verifica que cada regra de negócio principal descrita na seção 6 da especificação técnica está coberta por ao menos um caso de uso deste documento.
@@ -521,6 +577,7 @@ Esta seção verifica que cada regra de negócio principal descrita na seção 6
 | 6.1 | Classificação por cores (regra base) e evolução para regra composta na Etapa 5 | UC05 (regra base **e** regra composta a partir da Etapa 5), UC06 (exibição), UC10 (priorização), UC11 (fonte do dado de última venda usado pela regra composta) |
 | 6.2 | Lembretes de próxima visita (última visita + recorrência; job diário) | UC09 (recorrência), UC10 (agenda do dia) |
 | 6.3 | Mensagem de consulta de estoque (template + link `wa.me` + registro) | UC12 |
-| 6.4 | Módulo de insights (sugestões ao representante, alertas ao gestor, painel de KPIs) | UC13 (sugestões), UC15 (alertas), UC14 (painel de KPIs) |
+| 6.4 | Módulo de insights (sugestões ao representante, alertas ao gestor, painel de KPIs e, na Etapa 7, gráficos por representante e de vendas mensais) | UC13 (sugestões), UC15 (alertas), UC14 (painel de KPIs e gráficos) |
+| 6.5 | Carteira do representante (Etapa 7: leitura e escrita restritas à própria carteira; gestor vê todas e filtra por representante) | UC03 a UC09, UC11 a UC13 (restrição do representante), UC05, UC10, UC14 e UC15 (filtro do gestor) |
 
 Todas as regras de negócio da seção 6 possuem caso de uso correspondente; não foram identificadas lacunas de cobertura.

@@ -34,7 +34,9 @@ O contexto completo, os objetivos do produto e o que ficou fora de escopo estão
 
 ## 2. Funcionalidades
 
-Cadastro de clientes com múltiplos contatos; check-in de visitas com descrição obrigatória e histórico por cliente; classificação automática da carteira por cores — composta, a partir da Etapa 5, com a última venda do cliente no ERP — com filtro por cor na lista; recorrência de visita editável com justificativa e histórico auditável; agenda do dia por carteira do representante, com job diário que registra os alertas em log; consulta de última venda, volume de compras e estoque por cliente a partir de um provedor de ERP simulado atrás de uma interface substituível, com aviso de "dados simulados" na ficha; mensagem de consulta de estoque com texto sugerido a partir do evento sazonal vigente, enviada pelo próprio representante via link `wa.me` e com histórico registrado na ficha do cliente; sugestões sazonais na ficha do cliente (Etapa 6B), que comparam as compras do cliente no mesmo período do ano anterior com a média dele e propõem aumentar a oferta, criar promoção ou ofertar desconto, com horizonte ajustável de 30 a 180 dias; painel do gestor com alertas de produção — clientes com estoque baixo de produtos sugeridos para um evento próximo — e a época do ano; e, nesse mesmo painel, os indicadores do gestor (Etapa 6C) — visitas, taxa de registro, conversão em vendas e clientes inativos, com a distribuição da carteira por cor — para períodos de 30, 90 ou 365 dias.
+Cadastro de clientes com múltiplos contatos; check-in de visitas com descrição obrigatória e histórico por cliente; classificação automática da carteira por cores — composta, a partir da Etapa 5, com a última venda do cliente no ERP — com filtro na lista; recorrência de visita editável com justificativa e histórico auditável; agenda do dia por carteira do representante, com job diário que registra os alertas em log; consulta de última venda, volume de compras e estoque por cliente a partir de um provedor de ERP simulado atrás de uma interface substituível, com aviso de "dados simulados" na ficha; mensagem de consulta de estoque com texto sugerido a partir do evento sazonal vigente, enviada pelo próprio representante via link `wa.me` e com histórico registrado na ficha do cliente; sugestões sazonais na ficha do cliente (Etapa 6B), que comparam as compras do cliente no mesmo período do ano anterior com a média dele e propõem aumentar a oferta, criar promoção ou ofertar desconto, com horizonte ajustável de 30 a 180 dias; painel do gestor com alertas de produção — clientes com estoque baixo de produtos sugeridos para um evento próximo — e a época do ano; e, nesse mesmo painel, os indicadores do gestor (Etapa 6C) — visitas, taxa de registro, conversão em vendas e clientes inativos, com a distribuição da carteira por cor — para períodos de 30, 90 ou 365 dias.
+
+Na Etapa 7, o representante passou a ver e alterar só a própria carteira, e o gestor ganhou um seletor de representante nas telas de clientes, agenda e painel; a lista de clientes ganhou abas por ação (Prioridade, Atenção, Em dia e Todos), uma etiqueta que diz em palavras a situação de cada cliente e a ordem por urgência; a ficha passou a abrir pelas ações de campo; o painel do gestor passou a responder a três perguntas com gráficos — visitas por representante, vendas dos últimos 12 meses com os eventos sazonais e os clientes esfriando —; no computador, as telas usam duas colunas e navegação lateral; e o app pode ser instalado no celular como PWA, sem modo offline de escrita ([ADR-012](docs/arquitetura.md#adr-012--pwa-instalável-sem-modo-offline-de-escrita)).
 
 Cada funcionalidade está especificada como caso de uso em [docs/casos-de-uso.md](docs/casos-de-uso.md), com as regras de negócio detalhadas na [seção 6 da especificação técnica](docs/especificacao-tecnica.md#6-regras-de-negócio-principais).
 
@@ -58,7 +60,7 @@ Diagrama entidade-relacionamento, dicionário de dados campo a campo, tratamento
 
 ## 6. Arquitetura e decisões técnicas
 
-Arquitetura em camadas documentada nos três níveis do modelo C4 (contexto, contêineres e componentes), estrutura de pastas do repositório e o registro das decisões técnicas em ADRs — ORM, integração com o ERP por Adapter, mensageria por link `wa.me`, cálculo da cor, hospedagem, autenticação, ferramentas de qualidade e armazenamento das fotos de comprovação de visita.
+Arquitetura em camadas documentada nos três níveis do modelo C4 (contexto, contêineres e componentes), estrutura de pastas do repositório e o registro das decisões técnicas em ADRs — ORM, integração com o ERP por Adapter, mensageria por link `wa.me`, cálculo da cor, hospedagem, autenticação, ferramentas de qualidade, armazenamento das fotos de comprovação de visita, carteira por representante e app instalável (PWA).
 
 → [docs/arquitetura.md](docs/arquitetura.md) · [diagramas C4](docs/arquitetura.md#1-visão-geral) · [ADRs](docs/arquitetura.md#3-decisões-arquiteturais-adrs)
 
@@ -70,7 +72,7 @@ Protótipo estático das telas principais — login, lista de clientes com as co
 
 ## 8. Tecnologias
 
-React 19 com Vite e TypeScript no frontend; Node.js 22 com Express 5 e TypeScript no backend; PostgreSQL 16 com Prisma como ORM; autenticação por JWT; Docker Compose no ambiente de desenvolvimento; GitHub Actions na integração e na entrega contínuas; Azure na produção.
+React 19 com Vite e TypeScript no frontend, com Recharts nos gráficos e `vite-plugin-pwa` no app instalável; Node.js 22 com Express 5 e TypeScript no backend; PostgreSQL 16 com Prisma como ORM; autenticação por JWT; Docker Compose no ambiente de desenvolvimento; GitHub Actions na integração e na entrega contínuas; Azure na produção.
 
 A integração com o ERP da Senior é feita por trás de uma interface substituível (`ErpProvider`), com implementação simulada enquanto a API real não é consumida. As mensagens de consulta de estoque **não** usam a API oficial do WhatsApp: o sistema gera o texto e o link `wa.me`, e o envio é feito manualmente pelo representante — a justificativa está no [ADR-005](docs/arquitetura.md#adr-005--mensagem-de-estoque-via-link-wame).
 
@@ -86,9 +88,11 @@ cp frontend/.env.example frontend/.env
 docker compose up --build
 ```
 
+Para testar o app instalável (PWA), que só existe no build, o guia traz o roteiro com `npm run build && npm run preview` em [Testar o PWA localmente](docs/guia-de-desenvolvimento.md#51-testar-o-pwa-localmente).
+
 ## 10. Testes
 
-Testes unitários com Jest sobre a camada de negócio (regras puras: cor do cliente, próxima visita, insights e templates de mensagem) e testes de integração com Supertest sobre as rotas críticas, contra um PostgreSQL de teste. Cada módulo entregue em uma etapa do cronograma inclui seus testes.
+No backend, testes unitários com Jest sobre a camada de negócio (regras puras: cor do cliente, próxima visita, insights, templates de mensagem e indicadores) e testes de integração com Supertest sobre as rotas críticas, contra um PostgreSQL de teste. No frontend, desde a Etapa 7, testes com Vitest e Testing Library (`npm test` em `frontend/`), sem backend, sobre as regras da interface, os componentes e as páginas, com cerca de 59 % de cobertura de linhas. O CI roda as duas suítes com cobertura e envia os dois relatórios ao SonarCloud. Cada módulo entregue em uma etapa do cronograma inclui seus testes.
 
 A estratégia está na [seção 10 da especificação técnica](docs/especificacao-tecnica.md#10-testes) e na [seção 5.1 do documento de arquitetura](docs/arquitetura.md#51-testes). Como rodar: [guia de desenvolvimento](docs/guia-de-desenvolvimento.md).
 
@@ -102,13 +106,13 @@ O workflow de CI roda, a cada push na `main` e a cada pull request, lint, testes
 
 ## 12. Qualidade e observabilidade
 
-Análise estática de código pelo SonarCloud, executada como job do pipeline de CI com a cobertura dos testes do backend; o quality gate aparece no badge acima e no painel do SonarCloud, sem bloquear o pipeline. Em produção, logs estruturados com identificador de requisição, endpoint `GET /health` que verifica também a conexão com o banco, e Azure Application Insights recebendo requisições, dependências e exceções da API, com um teste de disponibilidade em `GET /health` que avisa por e-mail quando a API cai.
+Análise estática de código pelo SonarCloud, executada como job do pipeline de CI com a cobertura dos testes do backend e do frontend; o quality gate aparece no badge acima e no painel do SonarCloud, sem bloquear o pipeline. Em produção, logs estruturados com identificador de requisição, endpoint `GET /health` que verifica também a conexão com o banco, e Azure Application Insights recebendo requisições, dependências e exceções da API, com um teste de disponibilidade em `GET /health` que avisa por e-mail quando a API cai.
 
 → [ADR-009](docs/arquitetura.md#adr-009--análise-estática-e-monitoramento-obrigatórios) · [seção 5.2 do documento de arquitetura](docs/arquitetura.md#52-observabilidade-e-operação) · [logs e monitoramento em produção](docs/guia-de-desenvolvimento.md#96-logs-e-monitoramento)
 
 ## 13. Cronograma de entregas
 
-O projeto é entregue em seis etapas, da documentação e protótipo até o deploy em produção e os testes com os representantes.
+O projeto é entregue em seis etapas, da documentação e protótipo até o deploy em produção e os testes com os representantes, mais uma Etapa 7 de refino de UX, gráficos e PWA, antes dos testes de campo.
 
 → [seção 11 da especificação técnica](docs/especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)
 
