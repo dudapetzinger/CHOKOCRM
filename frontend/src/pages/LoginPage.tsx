@@ -33,9 +33,7 @@ export function LoginPage() {
     <div className="container container-estreito">
       <main className="tela-login">
         <div className="marca">
-          <p className="marca-logo">
-            Choko<span>CRM</span>
-          </p>
+          <img className="marca-logo-img" src="/logo.svg" alt="ChokoCRM" width={200} height={200} />
           <p className="marca-slogan">Gestão de visitas para representantes comerciais</p>
         </div>
 

@@ -66,7 +66,12 @@ app.use(
 // Frontend (build do Vite) servido pela própria API em produção — um host só
 // no App Service (ADR-007). Fica depois dos routers: a API sempre tem
 // prioridade. Arquivos de `assets/` têm hash no nome e podem ficar em cache
-// para sempre; o `index.html` é revalidado a cada navegação.
+// para sempre; o `index.html` é revalidado a cada navegação. Os arquivos do
+// PWA na raiz (service worker, registro, Workbox e manifest — ADR-012) têm
+// nome fixo e também são revalidados sempre, senão uma versão nova do app
+// demoraria a chegar a quem já instalou.
+const ARQUIVOS_PWA = /^(sw\.js|registerSW\.js|manifest\.webmanifest|workbox-[\w-]+\.js)$/;
+
 if (env.WEB_DIR) {
   const webDir = path.resolve(env.WEB_DIR);
   if (existsSync(webDir)) {
@@ -78,6 +83,8 @@ if (env.WEB_DIR) {
           res.setHeader('X-Content-Type-Options', 'nosniff');
           if (arquivo.startsWith(pastaAssets)) {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          } else if (path.dirname(arquivo) === webDir && ARQUIVOS_PWA.test(path.basename(arquivo))) {
+            res.setHeader('Cache-Control', 'no-cache');
           }
         },
       }),

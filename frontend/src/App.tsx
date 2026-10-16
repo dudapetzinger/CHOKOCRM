@@ -10,6 +10,9 @@ import { ClienteDetalhePage } from './pages/ClienteDetalhePage';
 import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
 import { useLarguraDesktop } from './lib/useLarguraDesktop';
+import { AvisoNovaVersao } from './pwa/AvisoNovaVersao';
+import { AvisoSemRede } from './pwa/AvisoSemRede';
+import { BannerInstalar } from './pwa/BannerInstalar';
 
 // O Painel (só do gestor) carrega o Recharts: fica num pedaço à parte, baixado só quando aberto.
 const PainelPage = lazy(() => import('./pages/PainelPage'));
@@ -30,6 +33,13 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <RepresentanteProvider>
+          {/* PWA (ADR-012): faixas de sem internet e de versão nova, presas no
+              topo; abaixo, o convite para instalar (só com usuário logado). */}
+          <div className="avisos-app">
+            <AvisoSemRede />
+            <AvisoNovaVersao />
+          </div>
+          <BannerInstalar />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route

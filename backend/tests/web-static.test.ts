@@ -12,17 +12,26 @@ import request from 'supertest';
  */
 const INDEX_HTML = '<!doctype html><title>ChokoCRM</title><div id="root"></div>';
 const APP_JS = 'console.log("chokocrm");';
+const SW_JS = 'self.addEventListener("install", () => {});';
+const MANIFEST = '{"name":"ChokoCRM"}';
 
 const webDirOriginal = process.env.WEB_DIR;
 let baseTmp: string;
 let webDir: string;
 let app: Express;
 
-/** Cria um build mínimo (index.html + assets/app.js) em `dir` e devolve `dir`. */
+/**
+ * Cria um build mínimo em `dir` e devolve `dir`: index.html, assets/app.js e
+ * os arquivos do PWA na raiz (service worker, registro, Workbox e manifest).
+ */
 function criarBuild(dir: string): string {
   mkdirSync(path.join(dir, 'assets'), { recursive: true });
   writeFileSync(path.join(dir, 'index.html'), INDEX_HTML);
   writeFileSync(path.join(dir, 'assets', 'app.js'), APP_JS);
+  writeFileSync(path.join(dir, 'sw.js'), SW_JS);
+  writeFileSync(path.join(dir, 'registerSW.js'), SW_JS);
+  writeFileSync(path.join(dir, 'workbox-1a2b3c4d.js'), SW_JS);
+  writeFileSync(path.join(dir, 'manifest.webmanifest'), MANIFEST);
   return dir;
 }
 
@@ -64,6 +73,30 @@ describe('frontend servido pela API (WEB_DIR)', () => {
     expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
     expect(res.text).toBe(APP_JS);
+  });
+
+  it('service worker do PWA (sw.js) sai sem cache, para a atualização chegar logo', async () => {
+    const res = await request(app).get('/sw.js');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/javascript/);
+    expect(res.headers['cache-control']).toBe('no-cache');
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+    expect(res.text).toBe(SW_JS);
+  });
+
+  it('registerSW.js e workbox-*.js na raiz também saem sem cache', async () => {
+    for (const caminho of ['/registerSW.js', '/workbox-1a2b3c4d.js']) {
+      const res = await request(app).get(caminho);
+      expect(res.status).toBe(200);
+      expect(res.headers['cache-control']).toBe('no-cache');
+    }
+  });
+
+  it('manifest.webmanifest sai sem cache e com o tipo do manifest', async () => {
+    const res = await request(app).get('/manifest.webmanifest');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/^application\/manifest\+json/);
+    expect(res.headers['cache-control']).toBe('no-cache');
   });
 
   it('navegação do browser (Accept text/html) numa rota da SPA recebe o index.html', async () => {

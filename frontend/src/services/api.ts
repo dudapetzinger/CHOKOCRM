@@ -12,13 +12,22 @@
  *   sessão e redirecionar para `/login`. Um 401 de `/auth/login` (sem
  *   token, credenciais erradas) não passa por essa checagem: quem chama
  *   trata o erro localmente (ver `LoginPage`).
+ * - Sem rede (o `fetch` rejeita, sem resposta nenhuma), a exceção é
+ *   `ApiError('NETWORK', 'Você está sem internet.')`, e a falha fica
+ *   registrada em `pwa/estadoRede` para o aviso de sem internet; a próxima
+ *   resposta que chegar apaga o aviso (ADR-012).
  */
+
+import { registrarFalhaDeRede, registrarRespostaDaApi } from '../pwa/estadoRede';
 
 const DEFAULT_BASE_URL = 'http://localhost:3000';
 
 const baseUrl = (import.meta.env.VITE_API_URL ?? DEFAULT_BASE_URL).replace(/\/$/, '');
 
 const TOKEN_KEY = 'chokocrm:token';
+
+/** O app é instalável, mas não funciona offline: sem rede, nada de chamada à API. */
+const MENSAGEM_SEM_INTERNET = 'Você está sem internet.';
 
 export class ApiError extends Error {
   readonly code: string;
@@ -82,8 +91,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   try {
     response = await fetch(`${baseUrl}${path}`, { method, headers, body: requestBody });
   } catch {
-    throw new ApiError('NETWORK_ERROR', 'Não foi possível conectar ao servidor.');
+    registrarFalhaDeRede();
+    throw new ApiError('NETWORK', MENSAGEM_SEM_INTERNET);
   }
+  registrarRespostaDaApi();
 
   const text = await response.text();
   const data: unknown = text ? JSON.parse(text) : undefined;
@@ -133,8 +144,10 @@ async function requestNaoJson(
   try {
     response = await fetch(`${baseUrl}${path}`, { method, headers, body: opcoes.body });
   } catch {
-    throw new ApiError('NETWORK_ERROR', 'Não foi possível conectar ao servidor.');
+    registrarFalhaDeRede();
+    throw new ApiError('NETWORK', MENSAGEM_SEM_INTERNET);
   }
+  registrarRespostaDaApi();
 
   if (!response.ok) {
     if (response.status === 401 && token) {

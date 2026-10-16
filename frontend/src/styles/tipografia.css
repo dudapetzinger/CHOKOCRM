@@ -11,8 +11,7 @@ body {
 h1,
 h2,
 h3,
-.card-titulo,
-.marca-logo {
+.card-titulo {
   font-family: var(--fonte-titulos);
   font-weight: var(--peso-semi);
   line-height: 1.2;

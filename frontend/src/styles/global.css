@@ -174,18 +174,15 @@ p {
   margin-bottom: var(--espaco-6);
 }
 
-/* Logotipo maior na entrada do app (Etapa 7); fonte Fraunces em tipografia.css */
-.marca-logo {
-  font-size: calc(var(--texto-2xl) * 1.4);
-  font-weight: var(--peso-forte);
-  line-height: 1.1;
-  color: var(--marrom-900);
-  letter-spacing: -0.02em;
-  margin: 0 0 var(--espaco-2) 0;
-}
-
-.marca-logo span {
-  color: var(--laranja);
+/* Logotipo na entrada do app: o mesmo desenho do ícone do PWA
+   (public/logo.svg, ADR-012). O fundo creme do ícone some sobre o
+   .container; as margens negativas descontam a sobra do quadrado acima e
+   abaixo do texto (que ocupa o terço do meio). */
+.marca-logo-img {
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: -48px auto -40px;
 }
 
 .marca-slogan {
@@ -1174,4 +1171,99 @@ p {
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/* ==========================================================================
+   25. App instalável (ADR-012): faixas de aviso e convite para instalar
+   .avisos-app fica preso no topo, acima de tudo (sem internet, versão
+   nova); vazio, não ocupa espaço. O .banner-instalar rola com a página e
+   some com "Agora não" (src/pwa/).
+   ========================================================================== */
+.avisos-app {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.avisos-app:empty {
+  display: none;
+}
+
+.avisos-app > .aviso {
+  margin: 0;
+  border-radius: 0;
+  border-width: 0 0 1px 0;
+  text-align: center;
+  font-size: var(--texto-sm);
+}
+
+.aviso-nova-versao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espaco-3);
+  color: var(--texto);
+}
+
+.btn-link-aviso {
+  min-height: 36px;
+  padding: 0 var(--espaco-2);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--peso-forte);
+  color: var(--marrom-900);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.btn-link-aviso:focus-visible {
+  outline: 2px solid var(--laranja);
+  outline-offset: 2px;
+}
+
+.banner-instalar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--espaco-3);
+  align-items: center;
+  max-width: 560px;
+  /* respiro de 8 px dos lados no celular; centralizado em telas largas */
+  margin: var(--espaco-2) max(var(--espaco-2), calc((100% - 560px) / 2));
+  padding: var(--espaco-4);
+  background-color: var(--branco);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-2);
+}
+
+.banner-instalar-icone {
+  border-radius: var(--raio-sm);
+}
+
+.banner-instalar-titulo {
+  margin: 0;
+  font-weight: var(--peso-forte);
+  color: var(--marrom-900);
+}
+
+.banner-instalar-descricao {
+  margin: 0;
+  font-size: var(--texto-sm);
+  color: var(--texto-suave);
+}
+
+.banner-instalar-acoes {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--espaco-2);
+}
+
+.banner-instalar-acoes > button {
+  padding-inline: var(--espaco-3);
+}
+
+/* Só "Agora não" (iPhone): o botão não ocupa a linha toda */
+.banner-instalar-acoes > :only-child {
+  width: auto;
+  margin-left: auto;
 }
