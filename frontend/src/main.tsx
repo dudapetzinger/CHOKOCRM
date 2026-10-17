@@ -1,13 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// Fontes servidas pelo próprio app (sem CDN): Fraunces nos títulos (600 e 700;
-// os títulos nunca usam 400), Manrope no texto
-import '@fontsource/fraunces/600.css';
-import '@fontsource/fraunces/700.css';
-import '@fontsource/manrope/400.css';
-import '@fontsource/manrope/600.css';
-import '@fontsource/manrope/700.css';
+// Fonte servida pelo próprio app (sem CDN): Figtree, uma família só para
+// títulos e texto (Etapa 8), nos pesos usados pelos tokens de tipografia
+import '@fontsource/figtree/400.css';
+import '@fontsource/figtree/500.css';
+import '@fontsource/figtree/600.css';
+import '@fontsource/figtree/700.css';
 import './styles/global.css';
 // Depois de global.css: as regras de ≥ 768 px precisam vir por último na cascata
 import './styles/desktop.css';

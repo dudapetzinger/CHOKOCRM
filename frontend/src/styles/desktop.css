@@ -9,7 +9,9 @@
    - .container vira uma grade: navegação lateral na 1ª coluna, barra
      superior e conteúdo na 2ª. Telas sem navegação (login, novo cliente,
      check-in) usam .container-estreito: uma coluna só, centralizada.
-   - .nav-lateral (NavInferior) deixa de ser a barra fixa de baixo.
+   - .nav-lateral (NavInferior) deixa de ser a barra fixa de baixo: coluna
+     branca com borda à direita e a marca (.nav-marca) no topo — de 768 a
+     1199 só o logotipo, a partir de 1200 também o nome "ChokoCRM".
    - .duas-colunas (components/LayoutDuasColunas.tsx): Clientes (lista |
      ficha), Agenda (Atrasadas | Hoje) e Painel.
    - De 768 a 1199 a barra lateral fica estreita (ícone sobre o rótulo), e
@@ -19,7 +21,7 @@
 @media (min-width: 768px) {
   /* ---- Moldura: navegação | (barra superior + conteúdo) ---- */
   .container {
-    max-width: 1100px;
+    max-width: 1280px;
     display: grid;
     grid-template-columns: 88px minmax(0, 1fr);
     grid-template-rows: auto 1fr;
@@ -63,28 +65,47 @@
     justify-content: flex-start;
     gap: var(--espaco-1);
     padding: var(--espaco-3) var(--espaco-2);
-    background-color: var(--marrom-900);
+    background-color: var(--superficie);
     border-top: none;
-    box-shadow: none;
+    border-right: 1px solid var(--borda);
+  }
+
+  /* Marca no topo da coluna: só o logotipo até 1199 px */
+  .nav-marca {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--espaco-2);
+    padding: var(--espaco-1) 0 var(--espaco-3);
+  }
+
+  .nav-marca img {
+    display: block;
+    width: 32px;
+    height: 32px;
+  }
+
+  .nav-marca-nome {
+    display: none;
   }
 
   .nav-lateral a {
     flex: 0 0 auto;
     padding: var(--espaco-2) var(--espaco-1);
     border-radius: var(--raio-sm);
-    color: var(--marrom-100);
+    color: var(--texto-suave);
   }
 
   .nav-lateral a:hover,
   .nav-lateral a:focus-visible {
-    background-color: var(--marrom-700);
-    color: var(--branco);
+    background-color: var(--superficie-suave);
+    color: var(--texto);
   }
 
+  /* Ativo: fundo de destaque suave e texto na cor da marca, sem filete */
   .nav-lateral a.ativo {
-    background-color: var(--marrom-700);
-    color: var(--branco);
-    box-shadow: inset 3px 0 0 var(--laranja);
+    background-color: var(--destaque-suave);
+    color: var(--marca);
   }
 
   /* ---- Duas colunas ---- */
@@ -101,7 +122,7 @@
 
   /* Clientes: a lista rola na própria coluna, presa abaixo da barra
      superior (56 px), e a ficha rola com a página. O respiro de 2–4 px
-     evita cortar a sombra da lista e o anel de foco. */
+     evita cortar a borda da lista e o anel de foco. */
   .clientes-colunas > .coluna:first-child {
     position: sticky;
     top: calc(56px + var(--espaco-4));
@@ -132,11 +153,29 @@
 
 @media (min-width: 1200px) {
   .container {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 232px minmax(0, 1fr);
   }
 
   .nav-lateral {
     padding: var(--espaco-4) var(--espaco-3);
+  }
+
+  /* Título da barra superior um pouco maior com a tela larga (18 → 20 px) */
+  .topo h1 {
+    font-size: 20px;
+  }
+
+  /* A partir de 1200 a marca ganha o nome ao lado do logotipo */
+  .nav-marca {
+    justify-content: flex-start;
+    padding: 0 var(--espaco-2) var(--espaco-4);
+  }
+
+  .nav-marca-nome {
+    display: inline;
+    font-size: var(--texto-lg);
+    font-weight: var(--peso-forte);
+    color: var(--marca);
   }
 
   .nav-lateral a {

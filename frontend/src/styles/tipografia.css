@@ -1,6 +1,8 @@
-/* ChokoCRM — tipografia (Etapa 7).
-   Fraunces nos títulos, Manrope no texto; escala de tamanhos e pesos em
-   tokens.css. Corpo em 17 px (--texto-md), confortável no celular. */
+/* ChokoCRM — tipografia (Etapa 7, Figtree na Etapa 8).
+   Figtree em títulos e texto, uma família só; escala de tamanhos e pesos em
+   tokens.css. Corpo em 16 px (--texto-md): a Figtree tem x-height alta e
+   fica confortável no celular nesse tamanho. Títulos em 600, sem
+   letter-spacing negativo. */
 body {
   font-family: var(--fonte-texto);
   font-size: var(--texto-md);
@@ -15,7 +17,6 @@ h3,
   font-family: var(--fonte-titulos);
   font-weight: var(--peso-semi);
   line-height: 1.2;
-  letter-spacing: -0.01em;
 }
 
 h1 {

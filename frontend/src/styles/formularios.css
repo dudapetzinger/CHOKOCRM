@@ -179,7 +179,6 @@
 .btn-primario {
   background-color: var(--marrom-900);
   color: var(--branco);
-  box-shadow: var(--sombra-1);
 }
 
 .btn-primario:hover:not(:disabled) {
@@ -265,7 +264,9 @@
   background-color: var(--branco);
   color: var(--marrom-900);
   font-weight: var(--peso-forte);
-  box-shadow: var(--sombra-1);
+  /* Contorno no lugar da sombra (Etapa 8): o fundo do grupo agora também é
+     branco, e sem ele a opção marcada se confundiria com as outras */
+  box-shadow: inset 0 0 0 1px var(--borda-forte);
 }
 
 .segmentado-opcao:focus-visible {
