@@ -113,7 +113,7 @@ export function NovoClientePage() {
     <div className="container container-estreito">
       <header className="topo">
         <h1>Novo cliente</h1>
-        <Link className="topo-acao" to="/clientes">
+        <Link className="btn-terciario topo-acao" to="/clientes">
           <Icone nome="arrow-left" tamanho={18} />
           Voltar
         </Link>
@@ -268,7 +268,7 @@ export function NovoClientePage() {
             </button>
           </section>
 
-          <button type="submit" className="btn-primario" disabled={mutation.isPending}>
+          <button type="submit" className="btn-primario btn-bloco" disabled={mutation.isPending}>
             {mutation.isPending ? 'Cadastrando...' : 'Cadastrar cliente'}
           </button>
         </form>

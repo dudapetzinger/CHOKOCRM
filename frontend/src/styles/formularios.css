@@ -1,9 +1,12 @@
-/* ChokoCRM — formulários e botões (Etapa 7).
-   Campos arredondados com fundo creme suave em vez de borda escura, anel de
-   foco laranja, rótulo acima (13 px / 600) e ajuda/erro abaixo. Botões:
-   um .btn-primario (preenchido) por tela, .btn-secundario (contornado) e
-   .btn-perigo (texto vermelho discreto). Também o controle segmentado
-   (SegmentadoResultado, SeletorRecorrencia) e a área de texto que cresce
+/* ChokoCRM — formulários e botões (Etapa 7, compactos na Etapa 8).
+   Campos brancos com borda fina, raio pequeno e anel de foco laranja; rótulo
+   acima (13 px / 500) e ajuda/erro abaixo. Botões de 40 px no desktop e
+   44 px no celular, na largura do texto (.btn-bloco estica): um
+   .btn-primario (preenchido) por tela, .btn-secundario (contornado),
+   .btn-terciario (só texto) e .btn-perigo (texto vermelho discreto);
+   .btn-icone para o botão só com ícone. Também o select compacto (.select),
+   a busca com lupa (.campo-busca), o controle segmentado (Segmentado,
+   SegmentadoResultado, SeletorRecorrencia) e a área de texto que cresce
    (AreaTextoCrescente). */
 
 /* ==========================================================================
@@ -18,8 +21,8 @@
 
 .campo label,
 .campo-rotulo {
-  font-size: var(--texto-xs);
-  font-weight: var(--peso-semi);
+  font-size: 13px;
+  font-weight: var(--peso-medio);
   color: var(--texto);
 }
 
@@ -36,7 +39,7 @@
 .erro-campo {
   font-size: var(--texto-xs);
   font-weight: var(--peso-semi);
-  color: var(--vermelho);
+  color: var(--vermelho-texto);
   margin: var(--espaco-1) 0 0;
 }
 
@@ -62,14 +65,13 @@
     textarea
   ) {
   width: 100%;
-  min-height: 48px;
-  padding: var(--espaco-3) var(--espaco-4);
-  border: 1.5px solid var(--campo-borda);
-  border-radius: var(--raio);
+  min-height: 40px;
+  padding: var(--espaco-2) var(--espaco-3);
+  border: 1px solid var(--campo-borda);
+  border-radius: var(--raio-sm);
   background-color: var(--campo-fundo);
   color: var(--texto);
-  /* 17 px: acima de 16 px o iOS não dá zoom ao focar o campo */
-  font-size: var(--texto-md);
+  font-size: var(--texto-sm);
   line-height: 1.45;
   transition:
     border-color 0.15s,
@@ -77,18 +79,47 @@
     background-color 0.15s;
 }
 
+/* Celular: 44 px de alvo de toque e 16 px (abaixo disso o iOS dá zoom ao
+   focar o campo) */
+@media (max-width: 767px) {
+  :where(
+      input:not(
+          [type='checkbox'],
+          [type='radio'],
+          [type='file'],
+          [type='range'],
+          [type='color'],
+          [type='hidden'],
+          [type='submit'],
+          [type='button'],
+          [type='reset'],
+          [type='image']
+        ),
+      select,
+      textarea
+    ) {
+    min-height: 44px;
+    font-size: var(--texto-md);
+  }
+}
+
 :where(input, select, textarea)::placeholder {
   color: var(--texto-suave);
   opacity: 1;
+}
+
+/* Especificidade zero, como a base: o foco e o erro (abaixo) vencem */
+:where(input, select, textarea):where(:hover:not(:disabled)) {
+  border-color: var(--borda-forte);
 }
 
 /* Foco: borda e anel laranja; o contorno transparente aparece no modo de
    alto contraste do sistema, onde o box-shadow é descartado. */
 :where(input, select, textarea):focus-visible {
   outline: 2px solid transparent;
-  border-color: var(--laranja);
+  border-color: var(--destaque);
   box-shadow: var(--anel-foco);
-  background-color: var(--branco);
+  background-color: var(--campo-fundo);
 }
 
 :where(input, select, textarea)[aria-invalid='true'] {
@@ -100,14 +131,45 @@
   cursor: not-allowed;
 }
 
+/* Seta: o ícone chevron-down de Icone.tsx em data URI, na cor de
+   --texto-suave (#5f6b7a). Data URI não lê variáveis CSS, por isso o hex. */
 :where(select) {
   appearance: none;
   -webkit-appearance: none;
-  padding-right: calc(var(--espaco-4) * 2 + 12px);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235d4037' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  padding-right: calc(var(--espaco-3) + 16px + var(--espaco-2));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235f6b7a' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right var(--espaco-4) center;
-  background-size: 12px 8px;
+  background-position: right var(--espaco-3) center;
+  background-size: 16px 16px;
+}
+
+/* Select compacto (.select): na largura do texto, para barras de
+   ferramentas e filtros (SeletorRepresentante) */
+.select {
+  width: auto;
+  max-width: 100%;
+  font-weight: var(--peso-medio);
+  margin-bottom: var(--espaco-4);
+  cursor: pointer;
+}
+
+/* Busca (.campo-busca): lupa à esquerda, dentro do campo. Uso:
+     <div class="campo-busca"><Icone nome="search" tamanho={16} /><input type="search" …></div> */
+.campo-busca {
+  position: relative;
+}
+
+.campo-busca > .icone {
+  position: absolute;
+  left: var(--espaco-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--texto-suave);
+  pointer-events: none;
+}
+
+.campo-busca > input {
+  padding-left: 36px;
 }
 
 :where(textarea) {
@@ -139,18 +201,19 @@
    ========================================================================== */
 .btn-primario,
 .btn-secundario,
+.btn-terciario,
 .btn-perigo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--espaco-2);
-  width: 100%;
-  min-height: 48px;
-  padding: var(--espaco-3) var(--espaco-5);
-  border: 1.5px solid transparent;
-  border-radius: var(--raio);
-  font-size: var(--texto-md);
-  font-weight: var(--peso-forte);
+  width: auto;
+  min-height: 40px;
+  padding: 0 var(--espaco-4);
+  border: 1px solid transparent;
+  border-radius: var(--raio-sm);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-semi);
   line-height: 1.2;
   text-align: center;
   text-decoration: none;
@@ -161,15 +224,48 @@
     color 0.15s;
 }
 
+/* Ícone opcional à esquerda do texto (<Icone tamanho={16} />) */
+:is(.btn-primario, .btn-secundario, .btn-terciario, .btn-perigo) > .icone {
+  flex-shrink: 0;
+}
+
+/* Na largura toda: login, "Novo check-in" e envio dos formulários */
+.btn-bloco {
+  width: 100%;
+}
+
+/* Só ícone (com aria-label): quadrado */
+.btn-icone {
+  width: 40px;
+  padding: 0;
+}
+
+/* Celular: 44 px de alvo de toque e texto um pouco maior */
+@media (max-width: 767px) {
+  .btn-primario,
+  .btn-secundario,
+  .btn-terciario,
+  .btn-perigo {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .btn-icone {
+    width: 44px;
+  }
+}
+
 .btn-primario:focus-visible,
 .btn-secundario:focus-visible,
+.btn-terciario:focus-visible,
 .btn-perigo:focus-visible {
-  outline: 2px solid var(--laranja);
+  outline: 2px solid var(--destaque);
   outline-offset: 2px;
 }
 
 .btn-primario:disabled,
 .btn-secundario:disabled,
+.btn-terciario:disabled,
 .btn-perigo:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -177,23 +273,34 @@
 
 /* Primário: a ação principal da tela, preenchido (um por tela) */
 .btn-primario {
-  background-color: var(--marrom-900);
+  background-color: var(--acao);
   color: var(--branco);
 }
 
 .btn-primario:hover:not(:disabled) {
-  background-color: var(--marrom-700);
+  background-color: var(--acao-hover);
 }
 
 /* Secundário: contornado, para as demais ações */
 .btn-secundario {
-  background-color: transparent;
-  color: var(--marrom-900);
-  border-color: var(--marrom-700);
+  background-color: var(--superficie);
+  color: var(--texto);
+  border-color: var(--borda-forte);
 }
 
 .btn-secundario:hover:not(:disabled) {
-  background-color: var(--creme);
+  background-color: var(--superficie-suave);
+}
+
+/* Terciário: só texto, para a navegação da barra superior ("Voltar", "Sair") */
+.btn-terciario {
+  background-color: transparent;
+  color: var(--texto-suave);
+}
+
+.btn-terciario:hover:not(:disabled) {
+  background-color: var(--superficie-suave);
+  color: var(--texto);
 }
 
 /* Perigo: texto vermelho discreto, sem contorno (inativar, remover).
@@ -224,53 +331,78 @@
 /* ==========================================================================
    Controle segmentado (.segmentado)
    Grupo de opções lado a lado (role="radiogroup"), usado no resultado da
-   visita (SegmentadoResultado) e na recorrência (SeletorRecorrencia).
+   visita (SegmentadoResultado), na recorrência (SeletorRecorrencia) e, como
+   .segmentado-compacto, nos filtros de período e horizonte (Segmentado via
+   FiltroPilulas). Opções de 40 px no desktop (36 px no compacto, que com a
+   moldura fica com 40 px, a altura do select e dos botões) e 44 px no
+   celular.
    ========================================================================== */
 .segmentado {
   display: flex;
-  gap: var(--espaco-1);
-  padding: var(--espaco-1);
-  background-color: var(--campo-fundo);
-  border: 1.5px solid var(--campo-borda);
-  border-radius: var(--raio);
+  gap: 2px;
+  padding: 2px;
+  background-color: var(--superficie-suave);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-sm);
+}
+
+.segmentado-compacto {
+  display: inline-flex;
+  padding: 1px;
 }
 
 .segmentado-opcao {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 44px;
-  padding: var(--espaco-2) var(--espaco-1);
+  min-height: 40px;
+  padding: var(--espaco-1) var(--espaco-3);
   border: none;
-  border-radius: var(--raio-sm);
+  border-radius: 4px;
   background-color: transparent;
-  color: var(--texto);
+  color: var(--texto-suave);
   font-size: var(--texto-sm);
-  font-weight: var(--peso-semi);
+  font-weight: var(--peso-medio);
   line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background-color 0.15s,
-    box-shadow 0.15s;
+    box-shadow 0.15s,
+    color 0.15s;
+}
+
+.segmentado-compacto .segmentado-opcao {
+  flex: 0 0 auto;
+  min-height: 36px;
+}
+
+/* Celular: alvo de toque de 44 × 44 px também nas opções curtas ("30") */
+@media (max-width: 767px) {
+  .segmentado-opcao,
+  .segmentado-compacto .segmentado-opcao {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 /* Só com mouse: no toque o hover "gruda" e parece outra opção marcada */
 @media (hover: hover) {
   .segmentado-opcao[aria-checked='false']:hover {
-    background-color: rgba(255, 255, 255, 0.35);
+    background-color: var(--superficie);
+    color: var(--texto);
   }
 }
 
+/* Marcada: branca com contorno --borda-forte, sem sombra */
 .segmentado-opcao[aria-checked='true'] {
-  background-color: var(--branco);
-  color: var(--marrom-900);
-  font-weight: var(--peso-forte);
-  /* Contorno no lugar da sombra (Etapa 8): o fundo do grupo agora também é
-     branco, e sem ele a opção marcada se confundiria com as outras */
+  background-color: var(--superficie);
+  color: var(--texto);
+  font-weight: var(--peso-semi);
   box-shadow: inset 0 0 0 1px var(--borda-forte);
 }
 
 .segmentado-opcao:focus-visible {
-  outline: 2px solid var(--laranja);
+  outline: 2px solid var(--destaque);
   outline-offset: 1px;
 }
 
@@ -283,4 +415,18 @@
 
 .seletor-recorrencia-outro {
   max-width: 160px;
+}
+
+/* ==========================================================================
+   Movimento reduzido: sem transições nos controles
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  :where(input, select, textarea),
+  .btn-primario,
+  .btn-secundario,
+  .btn-terciario,
+  .btn-perigo,
+  .segmentado-opcao {
+    transition: none;
+  }
 }

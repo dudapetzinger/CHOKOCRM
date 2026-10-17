@@ -70,7 +70,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
       <div className="container">
         <header className="topo">
           <h1>Cliente</h1>
-          <Link className="topo-acao" to="/clientes">
+          <Link className="btn-terciario topo-acao" to="/clientes">
             <Icone nome="arrow-left" tamanho={18} />
             Voltar
           </Link>
@@ -112,7 +112,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
 
       {ehRepresentante &&
         (cliente.ativo ? (
-          <Link className="btn-primario btn-check-in" to={`/clientes/${id}/check-in`}>
+          <Link className="btn-primario btn-bloco btn-check-in" to={`/clientes/${id}/check-in`}>
             Novo check-in
           </Link>
         ) : (

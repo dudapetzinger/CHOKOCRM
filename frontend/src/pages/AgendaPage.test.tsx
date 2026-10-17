@@ -119,7 +119,7 @@ describe('AgendaPage (celular)', () => {
     expect(await screen.findByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
     expect(screen.getByText('Rep.: Rafael Schmitt')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Check-in' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Filtrar por representante' })).toHaveValue('');
   });
 
   it('com a agenda já carregada, um refetch que falha por rede mantém as visitas e mostra o aviso acima', async () => {

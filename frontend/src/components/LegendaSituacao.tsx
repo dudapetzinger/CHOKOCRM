@@ -1,13 +1,15 @@
 /**
- * Legenda das situações (Etapa 7, spec 5.1): botão "?" ao lado das abas que
- * abre um balão com a régua da classificação, uma frase por situação. Os
- * números vêm de config/classificacao.ts.
+ * Legenda das situações (Etapa 7, spec 5.1): botão-ícone `help-circle` (era
+ * um "?" até a Etapa 8) ao lado das abas que abre um balão com a régua da
+ * classificação, uma frase por situação. Os números vêm de
+ * config/classificacao.ts.
  */
 import {
   LIMIAR_LARANJA_DIAS,
   LIMIAR_SEM_COMPRA_DIAS,
   LIMIAR_VERDE_AMARELO_DIAS,
 } from '../config/classificacao';
+import { Icone } from './Icone';
 
 const FRASES: readonly string[] = [
   `Em dia: visitado há até ${LIMIAR_VERDE_AMARELO_DIAS} dias, com venda.`,
@@ -20,7 +22,9 @@ const FRASES: readonly string[] = [
 export function LegendaSituacao() {
   return (
     <details className="legenda-situacao">
-      <summary aria-label="O que significam as situações">?</summary>
+      <summary className="btn-secundario btn-icone" aria-label="Legenda das situações">
+        <Icone nome="help-circle" />
+      </summary>
       <ul className="legenda-situacao-texto">
         {FRASES.map((frase) => (
           <li key={frase}>{frase}</li>

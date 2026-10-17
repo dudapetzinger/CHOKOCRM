@@ -88,25 +88,16 @@ p {
   white-space: nowrap;
 }
 
+/* "Voltar" / "Sair": botão terciário (className="btn-terciario topo-acao",
+   formularios.css), com 44 px de alvo de toque no celular. Aqui só o que é
+   da barra: não encolher, não quebrar e um padding menor, puxado para a
+   borda para o texto alinhar com o título. */
 .topo-acao {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--texto-suave);
-  font-size: var(--texto-sm);
-  font-weight: var(--peso-semi);
-  text-decoration: none;
+  padding: 0 var(--espaco-2);
+  margin-inline: calc(-1 * var(--espaco-2));
   white-space: nowrap;
-  cursor: pointer;
-}
-
-.topo-acao:hover,
-.topo-acao:focus-visible {
-  text-decoration: underline;
 }
 
 /* ==========================================================================
@@ -316,13 +307,13 @@ p {
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
-  box-shadow: 0 3px 10px rgba(62, 39, 35, 0.3);
+  box-shadow: var(--sombra-2);
   cursor: pointer;
 }
 
 .botao-flutuante:hover,
 .botao-flutuante:focus-visible {
-  background-color: #c95f00;
+  background-color: var(--destaque-hover);
 }
 
 /* ==========================================================================
@@ -506,14 +497,12 @@ p {
   margin-top: var(--espaco-2);
 }
 
+/* Altura e fonte vêm da base dos botões (formularios.css); aqui eles só
+   dividem a linha */
 .acoes-linha .btn-primario,
 .acoes-linha .btn-secundario,
 .acoes-linha .btn-perigo {
-  width: auto;
   flex: 1 1 auto;
-  min-height: 44px;
-  padding: var(--espaco-2) var(--espaco-4);
-  font-size: var(--texto-sm);
 }
 
 .confirmacao {
@@ -704,9 +693,10 @@ p {
 .badge-vermelho { background-color: var(--vermelho); }
 
 /* Variante pílula: o ponto de cor acompanhado de um rótulo textual, usada
-   em filtros e legendas. Uso:
+   na legenda da distribuição por cor do Painel. Uso:
      <span class="badge-pilula"><span class="badge-verde"></span> Verde</span>
-   Adicionar "ativo" para marcar o filtro selecionado. */
+   Desde a Etapa 8 não é mais filtro: os filtros são o controle segmentado
+   (formularios.css) e as abas (seção 18). */
 .badge-pilula {
   display: inline-flex;
   align-items: center;
@@ -720,11 +710,6 @@ p {
   color: var(--texto);
   text-decoration: none;
   white-space: nowrap;
-}
-
-.badge-pilula.ativo {
-  background-color: var(--marrom-100);
-  border-color: var(--marrom-700);
 }
 
 /* Etiqueta de situação (Etapa 7): pílula com o fundo suave da cor da
@@ -748,58 +733,113 @@ p {
 .etiqueta-vermelho { background-color: var(--vermelho-suave); color: var(--vermelho-texto); }
 
 /* ==========================================================================
-   18. Abas de situação e legenda (.situacao-barra / .abas-situacao /
-   .legenda-situacao)
-   Na lista de clientes, as pílulas "Prioridade · Atenção · Em dia · Todos"
-   (components/AbasSituacao.tsx, com a contagem de cada aba) e, à direita,
-   o botão "?" que abre a régua das situações (components/LegendaSituacao.tsx,
-   um <details> cujo conteúdo flutua abaixo da barra). As pílulas quebram
-   linha se não couberem (no celular, 2 linhas), para as quatro contagens
-   ficarem visíveis sem rolagem; alvo de toque de 44 px.
+   18. Abas de situação e legenda (.situacao-barra / .abas / .legenda-situacao)
+   Na lista de clientes, as abas "Prioridade · Atenção · Em dia · Todos"
+   (components/AbasSituacao.tsx), sublinhadas como no Zoho, com a contagem
+   numa pastilha ao lado, e, à direita, o botão-ícone que abre a régua das
+   situações (components/LegendaSituacao.tsx, um <details> com
+   .btn-secundario.btn-icone no summary e o conteúdo flutuando abaixo da
+   barra). As abas ficam numa linha só e rolam na horizontal se não
+   couberem (no celular, sem barra de rolagem visível); alvo de toque de
+   44 px.
    ========================================================================== */
 .situacao-barra {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--espaco-2);
-  margin-bottom: var(--espaco-2);
+  margin-bottom: var(--espaco-3);
 }
 
-.abas-situacao {
+.abas {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--espaco-2);
+  border-bottom: 1px solid var(--borda);
+  overflow-x: auto;
 }
 
-.abas-situacao .badge-pilula {
+/* No celular a rolagem é por arrasto: sem barra visível. No desktop, se um
+   dia não couberem, a barra aparece para quem usa mouse. */
+@media (max-width: 767px) {
+  .abas {
+    scrollbar-width: none;
+  }
+
+  .abas::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.aba {
   appearance: none;
   -webkit-appearance: none;
-  margin: 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-height: 44px;
-  padding: 0 var(--espaco-3);
+  margin: 0;
+  padding: 0 var(--espaco-2);
+  border: none;
+  background: none;
+  color: var(--texto-suave);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  white-space: nowrap;
   cursor: pointer;
+  transition: color 0.15s;
+}
+
+.aba:hover {
+  color: var(--texto);
+}
+
+/* Sublinhado por sombra interna: fica dentro da aba, sem ser cortado pelo
+   overflow da barra */
+.aba.ativa {
+  color: var(--texto);
+  font-weight: var(--peso-semi);
+  box-shadow: inset 0 -2px 0 var(--destaque);
+}
+
+/* Contorno para dentro: por fora o overflow da barra o cortaria */
+.aba:focus-visible {
+  outline: 2px solid var(--destaque);
+  outline-offset: -2px;
+}
+
+.aba-contagem {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--raio-pilula);
+  background-color: var(--superficie-suave);
+  border: 1px solid var(--borda);
+  color: var(--texto-suave);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semi);
+  line-height: 18px;
+  text-align: center;
+}
+
+.aba.ativa .aba-contagem {
+  color: var(--texto);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aba {
+    transition: none;
+  }
 }
 
 .legenda-situacao {
   flex-shrink: 0;
 }
 
+/* O summary é um .btn-secundario.btn-icone (formularios.css); aqui só sai
+   o marcador do <details> */
 .legenda-situacao summary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--raio-pilula);
-  border: 1px solid var(--marrom-100);
-  background-color: var(--branco);
-  color: var(--marrom-900);
-  font-size: var(--texto-sm);
-  font-weight: var(--peso-forte);
   list-style: none;
-  cursor: pointer;
 }
 
 .legenda-situacao summary::-webkit-details-marker {
@@ -807,8 +847,8 @@ p {
 }
 
 .legenda-situacao[open] summary {
-  background-color: var(--marrom-100);
-  border-color: var(--marrom-700);
+  background-color: var(--superficie-suave);
+  color: var(--texto);
 }
 
 .legenda-situacao-texto {
@@ -817,9 +857,10 @@ p {
   left: 0;
   right: 0;
   z-index: 10;
-  margin: 0;
+  margin: var(--espaco-1) 0 0;
   padding: var(--espaco-3) var(--espaco-4) var(--espaco-3) var(--espaco-6);
-  background-color: var(--branco);
+  background-color: var(--superficie);
+  border: 1px solid var(--borda);
   border-radius: var(--raio);
   box-shadow: var(--sombra-2);
   font-size: var(--texto-sm);
@@ -926,33 +967,26 @@ p {
 }
 
 /* ==========================================================================
-   20. Filtro de horizonte e insights (.filtro-periodo / .insight)
-   Pílulas "Próximos 30 · 60 · 90 · 180 dias" (components/FiltroHorizonte.tsx,
-   ver docs/prototipo/painel.html) e os blocos de sugestão do card "Insights
-   e sugestões" da ficha do cliente. As pílulas são <button>, então repetem o
-   reset de .abas-situacao (seção 18); o rótulo "Próximos" fica na mesma linha
-   delas, sem a margem inferior do protótipo, onde ficava acima do grupo.
+   20. Filtros de período e horizonte e insights (.filtro-segmentado / .insight)
+   Rótulo + controle segmentado compacto na mesma linha ("Período 30 dias ·
+   90 dias · 365 dias", "Próximos dias 30 · 60 · 90 · 180";
+   components/FiltroPilulas.tsx) e os blocos de sugestão do card "Insights
+   e sugestões" da ficha do cliente. Se não couber, o segmentado desce para
+   a linha de baixo inteiro, sem rolagem horizontal.
    ========================================================================== */
 .filtro-rotulo {
   font-size: 13px;
-  font-weight: 700;
-  color: var(--texto);
+  font-weight: var(--peso-semi);
+  color: var(--texto-suave);
   margin: 0;
 }
 
-.filtro-periodo {
+.filtro-segmentado {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.filtro-periodo .badge-pilula {
-  appearance: none;
-  -webkit-appearance: none;
-  margin: 0;
-  cursor: pointer;
+  gap: var(--espaco-2);
+  margin-bottom: var(--espaco-4);
 }
 
 .insight {
@@ -1288,12 +1322,14 @@ p {
   gap: var(--espaco-2);
 }
 
+/* Os dois botões dividem a linha (a base dos botões é na largura do texto) */
 .banner-instalar-acoes > button {
+  flex: 1 1 0;
   padding-inline: var(--espaco-3);
 }
 
 /* Só "Agora não" (iPhone): o botão não ocupa a linha toda */
 .banner-instalar-acoes > :only-child {
-  width: auto;
+  flex: 0 0 auto;
   margin-left: auto;
 }

@@ -291,7 +291,7 @@ export function PainelPage() {
     <div className="container">
       <header className="topo">
         <h1>Painel de indicadores</h1>
-        <button type="button" className="topo-acao" onClick={logout}>
+        <button type="button" className="btn-terciario topo-acao" onClick={logout}>
           <Icone nome="log-out" tamanho={18} />
           Sair
         </button>

@@ -77,7 +77,7 @@ export function LoginPage() {
               />
             </div>
 
-            <button type="submit" className="btn-primario" disabled={enviando}>
+            <button type="submit" className="btn-primario btn-bloco" disabled={enviando}>
               {enviando ? 'Entrando...' : 'Entrar'}
             </button>
           </form>

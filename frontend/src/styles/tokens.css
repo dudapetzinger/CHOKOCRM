@@ -49,6 +49,8 @@
   --acao-hover: var(--marrom-700);
   --destaque: var(--laranja);
   --destaque-suave: var(--laranja-suave);
+  /* Hover do único fundo laranja com texto, o botão flutuante */
+  --destaque-hover: #d65f00;
 
   /* Gráficos: uma cor só para as séries */
   --dado: #2563eb;

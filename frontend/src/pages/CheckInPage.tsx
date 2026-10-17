@@ -104,7 +104,7 @@ export function CheckInPage() {
   return (
     <div className="container container-estreito">
       <header className="topo">
-        <button type="button" className="topo-acao" onClick={() => navigate(`/clientes/${id}`)}>
+        <button type="button" className="btn-terciario topo-acao" onClick={() => navigate(`/clientes/${id}`)}>
           <Icone nome="arrow-left" tamanho={18} />
           Voltar
         </button>

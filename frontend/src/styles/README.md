@@ -17,9 +17,9 @@ referência 390 px) e o desktop (≥ 768 px) vem por cima.
 
 | Arquivo | Conteúdo |
 |---|---|
-| `tokens.css` | Variáveis em `:root`: cores, espaçamentos, raios, sombra, fontes e escala de tipografia. Única fonte de valores crus (hex). |
+| `tokens.css` | Variáveis em `:root`: cores, espaçamentos, raios, sombra, fontes e escala de tipografia. Única fonte de cores cruas (hex, `rgba`); a exceção é a seta do `<select>` em `formularios.css`, um SVG em data URI, que não lê variáveis CSS e repete o hex de `--texto-suave`. |
 | `tipografia.css` | Fonte, tamanho e altura de linha do corpo; títulos (`h1`–`h3`, `.card-titulo`). |
-| `formularios.css` | Campos (`.campo`), botões (`.btn-*`), controle segmentado, área de texto. |
+| `formularios.css` | Campos (`.campo`), select compacto (`.select`), busca com lupa (`.campo-busca`), botões (`.btn-primario`, `.btn-secundario`, `.btn-terciario`, `.btn-perigo`, modificadores `.btn-bloco` e `.btn-icone`), controle segmentado (`.segmentado`, `.segmentado-compacto`), área de texto. |
 | `global.css` | Base e componentes do celular, em 25 seções numeradas (moldura, cartões, listas, navegação, ficha, agenda, painel...). |
 | `desktop.css` | Tudo de ≥ 768 px: grade navegação lateral + conteúdo, duas colunas, ajustes de 1024 e 1200. |
 
@@ -40,6 +40,7 @@ Nas regras dos componentes, use estes nomes em vez de hex ou das cores da marca.
 | `--marca` | `--marrom-900` | logotipo, item ativo da navegação, link forte |
 | `--acao` / `--acao-hover` | `--marrom-900` / `--marrom-700` | botão primário |
 | `--destaque` / `--destaque-suave` | `--laranja` / `--laranja-suave` | indicador ativo, anel de foco, marcador; fundo do item ativo |
+| `--destaque-hover` | `#d65f00` | hover do botão flutuante (o único fundo laranja com texto) |
 | `--dado` / `--dado-suave` | `#2563eb` / `#dbe6fd` | séries dos gráficos |
 | `--raio-sm` / `--raio` / `--raio-lg` | 6 / 10 / 14 px | controles / cartões e listas / login e banner |
 | `--sombra-2` | `0 8px 24px …` | só o que flutua (menus, botão flutuante, banner, tooltip) |

@@ -36,16 +36,21 @@ function renderizarComo(role: Role, children: ReactNode) {
 }
 
 describe('SeletorRepresentante', () => {
-  it('para o gestor, mostra "Todos" e o primeiro nome de cada representante', async () => {
+  it('para o gestor, é um select com "Todos os representantes" e o nome completo de cada representante', async () => {
     renderizarComo('GESTOR', <SeletorRepresentante />);
 
-    expect(screen.getByRole('group', { name: 'Filtrar por representante' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
-    expect(await screen.findByRole('button', { name: 'Eduarda' })).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: 'Rafael' })).toBeInTheDocument();
+    const select = screen.getByRole('combobox', { name: 'Filtrar por representante' });
+    expect(select).toHaveClass('select');
+    expect(select).toHaveValue('');
+    expect(await screen.findByRole('option', { name: 'Eduarda Fischer' })).toBeInTheDocument();
+    expect(screen.getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
+      'Todos os representantes',
+      'Eduarda Fischer',
+      'Rafael Schmitt',
+    ]);
   });
 
-  it('clicar em "Rafael" muda o representante escolhido no contexto; "Todos" volta para nenhum', async () => {
+  it('escolher "Rafael Schmitt" muda o representante no contexto; "Todos os representantes" volta para nenhum', async () => {
     renderizarComo(
       'GESTOR',
       <>
@@ -55,15 +60,18 @@ describe('SeletorRepresentante', () => {
     );
 
     expect(screen.getByTestId('sonda')).toHaveTextContent('nenhum');
+    await screen.findByRole('option', { name: 'Rafael Schmitt' });
+    const select = screen.getByRole('combobox', { name: 'Filtrar por representante' });
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Rafael' }));
+    await userEvent.selectOptions(select, 'u2');
 
     expect(screen.getByTestId('sonda')).toHaveTextContent('u2');
-    expect(screen.getByRole('button', { name: 'Rafael' })).toHaveAttribute('aria-pressed', 'true');
+    expect(select).toHaveValue('u2');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Todos' }));
+    await userEvent.selectOptions(select, 'Todos os representantes');
 
     expect(screen.getByTestId('sonda')).toHaveTextContent('nenhum');
+    expect(select).toHaveValue('');
   });
 
   it('para o representante, não renderiza nada', () => {

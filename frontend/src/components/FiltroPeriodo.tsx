@@ -1,7 +1,7 @@
 /**
  * Filtro de período de análise dos indicadores do gestor (UC14, Etapa 6C):
- * pílulas "30 · 90 · 365 dias" que escolhem quantos dias para trás os
- * indicadores consideram. Controlado: quem usa guarda o valor
+ * controle segmentado "30 · 90 · 365 dias" (Etapa 8) que escolhe quantos dias
+ * para trás os indicadores consideram. Controlado: quem usa guarda o valor
  * (`useState(PERIODO_PADRAO_DIAS)`).
  */
 import { FiltroPilulas } from './FiltroPilulas';

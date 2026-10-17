@@ -1,8 +1,10 @@
 /**
  * Abas da lista de clientes por ação (Etapa 7, spec 5.1): Prioridade
  * (LARANJA e VERMELHO), Atenção (AMARELO), Em dia (VERDE) e Todos, cada uma
- * com a contagem ("Prioridade · 7"). Controlado: quem usa guarda a aba e
- * calcula as contagens.
+ * com a contagem. Na Etapa 8 viram abas sublinhadas com a contagem numa
+ * pastilha ("Prioridade 7"); continuam botões com `aria-pressed` (filtram a
+ * lista, não trocam de painel) e o nome acessível continua "Prioridade · 7".
+ * Controlado: quem usa guarda a aba e calcula as contagens.
  */
 import type { Cor } from '../services/clients';
 
@@ -32,16 +34,20 @@ type Props = {
 
 export function AbasSituacao({ valor, onChange, contagens }: Props) {
   return (
-    <div className="abas-situacao" role="group" aria-label="Filtrar por situação">
+    <div className="abas" role="group" aria-label="Filtrar por situação">
       {ABAS.map((aba) => (
         <button
           key={aba}
           type="button"
-          className={valor === aba ? 'badge-pilula ativo' : 'badge-pilula'}
+          className={valor === aba ? 'aba ativa' : 'aba'}
           aria-pressed={valor === aba}
+          aria-label={`${ROTULO_ABA[aba]} · ${contagens[aba]}`}
           onClick={() => onChange(aba)}
         >
-          {`${ROTULO_ABA[aba]} · ${contagens[aba]}`}
+          <span>{ROTULO_ABA[aba]}</span>
+          <span className="aba-contagem" aria-hidden="true">
+            {contagens[aba]}
+          </span>
         </button>
       ))}
     </div>
