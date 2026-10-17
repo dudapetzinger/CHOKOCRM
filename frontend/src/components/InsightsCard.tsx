@@ -15,6 +15,7 @@ import { descreverPrazo } from '../lib/descreverPrazo';
 import type { AcaoSugerida, Insights, Sugestao } from '../services/insights';
 import { AvisoSimulado } from './AvisoSimulado';
 import { FiltroHorizonte, HORIZONTE_PADRAO_DIAS } from './FiltroHorizonte';
+import { EstadoVazio } from './EstadoVazio';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os insights.';
 
@@ -83,10 +84,9 @@ function renderizarConteudo(insights: Insights): ReactElement {
           {/* `insights.horizonteDias` (e não o estado local): enquanto o horizonte novo carrega, o
               dado anterior continua na tela e a mensagem precisa falar do horizonte desse dado. */}
           {insights.sugestoes.length === 0 && insights.eventosSemHistorico.length === 0 && (
-            <p className="vazio">
-              <span className="vazio-emoji" aria-hidden="true">📅</span>
-              <span>Nenhum evento sazonal nos próximos {insights.horizonteDias} dias.</span>
-            </p>
+            <EstadoVazio icone="calendar">
+              Nenhum evento sazonal nos próximos {insights.horizonteDias} dias.
+            </EstadoVazio>
           )}
         </>
       );

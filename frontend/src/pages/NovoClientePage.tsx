@@ -17,6 +17,7 @@ import {
   type ContatoFormValue,
 } from '../components/ContatoFields';
 import { useAuth } from '../auth/useAuth';
+import { Icone } from '../components/Icone';
 
 const MENSAGEM_ERRO_PADRAO = 'Não foi possível cadastrar o cliente. Tente novamente.';
 const MENSAGEM_ERRO_PRINCIPAL = 'Marque exatamente um contato como principal.';
@@ -113,6 +114,7 @@ export function NovoClientePage() {
       <header className="topo">
         <h1>Novo cliente</h1>
         <Link className="topo-acao" to="/clientes">
+          <Icone nome="arrow-left" tamanho={18} />
           Voltar
         </Link>
       </header>

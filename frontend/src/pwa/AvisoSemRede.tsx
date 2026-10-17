@@ -1,3 +1,4 @@
+import { Icone } from '../components/Icone';
 import { useOnline } from './useOnline';
 
 /**
@@ -11,6 +12,7 @@ export function AvisoSemRede() {
   if (online) return null;
   return (
     <p className="aviso aviso-atencao" role="status">
+      <Icone nome="wifi-off" tamanho={16} />
       Você está sem internet. Os dados mostrados podem estar desatualizados.
     </p>
   );

@@ -12,6 +12,7 @@ import { descreverClientesAtivos } from '../lib/descreverClientesAtivos';
 import { formatarDataCalendario } from '../lib/formatarData';
 import { mensagemErroApi } from '../services/clients';
 import type { Kpis, Proporcao } from '../services/kpis';
+import { EstadoVazio } from './EstadoVazio';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os indicadores.';
 
@@ -35,10 +36,9 @@ function ConteudoKpis({ kpis }: { kpis: Kpis }) {
   return (
     <>
       {kpis.semDados && (
-        <p className="vazio">
-          <span className="vazio-emoji" aria-hidden="true">📊</span>
-          <span>Nenhuma visita ou mensagem registrada no período — indicadores zerados.</span>
-        </p>
+        <EstadoVazio icone="bar-chart">
+          Nenhuma visita ou mensagem registrada no período — indicadores zerados.
+        </EstadoVazio>
       )}
 
       <div className="grade-kpi">

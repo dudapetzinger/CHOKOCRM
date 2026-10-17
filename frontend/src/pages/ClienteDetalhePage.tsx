@@ -10,6 +10,7 @@ import { RecorrenciaCard } from '../components/RecorrenciaCard';
 import { DadosErpCard } from '../components/DadosErpCard';
 import { InsightsCard } from '../components/InsightsCard';
 import { MensagemEstoqueCard } from '../components/MensagemEstoqueCard';
+import { Icone } from '../components/Icone';
 import { useAuth } from '../auth/useAuth';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
@@ -70,6 +71,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
         <header className="topo">
           <h1>Cliente</h1>
           <Link className="topo-acao" to="/clientes">
+            <Icone nome="arrow-left" tamanho={18} />
             Voltar
           </Link>
         </header>

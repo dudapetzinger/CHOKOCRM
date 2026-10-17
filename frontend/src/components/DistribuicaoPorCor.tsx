@@ -9,6 +9,7 @@ import { descreverClientesAtivos } from '../lib/descreverClientesAtivos';
 import { CORES, ROTULO_COR } from '../services/clients';
 import type { DistribuicaoPorCor as Distribuicao } from '../services/kpis';
 import { BadgeCor } from './BadgeCor';
+import { EstadoVazio } from './EstadoVazio';
 
 type Props = {
   distribuicao: Distribuicao;
@@ -23,10 +24,7 @@ function descrever({ distribuicao, clientesAtivos }: Props): string {
 export function DistribuicaoPorCor({ distribuicao, clientesAtivos }: Props) {
   if (clientesAtivos === 0) {
     return (
-      <p className="vazio">
-        <span className="vazio-emoji" aria-hidden="true">👤</span>
-        <span>Nenhum cliente ativo.</span>
-      </p>
+      <EstadoVazio icone="user">Nenhum cliente ativo.</EstadoVazio>
     );
   }
 

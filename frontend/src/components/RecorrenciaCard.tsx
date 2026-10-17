@@ -12,6 +12,7 @@ import { FAIXA_RECORRENCIA_SUGERIDA, mensagemErroApi, type RecorrenciaChange } f
 import { formatarData } from '../lib/formatarData';
 import { AreaTextoCrescente } from './AreaTextoCrescente';
 import { SeletorRecorrencia } from './SeletorRecorrencia';
+import { EstadoVazio } from './EstadoVazio';
 
 const MENSAGEM_ERRO_ALTERAR = 'Não foi possível alterar a recorrência.';
 
@@ -158,10 +159,7 @@ export function RecorrenciaCard({ clienteId, recorrenciaDias, historico, podeAlt
 
       <h3 className="card-titulo">Histórico de alterações</h3>
       {historico.length === 0 ? (
-        <p className="vazio">
-          <span className="vazio-emoji" aria-hidden="true">🔁</span>
-          <span>Nenhuma alteração registrada.</span>
-        </p>
+        <EstadoVazio icone="repeat">Nenhuma alteração registrada.</EstadoVazio>
       ) : (
         historico.map((mudanca) => (
           <p className="cliente-info" key={mudanca.id}>

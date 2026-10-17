@@ -13,6 +13,8 @@ import { ordenarPorUrgencia } from '../lib/ordenarPorUrgencia';
 import { useLarguraDesktop } from '../lib/useLarguraDesktop';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { ClienteDetalhePage } from './ClienteDetalhePage';
+import { EstadoVazio } from '../components/EstadoVazio';
+import { Icone } from '../components/Icone';
 
 const ATRASO_BUSCA_MS = 300;
 
@@ -136,10 +138,7 @@ export function ClientesPage() {
       )}
 
       {data && visiveis.length === 0 && (
-        <p className="vazio">
-          <span className="vazio-emoji" aria-hidden="true">🗂️</span>
-          <span>{mensagemVazia()}</span>
-        </p>
+        <EstadoVazio icone="inbox">{mensagemVazia()}</EstadoVazio>
       )}
 
       {visiveis.length > 0 && (
@@ -170,6 +169,7 @@ export function ClientesPage() {
       <header className="topo">
         <h1>Clientes</h1>
         <button type="button" className="topo-acao" onClick={logout}>
+          <Icone nome="log-out" tamanho={18} />
           Sair
         </button>
       </header>
@@ -183,10 +183,7 @@ export function ClientesPage() {
               clienteAbertoId ? (
                 <ClienteDetalhePage key={clienteAbertoId} embutida />
               ) : (
-                <p className="vazio">
-                  <span className="vazio-emoji" aria-hidden="true">👈</span>
-                  <span>Selecione um cliente</span>
-                </p>
+                <EstadoVazio icone="mouse-pointer-click">Selecione um cliente</EstadoVazio>
               )
             }
           />

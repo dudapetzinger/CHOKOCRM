@@ -16,6 +16,8 @@ import { useLarguraDesktop } from '../lib/useLarguraDesktop';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
 import type { AgendaItem } from '../services/agenda';
+import { EstadoVazio } from '../components/EstadoVazio';
+import { Icone } from '../components/Icone';
 
 function linhaDiasAtraso(item: AgendaItem): string {
   return `Próxima visita venceu há ${item.diasAtraso} ${item.diasAtraso === 1 ? 'dia' : 'dias'}`;
@@ -44,10 +46,7 @@ function SecaoAgenda({ titulo, itens, linhaDias, podeCheckIn, mostrarRepresentan
     <>
       <h2 className="card-titulo">{titulo}</h2>
       {itens.length === 0 ? (
-        <p className="vazio">
-          <span className="vazio-emoji" aria-hidden="true">🗓️</span>
-          <span>{textoVazio}</span>
-        </p>
+        <EstadoVazio icone="calendar-check">{textoVazio}</EstadoVazio>
       ) : (
         <div className="agenda-lista">
           {itens.map((item) => (
@@ -80,6 +79,7 @@ export function AgendaPage() {
       <header className="topo">
         <h1>Agenda do dia</h1>
         <button type="button" className="topo-acao" onClick={logout}>
+          <Icone nome="log-out" tamanho={18} />
           Sair
         </button>
       </header>
@@ -130,10 +130,7 @@ export function AgendaPage() {
         {data && !desktop && (
           <>
             {semVisitas && (
-              <p className="vazio">
-                <span className="vazio-emoji" aria-hidden="true">🗓️</span>
-                <span>Nenhuma visita atrasada ou prevista para hoje.</span>
-              </p>
+              <EstadoVazio icone="calendar-check">Nenhuma visita atrasada ou prevista para hoje.</EstadoVazio>
             )}
 
             <SecaoAgenda

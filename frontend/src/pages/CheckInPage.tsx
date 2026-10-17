@@ -14,6 +14,7 @@ import { registrarCheckIn, enviarFoto } from '../services/visits';
 import type { ResultadoVisita } from '../services/visits';
 import { AreaTextoCrescente } from '../components/AreaTextoCrescente';
 import { SegmentadoResultado } from '../components/SegmentadoResultado';
+import { Icone } from '../components/Icone';
 
 /** `datetime-local` espera `YYYY-MM-DDTHH:mm` no fuso do dispositivo. */
 function agoraParaCampoLocal(): string {
@@ -104,6 +105,7 @@ export function CheckInPage() {
     <div className="container container-estreito">
       <header className="topo">
         <button type="button" className="topo-acao" onClick={() => navigate(`/clientes/${id}`)}>
+          <Icone nome="arrow-left" tamanho={18} />
           Voltar
         </button>
         <h1>Novo check-in</h1>

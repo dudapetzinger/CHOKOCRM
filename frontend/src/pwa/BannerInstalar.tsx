@@ -12,6 +12,7 @@
  */
 import { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../auth/auth-context';
+import { Icone } from '../components/Icone';
 
 export const CHAVE_INSTALAR_DISPENSADO = 'chokocrm:instalar-dispensado';
 
@@ -117,6 +118,7 @@ export function BannerInstalar() {
       <div className="banner-instalar-acoes">
         {evento && (
           <button type="button" className="btn-primario" onClick={() => void instalar()}>
+            <Icone nome="download" tamanho={16} />
             Instalar o ChokoCRM
           </button>
         )}

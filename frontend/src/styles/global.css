@@ -90,6 +90,9 @@ p {
 
 .topo-acao {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: none;
   border: none;
   padding: 0;
@@ -661,9 +664,9 @@ p {
   text-align: center;
 }
 
+/* Ícone SVG (components/Icone.tsx): a cor vem do link (currentColor) */
 .nav-inferior a .icone {
-  font-size: 20px;
-  line-height: 1;
+  display: block;
 }
 
 /* Ativo: rótulo na cor da marca e ícone no destaque, sem filete */
@@ -1059,11 +1062,20 @@ p {
   margin-bottom: 12px;
 }
 
+/* Ícones SVG (components/Icone.tsx) nunca encolhem dentro de linhas flex */
+.icone {
+  flex-shrink: 0;
+}
+
 .card-subtitulo {
   font-size: 14px;
   font-weight: 700;
   color: var(--marrom-900);
   margin: 0 0 8px 0;
+}
+
+.card-subtitulo .icone {
+  vertical-align: -3px;
 }
 
 .barra-distribuicao {
@@ -1147,10 +1159,11 @@ p {
 
 /* ==========================================================================
    23. Estados vazios (.vazio)
-   Frase curta com um emoji à frente, no lugar de listas sem itens:
-     <p class="vazio"><span class="vazio-emoji" aria-hidden="true">🗂️</span>
+   Frase curta com um ícone à frente, no lugar de listas sem itens
+   (components/EstadoVazio.tsx):
+     <p class="vazio"><svg class="icone vazio-icone" aria-hidden="true">…</svg>
        <span>Nenhum cliente cadastrado ainda.</span></p>
-   O emoji é decorativo (aria-hidden); o texto fica num <span> próprio.
+   O ícone é decorativo (aria-hidden); o texto fica num <span> próprio.
    ========================================================================== */
 .vazio {
   display: flex;
@@ -1165,10 +1178,9 @@ p {
   font-size: var(--texto-sm);
 }
 
-.vazio-emoji {
+.vazio-icone {
   flex-shrink: 0;
-  font-size: var(--texto-lg);
-  line-height: 1;
+  color: var(--texto-fraco);
 }
 
 /* ==========================================================================
@@ -1205,6 +1217,14 @@ p {
   border-width: 0 0 1px 0;
   text-align: center;
   font-size: var(--texto-sm);
+}
+
+/* Aviso "sem internet": ícone antes do texto */
+.avisos-app > .aviso-atencao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espaco-2);
 }
 
 .aviso-nova-versao {

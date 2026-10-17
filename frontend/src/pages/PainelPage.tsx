@@ -43,15 +43,14 @@ import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
 import type { KpisPorRepresentante } from '../services/dashboard';
 import type { Alertas } from '../services/insights';
+import { EstadoVazio } from '../components/EstadoVazio';
+import { Icone } from '../components/Icone';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar o painel.';
 
 function SemDadosNoPeriodo({ texto = 'Sem dados no período.' }: { texto?: string }) {
   return (
-    <p className="vazio">
-      <span className="vazio-emoji" aria-hidden="true">📊</span>
-      <span>{texto}</span>
-    </p>
+    <EstadoVazio icone="bar-chart">{texto}</EstadoVazio>
   );
 }
 
@@ -154,7 +153,9 @@ function BlocoEstoque({ representanteId, horizonteDias, onHorizonteChange, consu
 
       <VendasMensaisDoBloco representanteId={representanteId} />
 
-      <h3 className="card-subtitulo subtitulo-bloco">⚠️ Alertas de produção</h3>
+      <h3 className="card-subtitulo subtitulo-bloco">
+        <Icone nome="alert-triangle" tamanho={18} /> Alertas de produção
+      </h3>
 
       <FiltroHorizonte valor={horizonteDias} onChange={onHorizonteChange} />
 
@@ -236,10 +237,9 @@ function CardEpocaDoAno({ alertas }: { alertas: Alertas }) {
       ))}
 
       {alertas.eventos.length === 0 && (
-        <p className="vazio">
-          <span className="vazio-emoji" aria-hidden="true">📅</span>
-          <span>Nenhum evento sazonal nos próximos {alertas.horizonteDias} dias.</span>
-        </p>
+        <EstadoVazio icone="calendar">
+          Nenhum evento sazonal nos próximos {alertas.horizonteDias} dias.
+        </EstadoVazio>
       )}
     </section>
   );
@@ -292,6 +292,7 @@ export function PainelPage() {
       <header className="topo">
         <h1>Painel de indicadores</h1>
         <button type="button" className="topo-acao" onClick={logout}>
+          <Icone nome="log-out" tamanho={18} />
           Sair
         </button>
       </header>

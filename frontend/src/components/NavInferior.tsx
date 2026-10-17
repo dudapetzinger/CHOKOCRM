@@ -7,6 +7,7 @@
  */
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import { Icone } from './Icone';
 
 export function NavInferior() {
   const { user } = useAuth();
@@ -15,19 +16,19 @@ export function NavInferior() {
     <nav className="nav-inferior nav-lateral" aria-label="Navegação principal">
       <div className="nav-marca">
         <img src="/logo.svg" alt="ChokoCRM" width={32} height={32} />
-        <span className="nav-marca-nome">ChokoCRM</span>
+        <span className="nav-marca-nome" aria-hidden="true">ChokoCRM</span>
       </div>
       <NavLink to="/clientes" className={({ isActive }) => (isActive ? 'ativo' : undefined)}>
-        <span className="icone" aria-hidden="true">👥</span>
+        <Icone nome="users" tamanho={22} />
         Clientes
       </NavLink>
       <NavLink to="/agenda" className={({ isActive }) => (isActive ? 'ativo' : undefined)}>
-        <span className="icone" aria-hidden="true">🗓️</span>
+        <Icone nome="calendar" tamanho={22} />
         Agenda
       </NavLink>
       {user?.role === 'GESTOR' && (
         <NavLink to="/painel" className={({ isActive }) => (isActive ? 'ativo' : undefined)}>
-          <span className="icone" aria-hidden="true">📊</span>
+          <Icone nome="bar-chart" tamanho={22} />
           Painel
         </NavLink>
       )}

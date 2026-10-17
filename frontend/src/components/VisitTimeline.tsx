@@ -12,6 +12,7 @@ import { ROTULO_RESULTADO } from '../services/visits';
 import type { Visita } from '../services/visits';
 import { VisitaFoto } from './VisitaFoto';
 import { formatarDataHora } from '../lib/formatarData';
+import { EstadoVazio } from './EstadoVazio';
 
 type Props = {
   visitas: Visita[];
@@ -28,10 +29,7 @@ export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarF
 
   if (visitas.length === 0) {
     return (
-      <p className="vazio">
-        <span className="vazio-emoji" aria-hidden="true">📝</span>
-        <span>Nenhuma visita registrada para este cliente.</span>
-      </p>
+      <EstadoVazio icone="file-text">Nenhuma visita registrada para este cliente.</EstadoVazio>
     );
   }
 

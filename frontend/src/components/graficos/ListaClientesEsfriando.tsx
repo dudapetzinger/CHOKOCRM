@@ -7,6 +7,7 @@
 import { ordenarPorUrgencia } from '../../lib/ordenarPorUrgencia';
 import type { ClienteListItem } from '../../services/clients';
 import { ItemListaCliente } from '../ItemListaCliente';
+import { EstadoVazio } from '../EstadoVazio';
 
 const QUANTOS_MOSTRAR = 5;
 
@@ -22,10 +23,7 @@ export function ListaClientesEsfriando({ clientes, mostrarRepresentante }: Props
 
   if (esfriando.length === 0) {
     return (
-      <p className="vazio">
-        <span className="vazio-emoji" aria-hidden="true">🎉</span>
-        <span>Nenhum cliente esfriando.</span>
-      </p>
+      <EstadoVazio icone="party-popper">Nenhum cliente esfriando.</EstadoVazio>
     );
   }
 

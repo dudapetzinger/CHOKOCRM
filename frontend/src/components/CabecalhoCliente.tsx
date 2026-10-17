@@ -9,6 +9,7 @@ import { telefoneParaWaMe } from '../lib/telefone';
 import type { ClienteCompleto } from '../services/clients';
 import { BadgeCor } from './BadgeCor';
 import { EtiquetaSituacao } from './EtiquetaSituacao';
+import { Icone } from './Icone';
 
 type Props = {
   cliente: ClienteCompleto;
@@ -48,7 +49,8 @@ export function CabecalhoCliente({ cliente, mostrarRepresentante }: Props) {
           </p>
           <div className="cabecalho-cliente-acoes">
             <a className="btn-secundario" href={`tel:+${numeroInternacional}`} aria-label="Ligar">
-              📞 Ligar
+              <Icone nome="phone" tamanho={16} />
+              Ligar
             </a>
             <a
               className="btn-secundario"
@@ -57,7 +59,8 @@ export function CabecalhoCliente({ cliente, mostrarRepresentante }: Props) {
               rel="noopener noreferrer"
               aria-label="WhatsApp"
             >
-              💬 WhatsApp
+              <Icone nome="message-circle" tamanho={16} />
+              WhatsApp
             </a>
           </div>
         </>

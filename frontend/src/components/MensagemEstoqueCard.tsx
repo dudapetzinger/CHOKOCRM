@@ -12,6 +12,7 @@ import { useMensagensEstoque, useGerarMensagemEstoque } from '../hooks/useMensag
 import { buscarProposta } from '../services/stockMessages';
 import { mensagemErroApi } from '../services/clients';
 import { formatarDataHora } from '../lib/formatarData';
+import { EstadoVazio } from './EstadoVazio';
 
 const MENSAGEM_ERRO_GERAR = 'Não foi possível gerar a mensagem.';
 const CONTATO_TELEFONE_CLIENTE = '';
@@ -217,10 +218,7 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
       )}
 
       {!mensagensCarregando && !mensagensComErro && (!mensagens || mensagens.length === 0) && (
-        <p className="vazio">
-          <span className="vazio-emoji" aria-hidden="true">💬</span>
-          <span>Nenhuma mensagem gerada para este cliente.</span>
-        </p>
+        <EstadoVazio icone="message-circle">Nenhuma mensagem gerada para este cliente.</EstadoVazio>
       )}
 
       {!mensagensCarregando &&

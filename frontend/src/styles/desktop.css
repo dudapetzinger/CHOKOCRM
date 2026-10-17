@@ -89,10 +89,17 @@
     display: none;
   }
 
+  /* Título da barra superior: 20 px desde o tablet (no celular, 18) */
+  .topo h1 {
+    font-size: 20px;
+  }
+
   .nav-lateral a {
     flex: 0 0 auto;
     padding: var(--espaco-2) var(--espaco-1);
     border-radius: var(--raio-sm);
+    font-size: var(--texto-sm);
+    font-weight: var(--peso-medio);
     color: var(--texto-suave);
   }
 
@@ -158,11 +165,6 @@
 
   .nav-lateral {
     padding: var(--espaco-4) var(--espaco-3);
-  }
-
-  /* Título da barra superior um pouco maior com a tela larga (18 → 20 px) */
-  .topo h1 {
-    font-size: 20px;
   }
 
   /* A partir de 1200 a marca ganha o nome ao lado do logotipo */

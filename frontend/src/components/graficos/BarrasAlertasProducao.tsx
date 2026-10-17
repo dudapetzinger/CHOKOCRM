@@ -14,6 +14,7 @@ import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import { descreverPrazo } from '../../lib/descreverPrazo';
 import type { AlertaProducao, Alertas } from '../../services/insights';
+import { EstadoVazio } from '../EstadoVazio';
 
 function descreverClientes(quantidade: number): string {
   return `${quantidade} ${quantidade === 1 ? 'cliente' : 'clientes'}`;
@@ -61,10 +62,9 @@ export function BarrasAlertasProducao({ alertas }: { alertas: Alertas }) {
 
   if (!temAlertas) {
     return (
-      <p className="vazio">
-        <span className="vazio-emoji" aria-hidden="true">✅</span>
-        <span>Nenhum alerta de produção para os próximos {alertas.horizonteDias} dias.</span>
-      </p>
+      <EstadoVazio icone="check">
+        Nenhum alerta de produção para os próximos {alertas.horizonteDias} dias.
+      </EstadoVazio>
     );
   }
 
