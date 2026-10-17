@@ -191,10 +191,55 @@ p {
 }
 
 /* ==========================================================================
-   9. Listas (.lista / .item-lista)
-   Cartão que agrupa linhas de itens (ex.: lista de clientes), cada uma com
-   avatar de iniciais, nome e cidade. Ver docs/prototipo/css/estilo.css.
+   9. Barra de ferramentas e listas (.barra-ferramentas / .lista / .item-lista)
+   A barra (components/BarraDeFerramentas.tsx) põe os controles de uma lista
+   numa linha compacta acima dela — em Clientes: select do gestor, busca
+   (.campo-busca), legenda e "Novo cliente" no desktop. Se não couberem, os
+   controles quebram linha, sem rolagem horizontal: a busca estica e desce
+   inteira quando sobra menos de 10rem para ela (o placeholder, se não
+   couber, termina em reticências). A margem que .select e
+   .filtro-segmentado têm soltos sai aqui: quem espaça é o gap.
+   A lista é um cartão de linhas densas (Etapa 8, spec 5.6): ponto de cor de
+   10 px, nome 15/600 com a cidade 13 px suave ao lado e a etiqueta de
+   situação à direita (56 px); no celular a cidade desce para baixo do nome
+   e a etiqueta para a linha seguinte (64 px no mínimo). Sem avatar.
    ========================================================================== */
+.barra-ferramentas {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-2);
+  margin-bottom: var(--espaco-3);
+}
+
+.barra-ferramentas > * {
+  margin-bottom: 0;
+}
+
+.barra-ferramentas > .campo-busca {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.barra-ferramentas > .campo-busca > input {
+  text-overflow: ellipsis;
+}
+
+.barra-ferramentas > :is(.legenda-situacao, .btn-primario) {
+  flex-shrink: 0;
+}
+
+/* Clientes do gestor: abaixo de 1200 px a lista tem até 400 px e select,
+   busca e legenda não cabem numa linha. O select fica sozinho na de cima,
+   na largura toda, e busca e legenda juntas na de baixo (sem isso a
+   legenda cairia sozinha para a 2.ª linha). */
+@media (max-width: 1199px) {
+  .clientes-barra > .select {
+    flex-basis: 100%;
+  }
+}
+
 .lista {
   display: flex;
   flex-direction: column;
@@ -226,26 +271,35 @@ p {
 
 /* Cliente com a ficha aberta ao lado (Clientes no desktop, desktop.css) */
 .item-lista.ativo {
-  background-color: var(--laranja-suave);
-  box-shadow: inset 4px 0 0 var(--laranja);
+  background-color: var(--destaque-suave);
+  box-shadow: inset 3px 0 0 var(--destaque);
 }
 
-.item-lista .avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  border-radius: 50%;
-  background-color: var(--marrom-100);
-  color: var(--marrom-900);
-  font-size: 14px;
-  font-weight: 700;
+/* Linha de cliente (components/ItemListaCliente.tsx), celular: ponto e nome
+   na 1.ª linha (a .info ocupa o resto dela), etiqueta na de baixo, alinhada
+   ao texto (10 px do ponto + 12 px de gap) */
+.item-lista:has(> .info) {
+  flex-wrap: wrap;
+  align-content: center;
+  row-gap: var(--espaco-1);
+  min-height: 64px;
+  padding-top: var(--espaco-2);
+  padding-bottom: var(--espaco-2);
+}
+
+/* No celular o ponto acompanha a linha do nome (15 px × 1,3 = 19,5 px),
+   mesmo com a cidade e o "Rep.:" abaixo dele; no desktop fica centrado
+   (desktop.css) */
+.item-lista > :is(.badge-verde, .badge-amarelo, .badge-laranja, .badge-vermelho) {
+  align-self: flex-start;
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  margin-top: 5px;
 }
 
 .item-lista .info {
-  flex: 1;
+  flex: 1 1 calc(100% - 22px);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -253,7 +307,8 @@ p {
 
 .item-lista .info .nome {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: var(--peso-semi);
+  line-height: 1.3;
   color: var(--texto);
   white-space: nowrap;
   overflow: hidden;
@@ -261,21 +316,36 @@ p {
 }
 
 .item-lista .info .cidade {
+  display: block;
   font-size: 13px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--texto-suave);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-lista .info .rep {
+  font-size: 13px;
+  line-height: 1.3;
   color: var(--texto-suave);
 }
 
-/* Etiqueta de situação abaixo da cidade (seção 17): ocupa só a largura do
-   texto, não a linha toda da coluna. */
-.item-lista .info .etiqueta-situacao {
-  align-self: flex-start;
-  margin: var(--espaco-1) 0 2px;
+.item-lista > .etiqueta-situacao {
+  order: 1;
+  flex-basis: auto;
+  max-width: calc(100% - 22px);
+  margin-left: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ==========================================================================
-   10. Botão flutuante ("+ Novo cliente")
+   10. Botão flutuante ("Novo cliente", só no celular)
    Réplica do botão flutuante do protótipo (docs/prototipo/clientes.html),
-   ajustado para esta tela sem navegação inferior (bottom menor).
+   com o ícone plus. No desktop não é renderizado: o "Novo cliente" vira um
+   .btn-primario na barra de ferramentas (ClientesPage).
    ========================================================================== */
 .conteudo-com-flutuante {
   padding-bottom: 88px;
@@ -299,6 +369,7 @@ p {
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
+  gap: var(--espaco-2);
   border: none;
   border-radius: 999px;
   padding: 14px 20px;
@@ -733,28 +804,21 @@ p {
 .etiqueta-vermelho { background-color: var(--vermelho-suave); color: var(--vermelho-texto); }
 
 /* ==========================================================================
-   18. Abas de situação e legenda (.situacao-barra / .abas / .legenda-situacao)
+   18. Abas de situação e legenda (.abas / .legenda-situacao)
    Na lista de clientes, as abas "Prioridade · Atenção · Em dia · Todos"
    (components/AbasSituacao.tsx), sublinhadas como no Zoho, com a contagem
-   numa pastilha ao lado, e, à direita, o botão-ícone que abre a régua das
-   situações (components/LegendaSituacao.tsx, um <details> com
-   .btn-secundario.btn-icone no summary e o conteúdo flutuando abaixo da
-   barra). As abas ficam numa linha só e rolam na horizontal se não
-   couberem (no celular, sem barra de rolagem visível); alvo de toque de
-   44 px.
+   numa pastilha ao lado, logo abaixo da barra de ferramentas (seção 9).
+   Nela fica o botão-ícone que abre a régua das situações
+   (components/LegendaSituacao.tsx, um <details> com .btn-secundario.btn-icone
+   no summary e o conteúdo flutuando abaixo da barra, na largura dela). As
+   abas ficam numa linha só: a partir de 1024 px cabem na coluna da lista
+   (precisam de 380 px); mais estreito, rolam na horizontal — de 768 a 1023
+   com a barra de rolagem para o mouse, abaixo de 768 por arrasto, sem barra
+   visível. Alvo de toque de 44 px.
    ========================================================================== */
-.situacao-barra {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--espaco-2);
-  margin-bottom: var(--espaco-3);
-}
-
 .abas {
-  flex: 1;
-  min-width: 0;
   display: flex;
+  margin-bottom: var(--espaco-3);
   border-bottom: 1px solid var(--borda);
   overflow-x: auto;
 }

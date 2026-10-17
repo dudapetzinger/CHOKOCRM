@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/useAuth';
 import { listClients, mensagemErroApi, type ClienteListItem } from '../services/clients';
 import { AbasSituacao, CORES_DA_ABA, type Aba } from '../components/AbasSituacao';
+import { BarraDeFerramentas } from '../components/BarraDeFerramentas';
 import { ItemListaCliente } from '../components/ItemListaCliente';
 import { LayoutDuasColunas } from '../components/LayoutDuasColunas';
 import { LegendaSituacao } from '../components/LegendaSituacao';
@@ -102,30 +103,35 @@ export function ClientesPage() {
       : 'Nenhum cliente cadastrado ainda.';
   }
 
-  // O botão flutuante vai junto da lista: no celular é `fixed` (o lugar no DOM
-  // não muda nada); no desktop fica preso ao pé da coluna da lista, sem cobrir a ficha.
+  // Barra de ferramentas no topo da coluna da lista (spec 5.6): select do
+  // gestor, busca, legenda e, no desktop, "Novo cliente" do representante.
+  // No celular o "Novo cliente" é o botão flutuante, no fim da coluna.
+  const podeCriarCliente = user?.role === 'REPRESENTANTE';
   const colunaLista = (
     <>
-      <SeletorRepresentante />
-
-      <div className="campo">
-        <label htmlFor="busca">Buscar cliente</label>
-        <input
-          type="search"
-          id="busca"
-          name="busca"
-          placeholder="Nome ou cidade"
-          value={busca}
-          onChange={(event) => setBusca(event.target.value)}
-        />
-      </div>
-
-      {contagens && aba !== null && (
-        <div className="situacao-barra">
-          <AbasSituacao valor={aba} onChange={setAba} contagens={contagens} />
-          <LegendaSituacao />
+      <BarraDeFerramentas className="clientes-barra">
+        <SeletorRepresentante />
+        <div className="campo-busca">
+          <Icone nome="search" tamanho={16} />
+          <input
+            type="search"
+            name="busca"
+            aria-label="Buscar cliente"
+            placeholder="Nome ou cidade"
+            value={busca}
+            onChange={(event) => setBusca(event.target.value)}
+          />
         </div>
-      )}
+        <LegendaSituacao />
+        {desktop && podeCriarCliente && (
+          <Link to="/clientes/novo" className="btn-primario">
+            <Icone nome="plus" tamanho={16} />
+            Novo cliente
+          </Link>
+        )}
+      </BarraDeFerramentas>
+
+      {contagens && aba !== null && <AbasSituacao valor={aba} onChange={setAba} contagens={contagens} />}
 
       {isLoading && <p className="aviso">Carregando clientes...</p>}
 
@@ -154,10 +160,11 @@ export function ClientesPage() {
         </div>
       )}
 
-      {user?.role === 'REPRESENTANTE' && (
+      {!desktop && podeCriarCliente && (
         <div className="flutuante-wrap">
           <Link to="/clientes/novo" className="botao-flutuante">
-            + Novo cliente
+            <Icone nome="plus" tamanho={16} />
+            Novo cliente
           </Link>
         </div>
       )}
@@ -183,7 +190,9 @@ export function ClientesPage() {
               clienteAbertoId ? (
                 <ClienteDetalhePage key={clienteAbertoId} embutida />
               ) : (
-                <EstadoVazio icone="mouse-pointer-click">Selecione um cliente</EstadoVazio>
+                <div className="vazio-selecione">
+                  <EstadoVazio icone="mouse-pointer-click">Selecione um cliente</EstadoVazio>
+                </div>
               )
             }
           />

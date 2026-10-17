@@ -14,9 +14,12 @@
      1199 só o logotipo, a partir de 1200 também o nome "ChokoCRM".
    - .duas-colunas (components/LayoutDuasColunas.tsx): Clientes (lista |
      ficha), Agenda (Atrasadas | Hoje) e Painel.
+   - A linha de cliente (.item-lista com .info) vira uma linha só, com a
+     etiqueta de situação à direita.
    - De 768 a 1199 a barra lateral fica estreita (ícone sobre o rótulo), e
      até 1023 as duas colunas dividem o espaço ao meio, para nenhuma ficar
-     espremida num tablet em pé. */
+     espremida num tablet em pé. A partir de 1200 a lista de Clientes tem
+     440 px. */
 
 @media (min-width: 768px) {
   /* ---- Moldura: navegação | (barra superior + conteúdo) ---- */
@@ -140,15 +143,50 @@
     padding: 2px 4px 0;
   }
 
-  /* "+ Novo cliente" preso ao pé da coluna da lista, sem cobrir a ficha */
-  .flutuante-wrap {
-    position: sticky;
-    left: auto;
-    right: auto;
-    bottom: 0;
-    max-width: none;
-    margin: 0;
-    padding: var(--espaco-2) 0 var(--espaco-4);
+  /* Linha de cliente numa linha só, 56 px: ponto, nome com a cidade ao lado
+     e a etiqueta de situação encostada à direita (até metade da linha;
+     passando disso, reticências). */
+  .item-lista:has(> .info) {
+    flex-wrap: nowrap;
+    min-height: 56px;
+  }
+
+  .item-lista > :is(.badge-verde, .badge-amarelo, .badge-laranja, .badge-vermelho) {
+    align-self: center;
+    margin-top: 0;
+  }
+
+  .item-lista .info {
+    flex: 1 1 auto;
+  }
+
+  .item-lista .info .cidade {
+    display: inline;
+    margin-left: var(--espaco-1);
+  }
+
+  .item-lista > .etiqueta-situacao {
+    order: 0;
+    flex-shrink: 0;
+    max-width: 50%;
+    margin-left: auto;
+  }
+
+  /* "Selecione um cliente": só o ícone de 32 px e a frase, centralizados,
+     sem o cartão tracejado do estado vazio */
+  .vazio-selecione .vazio {
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--espaco-3);
+    padding: var(--espaco-7) var(--espaco-4);
+    border: none;
+    background: none;
+    text-align: center;
+  }
+
+  .vazio-selecione .vazio-icone {
+    width: 32px;
+    height: 32px;
   }
 }
 
@@ -165,6 +203,12 @@
 
   .nav-lateral {
     padding: var(--espaco-4) var(--espaco-3);
+  }
+
+  /* Clientes: lista de 440 px, para a barra de ferramentas do gestor
+     (select, busca e legenda) caber numa linha */
+  .clientes-colunas {
+    grid-template-columns: minmax(360px, 440px) minmax(0, 1fr);
   }
 
   /* A partir de 1200 a marca ganha o nome ao lado do logotipo */

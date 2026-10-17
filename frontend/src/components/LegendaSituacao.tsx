@@ -1,8 +1,8 @@
 /**
  * Legenda das situações (Etapa 7, spec 5.1): botão-ícone `help-circle` (era
- * um "?" até a Etapa 8) ao lado das abas que abre um balão com a régua da
- * classificação, uma frase por situação. Os números vêm de
- * config/classificacao.ts.
+ * um "?" até a Etapa 8), na barra de ferramentas de Clientes, que abre um
+ * balão com a régua da classificação, uma frase por situação. Os números
+ * vêm de config/classificacao.ts.
  */
 import {
   LIMIAR_LARANJA_DIAS,

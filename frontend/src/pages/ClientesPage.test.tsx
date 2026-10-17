@@ -79,6 +79,44 @@ describe('ClientesPage', () => {
     expect(screen.queryByText('Selecione um cliente')).not.toBeInTheDocument();
   });
 
+  it('a busca é um campo sem rótulo visível, com nome acessível', async () => {
+    simularLargura(true);
+    renderizar('GESTOR');
+
+    const busca = await screen.findByRole('searchbox', { name: 'Buscar cliente' });
+    expect(busca).toHaveAttribute('placeholder', 'Nome ou cidade');
+    expect(screen.queryByText('Buscar cliente')).not.toBeInTheDocument();
+  });
+
+  it('no desktop, o representante tem "Novo cliente" na barra de ferramentas, sem botão flutuante', async () => {
+    simularLargura(true);
+    renderizar('REPRESENTANTE');
+
+    const novo = await screen.findByRole('link', { name: 'Novo cliente' });
+    expect(novo).toHaveAttribute('href', '/clientes/novo');
+    expect(novo).toHaveClass('btn-primario');
+    expect(novo.closest('.barra-ferramentas')).not.toBeNull();
+    expect(document.querySelector('.flutuante-wrap')).toBeNull();
+  });
+
+  it('no celular, o representante tem só o botão flutuante "Novo cliente"', async () => {
+    simularLargura(false);
+    renderizar('REPRESENTANTE');
+
+    const novo = await screen.findByRole('link', { name: 'Novo cliente' });
+    expect(novo).toHaveAttribute('href', '/clientes/novo');
+    expect(novo).toHaveClass('botao-flutuante');
+    expect(novo.closest('.barra-ferramentas')).toBeNull();
+  });
+
+  it('o gestor não vê "Novo cliente"', async () => {
+    simularLargura(true);
+    renderizar('GESTOR');
+
+    expect(await screen.findByText('Nenhum cliente cadastrado ainda.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Novo cliente' })).not.toBeInTheDocument();
+  });
+
   it('gestor com "Todos" vê de qual representante é cada cliente', async () => {
     simularLargura(false);
     vi.mocked(listClients).mockResolvedValue([CLIENTE]);

@@ -50,7 +50,9 @@ describe('ListaClientesEsfriando', () => {
 
     const linhas = screen.getAllByRole('link');
     expect(linhas).toHaveLength(5);
-    expect(linhas.map((linha) => within(linha).getByText(/^[A-Z]/, { selector: '.nome' }).textContent)).toEqual([
+    // O nome é o primeiro texto de `.nome`; a cidade vem num <span> dentro dele
+    const nomes = linhas.map((linha) => within(linha).getByText(/^[A-Z]/, { selector: '.nome' }).firstChild?.textContent);
+    expect(nomes).toEqual([
       'Café Novo',
       'Confeitaria Antiga',
       'Padaria Atrasada',
