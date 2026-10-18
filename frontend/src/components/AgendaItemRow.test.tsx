@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { AgendaItem } from '../services/agenda';
 import { AgendaItemRow } from './AgendaItemRow';
@@ -15,34 +15,56 @@ const item: AgendaItem = {
   representante: { id: 'u2', nome: 'Rafael Schmitt' },
 };
 
-function renderizar(mostrarRepresentante: boolean) {
+function renderizar({ mostrarRepresentante = false, podeCheckIn = false } = {}) {
   return render(
     <MemoryRouter>
-      <AgendaItemRow
-        item={item}
-        linhaDias="Próxima visita venceu há 13 dias"
-        podeCheckIn={false}
-        mostrarRepresentante={mostrarRepresentante}
-      />
+      <ul>
+        <AgendaItemRow
+          item={item}
+          linhaDias="Próxima visita venceu há 13 dias"
+          podeCheckIn={podeCheckIn}
+          mostrarRepresentante={mostrarRepresentante}
+        />
+      </ul>
     </MemoryRouter>,
   );
 }
 
 describe('AgendaItemRow', () => {
-  it('mostra a etiqueta de situação e a linha de dias', () => {
-    renderizar(false);
+  it('é um item de lista com o nome, a etiqueta de situação e a linha "cidade · prazo"', () => {
+    renderizar();
 
+    expect(screen.getByRole('listitem')).toBeInTheDocument();
+    expect(screen.getByText('Doce Encanto')).toBeInTheDocument();
     expect(screen.getByText('Atrasado · 40 dias sem visita')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Classificação: Vermelho' })).toBeInTheDocument();
     expect(screen.getByText('Blumenau · Próxima visita venceu há 13 dias')).toBeInTheDocument();
   });
 
+  it('o avatar (decorativo) e o nome levam para a ficha do cliente no mesmo link', () => {
+    renderizar();
+
+    const ficha = screen.getByRole('link', { name: /Doce Encanto/ });
+    expect(ficha).toHaveAttribute('href', '/clientes/c1');
+    const avatar = within(ficha).getByText('DE');
+    expect(avatar).toHaveAttribute('aria-hidden', 'true');
+    expect(within(ficha).getByText('Doce Encanto')).toBeInTheDocument();
+  });
+
   it('mostra "Rep.:" só quando mostrarRepresentante', () => {
-    const { unmount } = renderizar(true);
+    const { unmount } = renderizar({ mostrarRepresentante: true });
     expect(screen.getByText('Rep.: Rafael Schmitt')).toBeInTheDocument();
     unmount();
 
-    renderizar(false);
+    renderizar({ mostrarRepresentante: false });
     expect(screen.queryByText(/Rep\.:/)).not.toBeInTheDocument();
+  });
+
+  it('o atalho "Check-in" aparece só quando podeCheckIn e leva ao check-in do cliente', () => {
+    const { unmount } = renderizar({ podeCheckIn: true });
+    expect(screen.getByRole('link', { name: 'Check-in' })).toHaveAttribute('href', '/clientes/c1/check-in');
+    unmount();
+
+    renderizar({ podeCheckIn: false });
+    expect(screen.queryByRole('link', { name: 'Check-in' })).not.toBeInTheDocument();
   });
 });

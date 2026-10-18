@@ -1,10 +1,10 @@
 /**
- * Duas colunas lado a lado (Etapa 7; Tailwind na Etapa 8): Agenda (Atrasadas
- * | Hoje) e Painel, que só o usam a partir de 768 px. Abaixo de 768 as
- * colunas se empilham, a esquerda antes da direita; de 768 a 1023 dividem o
- * espaço ao meio; a partir de 1024 a esquerda tem no máximo
- * `larguraEsquerda` (variável CSS `--largura-esquerda`, mínimo de 360 px).
- * Clientes monta a própria grade (lista de 440 px | ficha, spec 7.1).
+ * Duas colunas lado a lado (Etapa 7; Tailwind na Etapa 8), hoje só do Painel.
+ * Abaixo de 768 px as colunas se empilham, a esquerda antes da direita; de
+ * 768 a 1023 dividem o espaço ao meio; a partir de 1024 a esquerda tem no
+ * máximo `larguraEsquerda` (variável CSS `--largura-esquerda`, mínimo de
+ * 360 px). Clientes monta a própria grade (lista de 440 px | ficha, spec
+ * 7.1) e a Agenda a dela (Atrasadas | Hoje, só a partir de 1024 px, spec 8).
  */
 import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '@/lib/utils';

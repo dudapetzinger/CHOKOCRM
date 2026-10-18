@@ -1,18 +1,27 @@
 /**
- * Uma linha da agenda do dia (UC10, Etapa 4; situação em texto na Etapa 7):
- * avatar+nome+etiqueta de situação+cidade abrem a ficha do cliente (UC06),
- * badge de cor e, só para o representante, um atalho para registrar check-in
- * (UC07). Para o gestor com o seletor em "Todos", a linha diz de qual
- * representante é o cliente. Duas ações por linha — abrir ficha e check-in —
- * impedem reaproveitar `.item-lista` (aninharia <a> dentro de <a>), daí o
- * componente próprio com `.agenda-item` (ver global.css).
+ * Uma linha da agenda do dia (UC10, Etapa 4; situação em texto na Etapa 7;
+ * visual da `Secao` de `routes/agenda.tsx` do protótipo na Etapa 8): avatar,
+ * nome e etiqueta de situação, "cidade · prazo" e, para o gestor com o
+ * seletor em "Todos", "Rep.: Nome". Só o representante dono da carteira tem
+ * o atalho "Check-in" (UC07). É um `<li>`: quem usa a põe dentro de uma
+ * lista (`SecaoAgenda`).
+ *
+ * Duas ações por linha, dois links irmãos (um `<a>` dentro de outro não
+ * existe): o bloco da esquerda (avatar + textos) abre a ficha do cliente
+ * (UC06) e o botão abre o check-in. Abaixo de 768 px os dois têm pelo menos
+ * 44 px de altura (o `Button` já garante; o bloco tem `min-h-11`). Com
+ * espaço na própria linha (container query, 288 px de conteúdo) o botão fica
+ * à direita; mais estreita (celular de 320 px), desce para baixo dos textos,
+ * alinhado a eles, para o nome e a etiqueta não ficarem espremidos. A cor da
+ * classificação vai na etiqueta, que a diz em palavras e traz o ponto
+ * colorido; a linha não repete o ponto.
  */
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import type { AgendaItem } from '../services/agenda';
-import { BadgeCor } from './BadgeCor';
-import { EtiquetaSituacao } from './EtiquetaSituacao';
 import { descreverSituacao } from '../lib/descreverSituacao';
-import { iniciais } from '../lib/iniciais';
+import { Avatar } from './crm/ui';
+import { EtiquetaSituacao } from './EtiquetaSituacao';
 
 type Props = {
   item: AgendaItem;
@@ -23,24 +32,32 @@ type Props = {
 
 export function AgendaItemRow({ item, linhaDias, podeCheckIn, mostrarRepresentante }: Props) {
   return (
-    <div className="agenda-item">
-      <Link className="agenda-item-link" to={`/clientes/${item.id}`}>
-        <span className="avatar">{iniciais(item.nomeFantasia)}</span>
-        <span className="info">
-          <span className="nome">{item.nomeFantasia}</span>
-          <EtiquetaSituacao cor={item.cor} texto={descreverSituacao(item)} />
-          <span className="dias">
-            {item.cidade} · {linhaDias}
+    <li className="@container px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Link
+          to={`/clientes/${item.id}`}
+          className="-m-1.5 flex min-h-11 min-w-0 basis-full items-center gap-3 rounded-lg p-1.5 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring @[18rem]:flex-1 @[18rem]:basis-0"
+        >
+          <Avatar nome={item.nomeFantasia} />
+          <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-semibold text-foreground">{item.nomeFantasia}</span>
+              <EtiquetaSituacao cor={item.cor} texto={descreverSituacao(item)} />
+            </span>
+            <span className="block text-sm text-muted-foreground">
+              {item.cidade} · {linhaDias}
+            </span>
+            {mostrarRepresentante && (
+              <span className="block text-[13px] text-muted-foreground">Rep.: {item.representante.nome}</span>
+            )}
           </span>
-          {mostrarRepresentante && <span className="dias">Rep.: {item.representante.nome}</span>}
-        </span>
-      </Link>
-      <BadgeCor cor={item.cor} />
-      {podeCheckIn && (
-        <Link className="btn-primario btn-checkin" to={`/clientes/${item.id}/check-in`}>
-          Check-in
         </Link>
-      )}
-    </div>
+        {podeCheckIn && (
+          <Button size="sm" asChild className="ml-13 shrink-0 @[18rem]:ml-0">
+            <Link to={`/clientes/${item.id}/check-in`}>Check-in</Link>
+          </Button>
+        )}
+      </div>
+    </li>
   );
 }
