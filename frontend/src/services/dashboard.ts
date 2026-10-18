@@ -1,9 +1,10 @@
 /**
- * Acesso tipado aos números dos gráficos do Painel do gestor (Etapa 7): o
- * comparativo de visitas por representante (com as visitas por semana quando
- * um representante é escolhido) e as vendas mensais da carteira. Espelha
- * `KpisPorRepresentanteDTO` de `backend/src/services/kpis.service.ts`,
- * `KpiRepresentante` de `kpis.regras.ts` e `VendasMensaisDTO` de
+ * Acesso tipado aos números dos gráficos do Painel do gestor (Etapa 7;
+ * contagens por resultado e ritmo semanal na Etapa 8): o comparativo por
+ * representante, o ritmo de visitas das 8 últimas semanas e as vendas
+ * mensais da carteira. Espelha `KpisPorRepresentanteDTO` de
+ * `backend/src/services/kpis.service.ts`, `KpiRepresentante` e
+ * `SemanaDoRitmo` de `kpis.regras.ts` e `VendasMensaisDTO` de
  * `vendas-mensais.service.ts`. Os dois endpoints são só do gestor.
  */
 import { api } from './api';
@@ -14,21 +15,27 @@ export type KpiRepresentante = {
   nome: string;
   clientesAtivos: number;
   visitas: number;
+  /** `vendas + negociacoes + semVenda = visitas`, pelo resultado de cada visita. */
+  vendas: number;
+  negociacoes: number;
+  semVenda: number;
   conversaoEmVendas: Proporcao;
 };
 
-export type VisitasDaSemana = {
+export type SemanaDoRitmo = {
   /** Segunda-feira da semana, 'AAAA-MM-DD'. */
   inicio: string;
   visitas: number;
+  /** Das visitas da semana, as com resultado VENDA. */
+  vendas: number;
 };
 
 export type KpisPorRepresentante = {
   periodo: Kpis['periodo'];
   /** Ordenados por visitas (desc) e nome; todos aparecem, mesmo zerados. */
   representantes: KpiRepresentante[];
-  /** Só com `representanteId`: visitas à carteira dele por semana. */
-  porSemana?: VisitasDaSemana[];
+  /** Sempre 8 semanas (segunda a domingo), a última contendo hoje; não depende do período. */
+  ritmoSemanal: SemanaDoRitmo[];
   simulado: boolean;
 };
 

@@ -10,13 +10,15 @@ import {
   contarVisitas,
   conversaoEmVendas,
   distribuicaoPorCor,
+  inicioDoRitmoSemanal,
   mediaDeVisitasPorCliente,
   periodoDeAnalise,
+  ritmoSemanal,
   taxaDeRegistro,
-  visitasPorSemana,
   type DistribuicaoPorCor,
   type KpiRepresentante,
   type Proporcao,
+  type SemanaDoRitmo,
 } from './kpis.regras';
 
 /**
@@ -45,8 +47,8 @@ export type KpisPorRepresentanteDTO = {
   /** Mesmo objeto de `KpisDTO.periodo`. */
   periodo: KpisDTO['periodo'];
   representantes: KpiRepresentante[];
-  /** Só com `representanteId`: visitas à carteira dele por semana (segunda a domingo). */
-  porSemana?: { inicio: string; visitas: number }[];
+  /** Visitas e vendas das 8 últimas semanas (segunda a domingo), a última contendo hoje; independe do período. */
+  ritmoSemanal: SemanaDoRitmo[];
   simulado: boolean;
 };
 
@@ -98,21 +100,28 @@ export async function obterKpis(
  * Comparativo por representante no período, pela carteira do cliente: sem
  * `representanteId`, todos os usuários REPRESENTANTE (mesmo sem cliente nem
  * visita); com ele, só aquele (lista vazia se o id não for de um
- * representante) e a série semanal de visitas à carteira dele.
+ * representante). Junto, o ritmo semanal de visitas da mesma carteira nas 8
+ * últimas semanas, que não depende do período: uma consulta só cobre as
+ * duas janelas, e o comparativo usa as visitas a partir do início do período.
  */
 export async function obterKpisPorRepresentante(
   periodoDias: number,
   hoje: Date = new Date(),
   representanteId?: string,
 ): Promise<KpisPorRepresentanteDTO> {
-  const { inicio, fim } = periodoDeAnalise(dataCalendario(hoje), periodoDias);
+  const hojeCalendario = dataCalendario(hoje);
+  const { inicio, fim } = periodoDeAnalise(hojeCalendario, periodoDias);
+  const inicioDoRitmo = inicioDoRitmoSemanal(hojeCalendario);
+  const desde = inicioDoRitmo < inicio ? inicioDoRitmo : inicio;
 
   const [visitas, ativos, todosOsRepresentantes] = await Promise.all([
-    visitRepository.listNoPeriodo(inicioDoDia(inicio), fimDoDia(fim), representanteId),
+    visitRepository.listNoPeriodo(inicioDoDia(desde), fimDoDia(fim), representanteId),
     clientRepository.listAtivosParaAgenda(representanteId),
     userRepository.listByRole('REPRESENTANTE'),
   ]);
 
+  const inicioDoPeriodo = inicioDoDia(inicio);
+  const visitasDoPeriodo = visitas.filter((visita) => visita.dataHora >= inicioDoPeriodo);
   const representantes = representanteId
     ? todosOsRepresentantes.filter((representante) => representante.id === representanteId)
     : todosOsRepresentantes;
@@ -120,11 +129,11 @@ export async function obterKpisPorRepresentante(
   return {
     periodo: { dias: periodoDias, inicio, fim },
     representantes: agruparPorRepresentante(
-      visitas,
+      visitasDoPeriodo,
       ativos.map((cliente) => ({ representanteId: cliente.representante.id })),
       representantes,
     ),
-    ...(representanteId ? { porSemana: visitasPorSemana(visitas, inicio, fim) } : {}),
+    ritmoSemanal: ritmoSemanal(visitas, hojeCalendario),
     simulado: erpSimulado(),
   };
 }

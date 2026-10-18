@@ -10,3 +10,6 @@ import type { Cor } from '../services/classificacao.service';
 export const PERIODO_PADRAO_DIAS = 30;
 export const PERIODOS_DIAS = [30, 90, 365] as const;
 export const CORES_INATIVAS: readonly Cor[] = ['LARANJA', 'VERMELHO'];
+
+/** Semanas do ritmo de visitas do Painel (spec da Etapa 8, 7.10): as 8 últimas, a última contendo hoje. */
+export const SEMANAS_DO_RITMO = 8;

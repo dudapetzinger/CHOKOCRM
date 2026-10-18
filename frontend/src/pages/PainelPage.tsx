@@ -1,36 +1,36 @@
 /**
- * Painel do gestor (UC14 e UC15; três blocos com gráficos na Etapa 7). Abaixo
- * do seletor de representante e do filtro de período, cada bloco responde a
- * uma pergunta:
- *   1. "Quem está visitando pouco?" — os números de visitas (`KpisCard`) e o
- *      gráfico por representante (com "Todos") ou por semana (com um
- *      representante escolhido);
- *   2. "O próximo evento está chegando e o estoque acompanha?" — vendas dos
- *      últimos 12 meses com os eventos marcados e os alertas de produção do
- *      horizonte escolhido;
- *   3. "Quais clientes estão esfriando?" — a distribuição por cor e os cinco
- *      clientes mais urgentes.
- * No fim, a "Época do ano" com os eventos do horizonte. No desktop (≥ 768 px),
- * o bloco 1 fica à esquerda e os demais à direita. Tudo filtrado pelo
- * representante do seletor. Com um bloco já carregado, o erro de um refetch
- * (rede caída) aparece como aviso acima do conteúdo, que continua visível
- * (spec 5.7). Só o gestor vê o conteúdo; para o representante a
- * rota existe, mas mostra apenas um aviso (a aba também não aparece na
- * navegação).
+ * Painel do gestor (UC14 e UC15; gráficos na Etapa 7; visual de
+ * `routes/painel.tsx` do protótipo, com os gráficos dele desenhados à mão, na
+ * Etapa 8). No topo, a barra com o seletor de representante e o período e a
+ * faixa de dados simulados; depois "Quem está visitando pouco?" com os quatro
+ * indicadores e, em duas colunas a partir de 1024 px (empilhadas abaixo):
+ *   - à esquerda, o resultado das visitas por representante (barra
+ *     empilhada), o ritmo de visitas das 8 últimas semanas e "Quais clientes
+ *     estão esfriando?" (distribuição por cor e os cinco mais urgentes);
+ *   - à direita, "O próximo evento está chegando e o estoque acompanha?"
+ *     (vendas mensais com os eventos e "Hoje", e os alertas de produção do
+ *     horizonte escolhido) e a "Época do ano" com os eventos do horizonte.
+ * Tudo filtrado pelo representante do seletor; os números vêm da API. Com um
+ * bloco já carregado, o erro de um refetch (rede caída) aparece como aviso
+ * acima do conteúdo, que continua visível (spec 5.7). Só o gestor vê o
+ * conteúdo; para o representante a rota existe, mas mostra apenas um aviso
+ * (a aba também não aparece na navegação).
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 import { useAuth } from '../auth/useAuth';
 import { AvisoSimulado } from '../components/AvisoSimulado';
-import { DistribuicaoPorCor } from '../components/DistribuicaoPorCor';
-import { FiltroHorizonte, HORIZONTE_PADRAO_DIAS } from '../components/FiltroHorizonte';
+import { AlertasProducao } from '../components/crm/graficos/AlertasProducao';
+import { DistribuicaoPorCor } from '../components/crm/graficos/DistribuicaoPorCor';
+import { ResultadoPorRepresentante } from '../components/crm/graficos/ResultadoPorRepresentante';
+import { RitmoSemanal } from '../components/crm/graficos/RitmoSemanal';
+import { VendasMensais } from '../components/crm/graficos/VendasMensais';
+import { Aviso, Cartao } from '../components/crm/ui';
+import { EstadoVazio } from '../components/EstadoVazio';
+import { HORIZONTE_PADRAO_DIAS } from '../components/FiltroHorizonte';
 import { FiltroPeriodo, PERIODO_PADRAO_DIAS } from '../components/FiltroPeriodo';
-import { BarrasAlertasProducao } from '../components/graficos/BarrasAlertasProducao';
-import { GraficoVendasMensais } from '../components/graficos/GraficoVendasMensais';
-import { GraficoVisitasPorRepresentante } from '../components/graficos/GraficoVisitasPorRepresentante';
-import { GraficoVisitasPorSemana } from '../components/graficos/GraficoVisitasPorSemana';
-import { ListaClientesEsfriando } from '../components/graficos/ListaClientesEsfriando';
 import { KpisCard } from '../components/KpisCard';
-import { LayoutDuasColunas } from '../components/LayoutDuasColunas';
+import { ListaClientesEsfriando } from '../components/ListaClientesEsfriando';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { useClientesDaCarteira, useKpisPorRepresentante, useVendasMensais } from '../hooks/useDashboard';
 import { useAlertasDeProducao } from '../hooks/useInsights';
@@ -40,207 +40,184 @@ import { formatarDataCalendario } from '../lib/formatarData';
 import { listarComE } from '../lib/listarComE';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
-import type { KpisPorRepresentante } from '../services/dashboard';
 import type { Alertas } from '../services/insights';
-import { EstadoVazio } from '../components/EstadoVazio';
-import { Icone } from '../components/Icone';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar o painel.';
-
-function SemDadosNoPeriodo({ texto = 'Sem dados no período.' }: { texto?: string }) {
-  return (
-    <EstadoVazio icone="bar-chart">{texto}</EstadoVazio>
-  );
-}
+const MENSAGEM_ERRO_VISITAS = 'Não foi possível carregar o gráfico de visitas.';
 
 function descreverClientes(quantidade: number): string {
   return `${quantidade} ${quantidade === 1 ? 'cliente' : 'clientes'}`;
 }
 
-/** Com "Todos", uma barra por representante; com um representante, as semanas dele. */
-function GraficoDeVisitas({ dados, representanteId }: { dados: KpisPorRepresentante; representanteId?: string }) {
-  if (representanteId === undefined) {
-    if (dados.representantes.every(({ visitas }) => visitas === 0)) {
-      return <SemDadosNoPeriodo />;
-    }
-    return <GraficoVisitasPorRepresentante dados={dados.representantes} />;
-  }
-
-  const semanas = dados.porSemana ?? [];
-  if (semanas.every(({ visitas }) => visitas === 0)) {
-    return <SemDadosNoPeriodo />;
-  }
-  return <GraficoVisitasPorSemana dados={semanas} />;
+function Carregando({ children }: { children: ReactNode }) {
+  return <p className="text-sm text-muted-foreground">{children}</p>;
 }
 
-function BlocoVisitas({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) {
-  const { data, isLoading, isError, error, isPlaceholderData } = useKpisPorRepresentante(periodoDias, representanteId);
-
+/** Conteúdo de um cartão que segue visível, esmaecido, enquanto o resultado novo chega. */
+function Atualizavel({ atualizando, children }: { atualizando: boolean; children: ReactNode }) {
   return (
-    <section className="card" aria-labelledby="titulo-bloco-visitas">
-      <h2 id="titulo-bloco-visitas" className="card-titulo">
-        Quem está visitando pouco?
-      </h2>
-
-      <KpisCard periodoDias={periodoDias} representanteId={representanteId} />
-
-      {/* `isPlaceholderData`: o gráfico do período anterior segue visível, esmaecido, até o novo chegar. */}
-      <div aria-busy={isPlaceholderData} className={isPlaceholderData ? 'atualizando' : undefined}>
-        {isLoading && <p className="aviso">Carregando gráfico de visitas...</p>}
-
-        {isError && (
-          <p className="aviso aviso-atencao" role="alert">
-            {mensagemErroApi(error, 'Não foi possível carregar o gráfico de visitas.')}
-          </p>
-        )}
-
-        {data && <GraficoDeVisitas dados={data} representanteId={representanteId} />}
-      </div>
-    </section>
+    <div aria-busy={atualizando} className={cn('transition-opacity', atualizando && 'opacity-60')}>
+      {children}
+    </div>
   );
 }
 
-function VendasMensaisDoBloco({ representanteId }: { representanteId?: string }) {
-  const { data, isLoading, isError, error } = useVendasMensais(representanteId);
-
-  if (isLoading) {
-    return <p className="aviso">Carregando vendas mensais...</p>;
-  }
-  const avisoDeErro = isError ? (
-    <p className="aviso aviso-atencao" role="alert">
-      {mensagemErroApi(error, 'Não foi possível carregar as vendas mensais.')}
-    </p>
-  ) : null;
-  if (!data) {
-    return avisoDeErro;
-  }
+/**
+ * Os dois cartões que saem de `/dashboard/kpis/por-representante`: o
+ * resultado das visitas por representante (no período) e o ritmo das 8
+ * últimas semanas (independe do período). Uma consulta só; o erro é
+ * anunciado uma vez, no primeiro cartão.
+ */
+function CartoesDeVisitas({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) {
+  const { data, isLoading, isError, error, isPlaceholderData } = useKpisPorRepresentante(periodoDias, representanteId);
+  const mensagemDeErro = isError ? mensagemErroApi(error, MENSAGEM_ERRO_VISITAS) : null;
 
   return (
     <>
-      {avisoDeErro}
+      <Cartao titulo="Resultado das visitas por representante">
+        <div className="space-y-3">
+          {isLoading && <Carregando>Carregando gráfico de visitas...</Carregando>}
+          {mensagemDeErro && (
+            <Aviso tom="erro" role="alert">
+              {mensagemDeErro}
+            </Aviso>
+          )}
+          {data && (
+            <Atualizavel atualizando={isPlaceholderData}>
+              <ResultadoPorRepresentante representantes={data.representantes} />
+            </Atualizavel>
+          )}
+        </div>
+      </Cartao>
 
-      {data.meses.every(({ total }) => total === 0) ? (
-        <SemDadosNoPeriodo texto="Sem vendas nos últimos 12 meses." />
-      ) : (
-        <GraficoVendasMensais meses={data.meses} eventos={data.eventos} />
-      )}
-
-      {data.clientesIndisponiveis > 0 && (
-        <p className="campo-ajuda">{descreverClientes(data.clientesIndisponiveis)} sem dados do ERP</p>
-      )}
+      <Cartao titulo="Ritmo de visitas — últimas 8 semanas">
+        <div className="space-y-3">
+          {isLoading && <Carregando>Carregando gráfico de visitas...</Carregando>}
+          {mensagemDeErro && !data && <Aviso tom="erro">{mensagemDeErro}</Aviso>}
+          {data && (
+            <Atualizavel atualizando={isPlaceholderData}>
+              <RitmoSemanal semanas={data.ritmoSemanal} />
+            </Atualizavel>
+          )}
+        </div>
+      </Cartao>
     </>
   );
 }
 
-type BlocoEstoqueProps = {
+function CartaoClientesEsfriando({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) {
+  // Mesma chave dos indicadores: o TanStack Query reaproveita a resposta.
+  const { data: kpis } = useKpis(periodoDias, representanteId);
+  const { data: clientes, isLoading, isError, error } = useClientesDaCarteira(representanteId);
+
+  return (
+    <Cartao titulo="Quais clientes estão esfriando?">
+      {kpis && (
+        <>
+          <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Clientes ativos por cor, hoje</h3>
+          <DistribuicaoPorCor distribuicao={kpis.inativos.distribuicao} clientesAtivos={kpis.clientesAtivos} />
+        </>
+      )}
+
+      <h3 className="mt-5 mb-2 text-xs font-semibold text-muted-foreground uppercase">Mais urgentes</h3>
+
+      <div className="space-y-3">
+        {isLoading && <Carregando>Carregando clientes...</Carregando>}
+
+        {isError && (
+          <Aviso tom="erro" role="alert">
+            {mensagemErroApi(error, 'Não foi possível carregar os clientes.')}
+          </Aviso>
+        )}
+
+        {clientes && (
+          <ListaClientesEsfriando clientes={clientes} mostrarRepresentante={representanteId === undefined} />
+        )}
+      </div>
+    </Cartao>
+  );
+}
+
+function VendasMensaisDoCartao({ representanteId }: { representanteId?: string }) {
+  const { data, isLoading, isError, error } = useVendasMensais(representanteId);
+
+  return (
+    <div className="space-y-3">
+      {isLoading && <Carregando>Carregando vendas mensais...</Carregando>}
+
+      {isError && (
+        <Aviso tom="erro" role="alert">
+          {mensagemErroApi(error, 'Não foi possível carregar as vendas mensais.')}
+        </Aviso>
+      )}
+
+      {data &&
+        (data.meses.every(({ total }) => total === 0) ? (
+          <EstadoVazio icone="bar-chart">Sem vendas nos últimos 12 meses.</EstadoVazio>
+        ) : (
+          <VendasMensais meses={data.meses} eventos={data.eventos} />
+        ))}
+
+      {data && data.clientesIndisponiveis > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {descreverClientes(data.clientesIndisponiveis)} sem dados do ERP
+        </p>
+      )}
+    </div>
+  );
+}
+
+type CartaoEstoqueProps = {
   representanteId?: string;
   horizonteDias: number;
   onHorizonteChange: (dias: number) => void;
   consulta: ReturnType<typeof useAlertasDeProducao>;
 };
 
-function BlocoEstoque({ representanteId, horizonteDias, onHorizonteChange, consulta }: BlocoEstoqueProps) {
-  const { data: alertas, isLoading, isError, error, isPlaceholderData } = consulta;
+function CartaoEstoque({ representanteId, horizonteDias, onHorizonteChange, consulta }: CartaoEstoqueProps) {
+  const { data, isLoading, isError, error, isPlaceholderData } = consulta;
 
-  // O filtro de horizonte fica fora da área de resultados: continua na tela enquanto o horizonte
-  // novo carrega e depois de um erro, para o gestor sempre poder escolher outro.
   return (
-    <section className="card" aria-labelledby="titulo-bloco-estoque">
-      <h2 id="titulo-bloco-estoque" className="card-titulo">
-        O próximo evento está chegando e o estoque acompanha?
-      </h2>
+    <Cartao titulo="O próximo evento está chegando e o estoque acompanha?">
+      <VendasMensaisDoCartao representanteId={representanteId} />
 
-      <VendasMensaisDoBloco representanteId={representanteId} />
-
-      <h3 className="card-subtitulo subtitulo-bloco">
-        <Icone nome="alert-triangle" tamanho={18} /> Alertas de produção
-      </h3>
-
-      <FiltroHorizonte valor={horizonteDias} onChange={onHorizonteChange} />
-
-      {/* `isPlaceholderData`: o resultado do horizonte anterior segue visível, esmaecido, até o novo chegar. */}
-      <div aria-busy={isPlaceholderData} className={isPlaceholderData ? 'atualizando' : undefined}>
-        {isLoading && <p className="aviso">Carregando alertas de produção...</p>}
-
-        {isError && (
-          <p className="aviso aviso-atencao" role="alert">
-            {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
-          </p>
-        )}
-
-        {alertas && (
-          <>
-            {/* Indisponível para todos: as barras já avisam; aqui só a falha parcial. */}
-            {alertas.clientesIndisponiveis > 0 && alertas.clientesIndisponiveis < alertas.clientesConsultados && (
-              <p className="aviso">
-                ERP indisponível para {alertas.clientesIndisponiveis} de {alertas.clientesConsultados}{' '}
-                {alertas.clientesConsultados === 1 ? 'cliente' : 'clientes'}.
-              </p>
-            )}
-
-            <BarrasAlertasProducao alertas={alertas} />
-          </>
-        )}
-      </div>
-    </section>
+      <AlertasProducao
+        horizonteDias={horizonteDias}
+        onHorizonteChange={onHorizonteChange}
+        alertas={data}
+        carregando={isLoading}
+        erro={isError ? mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR) : null}
+        atualizando={isPlaceholderData}
+      />
+    </Cartao>
   );
 }
 
-function BlocoClientesEsfriando({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) {
-  // Mesma chave do bloco 1: o TanStack Query reaproveita a resposta dos indicadores.
-  const { data: kpis } = useKpis(periodoDias, representanteId);
-  const { data: clientes, isLoading, isError, error } = useClientesDaCarteira(representanteId);
-
+function CartaoEpocaDoAno({ alertas }: { alertas: Alertas }) {
   return (
-    <section className="card" aria-labelledby="titulo-bloco-esfriando">
-      <h2 id="titulo-bloco-esfriando" className="card-titulo">
-        Quais clientes estão esfriando?
-      </h2>
-
-      {kpis && (
-        <>
-          <h3 className="card-subtitulo">Clientes ativos por cor, hoje</h3>
-          <DistribuicaoPorCor distribuicao={kpis.inativos.distribuicao} clientesAtivos={kpis.clientesAtivos} />
-        </>
+    <Cartao titulo="Época do ano">
+      {alertas.eventos.length === 0 ? (
+        <EstadoVazio icone="calendar">Nenhum evento sazonal nos próximos {alertas.horizonteDias} dias.</EstadoVazio>
+      ) : (
+        <ul className="-my-2 divide-y text-sm">
+          {alertas.eventos.map((evento) => (
+            <li key={evento.id} className="py-2">
+              <div className="flex flex-wrap justify-between gap-x-3">
+                <span className="font-medium">{evento.nome}</span>
+                <span className="text-muted-foreground">
+                  {formatarDataCalendario(evento.dataEvento)} · {descreverPrazo(evento.diasAteEvento)}
+                </span>
+              </div>
+              {evento.produtosSugeridos.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Produtos sugeridos: {listarComE(evento.produtosSugeridos)}.
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
-
-      <h3 className="card-subtitulo subtitulo-bloco">Mais urgentes</h3>
-
-      {isLoading && <p className="aviso">Carregando clientes...</p>}
-
-      {isError && (
-        <p className="aviso aviso-atencao" role="alert">
-          {mensagemErroApi(error, 'Não foi possível carregar os clientes.')}
-        </p>
-      )}
-
-      {clientes && (
-        <ListaClientesEsfriando clientes={clientes} mostrarRepresentante={representanteId === undefined} />
-      )}
-    </section>
-  );
-}
-
-function CardEpocaDoAno({ alertas }: { alertas: Alertas }) {
-  return (
-    <section className="card" aria-labelledby="titulo-epoca">
-      <h2 id="titulo-epoca" className="card-titulo">
-        Época do ano
-      </h2>
-
-      {alertas.eventos.map((evento) => (
-        <p key={evento.id} className="cliente-info">
-          {evento.nome} — {formatarDataCalendario(evento.dataEvento).slice(0, 5)},{' '}
-          {descreverPrazo(evento.diasAteEvento)}. Produtos sugeridos: {listarComE(evento.produtosSugeridos)}.
-        </p>
-      ))}
-
-      {alertas.eventos.length === 0 && (
-        <EstadoVazio icone="calendar">
-          Nenhum evento sazonal nos próximos {alertas.horizonteDias} dias.
-        </EstadoVazio>
-      )}
-    </section>
+    </Cartao>
   );
 }
 
@@ -249,58 +226,55 @@ function PainelGestor() {
   const [horizonteDias, setHorizonteDias] = useState(HORIZONTE_PADRAO_DIAS);
   const representanteId = useRepresentanteSelecionado();
   const consultaDeAlertas = useAlertasDeProducao(horizonteDias, representanteId);
-  // As mesmas chaves dos blocos (o TanStack Query não repete a busca), só para um aviso único de dados simulados.
+  // As mesmas chaves dos cartões (o TanStack Query não repete a busca), só para uma faixa única de dados simulados.
   const { data: kpis } = useKpis(periodoDias, representanteId);
   const { data: vendas } = useVendasMensais(representanteId);
   const alertas = consultaDeAlertas.data;
   const simulado = Boolean(kpis?.simulado || vendas?.simulado || alertas?.simulado);
 
   return (
-    <>
-      <FiltroPeriodo valor={periodoDias} onChange={setPeriodoDias} />
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <SeletorRepresentante className="w-full md:w-auto" />
+        <FiltroPeriodo valor={periodoDias} onChange={setPeriodoDias} className="" />
+      </div>
 
-      {simulado && <AvisoSimulado />}
+      {simulado && <AvisoSimulado className="" />}
 
-      <LayoutDuasColunas
-        larguraEsquerda="480px"
-        esquerda={<BlocoVisitas periodoDias={periodoDias} representanteId={representanteId} />}
-        direita={
-          <>
-            <BlocoEstoque
-              representanteId={representanteId}
-              horizonteDias={horizonteDias}
-              onHorizonteChange={setHorizonteDias}
-              consulta={consultaDeAlertas}
-            />
+      <KpisCard periodoDias={periodoDias} representanteId={representanteId} />
 
-            <BlocoClientesEsfriando periodoDias={periodoDias} representanteId={representanteId} />
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="min-w-0 space-y-4">
+          <CartoesDeVisitas periodoDias={periodoDias} representanteId={representanteId} />
+          <CartaoClientesEsfriando periodoDias={periodoDias} representanteId={representanteId} />
+        </div>
 
-            {alertas && <CardEpocaDoAno alertas={alertas} />}
-          </>
-        }
-      />
-    </>
+        <div className="min-w-0 space-y-4">
+          <CartaoEstoque
+            representanteId={representanteId}
+            horizonteDias={horizonteDias}
+            onHorizonteChange={setHorizonteDias}
+            consulta={consultaDeAlertas}
+          />
+          {alertas && <CartaoEpocaDoAno alertas={alertas} />}
+        </div>
+      </div>
+    </div>
   );
 }
 
 export function PainelPage() {
   const { user } = useAuth();
 
-  return (
-    <div className="container">
-      <div className="conteudo">
-        <SeletorRepresentante />
+  if (user?.role !== 'GESTOR') {
+    return (
+      <Aviso tom="atencao" role="alert">
+        Painel disponível apenas para o gestor.
+      </Aviso>
+    );
+  }
 
-        {user?.role === 'GESTOR' ? (
-          <PainelGestor />
-        ) : (
-          <p className="aviso aviso-atencao" role="alert">
-            Painel disponível apenas para o gestor.
-          </p>
-        )}
-      </div>
-    </div>
-  );
+  return <PainelGestor />;
 }
 
 export default PainelPage;

@@ -8,10 +8,6 @@
  * iniciais ficam na ficha e na agenda. Usada na lista de Clientes e na de
  * "clientes esfriando" do Painel. `ativo` marca o cliente cuja ficha está
  * aberta ao lado (Clientes com duas colunas).
- *
- * `no-underline!` e a cor explícita no nome: no Painel (ainda no CSS antigo,
- * dentro de `.container`) uma regra sem camada devolve o sublinhado e a cor
- * de link do navegador a todo `<a>`; sai quando o Painel migrar.
  */
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -30,7 +26,7 @@ export function ItemListaCliente({ cliente, mostrarRepresentante, ativo = false 
   return (
     <Link
       className={cn(
-        '@container flex w-full items-start gap-3 px-4 py-3 text-left no-underline! transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+        '@container flex w-full items-start gap-3 px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
         ativo ? 'bg-primary-soft' : 'hover:bg-muted',
       )}
       to={`/clientes/${cliente.id}`}
@@ -40,7 +36,7 @@ export function ItemListaCliente({ cliente, mostrarRepresentante, ativo = false 
       <span className="min-w-0 flex-1 @sm:flex @sm:items-center @sm:justify-between @sm:gap-3">
         <span className="block min-w-0">
           <span className="block truncate">
-            <span className="text-[15px] font-semibold text-foreground">{cliente.nomeFantasia}</span>{' '}
+            <span className="text-[15px] font-semibold">{cliente.nomeFantasia}</span>{' '}
             <span className="text-sm text-muted-foreground">{cliente.cidade}</span>
           </span>
           {mostrarRepresentante && (

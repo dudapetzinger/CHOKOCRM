@@ -4,22 +4,21 @@
  * docs/arquitetura.md). Sem retry, como `useKpis`: erro de
  * rede/indisponibilidade deve aparecer de imediato.
  */
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { listClients } from '../services/clients';
 import { buscarKpisPorRepresentante, buscarVendasMensais } from '../services/dashboard';
 
 /**
- * Trocar o período mantém o gráfico anterior esmaecido até o novo chegar; trocar
- * o representante não, porque o formato muda (por representante ↔ por semana).
+ * `keepPreviousData`, como `useKpis`: trocar o período ou o representante
+ * mantém os gráficos anteriores esmaecidos até os novos chegarem (o formato
+ * da resposta é o mesmo nos dois casos).
  */
 export function useKpisPorRepresentante(periodoDias: number, representanteId?: string) {
-  const representante = representanteId ?? 'todos';
   return useQuery({
-    queryKey: ['dashboard', 'por-representante', periodoDias, representante],
+    queryKey: ['dashboard', 'por-representante', periodoDias, representanteId ?? 'todos'],
     queryFn: () => buscarKpisPorRepresentante(periodoDias, representanteId),
     retry: false,
-    placeholderData: (dadosAnteriores, consultaAnterior) =>
-      consultaAnterior?.queryKey[3] === representante ? dadosAnteriores : undefined,
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -1,5 +1,5 @@
 import type { ResultadoVisita } from '@prisma/client';
-import { CORES_INATIVAS } from '../config/kpis';
+import { CORES_INATIVAS, SEMANAS_DO_RITMO } from '../config/kpis';
 import { CORES, dataCalendario, diasEntre, somarDias, type Cor, type DataCalendario } from './classificacao.service';
 
 /**
@@ -75,14 +75,25 @@ export function contarInativos(distribuicao: DistribuicaoPorCor): number {
   return CORES_INATIVAS.reduce((total, cor) => total + distribuicao[cor], 0);
 }
 
-/** Linha do comparativo por representante: números da carteira dele no período. */
+/**
+ * Linha do comparativo por representante: números da carteira dele no
+ * período. `vendas`, `negociacoes` e `semVenda` repartem `visitas` pelo
+ * resultado (a barra empilhada "Resultado das visitas por representante").
+ */
 export type KpiRepresentante = {
   id: string;
   nome: string;
   clientesAtivos: number;
   visitas: number;
+  vendas: number;
+  negociacoes: number;
+  semVenda: number;
   conversaoEmVendas: Proporcao;
 };
+
+function contarResultado(visitas: VisitaDoPeriodo[], resultado: ResultadoVisita): number {
+  return visitas.filter((visita) => visita.resultado === resultado).length;
+}
 
 /**
  * Indicadores por representante, pela carteira do cliente (não pelo autor da
@@ -104,6 +115,9 @@ export function agruparPorRepresentante(
         nome,
         clientesAtivos: clientes.filter((cliente) => cliente.representanteId === id).length,
         visitas: visitasDaCarteira.length,
+        vendas: contarResultado(visitasDaCarteira, 'VENDA'),
+        negociacoes: contarResultado(visitasDaCarteira, 'NEGOCIACAO'),
+        semVenda: contarResultado(visitasDaCarteira, 'SEM_VENDA'),
         conversaoEmVendas: conversaoEmVendas(visitasDaCarteira),
       };
     })
@@ -117,27 +131,39 @@ function segundaDaSemana(data: DataCalendario): DataCalendario {
   return somarDias(data, -((diaDaSemana + 6) % 7));
 }
 
+/** Uma semana do ritmo de visitas: segunda-feira em que começa, visitas e, delas, as com venda. */
+export type SemanaDoRitmo = { inicio: DataCalendario; visitas: number; vendas: number };
+
+/** Segunda-feira da primeira semana do ritmo: `SEMANAS_DO_RITMO − 1` semanas antes da semana de `hoje`. */
+export function inicioDoRitmoSemanal(hoje: DataCalendario): DataCalendario {
+  return somarDias(segundaDaSemana(hoje), -7 * (SEMANAS_DO_RITMO - 1));
+}
+
 /**
- * Visitas por semana (segunda a domingo) cobrindo `[inicio, fim]`: a primeira
- * semana começa na segunda em ou antes de `inicio`; semanas sem visita entram
- * com 0. Cada visita conta no seu dia de calendário no `FUSO_HORARIO`; visitas
- * fora das semanas são ignoradas.
+ * Ritmo de visitas do Painel: as últimas `SEMANAS_DO_RITMO` semanas (segunda
+ * a domingo), a última contendo `hoje`, sempre todas, com zero nas semanas
+ * sem visita. `vendas` conta só as visitas com resultado VENDA. Cada visita
+ * conta no seu dia de calendário no `FUSO_HORARIO`; fora das semanas é
+ * ignorada. Não depende do período de análise.
  */
-export function visitasPorSemana(
-  visitas: { dataHora: Date }[],
-  inicio: DataCalendario,
-  fim: DataCalendario,
-): { inicio: DataCalendario; visitas: number }[] {
-  const primeiraSegunda = segundaDaSemana(inicio);
-  const quantidade = Math.floor(diasEntre(primeiraSegunda, fim) / 7) + 1;
-  const semanas = Array.from({ length: quantidade }, (_, i) => ({
+export function ritmoSemanal(
+  visitas: { dataHora: Date; resultado: ResultadoVisita }[],
+  hoje: DataCalendario,
+): SemanaDoRitmo[] {
+  const primeiraSegunda = inicioDoRitmoSemanal(hoje);
+  const semanas = Array.from({ length: SEMANAS_DO_RITMO }, (_, i) => ({
     inicio: somarDias(primeiraSegunda, i * 7),
     visitas: 0,
+    vendas: 0,
   }));
 
   for (const visita of visitas) {
-    const semana = semanas[Math.floor(diasEntre(primeiraSegunda, dataCalendario(visita.dataHora)) / 7)];
-    if (semana) semana.visitas += 1;
+    const dias = diasEntre(primeiraSegunda, dataCalendario(visita.dataHora));
+    const semana = dias >= 0 ? semanas[Math.floor(dias / 7)] : undefined;
+    if (!semana) continue;
+
+    semana.visitas += 1;
+    if (visita.resultado === 'VENDA') semana.vendas += 1;
   }
 
   return semanas;

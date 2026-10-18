@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import type { ClienteListItem, Cor } from '../../services/clients';
+import type { ClienteListItem, Cor } from '../services/clients';
 import { ListaClientesEsfriando } from './ListaClientesEsfriando';
 
 function cliente(
@@ -48,6 +48,7 @@ describe('ListaClientesEsfriando', () => {
   it('mostra só os 5 mais urgentes entre laranja e vermelho, com "Nunca visitado" primeiro', () => {
     renderizar(CLIENTES);
 
+    expect(within(screen.getByRole('list')).getAllByRole('listitem')).toHaveLength(5);
     const linhas = screen.getAllByRole('link');
     expect(linhas).toHaveLength(5);
     // Uma linha por cliente, na ordem de urgência

@@ -1,0 +1,87 @@
+import { render, screen, within } from '@testing-library/react';
+import type { KpiRepresentante } from '@/services/dashboard';
+import { ResultadoPorRepresentante } from './ResultadoPorRepresentante';
+
+function representante(
+  id: string,
+  nome: string,
+  vendas: number,
+  negociacoes: number,
+  semVenda: number,
+  percentual: number | null,
+): KpiRepresentante {
+  const visitas = vendas + negociacoes + semVenda;
+  return {
+    id,
+    nome,
+    clientesAtivos: 10,
+    visitas,
+    vendas,
+    negociacoes,
+    semVenda,
+    conversaoEmVendas: { numerador: vendas, denominador: visitas, percentual },
+  };
+}
+
+const DADOS: KpiRepresentante[] = [
+  representante('u1', 'Eduarda Fischer', 5, 4, 3, 42),
+  representante('u2', 'Rafael Schmitt', 1, 2, 3, 17),
+  representante('u3', 'Bruno Alencar', 0, 0, 0, null),
+];
+
+describe('ResultadoPorRepresentante', () => {
+  it('cada representante tem uma barra empilhada com os números por resultado no nome acessível', () => {
+    render(<ResultadoPorRepresentante representantes={DADOS} />);
+
+    expect(
+      screen.getByRole('img', { name: 'Eduarda: 12 visitas, 5 com venda, 4 em negociação, 3 sem venda' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'Rafael: 6 visitas, 1 com venda, 2 em negociação, 3 sem venda' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Bruno: sem visitas' })).toBeInTheDocument();
+  });
+
+  it('uma linha por representante, na ordem da API, com o primeiro nome, as visitas e a conversão', () => {
+    render(<ResultadoPorRepresentante representantes={DADOS} />);
+
+    const linhas = within(screen.getByRole('list')).getAllByRole('listitem');
+    expect(linhas).toHaveLength(3);
+    expect(linhas[0]).toHaveTextContent('Eduarda');
+    expect(within(linhas[0]).getByText('12 visitas · 42% com venda')).toBeInTheDocument();
+    expect(within(linhas[1]).getByText('6 visitas · 17% com venda')).toBeInTheDocument();
+    expect(within(linhas[2]).getByText('sem visitas')).toBeInTheDocument();
+  });
+
+  it('o comprimento da barra é proporcional ao maior número de visitas, com um mínimo visível', () => {
+    render(<ResultadoPorRepresentante representantes={DADOS} />);
+
+    expect(screen.getByRole('img', { name: /^Eduarda:/ })).toHaveStyle({ width: '100%' });
+    expect(screen.getByRole('img', { name: /^Rafael:/ })).toHaveStyle({ width: '50%' });
+    expect(screen.getByRole('img', { name: /^Bruno:/ })).toHaveStyle({ width: '8%' });
+  });
+
+  it('singular com uma visita', () => {
+    render(<ResultadoPorRepresentante representantes={[representante('u1', 'Eduarda Fischer', 1, 0, 0, 100)]} />);
+
+    expect(
+      screen.getByRole('img', { name: 'Eduarda: 1 visita, 1 com venda, 0 em negociação, 0 sem venda' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('1 visita · 100% com venda')).toBeInTheDocument();
+  });
+
+  it('a legenda diz o que cada cor é', () => {
+    render(<ResultadoPorRepresentante representantes={DADOS} />);
+
+    expect(screen.getByText('Venda')).toBeInTheDocument();
+    expect(screen.getByText('Negociação')).toBeInTheDocument();
+    expect(screen.getByText('Sem venda')).toBeInTheDocument();
+  });
+
+  it('sem representantes, um estado vazio', () => {
+    render(<ResultadoPorRepresentante representantes={[]} />);
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByText('Sem dados no período.')).toBeInTheDocument();
+  });
+});

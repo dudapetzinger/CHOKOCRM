@@ -1,11 +1,16 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthContext } from '../auth/auth-context';
-import { useClientesDaCarteira, useVendasMensais } from '../hooks/useDashboard';
+import { useClientesDaCarteira, useKpisPorRepresentante, useVendasMensais } from '../hooks/useDashboard';
+import { useAlertasDeProducao } from '../hooks/useInsights';
+import { useKpis } from '../hooks/useKpis';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { ApiError } from '../services/api';
 import type { ClienteListItem } from '../services/clients';
-import type { VendasMensais } from '../services/dashboard';
+import type { KpisPorRepresentante, VendasMensais } from '../services/dashboard';
+import type { Alertas } from '../services/insights';
+import type { Kpis } from '../services/kpis';
 import { PainelPage } from './PainelPage';
 
 vi.mock('../representante/useRepresentante', () => ({
@@ -17,46 +22,57 @@ vi.mock('../hooks/useRepresentantes', () => ({
   useRepresentantes: () => ({ data: [{ id: 'u1', nome: 'Eduarda Fischer' }] }),
 }));
 
+vi.mock('../hooks/useKpis', () => ({ useKpis: vi.fn() }));
+
+vi.mock('../hooks/useDashboard', () => ({
+  useKpisPorRepresentante: vi.fn(),
+  useVendasMensais: vi.fn(),
+  useClientesDaCarteira: vi.fn(),
+}));
+
+vi.mock('../hooks/useInsights', () => ({ useAlertasDeProducao: vi.fn() }));
+
 function consulta<T>(data: T) {
   return { data, isLoading: false, isError: false, error: null, isPlaceholderData: false };
 }
 
-vi.mock('../hooks/useKpis', () => ({
-  useKpis: () =>
-    consulta({
-      periodo: { dias: 30, inicio: '2026-09-15', fim: '2026-10-14' },
-      clientesAtivos: 3,
-      visitas: { total: 5, mediaPorCliente: 1.7 },
-      taxaDeRegistro: { numerador: 2, denominador: 3, percentual: 67 },
-      conversaoEmVendas: { numerador: 2, denominador: 5, percentual: 40 },
-      inativos: { total: 1, distribuicao: { VERDE: 1, AMARELO: 1, LARANJA: 0, VERMELHO: 1 } },
-      semDados: false,
-      simulado: false,
-    }),
-}));
+const KPIS: Kpis = {
+  periodo: { dias: 30, inicio: '2026-09-15', fim: '2026-10-14' },
+  clientesAtivos: 3,
+  visitas: { total: 12, mediaPorCliente: 1.7 },
+  taxaDeRegistro: { numerador: 2, denominador: 3, percentual: 67 },
+  conversaoEmVendas: { numerador: 5, denominador: 12, percentual: 42 },
+  inativos: { total: 1, distribuicao: { VERDE: 1, AMARELO: 1, LARANJA: 0, VERMELHO: 1 } },
+  semDados: false,
+  simulado: true,
+};
 
-vi.mock('../hooks/useDashboard', () => ({
-  useKpisPorRepresentante: () =>
-    consulta({
-      periodo: { dias: 30, inicio: '2026-09-15', fim: '2026-10-14' },
-      representantes: [
-        {
-          id: 'u1',
-          nome: 'Eduarda Fischer',
-          clientesAtivos: 3,
-          visitas: 5,
-          conversaoEmVendas: { numerador: 2, denominador: 5, percentual: 40 },
-        },
-      ],
-      porSemana: [
-        { inicio: '2026-09-14', visitas: 1 },
-        { inicio: '2026-09-21', visitas: 4 },
-      ],
-      simulado: false,
-    }),
-  useVendasMensais: vi.fn(),
-  useClientesDaCarteira: vi.fn(),
-}));
+const POR_REPRESENTANTE: KpisPorRepresentante = {
+  periodo: KPIS.periodo,
+  representantes: [
+    {
+      id: 'u1',
+      nome: 'Eduarda Fischer',
+      clientesAtivos: 3,
+      visitas: 12,
+      vendas: 5,
+      negociacoes: 4,
+      semVenda: 3,
+      conversaoEmVendas: { numerador: 5, denominador: 12, percentual: 42 },
+    },
+  ],
+  ritmoSemanal: [
+    { inicio: '2026-08-24', visitas: 1, vendas: 0 },
+    { inicio: '2026-08-31', visitas: 2, vendas: 1 },
+    { inicio: '2026-09-07', visitas: 0, vendas: 0 },
+    { inicio: '2026-09-14', visitas: 3, vendas: 1 },
+    { inicio: '2026-09-21', visitas: 4, vendas: 2 },
+    { inicio: '2026-09-28', visitas: 2, vendas: 1 },
+    { inicio: '2026-10-05', visitas: 1, vendas: 0 },
+    { inicio: '2026-10-12', visitas: 2, vendas: 1 },
+  ],
+  simulado: false,
+};
 
 const VENDAS: VendasMensais = {
   meses: [
@@ -65,6 +81,23 @@ const VENDAS: VendasMensais = {
   ],
   eventos: [],
   simulado: false,
+  clientesConsultados: 3,
+  clientesIndisponiveis: 0,
+};
+
+const ALERTAS: Alertas = {
+  simulado: false,
+  horizonteDias: 90,
+  eventos: [
+    {
+      id: 'e1',
+      nome: 'Natal',
+      dataEvento: '2026-12-25',
+      diasAteEvento: 72,
+      produtosSugeridos: ['bombons sortidos', 'caixas presente'],
+    },
+  ],
+  alertas: [],
   clientesConsultados: 3,
   clientesIndisponiveis: 0,
 };
@@ -83,28 +116,24 @@ const CLIENTE_ESFRIANDO: ClienteListItem = {
   rebaixadoPorVenda: false,
 };
 
+type Retorno<F extends (...args: never[]) => unknown> = ReturnType<F>;
+
 beforeEach(() => {
-  vi.mocked(useVendasMensais).mockReturnValue(consulta(VENDAS) as unknown as ReturnType<typeof useVendasMensais>);
-  vi.mocked(useClientesDaCarteira).mockReturnValue(
-    consulta([]) as unknown as ReturnType<typeof useClientesDaCarteira>,
+  vi.mocked(useRepresentanteSelecionado).mockReturnValue(undefined);
+  vi.mocked(useKpis).mockReturnValue(consulta(KPIS) as unknown as Retorno<typeof useKpis>);
+  vi.mocked(useKpisPorRepresentante).mockReturnValue(
+    consulta(POR_REPRESENTANTE) as unknown as Retorno<typeof useKpisPorRepresentante>,
   );
+  vi.mocked(useVendasMensais).mockReturnValue(consulta(VENDAS) as unknown as Retorno<typeof useVendasMensais>);
+  vi.mocked(useClientesDaCarteira).mockReturnValue(
+    consulta([CLIENTE_ESFRIANDO]) as unknown as Retorno<typeof useClientesDaCarteira>,
+  );
+  vi.mocked(useAlertasDeProducao).mockReturnValue(consulta(ALERTAS) as unknown as Retorno<typeof useAlertasDeProducao>);
 });
 
-vi.mock('../hooks/useInsights', () => ({
-  useAlertasDeProducao: () =>
-    consulta({
-      simulado: false,
-      horizonteDias: 90,
-      eventos: [],
-      alertas: [],
-      clientesConsultados: 3,
-      clientesIndisponiveis: 0,
-    }),
-}));
-
-function renderizarComoGestor() {
+function renderizarComo(role: 'GESTOR' | 'REPRESENTANTE') {
   const auth = {
-    user: { id: 'g1', nome: 'Maicon', email: 'gestor@exemplo.com', role: 'GESTOR' as const },
+    user: { id: 'g1', nome: 'Maicon', email: 'gestor@exemplo.com', role },
     login: vi.fn(),
     logout: vi.fn(),
   };
@@ -118,56 +147,168 @@ function renderizarComoGestor() {
 }
 
 describe('PainelPage (gestor)', () => {
-  it('mostra os três blocos com as perguntas como títulos', () => {
-    vi.mocked(useRepresentanteSelecionado).mockReturnValue(undefined);
-    renderizarComoGestor();
+  it('barra com o select de representante e o segmentado de período; faixa de dados simulados', () => {
+    renderizarComo('GESTOR');
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Quem está visitando pouco?' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Filtrar por representante' })).toBeInTheDocument();
+    const periodo = screen.getByRole('radiogroup', { name: 'Período de análise dos indicadores' });
+    expect(within(periodo).getAllByRole('radio').map((opcao) => opcao.textContent)).toEqual([
+      '30 dias',
+      '90 dias',
+      '365 dias',
+    ]);
+    expect(screen.getByText('Dados simulados — integração com o ERP ainda não está disponível')).toBeInTheDocument();
+  });
+
+  it('sem dados simulados, a faixa não aparece', () => {
+    vi.mocked(useKpis).mockReturnValue(consulta({ ...KPIS, simulado: false }) as unknown as Retorno<typeof useKpis>);
+    renderizarComo('GESTOR');
+
+    expect(screen.queryByText(/Dados simulados/)).not.toBeInTheDocument();
+  });
+
+  it('título "Quem está visitando pouco?" com o período e os clientes ativos, e os quatro indicadores', () => {
+    renderizarComo('GESTOR');
+
+    const bloco = screen.getByRole('region', { name: 'Quem está visitando pouco?' });
+    expect(within(bloco).getByText('15/09/2026 a 14/10/2026 · 3 clientes ativos')).toBeInTheDocument();
+    const indicadores = within(bloco).getAllByRole('term').map((termo) => [
+      termo.textContent,
+      ...[...(termo.parentElement?.querySelectorAll('dd') ?? [])].map((definicao) => definicao.textContent),
+    ]);
+    expect(indicadores).toEqual([
+      ['Visitas no período', '12', 'média de 1,7 por cliente'],
+      ['Taxa de registro', '67%', '2 de 3 clientes com check-in ou mensagem'],
+      ['Conversão em vendas', '42%', '5 de 12 visitas com venda'],
+      ['Clientes inativos', '1', 'laranja e vermelho, hoje'],
+    ]);
+  });
+
+  it('os blocos na ordem do protótipo, sem metas, mapa nem exportação', () => {
+    renderizarComo('GESTOR');
+
+    const titulos = screen.getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent);
+    expect(titulos).toEqual([
+      'Quem está visitando pouco?',
+      'Resultado das visitas por representante',
+      'Ritmo de visitas — últimas 8 semanas',
+      'Quais clientes estão esfriando?',
+      'O próximo evento está chegando e o estoque acompanha?',
+      'Época do ano',
+    ]);
+    expect(screen.queryByText(/Metas/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Mapa/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Planilha|PDF/ })).not.toBeInTheDocument();
+  });
+
+  it('resultado por representante em barra empilhada e ritmo das 8 semanas com a nota', () => {
+    renderizarComo('GESTOR');
+
+    const resultado = screen.getByRole('region', { name: 'Resultado das visitas por representante' });
     expect(
-      screen.getByRole('heading', { level: 2, name: 'O próximo evento está chegando e o estoque acompanha?' }),
+      within(resultado).getByRole('img', { name: 'Eduarda: 12 visitas, 5 com venda, 4 em negociação, 3 sem venda' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Quais clientes estão esfriando?' })).toBeInTheDocument();
+
+    const ritmo = screen.getByRole('region', { name: 'Ritmo de visitas — últimas 8 semanas' });
+    expect(within(within(ritmo).getByRole('table')).getAllByRole('row')).toHaveLength(9);
+    expect(within(ritmo).getByText('Barra clara = visitas · parte escura = visitas com venda')).toBeInTheDocument();
   });
 
-  it('com "Todos", o bloco 1 mostra o gráfico por representante', () => {
-    vi.mocked(useRepresentanteSelecionado).mockReturnValue(undefined);
-    renderizarComoGestor();
-
-    expect(screen.getByRole('figure', { name: 'Visitas por representante no período' })).toBeInTheDocument();
-    expect(screen.queryByRole('figure', { name: 'Visitas por semana no período' })).not.toBeInTheDocument();
-  });
-
-  it('com um representante escolhido, o bloco 1 mostra o gráfico por semana', () => {
+  it('com um representante escolhido, os blocos buscam a carteira dele', () => {
     vi.mocked(useRepresentanteSelecionado).mockReturnValue('u1');
-    renderizarComoGestor();
+    renderizarComo('GESTOR');
 
-    expect(screen.getByRole('figure', { name: 'Visitas por semana no período' })).toBeInTheDocument();
-    expect(screen.queryByRole('figure', { name: 'Visitas por representante no período' })).not.toBeInTheDocument();
+    expect(useKpis).toHaveBeenCalledWith(30, 'u1');
+    expect(useKpisPorRepresentante).toHaveBeenCalledWith(30, 'u1');
+    expect(useVendasMensais).toHaveBeenCalledWith('u1');
+    expect(useClientesDaCarteira).toHaveBeenCalledWith('u1');
+    expect(useAlertasDeProducao).toHaveBeenCalledWith(90, 'u1');
+  });
+
+  it('trocar o período para 90 dias refaz os indicadores e o resultado por representante com 90', async () => {
+    renderizarComo('GESTOR');
+    const periodo = screen.getByRole('radiogroup', { name: 'Período de análise dos indicadores' });
+
+    await userEvent.click(within(periodo).getByRole('radio', { name: '90 dias' }));
+
+    expect(useKpis).toHaveBeenLastCalledWith(90, undefined);
+    expect(useKpisPorRepresentante).toHaveBeenLastCalledWith(90, undefined);
+    expect(within(periodo).getByRole('radio', { name: '90 dias' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('quais clientes estão esfriando: distribuição por cor e os mais urgentes, que levam à ficha', () => {
+    renderizarComo('GESTOR');
+
+    const bloco = screen.getByRole('region', { name: 'Quais clientes estão esfriando?' });
+    expect(
+      within(bloco).getByRole('img', { name: /1 clientes verdes, 1 amarelos, 0 laranjas e 1 vermelhos/ }),
+    ).toBeInTheDocument();
+    expect(within(bloco).getByRole('heading', { level: 3, name: 'Mais urgentes' })).toBeInTheDocument();
+    expect(within(bloco).getByRole('link', { name: /Doces da Vovó/ })).toHaveAttribute('href', '/clientes/c1');
+  });
+
+  it('o próximo evento: vendas mensais com a tabela acessível e os alertas de produção com o horizonte', () => {
+    renderizarComo('GESTOR');
+
+    const bloco = screen.getByRole('region', { name: 'O próximo evento está chegando e o estoque acompanha?' });
+    expect(within(bloco).getByRole('table', { name: 'Vendas mensais dos últimos 12 meses (R$)' })).toBeInTheDocument();
+    expect(within(bloco).getByRole('heading', { level: 3, name: 'Alertas de produção' })).toBeInTheDocument();
+    expect(within(bloco).getByRole('radiogroup', { name: 'Horizonte de eventos sazonais' })).toBeInTheDocument();
+    expect(within(bloco).getByText('Nenhum alerta de produção para os próximos 90 dias.')).toBeInTheDocument();
+  });
+
+  it('época do ano lista os eventos do horizonte com a data, o prazo e os produtos sugeridos', () => {
+    renderizarComo('GESTOR');
+
+    const bloco = screen.getByRole('region', { name: 'Época do ano' });
+    const itens = within(bloco).getAllByRole('listitem');
+    expect(itens).toHaveLength(1);
+    expect(itens[0]).toHaveTextContent('Natal');
+    expect(itens[0]).toHaveTextContent('25/12/2026 · em 72 dias');
+    expect(itens[0]).toHaveTextContent('Produtos sugeridos: bombons sortidos e caixas presente.');
   });
 
   it('com as vendas zeradas nos 12 meses, diz "Sem vendas nos últimos 12 meses."', () => {
-    vi.mocked(useRepresentanteSelecionado).mockReturnValue(undefined);
     vi.mocked(useVendasMensais).mockReturnValue(
-      consulta({ ...VENDAS, meses: VENDAS.meses.map((mes) => ({ ...mes, total: 0 })) }) as unknown as ReturnType<
+      consulta({ ...VENDAS, meses: VENDAS.meses.map((mes) => ({ ...mes, total: 0 })) }) as unknown as Retorno<
         typeof useVendasMensais
       >,
     );
-    renderizarComoGestor();
+    renderizarComo('GESTOR');
 
     expect(screen.getByText('Sem vendas nos últimos 12 meses.')).toBeInTheDocument();
-    expect(screen.queryByRole('figure', { name: 'Vendas da carteira nos últimos 12 meses' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('figure', { name: /Vendas mensais/ })).not.toBeInTheDocument();
   });
 
-  it('com os clientes no cache e um refetch que falhou por rede, o bloco 3 mantém a lista e mostra o aviso acima', () => {
-    vi.mocked(useRepresentanteSelecionado).mockReturnValue(undefined);
+  it('com os clientes no cache e um refetch que falhou por rede, mantém a lista e mostra o aviso acima', () => {
     vi.mocked(useClientesDaCarteira).mockReturnValue({
       ...consulta([CLIENTE_ESFRIANDO]),
       isError: true,
       error: new ApiError('NETWORK', 'Você está sem internet.'),
-    } as unknown as ReturnType<typeof useClientesDaCarteira>);
-    renderizarComoGestor();
+    } as unknown as Retorno<typeof useClientesDaCarteira>);
+    renderizarComo('GESTOR');
 
     expect(screen.getByRole('alert')).toHaveTextContent('Você está sem internet.');
     expect(screen.getByText('Doces da Vovó')).toBeInTheDocument();
+  });
+
+  it('sem os números por representante ainda, avisa que está carregando', () => {
+    vi.mocked(useKpisPorRepresentante).mockReturnValue({
+      ...consulta(undefined),
+      isLoading: true,
+    } as unknown as Retorno<typeof useKpisPorRepresentante>);
+    renderizarComo('GESTOR');
+
+    expect(screen.getAllByText('Carregando gráfico de visitas...')).toHaveLength(2);
+  });
+});
+
+describe('PainelPage (representante)', () => {
+  it('mostra só o aviso de que o painel é do gestor', () => {
+    renderizarComo('REPRESENTANTE');
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Painel disponível apenas para o gestor.');
+    expect(screen.queryByRole('heading', { name: 'Quem está visitando pouco?' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 });

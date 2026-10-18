@@ -1,99 +1,113 @@
 /**
- * Números de visitas do Painel do gestor (UC14, Etapa 6C; bloco 1 desde a
- * Etapa 7): visitas, taxa de registro, conversão em vendas e clientes inativos
- * no período escolhido. O período e o representante vêm da página (o filtro de
- * período fica acima dos três blocos); a distribuição por cor foi para o bloco
- * 3 (`DistribuicaoPorCor`) e o aviso de dados simulados é um só, na página. Ao
- * trocar o período, o resultado anterior segue na tela, esmaecido, até o novo
- * chegar.
+ * "Quem está visitando pouco?" — os números de visitas do Painel (UC14, Etapa
+ * 6C; cartões do protótipo na Etapa 8): o título com o período e os clientes
+ * ativos e, embaixo, visitas, taxa de registro, conversão em vendas e
+ * clientes inativos no período escolhido, cada um num cartão (quatro em linha
+ * a partir de 1024 px, dois por linha abaixo). O período e o representante
+ * vêm da página. Ao trocar o período, o resultado anterior segue na tela,
+ * esmaecido, até o novo chegar.
  */
+import { useId } from 'react';
+import { cn } from '@/lib/utils';
 import { useKpis } from '../hooks/useKpis';
 import { descreverClientesAtivos } from '../lib/descreverClientesAtivos';
 import { formatarDataCalendario } from '../lib/formatarData';
 import { mensagemErroApi } from '../services/clients';
 import type { Kpis, Proporcao } from '../services/kpis';
+import { Aviso } from './crm/ui';
 import { EstadoVazio } from './EstadoVazio';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os indicadores.';
+
+/** "19/09/2026 a 18/10/2026 · 13 clientes ativos". */
+function descreverPeriodo({ periodo, clientesAtivos }: Kpis): string {
+  const { inicio, fim } = periodo;
+  return `${formatarDataCalendario(inicio)} a ${formatarDataCalendario(fim)} · ${descreverClientesAtivos(clientesAtivos)}`;
+}
 
 function formatarPercentual(proporcao: Proporcao): string {
   return proporcao.percentual === null ? '—' : `${proporcao.percentual}%`;
 }
 
-function Indicador({ valor, rotulo, apoio }: { valor: string; rotulo: string; apoio: string }) {
+function Indicador({ rotulo, valor, apoio }: { rotulo: string; valor: string; apoio: string }) {
   return (
-    <div className="kpi">
-      <p className="kpi-valor">{valor}</p>
-      <p className="kpi-rotulo">{rotulo}</p>
-      <p className="kpi-apoio">{apoio}</p>
+    <div className="rounded-xl border bg-card p-4">
+      <dt className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{rotulo}</dt>
+      <dd className="mt-1 text-[28px] leading-tight font-bold">{valor}</dd>
+      <dd className="text-xs text-muted-foreground">{apoio}</dd>
     </div>
   );
 }
 
-function ConteudoKpis({ kpis }: { kpis: Kpis }) {
+function Indicadores({ kpis }: { kpis: Kpis }) {
   const { visitas, taxaDeRegistro, conversaoEmVendas, inativos } = kpis;
 
   return (
-    <>
-      {kpis.semDados && (
-        <EstadoVazio icone="bar-chart">
-          Nenhuma visita ou mensagem registrada no período — indicadores zerados.
-        </EstadoVazio>
-      )}
-
-      <div className="grade-kpi">
-        <Indicador
-          valor={String(visitas.total)}
-          rotulo="Visitas no período"
-          apoio={
-            visitas.mediaPorCliente === null
-              ? 'sem clientes ativos'
-              : `média de ${String(visitas.mediaPorCliente).replace('.', ',')} por cliente`
-          }
-        />
-        <Indicador
-          valor={formatarPercentual(taxaDeRegistro)}
-          rotulo="Taxa de registro"
-          apoio={`${taxaDeRegistro.numerador} de ${taxaDeRegistro.denominador} clientes com check-in ou mensagem`}
-        />
-        <Indicador
-          valor={formatarPercentual(conversaoEmVendas)}
-          rotulo="Conversão em vendas"
-          apoio={
-            conversaoEmVendas.percentual === null
-              ? 'sem visitas no período'
-              : `${conversaoEmVendas.numerador} de ${conversaoEmVendas.denominador} visitas com venda`
-          }
-        />
-        <Indicador valor={String(inativos.total)} rotulo="Clientes inativos" apoio="laranja e vermelho, hoje" />
-      </div>
-    </>
+    <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <Indicador
+        rotulo="Visitas no período"
+        valor={String(visitas.total)}
+        apoio={
+          visitas.mediaPorCliente === null
+            ? 'sem clientes ativos'
+            : `média de ${String(visitas.mediaPorCliente).replace('.', ',')} por cliente`
+        }
+      />
+      <Indicador
+        rotulo="Taxa de registro"
+        valor={formatarPercentual(taxaDeRegistro)}
+        apoio={`${taxaDeRegistro.numerador} de ${taxaDeRegistro.denominador} clientes com check-in ou mensagem`}
+      />
+      <Indicador
+        rotulo="Conversão em vendas"
+        valor={formatarPercentual(conversaoEmVendas)}
+        apoio={
+          conversaoEmVendas.percentual === null
+            ? 'sem visitas no período'
+            : `${conversaoEmVendas.numerador} de ${conversaoEmVendas.denominador} visitas com venda`
+        }
+      />
+      <Indicador rotulo="Clientes inativos" valor={String(inativos.total)} apoio="laranja e vermelho, hoje" />
+    </dl>
   );
 }
 
 /** `representanteId`: o escolhido no seletor do gestor; `undefined` = carteira toda. */
 export function KpisCard({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) {
+  const idTitulo = useId();
   const { data: kpis, isLoading, isError, error, isPlaceholderData } = useKpis(periodoDias, representanteId);
 
-  // `isPlaceholderData`: o resultado do período anterior segue visível, esmaecido, até o novo chegar.
   return (
-    <div aria-busy={isPlaceholderData} className={isPlaceholderData ? 'atualizando' : undefined}>
-      {kpis && (
-        <p className="campo-ajuda kpi-periodo">
-          Período: {formatarDataCalendario(kpis.periodo.inicio)} a {formatarDataCalendario(kpis.periodo.fim)} ·{' '}
-          {descreverClientesAtivos(kpis.clientesAtivos)}
-        </p>
-      )}
+    <section aria-labelledby={idTitulo} className="space-y-3">
+      <div>
+        <h2 id={idTitulo} className="text-xl font-semibold">
+          Quem está visitando pouco?
+        </h2>
+        {kpis && <p className="text-sm text-muted-foreground">{descreverPeriodo(kpis)}</p>}
+      </div>
 
-      {isLoading && <p className="aviso">Carregando indicadores...</p>}
+      {isLoading && <p className="text-sm text-muted-foreground">Carregando indicadores...</p>}
 
       {isError && (
-        <p className="aviso aviso-atencao" role="alert">
+        <Aviso tom="erro" role="alert">
           {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
-        </p>
+        </Aviso>
       )}
 
-      {kpis && <ConteudoKpis kpis={kpis} />}
-    </div>
+      {/* `isPlaceholderData`: o resultado do período anterior segue visível, esmaecido, até o novo chegar. */}
+      {kpis && (
+        <div
+          aria-busy={isPlaceholderData}
+          className={cn('space-y-3 transition-opacity', isPlaceholderData && 'opacity-60')}
+        >
+          {kpis.semDados && (
+            <EstadoVazio icone="bar-chart">
+              Nenhuma visita ou mensagem registrada no período — indicadores zerados.
+            </EstadoVazio>
+          )}
+          <Indicadores kpis={kpis} />
+        </div>
+      )}
+    </section>
   );
 }

@@ -1,4 +1,6 @@
 import { Component, type ReactNode } from 'react';
+import { Aviso } from './crm/ui';
+import { Button } from './ui/button';
 
 type Props = {
   children: ReactNode;
@@ -18,7 +20,8 @@ function recarregarPagina(): void {
  * arquivo que já não existe; o `lazy` rejeita e, sem este limite, o React
  * desmontaria a tela inteira. Aqui fica um aviso com o botão de recarregar,
  * que baixa a versão nova. (O `vite:preloadError` em main.tsx já recarrega
- * sozinho uma vez por sessão; este aviso cobre o que sobrar.)
+ * sozinho uma vez por sessão; este aviso cobre o que sobrar.) Visual da
+ * base nova (Etapa 8): aviso em caixa, dentro da moldura.
  */
 export class LimiteDeErroDeCarregamento extends Component<Props, Estado> {
   state: Estado = { falhou: false };
@@ -32,16 +35,12 @@ export class LimiteDeErroDeCarregamento extends Component<Props, Estado> {
       return this.props.children;
     }
     return (
-      <div className="container">
-        <div className="conteudo">
-          <p className="aviso aviso-nova-versao" role="alert">
-            <span>O app foi atualizado.</span>
-            <button type="button" className="btn-link-aviso" onClick={this.props.recarregar ?? recarregarPagina}>
-              Recarregar
-            </button>
-          </p>
-        </div>
-      </div>
+      <Aviso tom="atencao" role="alert" className="flex flex-wrap items-center justify-between gap-3">
+        <span>O app foi atualizado.</span>
+        <Button type="button" variant="outline" size="sm" onClick={this.props.recarregar ?? recarregarPagina}>
+          Recarregar
+        </Button>
+      </Aviso>
     );
   }
 }

@@ -12,9 +12,11 @@ const OPCOES_PERIODO = [30, 90, 365].map((dias) => ({ valor: dias, rotulo: `${di
 type Props = {
   valor: number;
   onChange: (dias: number) => void;
+  /** Regra de layout do `FiltroPilulas` (padrão: respiro embaixo). */
+  className?: string;
 };
 
-export function FiltroPeriodo({ valor, onChange }: Props) {
+export function FiltroPeriodo({ valor, onChange, className }: Props) {
   return (
     <FiltroPilulas
       rotulo="Período"
@@ -22,6 +24,7 @@ export function FiltroPeriodo({ valor, onChange }: Props) {
       opcoes={OPCOES_PERIODO}
       valor={valor}
       onChange={onChange}
+      className={className}
     />
   );
 }

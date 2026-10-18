@@ -19,7 +19,7 @@ import { AvisoNovaVersao } from './pwa/AvisoNovaVersao';
 import { AvisoSemRede } from './pwa/AvisoSemRede';
 import { BannerInstalar } from './pwa/BannerInstalar';
 
-// O Painel (só do gestor) carrega o Recharts: fica num pedaço à parte, baixado só quando aberto.
+// O Painel (só do gestor) fica num pedaço à parte, baixado só quando aberto.
 const PainelPage = lazy(() => import('./pages/PainelPage'));
 
 /**
@@ -71,15 +71,7 @@ export function App() {
                 path="/painel"
                 element={
                   <LimiteDeErroDeCarregamento>
-                    <Suspense
-                      fallback={
-                        <div className="container">
-                          <div className="conteudo">
-                            <p className="aviso">Carregando painel...</p>
-                          </div>
-                        </div>
-                      }
-                    >
+                    <Suspense fallback={<p className="text-sm text-muted-foreground">Carregando painel...</p>}>
                       <PainelPage />
                     </Suspense>
                   </LimiteDeErroDeCarregamento>
