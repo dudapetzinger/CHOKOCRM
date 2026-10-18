@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useRepresentantes } from '../hooks/useRepresentantes';
 import { descreverSituacao } from '../lib/descreverSituacao';
+import { useDevolverFoco } from '../lib/useFoco';
 import { telefoneParaWaMe } from '../lib/telefone';
 import { mensagemErroApi, updateCliente, type ClienteCompleto } from '../services/clients';
 import { EtiquetaSituacao } from './EtiquetaSituacao';
@@ -98,6 +99,7 @@ type Props = {
 export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props) {
   const idTitulo = useId();
   const [adicionandoContato, setAdicionandoContato] = useState(false);
+  const { ref: botaoAdicionarContato, devolverFoco } = useDevolverFoco<HTMLButtonElement>(adicionandoContato);
   const contatoPrincipal = cliente.contatos.find((contato) => contato.principal);
   const telefone = contatoPrincipal?.telefone ?? cliente.telefone;
   const numeroInternacional = telefoneParaWaMe(telefone);
@@ -137,6 +139,7 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
             )}
             {!adicionandoContato && (
               <button
+                ref={botaoAdicionarContato}
                 type="button"
                 className="inline-flex items-center gap-1 rounded-md text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11"
                 onClick={() => setAdicionandoContato(true)}
@@ -185,7 +188,13 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
 
       {adicionandoContato && (
         <div className="mt-4">
-          <NovoContato clienteId={cliente.id} aoConcluir={() => setAdicionandoContato(false)} />
+          <NovoContato
+            clienteId={cliente.id}
+            aoConcluir={() => {
+              devolverFoco();
+              setAdicionandoContato(false);
+            }}
+          />
         </div>
       )}
     </section>

@@ -11,7 +11,8 @@
  *   `contact.service.ts`) — passar `principalControl={{ tipo: 'checkbox' }}`.
  *
  * Visual do protótipo (Etapa 8): rótulo acima de cada campo (`Campo`) e os
- * campos em duas colunas quando o grupo tem espaço.
+ * campos em duas colunas quando o grupo tem espaço. Sem o preenchimento
+ * automático do navegador, que oferecia os dados da própria representante.
  */
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +101,7 @@ export function ContatoFields({
           <Input
             type="text"
             id={`${idPrefix}-nome`}
+            autoComplete="off"
             value={value.nome}
             onChange={(event) => atualizar('nome', event.target.value)}
           />
@@ -109,6 +111,7 @@ export function ContatoFields({
           <Input
             type="text"
             id={`${idPrefix}-cargo`}
+            autoComplete="off"
             value={value.cargo}
             onChange={(event) => atualizar('cargo', event.target.value)}
           />
@@ -118,6 +121,7 @@ export function ContatoFields({
           <Input
             type="tel"
             id={`${idPrefix}-telefone`}
+            autoComplete="off"
             value={value.telefone}
             onChange={(event) => atualizar('telefone', event.target.value)}
           />
@@ -127,6 +131,7 @@ export function ContatoFields({
           <Input
             type="email"
             id={`${idPrefix}-email`}
+            autoComplete="off"
             value={value.email}
             onChange={(event) => atualizar('email', event.target.value)}
           />

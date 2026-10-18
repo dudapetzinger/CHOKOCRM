@@ -6,6 +6,8 @@
  * nome acessível mais longo (ex.: "30" e "30 dias"). Visual do `Segmented`
  * do protótipo: trilho cinza com a opção marcada em branco. `compacto` deixa
  * as opções mais estreitas no desktop; no celular todas têm 44 px de altura.
+ * `larguraTotal`: abaixo de 640 px o trilho ocupa a largura toda, numa linha
+ * só, e as opções dividem o espaço (o resultado do check-in em 320 px).
  */
 import { useRef, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
@@ -20,6 +22,9 @@ export const CLASSES_OPCAO =
   'rounded-md px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 max-md:min-w-11';
 export const CLASSES_OPCAO_MARCADA = 'bg-card text-foreground shadow-sm';
 export const CLASSES_OPCAO_DESMARCADA = 'text-muted-foreground hover:text-foreground';
+/** Abaixo de 640 px: trilho na largura toda, numa linha só, e opções dividindo o espaço. */
+export const CLASSES_TRILHO_LARGURA_TOTAL = 'max-sm:flex max-sm:w-full max-sm:flex-nowrap';
+export const CLASSES_OPCAO_LARGURA_TOTAL = 'max-sm:flex-auto max-sm:px-1';
 
 export type Opcao<V> = { valor: V; rotulo: string; rotuloAcessivel?: string };
 
@@ -29,9 +34,17 @@ type Props<V extends string | number> = {
   valor: V;
   onChange: (valor: V) => void;
   compacto?: boolean;
+  larguraTotal?: boolean;
 };
 
-export function Segmentado<V extends string | number>({ ariaLabel, opcoes, valor, onChange, compacto }: Props<V>) {
+export function Segmentado<V extends string | number>({
+  ariaLabel,
+  opcoes,
+  valor,
+  onChange,
+  compacto,
+  larguraTotal,
+}: Props<V>) {
   const botoes = useRef<(HTMLButtonElement | null)[]>([]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
@@ -44,7 +57,12 @@ export function Segmentado<V extends string | number>({ ariaLabel, opcoes, valor
   }
 
   return (
-    <div className={CLASSES_TRILHO} role="radiogroup" aria-label={ariaLabel} onKeyDown={handleKeyDown}>
+    <div
+      className={cn(CLASSES_TRILHO, larguraTotal && CLASSES_TRILHO_LARGURA_TOTAL)}
+      role="radiogroup"
+      aria-label={ariaLabel}
+      onKeyDown={handleKeyDown}
+    >
       {opcoes.map((opcao, indice) => {
         const marcado = opcao.valor === valor;
         return (
@@ -61,6 +79,7 @@ export function Segmentado<V extends string | number>({ ariaLabel, opcoes, valor
             className={cn(
               CLASSES_OPCAO,
               compacto && 'px-2.5',
+              larguraTotal && CLASSES_OPCAO_LARGURA_TOTAL,
               marcado ? CLASSES_OPCAO_MARCADA : CLASSES_OPCAO_DESMARCADA,
             )}
             onClick={() => onChange(opcao.valor)}

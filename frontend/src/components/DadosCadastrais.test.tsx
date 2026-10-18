@@ -73,6 +73,19 @@ describe('DadosCadastrais', () => {
     expect(detalhes).toContainElement(screen.getByRole('button', { name: 'Adicionar contato', hidden: true }));
   });
 
+  it('"Adicionar contato" abre o contato novo com o foco em "Nome"; Cancelar devolve o foco ao botão', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    renderizar();
+
+    await usuario.click(screen.getByText('Dados cadastrais', { selector: 'summary' }));
+    await usuario.click(screen.getByRole('button', { name: 'Adicionar contato' }));
+    expect(screen.getByLabelText('Nome')).toHaveFocus();
+
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('group', { name: 'Novo contato' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Adicionar contato' })).toHaveFocus();
+  });
+
   it('salvar a edição dos dados avisa "Dados do cliente atualizados." num toast', async () => {
     vi.mocked(updateCliente).mockResolvedValue(cliente);
     const usuario = userEvent.setup({ delay: null });

@@ -39,6 +39,7 @@ import {
   type ContatoFormValue,
 } from './ContatoFields';
 import { formatarData } from '../lib/formatarData';
+import { useDevolverFoco } from '../lib/useFoco';
 import { Aviso, Campo, CLASSES_BOTAO_PERIGO, Etiqueta } from './crm/ui';
 import { NovoContato } from './crm/NovoContato';
 
@@ -118,6 +119,7 @@ export function DadosCadastrais({ cliente }: Props) {
   const [erroInativacaoEnvio, setErroInativacaoEnvio] = useState<string | null>(null);
 
   const [adicionandoContato, setAdicionandoContato] = useState(false);
+  const { ref: botaoAdicionarContato, devolverFoco } = useDevolverFoco<HTMLButtonElement>(adicionandoContato);
   const [editandoContatoId, setEditandoContatoId] = useState<string | null>(null);
   const [valorContato, setValorContato] = useState<ContatoFormValue>(contatoFormularioVazio(false));
   const [erroContatoValidacao, setErroContatoValidacao] = useState<string | null>(null);
@@ -533,9 +535,16 @@ export function DadosCadastrais({ cliente }: Props) {
           )}
 
           {adicionandoContato ? (
-            <NovoContato clienteId={id} aoConcluir={() => setAdicionandoContato(false)} />
+            <NovoContato
+              clienteId={id}
+              aoConcluir={() => {
+                devolverFoco();
+                setAdicionandoContato(false);
+              }}
+            />
           ) : (
             <Button
+              ref={botaoAdicionarContato}
               type="button"
               size="sm"
               variant="outline"

@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { toast } from 'sonner'
 
 /**
  * O que o jsdom não implementa e o Radix (menus e popovers do shadcn, Etapa 8)
@@ -44,4 +45,13 @@ beforeEach(() => {
       value: matchMediaQueNuncaCorresponde,
     })
   }
+})
+
+/**
+ * Os avisos do sonner ficam num estado do módulo, e um `Toaster` novo
+ * recebe de novo os que ainda estão ativos: sem isto, o "Check-in salvo" de
+ * um teste aparece no seguinte.
+ */
+afterEach(() => {
+  toast.dismiss()
 })

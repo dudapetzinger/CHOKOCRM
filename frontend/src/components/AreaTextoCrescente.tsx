@@ -2,9 +2,11 @@
  * `<textarea>` que cresce com o conteúdo até 8 linhas (daí em diante rola)
  * e mostra um contador de caracteres abaixo: "n caracteres", ou "n/máximo"
  * quando `maximo` é informado (só então o tamanho é limitado, via
- * `maxLength`). Repassa todas as props de `<textarea>`.
+ * `maxLength`). Repassa todas as props de `<textarea>`. Visual do
+ * `Textarea` do protótipo (Etapa 8): `className` soma às classes dele.
  */
 import { useLayoutEffect, useRef, useState, type ChangeEvent, type TextareaHTMLAttributes } from 'react';
+import { Textarea } from '@/components/ui/textarea';
 
 const MAXIMO_LINHAS = 8;
 
@@ -42,8 +44,8 @@ export function AreaTextoCrescente({ maximo, value, defaultValue, onChange, rows
   }
 
   return (
-    <div className="area-texto-crescente">
-      <textarea
+    <div className="space-y-1">
+      <Textarea
         {...resto}
         ref={ref}
         rows={rows}
@@ -52,7 +54,9 @@ export function AreaTextoCrescente({ maximo, value, defaultValue, onChange, rows
         onChange={handleChange}
         maxLength={maximo}
       />
-      <span className="contador">{maximo === undefined ? `${tamanho} caracteres` : `${tamanho}/${maximo}`}</span>
+      <p className="text-right text-xs text-muted-foreground">
+        {maximo === undefined ? `${tamanho} caracteres` : `${tamanho}/${maximo}`}
+      </p>
     </div>
   );
 }

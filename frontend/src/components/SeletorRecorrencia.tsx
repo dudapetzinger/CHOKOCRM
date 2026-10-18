@@ -4,13 +4,21 @@
  * Um valor fora dos atalhos já abre com "Outro" marcado e o campo
  * preenchido. O campo vazio é repassado como `NaN`, para a validação de
  * quem usa o seletor (ver `RecorrenciaCard`) acusar o erro. Visual do
- * controle segmentado do protótipo (Etapa 8), o mesmo de `Segmentado`.
+ * controle segmentado do protótipo (Etapa 8), o mesmo de `Segmentado`; no
+ * celular, as quatro opções numa linha só, na largura toda.
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { proximoIndicePorSeta } from '../lib/navegacaoSetas';
-import { CLASSES_OPCAO, CLASSES_OPCAO_DESMARCADA, CLASSES_OPCAO_MARCADA, CLASSES_TRILHO } from './Segmentado';
+import {
+  CLASSES_OPCAO,
+  CLASSES_OPCAO_DESMARCADA,
+  CLASSES_OPCAO_LARGURA_TOTAL,
+  CLASSES_OPCAO_MARCADA,
+  CLASSES_TRILHO,
+  CLASSES_TRILHO_LARGURA_TOTAL,
+} from './Segmentado';
 
 const ATALHOS = [15, 20, 30];
 const OUTRO = 'outro';
@@ -79,7 +87,12 @@ export function SeletorRecorrencia({ valor, onChange, id }: Props) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className={CLASSES_TRILHO} role="radiogroup" aria-label="Recorrência de visitas" onKeyDown={handleKeyDown}>
+      <div
+        className={cn(CLASSES_TRILHO, CLASSES_TRILHO_LARGURA_TOTAL)}
+        role="radiogroup"
+        aria-label="Recorrência de visitas"
+        onKeyDown={handleKeyDown}
+      >
         {OPCOES.map((opcao, indice) => {
           const marcado = indice === indiceAtual;
           // Nenhuma opção marcada (não deveria ocorrer): o primeiro atalho fica no Tab.
@@ -94,7 +107,11 @@ export function SeletorRecorrencia({ valor, onChange, id }: Props) {
               role="radio"
               aria-checked={marcado}
               tabIndex={focavel ? 0 : -1}
-              className={cn(CLASSES_OPCAO, marcado ? CLASSES_OPCAO_MARCADA : CLASSES_OPCAO_DESMARCADA)}
+              className={cn(
+                CLASSES_OPCAO,
+                CLASSES_OPCAO_LARGURA_TOTAL,
+                marcado ? CLASSES_OPCAO_MARCADA : CLASSES_OPCAO_DESMARCADA,
+              )}
               onClick={() => {
                 focarCampoOutro.current = opcao === OUTRO;
                 escolher(opcao);

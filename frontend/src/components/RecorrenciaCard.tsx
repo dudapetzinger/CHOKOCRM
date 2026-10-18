@@ -126,7 +126,6 @@ export function RecorrenciaCard({ clienteId, recorrenciaDias, historico, podeAlt
             </label>
             <AreaTextoCrescente
               id="recorrencia-justificativa"
-              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
               value={justificativa}
               onChange={(event) => setJustificativa(event.target.value)}
               placeholder="Ex.: Cliente pediu visitas mais espaçadas na baixa temporada."

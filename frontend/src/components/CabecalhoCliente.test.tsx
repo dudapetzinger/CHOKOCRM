@@ -177,8 +177,11 @@ describe('CabecalhoCliente', () => {
     expect(screen.getByRole('group', { name: 'Novo contato' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Adicionar contato' })).not.toBeInTheDocument();
 
+    expect(screen.getByLabelText('Nome')).toHaveFocus();
+
     await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(screen.queryByRole('group', { name: 'Novo contato' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Adicionar contato' })).toBeInTheDocument();
+    // O foco volta para quem abriu o formulário
+    expect(screen.getByRole('button', { name: 'Adicionar contato' })).toHaveFocus();
   });
 });

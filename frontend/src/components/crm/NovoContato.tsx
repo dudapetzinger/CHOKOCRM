@@ -9,13 +9,19 @@
  * dentro de formulário não vale em HTML). Os botões são `type="button"` e
  * Enter num campo adiciona o contato em vez de enviar o formulário em volta.
  *
- * `aoConcluir(contato)` depois de gravar; `aoConcluir()` ao cancelar.
+ * `aoConcluir(contato)` depois de gravar; `aoConcluir()` ao cancelar. Abre
+ * com o foco em "Nome"; quem abre devolve o foco ao gatilho em `aoConcluir`
+ * (`useDevolverFoco`). Erro de validação leva o foco ao primeiro campo
+ * inválido, que o leitor de tela lê com a mensagem. Os campos não usam o
+ * preenchimento automático do navegador: ele oferecia nome, telefone e
+ * e-mail da própria representante para o contato do cliente.
  */
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useFocoNoPrimeiroErro } from '../../lib/useFoco';
 import { createContato, mensagemErroApi, type Contato, type ContatoInput } from '../../services/clients';
 import { Campo } from './ui';
 
@@ -36,11 +42,11 @@ function validar(contato: ContatoInput): Erros {
   return erros;
 }
 
-const CAMPOS: { campo: CampoTexto; rotulo: string; tipo: string; autoComplete: string }[] = [
-  { campo: 'nome', rotulo: 'Nome', tipo: 'text', autoComplete: 'name' },
-  { campo: 'cargo', rotulo: 'Cargo', tipo: 'text', autoComplete: 'organization-title' },
-  { campo: 'telefone', rotulo: 'Telefone', tipo: 'tel', autoComplete: 'tel' },
-  { campo: 'email', rotulo: 'E-mail', tipo: 'email', autoComplete: 'email' },
+const CAMPOS: { campo: CampoTexto; rotulo: string; tipo: string }[] = [
+  { campo: 'nome', rotulo: 'Nome', tipo: 'text' },
+  { campo: 'cargo', rotulo: 'Cargo', tipo: 'text' },
+  { campo: 'telefone', rotulo: 'Telefone', tipo: 'tel' },
+  { campo: 'email', rotulo: 'E-mail', tipo: 'email' },
 ];
 
 type Props = {
@@ -59,6 +65,12 @@ export function NovoContato({ clienteId, aoConcluir }: Props) {
     principal: false,
   });
   const [erros, setErros] = useState<Erros>({});
+  const campoNome = useRef<HTMLInputElement | null>(null);
+  const { ref: grupo, focarPrimeiroErro } = useFocoNoPrimeiroErro<HTMLDivElement>();
+
+  useEffect(() => {
+    campoNome.current?.focus();
+  }, []);
 
   const mutation = useMutation({
     mutationFn: (dados: ContatoInput) => createContato(clienteId, dados),
@@ -74,7 +86,10 @@ export function NovoContato({ clienteId, aoConcluir }: Props) {
     if (mutation.isPending) return;
     const encontrados = validar(contato);
     setErros(encontrados);
-    if (Object.keys(encontrados).length > 0) return;
+    if (Object.keys(encontrados).length > 0) {
+      focarPrimeiroErro();
+      return;
+    }
 
     mutation.mutate({
       nome: contato.nome.trim(),
@@ -94,6 +109,7 @@ export function NovoContato({ clienteId, aoConcluir }: Props) {
 
   return (
     <div
+      ref={grupo}
       role="group"
       aria-label="Novo contato"
       className="@container space-y-3 rounded-lg border bg-card p-3"
@@ -106,12 +122,13 @@ export function NovoContato({ clienteId, aoConcluir }: Props) {
       )}
 
       <div className="grid gap-3 @md:grid-cols-2">
-        {CAMPOS.map(({ campo, rotulo, tipo, autoComplete }) => (
+        {CAMPOS.map(({ campo, rotulo, tipo }) => (
           <Campo key={campo} rotulo={rotulo} htmlFor={`${id}-${campo}`} erro={erros[campo]}>
             <Input
+              ref={campo === 'nome' ? campoNome : undefined}
               id={`${id}-${campo}`}
               type={tipo}
-              autoComplete={autoComplete}
+              autoComplete="off"
               value={contato[campo]}
               onChange={(event) => {
                 setContato((anterior) => ({ ...anterior, [campo]: event.target.value }));
