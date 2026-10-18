@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft } from 'lucide-react';
 import { getCliente, mensagemErroApi } from '../services/clients';
 import { VisitTimeline } from '../components/VisitTimeline';
 import { CabecalhoCliente } from '../components/CabecalhoCliente';
@@ -9,27 +10,35 @@ import { RecorrenciaCard } from '../components/RecorrenciaCard';
 import { DadosErpCard } from '../components/DadosErpCard';
 import { InsightsCard } from '../components/InsightsCard';
 import { MensagemEstoqueCard } from '../components/MensagemEstoqueCard';
+import { Aviso, Cartao } from '../components/crm/ui';
 import { useAuth } from '../auth/useAuth';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
+import { useLarguraDesktop } from '../lib/useLarguraDesktop';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do cliente.';
 
 /**
  * Ficha do cliente (UC06). Desde a Etapa 7 (spec 5.5) abre pelo que se usa em
- * campo: cabeçalho com situação e atalhos de contato → "Novo check-in" →
- * mensagem de estoque → insights → dados do ERP → histórico de visitas →
- * recorrência → dados cadastrais (recolhidos em `DadosCadastrais`).
+ * campo; na Etapa 8 (spec 7.2) tem o visual do protótipo (`crm/ficha.tsx`) e
+ * esta ordem: cabeçalho (com Ligar, WhatsApp, "Novo check-in", "Adicionar
+ * contato" e, para o gestor, a transferência) → mensagem de estoque →
+ * insights → dados do ERP → histórico de visitas → recorrência → dados
+ * cadastrais (recolhidos em `DadosCadastrais`). Os avisos de sucesso são
+ * `toast`; os erros ficam na própria ficha.
  *
- * `embutida` (desktop, ao lado da lista de Clientes): só o conteúdo, sem
- * `.container`. Nos dois casos a barra superior ("Clientes", e "Voltar" no
- * celular) e a navegação vêm da moldura (components/crm/Moldura.tsx); o
- * título da ficha é o nome do cliente (h2).
+ * `embutida` (a partir de 1024 px, ao lado da lista de Clientes): só o
+ * conteúdo, numa região "Ficha do cliente". Sozinha (abaixo de 1024 px), a
+ * barra superior ("Clientes", e "Voltar" no celular) e a navegação vêm da
+ * moldura (components/crm/Moldura.tsx); entre 768 e 1023 px, sem o "Voltar"
+ * da moldura, a ficha mostra o atalho "Clientes" de volta à lista, como no
+ * protótipo. O título da ficha é o nome do cliente (h2).
  */
 export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean }) {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const location = useLocation();
+  const desktop = useLarguraDesktop();
 
   /**
    * A tela de check-in redireciona para cá com este aviso quando a visita
@@ -43,8 +52,6 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
   const mutationEditarDescricao = useEditarDescricaoVisita(id);
   const mutationAnexarFoto = useAnexarFotoVisita(id);
 
-  const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
-
   const {
     data: cliente,
     isLoading,
@@ -56,33 +63,42 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
     enabled: Boolean(id),
   });
 
-  /** A página inteira no celular; no desktop embutido, só o conteúdo. */
+  /** A ficha sozinha (celular e tablet) ou embutida ao lado da lista (desktop). */
   function envolver(conteudo: ReactNode) {
     if (embutida) {
       return (
-        <section className="ficha-embutida" aria-label="Ficha do cliente">
+        <section className="space-y-4" aria-label="Ficha do cliente">
           {conteudo}
         </section>
       );
     }
     return (
-      <div className="container">
-        <div className="conteudo">{conteudo}</div>
+      <div className="space-y-4">
+        {desktop && (
+          <Link
+            to="/clientes"
+            className="inline-flex items-center gap-1 rounded-md text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            Clientes
+          </Link>
+        )}
+        {conteudo}
       </div>
     );
   }
 
   if (isLoading) {
-    return envolver(<p className="aviso">Carregando dados do cliente...</p>);
+    return envolver(<p className="text-sm text-muted-foreground">Carregando dados do cliente...</p>);
   }
 
   // Sem ficha nenhuma para mostrar, só o erro. Com a ficha no cache, o erro de
   // um refetch (rede caída) vira um aviso acima dela (spec 5.7).
   if (!cliente) {
     return envolver(
-      <p className="aviso aviso-atencao" role="alert">
+      <Aviso tom="erro" role="alert">
         {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
-      </p>,
+      </Aviso>,
     );
   }
 
@@ -92,23 +108,16 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
   return envolver(
     <>
       {isError && (
-        <p className="aviso aviso-atencao" role="alert">
+        <Aviso tom="erro" role="alert">
           {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
-        </p>
+        </Aviso>
       )}
 
-      {mensagemSucesso && <p className="aviso">{mensagemSucesso}</p>}
+      <CabecalhoCliente cliente={cliente} podeCheckIn={ehRepresentante && cliente.ativo} podeTransferir={ehGestor} />
 
-      <CabecalhoCliente cliente={cliente} mostrarRepresentante={ehGestor} />
-
-      {ehRepresentante &&
-        (cliente.ativo ? (
-          <Link className="btn-primario btn-bloco btn-check-in" to={`/clientes/${id}/check-in`}>
-            Novo check-in
-          </Link>
-        ) : (
-          <p className="campo-ajuda aviso-check-in">Cliente inativo não recebe check-in novo.</p>
-        ))}
+      {ehRepresentante && !cliente.ativo && (
+        <p className="text-sm text-muted-foreground">Cliente inativo não recebe check-in novo.</p>
+      )}
 
       <MensagemEstoqueCard clienteId={id!} podeGerar={ehRepresentante && cliente.ativo} />
 
@@ -116,19 +125,17 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
 
       <DadosErpCard clienteId={id!} />
 
-      <section className="card" aria-labelledby="titulo-visitas">
-        <h2 className="card-titulo" id="titulo-visitas">
-          Histórico de visitas
-        </h2>
-
+      <Cartao titulo="Histórico de visitas">
         {fotoNaoEnviada && (
-          <p className="aviso aviso-atencao" role="alert">
-            O check-in foi salvo, mas a foto não chegou a ser enviada. Você pode anexá-la na visita
-            mais recente, abaixo.
-          </p>
+          <Aviso tom="atencao" role="alert" className="mb-4">
+            O check-in foi salvo, mas a foto não chegou a ser enviada. Você pode anexá-la na visita mais recente,
+            abaixo.
+          </Aviso>
         )}
 
-        {!ehRepresentante && <p className="campo-ajuda">Somente o representante registra visitas.</p>}
+        {!ehRepresentante && (
+          <p className="mb-4 text-sm text-muted-foreground">Somente o representante registra visitas.</p>
+        )}
 
         <VisitTimeline
           visitas={visitas ?? []}
@@ -141,7 +148,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
             await mutationAnexarFoto.mutateAsync({ visitaId, foto: comprimida });
           }}
         />
-      </section>
+      </Cartao>
 
       <RecorrenciaCard
         clienteId={id!}
@@ -150,7 +157,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
         podeAlterar={ehRepresentante && cliente.ativo}
       />
 
-      <DadosCadastrais cliente={cliente} onMensagemSucesso={setMensagemSucesso} />
+      <DadosCadastrais cliente={cliente} />
     </>,
   );
 }

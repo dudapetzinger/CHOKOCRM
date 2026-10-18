@@ -4,9 +4,12 @@
  * na janela do mesmo evento no ano anterior com a média dele e sugere uma ação
  * (aumentar oferta, criar promoção ou ofertar desconto), com os números que
  * sustentam a sugestão em "Como calculamos". Visível para todos os papéis
- * (representante e gestor).
+ * (representante e gestor). Visual do protótipo (Etapa 8): cada sugestão
+ * numa caixa com a ação numa etiqueta.
  */
 import { useState, type ReactElement } from 'react';
+import { Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useInsights } from '../hooks/useInsights';
 import { mensagemErroApi } from '../services/clients';
 import { formatarDataCalendario } from '../lib/formatarData';
@@ -16,6 +19,7 @@ import type { AcaoSugerida, Insights, Sugestao } from '../services/insights';
 import { AvisoSimulado } from './AvisoSimulado';
 import { FiltroHorizonte, HORIZONTE_PADRAO_DIAS } from './FiltroHorizonte';
 import { EstadoVazio } from './EstadoVazio';
+import { Aviso, Cartao, Etiqueta } from './crm/ui';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os insights.';
 
@@ -29,27 +33,31 @@ function renderizarSugestao(sugestao: Sugestao): ReactElement {
   const { periodoComparado, produtosMaisComprados } = sugestao;
 
   return (
-    <article key={sugestao.evento.id} className="insight">
-      <h3 className="insight-titulo">{sugestao.titulo}</h3>
-      <span className="etiqueta">{ROTULO_ACAO[sugestao.acao]}</span>
-      <p>{sugestao.texto}</p>
+    <article key={sugestao.evento.id} className="space-y-1.5 rounded-lg border p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-semibold">{sugestao.titulo}</h3>
+        <Etiqueta tom="laranja">{ROTULO_ACAO[sugestao.acao]}</Etiqueta>
+      </div>
+      <p className="text-muted-foreground">{sugestao.texto}</p>
 
       <details>
-        <summary>Como calculamos</summary>
-        <p className="cliente-info">
-          Período comparado: {formatarDataCalendario(periodoComparado.inicio)} a{' '}
-          {formatarDataCalendario(periodoComparado.fim)}
-        </p>
-        <p className="cliente-info">
-          Compras no período: {formatarMoeda(sugestao.comprasNaJanela)} · média do cliente:{' '}
-          {formatarMoeda(sugestao.mediaNaJanela)}
-        </p>
-        {produtosMaisComprados.length > 0 && (
-          <p className="cliente-info">
-            Mais comprados:{' '}
-            {produtosMaisComprados.map((produto) => `${produto.nome} (${produto.quantidade})`).join(', ')}
+        <summary className="cursor-pointer font-medium max-md:py-3">Como calculamos</summary>
+        <div className="mt-1 space-y-1 text-muted-foreground">
+          <p>
+            Período comparado: {formatarDataCalendario(periodoComparado.inicio)} a{' '}
+            {formatarDataCalendario(periodoComparado.fim)}
           </p>
-        )}
+          <p>
+            Compras no período: {formatarMoeda(sugestao.comprasNaJanela)} · média do cliente:{' '}
+            {formatarMoeda(sugestao.mediaNaJanela)}
+          </p>
+          {produtosMaisComprados.length > 0 && (
+            <p>
+              Mais comprados:{' '}
+              {produtosMaisComprados.map((produto) => `${produto.nome} (${produto.quantidade})`).join(', ')}
+            </p>
+          )}
+        </div>
       </details>
     </article>
   );
@@ -64,18 +72,20 @@ function renderizarSugestao(sugestao: Sugestao): ReactElement {
 function renderizarConteudo(insights: Insights): ReactElement {
   switch (insights.status) {
     case 'SEM_ERP_ID':
-      return <p className="campo-ajuda">Cliente sem identificador de ERP. Informe-o em Editar dados.</p>;
+      return (
+        <p className="text-sm text-muted-foreground">Cliente sem identificador de ERP. Informe-o em Editar dados.</p>
+      );
 
     case 'INDISPONIVEL':
-      return <p className="aviso">Dados do ERP indisponíveis no momento.</p>;
+      return <Aviso>Dados do ERP indisponíveis no momento.</Aviso>;
 
     case 'OK':
       return (
-        <>
+        <div className="space-y-3">
           {insights.sugestoes.map(renderizarSugestao)}
 
           {insights.eventosSemHistorico.map((evento) => (
-            <p key={evento.id} className="campo-ajuda">
+            <p key={evento.id} className="text-sm text-muted-foreground">
               {evento.nome} {descreverPrazo(evento.diasAteEvento)} — sem histórico de compras no mesmo período
               do ano passado.
             </p>
@@ -88,7 +98,7 @@ function renderizarConteudo(insights: Insights): ReactElement {
               Nenhum evento sazonal nos próximos {insights.horizonteDias} dias.
             </EstadoVazio>
           )}
-        </>
+        </div>
       );
 
     default: {
@@ -118,27 +128,30 @@ export function InsightsCard({ clienteId }: Props) {
   const mostrarFiltro = insights?.status !== 'SEM_ERP_ID';
 
   return (
-    <section className="card" aria-labelledby="titulo-insights">
-      <h2 id="titulo-insights" className="card-titulo">
-        Insights e sugestões
-      </h2>
-
+    <Cartao
+      titulo={
+        <span className="flex items-center gap-2">
+          <Sparkles aria-hidden="true" className="size-4 text-primary" />
+          Insights e sugestões
+        </span>
+      }
+    >
       {insights?.status === 'OK' && insights.simulado && <AvisoSimulado />}
 
       {mostrarFiltro && <FiltroHorizonte valor={horizonteDias} onChange={setHorizonteDias} />}
 
       {/* `isPlaceholderData`: o resultado do horizonte anterior segue visível, esmaecido, até o novo chegar. */}
-      <div className={isPlaceholderData ? 'atualizando' : undefined} aria-busy={isPlaceholderData}>
-        {isLoading && <p className="aviso">Carregando insights...</p>}
+      <div className={cn('space-y-3 transition-opacity', isPlaceholderData && 'opacity-60')} aria-busy={isPlaceholderData}>
+        {isLoading && <p className="text-sm text-muted-foreground">Carregando insights...</p>}
 
         {isError && (
-          <p className="aviso aviso-atencao" role="alert">
+          <Aviso tom="erro" role="alert">
             {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
-          </p>
+          </Aviso>
         )}
 
         {insights && renderizarConteudo(insights)}
       </div>
-    </section>
+    </Cartao>
   );
 }

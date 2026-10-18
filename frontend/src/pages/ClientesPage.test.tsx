@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthContext, type Role } from '../auth/auth-context';
@@ -63,12 +64,21 @@ afterEach(() => {
 });
 
 describe('ClientesPage', () => {
-  it('no desktop, sem cliente escolhido, mostra "Selecione um cliente" ao lado da lista', async () => {
-    simularLargura(true);
+  it('a partir de 1024 px, sem cliente escolhido, mostra "Selecione um cliente" ao lado da lista', async () => {
+    simularLargura(1024);
     renderizar();
 
     expect(await screen.findByText('Nenhum cliente cadastrado ainda.')).toBeInTheDocument();
     expect(screen.getByText('Selecione um cliente')).toBeInTheDocument();
+  });
+
+  it('no tablet (900 px), só a lista, com "Novo cliente" na barra de ferramentas', async () => {
+    simularLargura(900);
+    renderizar('REPRESENTANTE');
+
+    expect(await screen.findByText('Nenhum cliente cadastrado ainda.')).toBeInTheDocument();
+    expect(screen.queryByText('Selecione um cliente')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Novo cliente' })).toHaveLength(1);
   });
 
   it('no celular, mostra só a lista', async () => {
@@ -88,25 +98,43 @@ describe('ClientesPage', () => {
     expect(screen.queryByText('Buscar cliente')).not.toBeInTheDocument();
   });
 
-  it('no desktop, o representante tem "Novo cliente" na barra de ferramentas, sem botão flutuante', async () => {
+  it('no desktop, o representante tem "Novo cliente" na barra de ferramentas, ao lado da busca, sem botão flutuante', async () => {
     simularLargura(true);
     renderizar('REPRESENTANTE');
 
     const novo = await screen.findByRole('link', { name: 'Novo cliente' });
     expect(novo).toHaveAttribute('href', '/clientes/novo');
-    expect(novo).toHaveClass('btn-primario');
-    expect(novo.closest('.barra-ferramentas')).not.toBeNull();
-    expect(document.querySelector('.flutuante-wrap')).toBeNull();
+    expect(screen.getAllByRole('link', { name: 'Novo cliente' })).toHaveLength(1);
+    // Na mesma barra da busca e da legenda
+    const barra = screen.getByRole('button', { name: 'Legenda das situações' }).parentElement;
+    expect(barra).toContainElement(novo);
+    expect(barra).toContainElement(screen.getByRole('searchbox', { name: 'Buscar cliente' }));
   });
 
-  it('no celular, o representante tem só o botão flutuante "Novo cliente"', async () => {
+  it('no celular, o representante tem só o botão flutuante "Novo cliente", depois da lista', async () => {
     simularLargura(false);
+    vi.mocked(listClients).mockResolvedValue([CLIENTE]);
     renderizar('REPRESENTANTE');
 
-    const novo = await screen.findByRole('link', { name: 'Novo cliente' });
+    const linha = await screen.findByRole('link', { name: /Doces da Vovó/ });
+    const novo = screen.getByRole('link', { name: 'Novo cliente' });
     expect(novo).toHaveAttribute('href', '/clientes/novo');
-    expect(novo).toHaveClass('botao-flutuante');
-    expect(novo.closest('.barra-ferramentas')).toBeNull();
+    expect(screen.getAllByRole('link', { name: 'Novo cliente' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Legenda das situações' }).parentElement).not.toContainElement(novo);
+    expect(linha.compareDocumentPosition(novo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('a legenda (?) abre com as frases do app sobre as situações', async () => {
+    simularLargura(false);
+    renderizar();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Legenda das situações' }));
+
+    expect(await screen.findByText('Em dia: visitado há até 15 dias, com venda.')).toBeInTheDocument();
+    expect(screen.getByText('Atenção: visitado há até 15 dias, sem venda.')).toBeInTheDocument();
+    expect(screen.getByText('Vencendo: 16 a 30 dias sem visita.')).toBeInTheDocument();
+    expect(screen.getByText('Atrasado: mais de 30 dias ou nunca visitado.')).toBeInTheDocument();
+    expect(screen.getByText('Cliente sem compra no ERP há mais de 60 dias cai para Vencendo.')).toBeInTheDocument();
   });
 
   it('o gestor não vê "Novo cliente"', async () => {

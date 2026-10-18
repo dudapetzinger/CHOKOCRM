@@ -50,15 +50,10 @@ describe('ListaClientesEsfriando', () => {
 
     const linhas = screen.getAllByRole('link');
     expect(linhas).toHaveLength(5);
-    // O nome é o primeiro texto de `.nome`; a cidade vem num <span> dentro dele
-    const nomes = linhas.map((linha) => within(linha).getByText(/^[A-Z]/, { selector: '.nome' }).firstChild?.textContent);
-    expect(nomes).toEqual([
-      'Café Novo',
-      'Confeitaria Antiga',
-      'Padaria Atrasada',
-      'Bistrô Vencendo',
-      'Empório Laranja',
-    ]);
+    // Uma linha por cliente, na ordem de urgência
+    ['Café Novo', 'Confeitaria Antiga', 'Padaria Atrasada', 'Bistrô Vencendo', 'Empório Laranja'].forEach(
+      (nome, indice) => expect(within(linhas[indice]).getByText(nome)).toBeInTheDocument(),
+    );
     expect(within(linhas[0]).getByText('Nunca visitado')).toBeInTheDocument();
     expect(screen.queryByText('Doceria Verde')).not.toBeInTheDocument();
     expect(screen.queryByText('Mercado Amarelo')).not.toBeInTheDocument();

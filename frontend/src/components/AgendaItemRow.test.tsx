@@ -32,7 +32,8 @@ describe('AgendaItemRow', () => {
   it('mostra a etiqueta de situação e a linha de dias', () => {
     renderizar(false);
 
-    expect(screen.getByText('Atrasado · 40 dias sem visita')).toHaveClass('etiqueta-situacao', 'etiqueta-vermelho');
+    expect(screen.getByText('Atrasado · 40 dias sem visita')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Classificação: Vermelho' })).toBeInTheDocument();
     expect(screen.getByText('Blumenau · Próxima visita venceu há 13 dias')).toBeInTheDocument();
   });
 

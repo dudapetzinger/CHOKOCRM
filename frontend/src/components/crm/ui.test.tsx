@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { Avatar, Campo, Cartao } from './ui';
+import { Avatar, Aviso, Campo, Cartao } from './ui';
 
 describe('Campo', () => {
   it('liga o rótulo, a ajuda e o erro ao controle', () => {
@@ -51,5 +51,17 @@ describe('Avatar', () => {
 
     expect(container).toHaveTextContent('EF');
     expect(container.firstChild).toHaveAttribute('aria-hidden', 'true');
+  });
+});
+
+describe('Aviso', () => {
+  it('mostra o texto e repassa o papel (alerta para erro que aparece depois)', () => {
+    render(
+      <Aviso tom="erro" role="alert">
+        Você está sem internet.
+      </Aviso>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Você está sem internet.');
   });
 });

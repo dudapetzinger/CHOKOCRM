@@ -33,14 +33,15 @@ describe('ItemListaCliente', () => {
 
     expect(screen.getByRole('img', { name: 'Classificação: Vermelho' })).toBeInTheDocument();
     expect(screen.getByText('Cafeteria Estrada Bonita')).toBeInTheDocument();
-    expect(screen.getByText('Joinville')).toHaveClass('cidade');
-    expect(screen.getByText('Nunca visitado')).toHaveClass('etiqueta-vermelho');
-    expect(document.querySelector('.avatar')).toBeNull();
+    expect(screen.getByText('Joinville')).toBeInTheDocument();
+    expect(screen.getByText('Nunca visitado')).toBeInTheDocument();
+    // Sem avatar: as iniciais (CE) não aparecem na linha
+    expect(screen.queryByText('CE')).not.toBeInTheDocument();
   });
 
   it('mostra "Rep.:" só com mostrarRepresentante', () => {
     const { rerender } = renderizar(<ItemListaCliente cliente={cliente()} mostrarRepresentante />);
-    expect(screen.getByText('Rep.: Eduarda Fischer')).toHaveClass('rep');
+    expect(screen.getByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
 
     rerender(
       <MemoryRouter>
@@ -54,7 +55,6 @@ describe('ItemListaCliente', () => {
     const { rerender } = renderizar(<ItemListaCliente cliente={cliente()} mostrarRepresentante={false} ativo />);
     const linha = screen.getByRole('link', { name: /Cafeteria Estrada Bonita/ });
     expect(linha).toHaveAttribute('aria-current', 'page');
-    expect(linha).toHaveClass('item-lista', 'ativo');
     expect(linha).toHaveAttribute('href', '/clientes/c1');
 
     rerender(

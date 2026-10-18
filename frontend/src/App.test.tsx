@@ -113,8 +113,8 @@ afterEach(() => {
 });
 
 describe('rota /clientes/:id', () => {
-  it('desktop: uma só navegação, lista com o cliente aberto destacado e a ficha embutida (sem "Voltar")', async () => {
-    simularLargura(true);
+  it('desktop (1024 px): uma só navegação, lista com o cliente aberto destacado e a ficha embutida (sem "Voltar")', async () => {
+    simularLargura(1024);
     abrirApp('/clientes/c1');
 
     // A ficha embutida mostra o nome do cliente como h2 (CabecalhoCliente).
@@ -137,8 +137,8 @@ describe('rota /clientes/:id', () => {
     expect(outroItem).not.toHaveAttribute('aria-current');
   });
 
-  it('desktop em /clientes: lista com o convite "Selecione um cliente" e nenhum item destacado', async () => {
-    simularLargura(true);
+  it('desktop (1024 px) em /clientes: lista com o convite "Selecione um cliente" e nenhum item destacado', async () => {
+    simularLargura(1024);
     abrirApp('/clientes');
 
     expect(await screen.findByText('Empório Central')).toBeInTheDocument();
@@ -147,6 +147,23 @@ describe('rota /clientes/:id', () => {
     expect(screen.getByRole('link', { name: /Doces da Vovó/ })).not.toHaveAttribute('aria-current');
     expect(screen.getByRole('link', { name: /Empório Central/ })).not.toHaveAttribute('aria-current');
     expect(screen.queryByRole('region', { name: 'Ficha do cliente' })).not.toBeInTheDocument();
+  });
+
+  it('tablet (900 px): menu lateral e só a ficha, com o atalho "Clientes" de volta à lista', async () => {
+    simularLargura(900);
+    abrirApp('/clientes/c1');
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Doces da Vovó' })).toBeInTheDocument();
+
+    expect(screen.queryByRole('region', { name: 'Ficha do cliente' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Empório Central/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument();
+    const navegacao = screen.getByRole('navigation', { name: 'Navegação principal' });
+    const voltarParaLista = screen
+      .getAllByRole('link', { name: 'Clientes' })
+      .find((link) => !navegacao.contains(link));
+    expect(voltarParaLista).toHaveAttribute('href', '/clientes');
+    expect(screen.getByRole('link', { name: 'Novo check-in' })).toHaveAttribute('href', '/clientes/c1/check-in');
   });
 
   it('celular: só a ficha, com "Voltar" e o título "Clientes" na barra superior e a navegação inferior', async () => {

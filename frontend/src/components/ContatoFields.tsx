@@ -9,7 +9,15 @@
  *   edição), onde "principal" é um checkbox independente — o backend cuida
  *   de rebaixar o principal anterior automaticamente ao promover outro (ver
  *   `contact.service.ts`) — passar `principalControl={{ tipo: 'checkbox' }}`.
+ *
+ * Visual do protótipo (Etapa 8): rótulo acima de cada campo (`Campo`) e os
+ * campos em duas colunas quando o grupo tem espaço.
  */
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { Campo, CLASSES_BOTAO_PERIGO } from './crm/ui';
+
 export type ContatoFormValue = {
   nome: string;
   cargo: string;
@@ -71,64 +79,66 @@ export function ContatoFields({
   }
 
   return (
-    <fieldset className="contato-linha" disabled={disabled}>
-      <legend className="contato-linha-legenda">{legenda}</legend>
+    <fieldset className="@container relative rounded-lg border p-3" disabled={disabled}>
+      {/* Legenda flutuando dentro do quadro (e não sobre a borda) */}
+      <legend className="float-left mb-3 text-sm font-semibold">{legenda}</legend>
       {onRemover && (
-        <button
+        <Button
           type="button"
-          className="contato-linha-remover"
+          size="sm"
+          variant="ghost"
+          className={cn('absolute top-1.5 right-1.5', CLASSES_BOTAO_PERIGO)}
           onClick={onRemover}
           disabled={removerDesabilitado}
         >
           Remover
-        </button>
+        </Button>
       )}
 
-      <div className="campo">
-        <label htmlFor={`${idPrefix}-nome`}>Nome</label>
-        <input
-          type="text"
-          id={`${idPrefix}-nome`}
-          value={value.nome}
-          onChange={(event) => atualizar('nome', event.target.value)}
-        />
+      <div className="clear-both grid gap-3 @md:grid-cols-2">
+        <Campo rotulo="Nome" htmlFor={`${idPrefix}-nome`}>
+          <Input
+            type="text"
+            id={`${idPrefix}-nome`}
+            value={value.nome}
+            onChange={(event) => atualizar('nome', event.target.value)}
+          />
+        </Campo>
+
+        <Campo rotulo="Cargo" htmlFor={`${idPrefix}-cargo`}>
+          <Input
+            type="text"
+            id={`${idPrefix}-cargo`}
+            value={value.cargo}
+            onChange={(event) => atualizar('cargo', event.target.value)}
+          />
+        </Campo>
+
+        <Campo rotulo="Telefone" htmlFor={`${idPrefix}-telefone`}>
+          <Input
+            type="tel"
+            id={`${idPrefix}-telefone`}
+            value={value.telefone}
+            onChange={(event) => atualizar('telefone', event.target.value)}
+          />
+        </Campo>
+
+        <Campo rotulo="E-mail" htmlFor={`${idPrefix}-email`}>
+          <Input
+            type="email"
+            id={`${idPrefix}-email`}
+            value={value.email}
+            onChange={(event) => atualizar('email', event.target.value)}
+          />
+        </Campo>
       </div>
 
-      <div className="campo">
-        <label htmlFor={`${idPrefix}-cargo`}>Cargo</label>
-        <input
-          type="text"
-          id={`${idPrefix}-cargo`}
-          value={value.cargo}
-          onChange={(event) => atualizar('cargo', event.target.value)}
-        />
-      </div>
-
-      <div className="campo">
-        <label htmlFor={`${idPrefix}-telefone`}>Telefone</label>
-        <input
-          type="tel"
-          id={`${idPrefix}-telefone`}
-          value={value.telefone}
-          onChange={(event) => atualizar('telefone', event.target.value)}
-        />
-      </div>
-
-      <div className="campo">
-        <label htmlFor={`${idPrefix}-email`}>E-mail</label>
-        <input
-          type="email"
-          id={`${idPrefix}-email`}
-          value={value.email}
-          onChange={(event) => atualizar('email', event.target.value)}
-        />
-      </div>
-
-      <label className="contato-principal-opcao" htmlFor={`${idPrefix}-principal`}>
+      <label className="mt-3 flex w-fit items-center gap-2 text-sm max-md:min-h-11" htmlFor={`${idPrefix}-principal`}>
         {principalControl.tipo === 'radio' ? (
           <input
             type="radio"
             id={`${idPrefix}-principal`}
+            className="size-4 accent-primary"
             name={principalControl.name}
             checked={value.principal}
             onChange={principalControl.onSelecionarPrincipal}
@@ -137,6 +147,7 @@ export function ContatoFields({
           <input
             type="checkbox"
             id={`${idPrefix}-principal`}
+            className="size-4 accent-primary"
             checked={value.principal}
             onChange={(event) => atualizar('principal', event.target.checked)}
           />
@@ -145,7 +156,7 @@ export function ContatoFields({
       </label>
 
       {erro && (
-        <p className="erro-campo" role="alert">
+        <p className="mt-2 text-sm font-medium text-destructive" role="alert">
           {erro}
         </p>
       )}

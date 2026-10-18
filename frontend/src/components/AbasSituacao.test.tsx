@@ -8,7 +8,7 @@ describe('AbasSituacao', () => {
   it('renderiza as quatro abas com as contagens', () => {
     render(<AbasSituacao valor="PRIORIDADE" onChange={vi.fn()} contagens={contagens} />);
 
-    expect(screen.getByRole('group', { name: 'Filtrar por situação' })).toHaveClass('abas');
+    expect(screen.getByRole('group', { name: 'Filtrar por situação' })).toBeInTheDocument();
     expect(screen.getAllByRole('button').map((botao) => botao.getAttribute('aria-label'))).toEqual([
       'Prioridade · 7',
       'Atenção · 3',
@@ -22,7 +22,7 @@ describe('AbasSituacao', () => {
 
     const aba = screen.getByRole('button', { name: 'Em dia · 12' });
     expect(aba).toHaveTextContent('Em dia12');
-    expect(within(aba).getByText('12')).toHaveClass('aba-contagem');
+    expect(within(aba).getByText('Em dia')).toBeInTheDocument();
     expect(within(aba).getByText('12')).toHaveAttribute('aria-hidden', 'true');
   });
 
@@ -35,13 +35,10 @@ describe('AbasSituacao', () => {
     expect(onChange).toHaveBeenCalledWith('EM_DIA');
   });
 
-  it('marca só a aba ativa com aria-pressed e a classe "ativa"', () => {
+  it('marca só a aba ativa com aria-pressed', () => {
     render(<AbasSituacao valor="ATENCAO" onChange={vi.fn()} contagens={contagens} />);
 
     expect(screen.getByRole('button', { name: 'Atenção · 3' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Atenção · 3' })).toHaveClass('aba', 'ativa');
-    expect(screen.getByRole('button', { name: 'Prioridade · 7' })).toHaveClass('aba');
-    expect(screen.getByRole('button', { name: 'Prioridade · 7' })).not.toHaveClass('ativa');
     expect(screen.getByRole('button', { name: 'Prioridade · 7' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Em dia · 12' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Todos · 22' })).toHaveAttribute('aria-pressed', 'false');

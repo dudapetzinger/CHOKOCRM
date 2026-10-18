@@ -7,7 +7,7 @@ describe('FiltroPeriodo', () => {
     render(<FiltroPeriodo valor={30} onChange={vi.fn()} />);
 
     expect(screen.getByRole('radiogroup', { name: 'Período de análise dos indicadores' })).toBeInTheDocument();
-    expect(screen.getByText('Período')).toHaveClass('filtro-rotulo');
+    expect(screen.getByText('Período')).toBeInTheDocument();
     expect(screen.getAllByRole('radio').map((opcao) => opcao.textContent)).toEqual([
       '30 dias',
       '90 dias',

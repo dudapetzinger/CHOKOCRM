@@ -40,7 +40,6 @@ describe('SeletorRepresentante', () => {
     renderizarComo('GESTOR', <SeletorRepresentante />);
 
     const select = screen.getByRole('combobox', { name: 'Filtrar por representante' });
-    expect(select).toHaveClass('select');
     expect(select).toHaveValue('');
     expect(await screen.findByRole('option', { name: 'Eduarda Fischer' })).toBeInTheDocument();
     expect(screen.getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([

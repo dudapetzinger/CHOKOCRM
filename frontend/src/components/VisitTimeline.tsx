@@ -1,18 +1,31 @@
 /**
  * Histórico de interações do cliente (UC08). Mostra as visitas da mais
  * recente para a mais antiga; o autor pode corrigir a descrição no lugar e
- * anexar a foto que não subiu no momento do check-in. Sem cores de
- * classificação: isso é Etapa 4.
+ * anexar a foto que não subiu no momento do check-in.
+ *
+ * Visual do protótipo (Etapa 8): linha do tempo com um ponto por visita, a
+ * data e o resultado numa etiqueta (venda em verde, negociação em laranja,
+ * sem venda neutra) e a foto em miniatura.
  *
  * Componente de apresentação: não chama a API: recebe os dados e os
  * callbacks da página (ver docs/arquitetura.md).
  */
 import { useState } from 'react';
-import { ROTULO_RESULTADO } from '../services/visits';
+import { Camera, Pencil } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { ROTULO_RESULTADO, type ResultadoVisita } from '../services/visits';
 import type { Visita } from '../services/visits';
 import { VisitaFoto } from './VisitaFoto';
 import { formatarDataHora } from '../lib/formatarData';
 import { EstadoVazio } from './EstadoVazio';
+import { Aviso, Etiqueta } from './crm/ui';
+
+const TOM_RESULTADO: Record<ResultadoVisita, 'verde' | 'laranja' | 'neutro'> = {
+  VENDA: 'verde',
+  NEGOCIACAO: 'laranja',
+  SEM_VENDA: 'neutro',
+};
 
 type Props = {
   visitas: Visita[];
@@ -64,98 +77,119 @@ export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarF
   }
 
   return (
-    <ul className="lista">
+    <>
       {erro && (
-        <li className="aviso aviso-atencao" role="alert">
+        <Aviso tom="erro" role="alert" className="mb-4">
           {erro}
-        </li>
+        </Aviso>
       )}
 
-      {visitas.map((visita) => {
-        const souAutor = usuarioId === visita.autor.id;
+      <ol className="relative ml-1 space-y-5 border-l pl-5">
+        {visitas.map((visita) => {
+          const souAutor = usuarioId === visita.autor.id;
 
-        return (
-          <li key={visita.id} className="item-lista visita">
-            <div className="visita-cabecalho">
-              <strong>{formatarDataHora(visita.dataHora)}</strong>
-              <span className="etiqueta">{ROTULO_RESULTADO[visita.resultado]}</span>
-            </div>
-
-            <p className="contato-cargo">
-              {visita.contato ? `Contato: ${visita.contato.nome}` : 'Sem contato informado'} · por{' '}
-              {visita.autor.nome}
-            </p>
-
-            {editando === visita.id ? (
-              <div className="campo">
-                <textarea
-                  value={rascunho}
-                  onChange={(evento) => setRascunho(evento.target.value)}
-                  rows={3}
-                  aria-label="Descrição da visita"
-                />
-                <div className="acoes-linha">
-                  <button
-                    type="button"
-                    className="btn-primario"
-                    disabled={ocupado}
-                    onClick={() => void salvarDescricao(visita.id)}
-                  >
-                    {ocupado ? 'Salvando...' : 'Salvar'}
-                  </button>
-                  <button type="button" className="btn-secundario" onClick={() => setEditando(null)}>
-                    Cancelar
-                  </button>
-                </div>
+          return (
+            <li key={visita.id} className="relative">
+              {/* Ponto da linha do tempo: marca sem texto, no laranja vivo */}
+              <span
+                aria-hidden="true"
+                className="absolute top-1.5 -left-[25.5px] size-2.5 rounded-full bg-primary-vivo"
+              />
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-sm font-medium">{formatarDataHora(visita.dataHora)}</span>
+                <Etiqueta tom={TOM_RESULTADO[visita.resultado]}>{ROTULO_RESULTADO[visita.resultado]}</Etiqueta>
+                <span className="text-xs text-muted-foreground">
+                  {visita.contato ? `Contato: ${visita.contato.nome}` : 'Sem contato informado'} · por{' '}
+                  {visita.autor.nome}
+                </span>
               </div>
-            ) : (
-              <>
-                <p>{visita.descricao}</p>
-                {visita.editadoEm && (
-                  <p className="campo-ajuda">Descrição editada em {formatarDataHora(visita.editadoEm)}</p>
-                )}
-                {souAutor && (
-                  <button
-                    type="button"
-                    className="btn-secundario"
-                    onClick={() => {
-                      setEditando(visita.id);
-                      setRascunho(visita.descricao);
-                      setErro(null);
-                    }}
-                  >
-                    Editar descrição
-                  </button>
-                )}
-              </>
-            )}
 
-            {visita.temFoto ? (
-              <VisitaFoto visitaId={visita.id} />
-            ) : (
-              souAutor && (
-                <label className="campo">
-                  <span className="campo-ajuda">Esta visita não tem foto de comprovação.</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    disabled={ocupado}
-                    onChange={(evento) => {
-                      const arquivo = evento.target.files?.[0];
-                      // Limpar o valor permite escolher o MESMO arquivo de
-                      // novo depois de uma falha de envio: sem isso o
-                      // navegador não dispara `change` e o botão parece morto.
-                      evento.target.value = '';
-                      if (arquivo) void anexarFoto(visita.id, arquivo);
-                    }}
+              {editando === visita.id ? (
+                <div className="mt-2 space-y-2">
+                  <Textarea
+                    value={rascunho}
+                    onChange={(evento) => setRascunho(evento.target.value)}
+                    rows={3}
+                    aria-label="Descrição da visita"
                   />
-                </label>
-              )
-            )}
-          </li>
-        );
-      })}
-    </ul>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" disabled={ocupado} onClick={() => void salvarDescricao(visita.id)}>
+                      {ocupado ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setEditando(null)}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="mt-1 text-sm whitespace-pre-wrap text-muted-foreground">{visita.descricao}</p>
+                  {visita.editadoEm && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Descrição editada em {formatarDataHora(visita.editadoEm)}
+                    </p>
+                  )}
+                  {souAutor && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="mt-1 -ml-3 text-muted-foreground"
+                      onClick={() => {
+                        setEditando(visita.id);
+                        setRascunho(visita.descricao);
+                        setErro(null);
+                      }}
+                    >
+                      <Pencil aria-hidden="true" />
+                      Editar descrição
+                    </Button>
+                  )}
+                </>
+              )}
+
+              {visita.temFoto ? (
+                <VisitaFoto visitaId={visita.id} />
+              ) : (
+                souAutor && (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-xs text-muted-foreground">Esta visita não tem foto de comprovação.</p>
+                    {/* O campo de arquivo fica escondido dentro do rótulo com cara de botão:
+                        tocar no rótulo abre a câmera; pelo teclado, o foco vai ao campo e o
+                        anel aparece no rótulo. */}
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      className="focus-within:ring-2 focus-within:ring-ring has-[:disabled]:pointer-events-none has-[:disabled]:opacity-50"
+                    >
+                      <label>
+                        <Camera aria-hidden="true" />
+                        Anexar foto
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="sr-only"
+                          disabled={ocupado}
+                          onChange={(evento) => {
+                            const arquivo = evento.target.files?.[0];
+                            // Limpar o valor permite escolher o MESMO arquivo de
+                            // novo depois de uma falha de envio: sem isso o
+                            // navegador não dispara `change` e o botão parece morto.
+                            evento.target.value = '';
+                            if (arquivo) void anexarFoto(visita.id, arquivo);
+                          }}
+                        />
+                      </label>
+                    </Button>
+                  </div>
+                )
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </>
   );
 }

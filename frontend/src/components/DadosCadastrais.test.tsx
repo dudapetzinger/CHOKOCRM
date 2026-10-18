@@ -1,7 +1,14 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ClienteCompleto } from '../services/clients';
+import { updateCliente, type ClienteCompleto } from '../services/clients';
 import { DadosCadastrais } from './DadosCadastrais';
+import { Toaster } from './ui/sonner';
+
+vi.mock('../services/clients', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/clients')>()),
+  updateCliente: vi.fn(),
+}));
 
 const cliente: ClienteCompleto = {
   id: 'c1',
@@ -38,7 +45,8 @@ function renderizar() {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <DadosCadastrais cliente={cliente} onMensagemSucesso={() => {}} />
+      <DadosCadastrais cliente={cliente} />
+      <Toaster />
     </QueryClientProvider>,
   );
 }
@@ -48,7 +56,7 @@ describe('DadosCadastrais', () => {
     const { container } = renderizar();
 
     const detalhes = container.querySelector('details');
-    expect(detalhes).toHaveClass('card', 'dados-cadastrais');
+    expect(detalhes).toBeInTheDocument();
     expect(detalhes).not.toHaveAttribute('open');
     expect(screen.getByText('Dados cadastrais', { selector: 'summary' })).toBeInTheDocument();
   });
@@ -57,10 +65,27 @@ describe('DadosCadastrais', () => {
     const { container } = renderizar();
     const detalhes = container.querySelector('details')!;
 
-    expect(detalhes).toContainElement(screen.getByText('CNPJ: 12.345.678/0001-99'));
+    expect(detalhes).toContainElement(screen.getByText('12.345.678/0001-99'));
+    expect(detalhes).toContainElement(screen.getByText('CNPJ'));
     expect(detalhes).toContainElement(screen.getByText('Marta Hoffmann'));
     expect(detalhes).toContainElement(screen.getByRole('button', { name: 'Editar dados', hidden: true }));
     expect(detalhes).toContainElement(screen.getByRole('button', { name: 'Inativar cliente', hidden: true }));
-    expect(detalhes).toContainElement(screen.getByRole('button', { name: '+ Adicionar contato', hidden: true }));
+    expect(detalhes).toContainElement(screen.getByRole('button', { name: 'Adicionar contato', hidden: true }));
+  });
+
+  it('salvar a edição dos dados avisa "Dados do cliente atualizados." num toast', async () => {
+    vi.mocked(updateCliente).mockResolvedValue(cliente);
+    const usuario = userEvent.setup({ delay: null });
+    renderizar();
+
+    await usuario.click(screen.getByText('Dados cadastrais', { selector: 'summary' }));
+    await usuario.click(screen.getByRole('button', { name: 'Editar dados' }));
+    await usuario.clear(screen.getByLabelText('Cidade'));
+    await usuario.type(screen.getByLabelText('Cidade'), 'Rio Negrinho');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    expect(updateCliente).toHaveBeenCalledWith('c1', expect.objectContaining({ cidade: 'Rio Negrinho' }));
+    expect(await screen.findByText('Dados do cliente atualizados.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar dados' })).toBeInTheDocument();
   });
 });

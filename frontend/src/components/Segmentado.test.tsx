@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Segmentado } from './Segmentado';
 
@@ -12,7 +12,7 @@ describe('Segmentado', () => {
   it('marca a opção atual e usa o rótulo acessível', () => {
     render(<Segmentado ariaLabel="Período" opcoes={opcoes} valor={30} onChange={vi.fn()} />);
 
-    expect(screen.getByRole('radiogroup', { name: 'Período' })).toHaveClass('segmentado');
+    expect(screen.getByRole('radiogroup', { name: 'Período' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: '30 dias' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: '30 dias' })).toHaveTextContent('30');
     expect(screen.getByRole('radio', { name: '30 dias' })).toHaveAttribute('tabindex', '0');
@@ -51,9 +51,11 @@ describe('Segmentado', () => {
     expect(onChange).toHaveBeenCalledWith(365);
   });
 
-  it('compacto acrescenta a classe .segmentado-compacto', () => {
-    render(<Segmentado ariaLabel="Período" opcoes={opcoes} valor={30} onChange={vi.fn()} compacto />);
+  it('compacto só muda as medidas: mesmo grupo, mesmas opções e a mesma marcada', () => {
+    render(<Segmentado ariaLabel="Período" opcoes={opcoes} valor={90} onChange={vi.fn()} compacto />);
 
-    expect(screen.getByRole('radiogroup', { name: 'Período' })).toHaveClass('segmentado', 'segmentado-compacto');
+    const grupo = screen.getByRole('radiogroup', { name: 'Período' });
+    expect(within(grupo).getAllByRole('radio').map((opcao) => opcao.textContent)).toEqual(['30', '90 dias', '365 dias']);
+    expect(screen.getByRole('radio', { name: '90 dias' })).toHaveAttribute('aria-checked', 'true');
   });
 });

@@ -14,7 +14,7 @@ import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
 import { LimiteDeErroDeCarregamento } from './components/LimiteDeErroDeCarregamento';
 import { rotaInicialDoPapel } from './lib/rotaInicial';
-import { useLarguraDesktop } from './lib/useLarguraDesktop';
+import { useLarguraDuasColunas } from './lib/useLarguraDesktop';
 import { AvisoNovaVersao } from './pwa/AvisoNovaVersao';
 import { AvisoSemRede } from './pwa/AvisoSemRede';
 import { BannerInstalar } from './pwa/BannerInstalar';
@@ -23,14 +23,15 @@ import { BannerInstalar } from './pwa/BannerInstalar';
 const PainelPage = lazy(() => import('./pages/PainelPage'));
 
 /**
- * `/clientes` e `/clientes/:id` numa rota só (Etapa 7). No desktop as duas
- * mostram a lista com a ficha ao lado — a mesma rota mantém a lista montada
- * (busca, aba, rolagem) ao trocar de cliente. No celular, com id, só a ficha.
+ * `/clientes` e `/clientes/:id` numa rota só (Etapa 7). A partir de 1024 px
+ * (spec 7.1) as duas mostram a lista com a ficha ao lado — a mesma rota
+ * mantém a lista montada (busca, aba, rolagem) ao trocar de cliente. Abaixo
+ * disso (celular e tablet), com id, só a ficha.
  */
 function ClientesOuFicha() {
   const { id } = useParams<{ id?: string }>();
-  const desktop = useLarguraDesktop();
-  return id && !desktop ? <ClienteDetalhePage /> : <ClientesPage />;
+  const duasColunas = useLarguraDuasColunas();
+  return id && !duasColunas ? <ClienteDetalhePage /> : <ClientesPage />;
 }
 
 /** `/` e endereços desconhecidos levam à tela inicial do papel (spec 6.5). */
