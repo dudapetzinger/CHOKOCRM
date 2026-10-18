@@ -7,7 +7,6 @@
  * e Hoje ficam lado a lado e aparecem mesmo vazias.
  */
 import { useAuth } from '../auth/useAuth';
-import { NavInferior } from '../components/NavInferior';
 import { AgendaItemRow } from '../components/AgendaItemRow';
 import { LayoutDuasColunas } from '../components/LayoutDuasColunas';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
@@ -17,7 +16,6 @@ import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
 import type { AgendaItem } from '../services/agenda';
 import { EstadoVazio } from '../components/EstadoVazio';
-import { Icone } from '../components/Icone';
 
 function linhaDiasAtraso(item: AgendaItem): string {
   return `Próxima visita venceu há ${item.diasAtraso} ${item.diasAtraso === 1 ? 'dia' : 'dias'}`;
@@ -65,7 +63,7 @@ function SecaoAgenda({ titulo, itens, linhaDias, podeCheckIn, mostrarRepresentan
 }
 
 export function AgendaPage() {
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
   const representanteId = useRepresentanteSelecionado();
   const { data, isLoading, isError, error } = useAgenda(representanteId);
   const podeCheckIn = user?.role === 'REPRESENTANTE';
@@ -76,15 +74,7 @@ export function AgendaPage() {
 
   return (
     <div className="container">
-      <header className="topo">
-        <h1>Agenda do dia</h1>
-        <button type="button" className="btn-terciario topo-acao" onClick={logout}>
-          <Icone nome="log-out" tamanho={18} />
-          Sair
-        </button>
-      </header>
-
-      <div className="conteudo conteudo-com-nav">
+      <div className="conteudo">
         <SeletorRepresentante />
 
         <p className="campo-ajuda">
@@ -151,8 +141,6 @@ export function AgendaPage() {
           </>
         )}
       </div>
-
-      <NavInferior />
     </div>
   );
 }

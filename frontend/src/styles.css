@@ -1,0 +1,148 @@
+/* ChokoCRM — base de interface do protótipo Lovable (Etapa 8).
+   Tailwind 4 + tokens do protótipo (.superpowers/referencia-lovable/src/styles.css),
+   com os ajustes de contraste da spec (6.3): texto sempre com 4,5:1 ou mais.
+
+   Convivência com o CSS antigo (src/styles/*.css) enquanto as telas migram:
+   main.tsx importa este arquivo ANTES de styles/global.css e styles/desktop.css.
+   O CSS antigo não tem camada (@layer), e regra sem camada vence qualquer
+   camada do Tailwind (preflight e utilidades), seja qual for a
+   especificidade: as telas ainda não migradas continuam como estão. As
+   regras antigas de elemento (h1–h3, p, campos) valem só dentro de
+   .container, a casca das telas antigas, para não vazarem para a moldura
+   nova. Sai tudo na tarefa que remove o CSS antigo. */
+@import "tailwindcss" source(none);
+@source "./";
+@import "tw-animate-css";
+
+@theme inline {
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-vivo: var(--primary-vivo);
+  --color-brown: var(--brown);
+  --color-cream: var(--cream);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-st-green: var(--st-green);
+  --color-st-green-soft: var(--st-green-soft);
+  --color-st-green-text: var(--st-green-text);
+  --color-st-yellow: var(--st-yellow);
+  --color-st-yellow-soft: var(--st-yellow-soft);
+  --color-st-orange: var(--st-orange);
+  --color-st-orange-soft: var(--st-orange-soft);
+  --color-st-red: var(--st-red);
+  --color-st-red-soft: var(--st-red-soft);
+  --color-st-red-text: var(--st-red-text);
+  --color-chart: var(--chart);
+  --color-chart-soft: var(--chart-soft);
+  --color-chart-text: var(--chart-text);
+  --color-chart-1: var(--chart);
+  /* Marca de gráfico, sem texto em cima: o laranja vivo do protótipo */
+  --color-chart-2: var(--primary-vivo);
+  --color-chart-3: var(--brown);
+  --color-chart-4: var(--st-yellow);
+  --color-chart-5: var(--st-green);
+  --color-sidebar: var(--card);
+  --color-sidebar-foreground: var(--foreground);
+  --color-sidebar-primary: var(--primary);
+  --color-sidebar-primary-foreground: var(--primary-foreground);
+  --color-sidebar-accent: var(--primary-soft);
+  --color-sidebar-accent-foreground: var(--brown);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--ring);
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.975 0.004 75);
+  --foreground: oklch(0.24 0.02 50);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.02 50);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.02 50);
+  /* Contraste (spec 6.3): o laranja do protótipo (#e66e20) dá 3,2:1 com
+     branco. O tom escuro dá 4,6:1 sobre branco (fundo de botão, texto
+     text-primary em cartão); sobre --background fica em 4,2:1, então
+     text-primary só em superfície branca. */
+  --primary: #c55200;
+  --primary-foreground: oklch(1 0 0);
+  --primary-soft: oklch(0.95 0.035 60);
+  /* O laranja original, só onde não há texto em cima: anel de foco, ícone
+     ativo do menu, ponto da linha do tempo, linha "Hoje" do gráfico */
+  --primary-vivo: #e66e20;
+  /* Texto sobre --primary-soft vai em text-brown (9,6:1), nunca em text-primary */
+  --brown: oklch(0.36 0.07 40);
+  --cream: oklch(0.94 0.04 80);
+  --secondary: oklch(1 0 0);
+  --secondary-foreground: oklch(0.3 0.03 50);
+  --muted: oklch(0.955 0.005 75);
+  --muted-foreground: oklch(0.52 0.015 60);
+  --accent: oklch(0.955 0.01 70);
+  --accent-foreground: oklch(0.3 0.03 50);
+  --destructive: oklch(0.58 0.2 27);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.91 0.008 70);
+  --input: oklch(0.88 0.01 70);
+  --ring: var(--primary-vivo);
+  --st-green: oklch(0.62 0.15 150);
+  --st-green-soft: oklch(0.95 0.04 150);
+  /* Texto da etiqueta verde sobre --st-green-soft: 5,4:1 (o --st-green dá 3:1) */
+  --st-green-text: #067132;
+  --st-yellow: oklch(0.8 0.15 88);
+  --st-yellow-soft: oklch(0.96 0.05 92);
+  --st-orange: oklch(0.7 0.17 52);
+  --st-orange-soft: oklch(0.95 0.04 55);
+  --st-red: oklch(0.58 0.2 27);
+  --st-red-soft: oklch(0.95 0.03 25);
+  /* Texto da etiqueta vermelha sobre --st-red-soft: 5,6:1 (o --st-red dá 4:1) */
+  --st-red-text: #b7191c;
+  --chart: oklch(0.58 0.15 250);
+  --chart-soft: oklch(0.58 0.15 250 / 12%);
+  /* Texto de chip azul (campanha) sobre --chart-soft: 5,7:1 (o --chart dá 3,7:1) */
+  --chart-text: #165f9f;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  /* Movimento reduzido (spec 6.4): sem transições nem animações */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

@@ -3,14 +3,12 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCliente, mensagemErroApi } from '../services/clients';
 import { VisitTimeline } from '../components/VisitTimeline';
-import { NavInferior } from '../components/NavInferior';
 import { CabecalhoCliente } from '../components/CabecalhoCliente';
 import { DadosCadastrais } from '../components/DadosCadastrais';
 import { RecorrenciaCard } from '../components/RecorrenciaCard';
 import { DadosErpCard } from '../components/DadosErpCard';
 import { InsightsCard } from '../components/InsightsCard';
 import { MensagemEstoqueCard } from '../components/MensagemEstoqueCard';
-import { Icone } from '../components/Icone';
 import { useAuth } from '../auth/useAuth';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
@@ -24,8 +22,9 @@ const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do cliente.
  * recorrência → dados cadastrais (recolhidos em `DadosCadastrais`).
  *
  * `embutida` (desktop, ao lado da lista de Clientes): só o conteúdo, sem
- * `.container`, barra "Cliente"/"Voltar" nem navegação — a tela de Clientes
- * já tem os seus. O título da ficha passa a ser o nome do cliente (h2).
+ * `.container`. Nos dois casos a barra superior ("Clientes", e "Voltar" no
+ * celular) e a navegação vêm da moldura (components/crm/Moldura.tsx); o
+ * título da ficha é o nome do cliente (h2).
  */
 export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean }) {
   const { id } = useParams<{ id: string }>();
@@ -58,7 +57,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
   });
 
   /** A página inteira no celular; no desktop embutido, só o conteúdo. */
-  function moldura(conteudo: ReactNode) {
+  function envolver(conteudo: ReactNode) {
     if (embutida) {
       return (
         <section className="ficha-embutida" aria-label="Ficha do cliente">
@@ -68,27 +67,19 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
     }
     return (
       <div className="container">
-        <header className="topo">
-          <h1>Cliente</h1>
-          <Link className="btn-terciario topo-acao" to="/clientes">
-            <Icone nome="arrow-left" tamanho={18} />
-            Voltar
-          </Link>
-        </header>
-        <div className="conteudo conteudo-com-nav">{conteudo}</div>
-        <NavInferior />
+        <div className="conteudo">{conteudo}</div>
       </div>
     );
   }
 
   if (isLoading) {
-    return moldura(<p className="aviso">Carregando dados do cliente...</p>);
+    return envolver(<p className="aviso">Carregando dados do cliente...</p>);
   }
 
   // Sem ficha nenhuma para mostrar, só o erro. Com a ficha no cache, o erro de
   // um refetch (rede caída) vira um aviso acima dela (spec 5.7).
   if (!cliente) {
-    return moldura(
+    return envolver(
       <p className="aviso aviso-atencao" role="alert">
         {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
       </p>,
@@ -98,7 +89,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
   const ehRepresentante = user?.role === 'REPRESENTANTE';
   const ehGestor = user?.role === 'GESTOR';
 
-  return moldura(
+  return envolver(
     <>
       {isError && (
         <p className="aviso aviso-atencao" role="alert">

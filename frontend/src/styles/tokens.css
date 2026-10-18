@@ -30,8 +30,10 @@
   --laranja-texto: #a14a00;
   --vermelho-texto: #8e1c1c;
 
-  /* Base neutra: fundo da página, superfícies, bordas e texto */
-  --fundo: #f4f5f7;
+  /* Base neutra: fundo da página, superfícies, bordas e texto. O fundo é o
+     da moldura nova (--background de src/styles.css, Etapa 8), para as
+     telas antigas não destoarem dentro dela. */
+  --fundo: #f8f6f4;
   --superficie: #ffffff;
   --superficie-suave: #f8f9fb;
   --borda: #e3e6ea;
@@ -78,9 +80,10 @@
   --sombra-2: 0 8px 24px rgba(31, 35, 40, 0.12);
 
   /* Tipografia (fonte servida pelo app via @fontsource, ver main.tsx):
-     Figtree em tudo; os dois nomes ficam para não reescrever todo o CSS */
-  --fonte-titulos: 'Figtree', system-ui, sans-serif;
-  --fonte-texto: 'Figtree', system-ui, sans-serif;
+     Plus Jakarta Sans em tudo, a do protótipo (Etapa 8); os dois nomes
+     ficam para não reescrever todo o CSS */
+  --fonte-titulos: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --fonte-texto: 'Plus Jakarta Sans', system-ui, sans-serif;
   --texto-xs: 12px;
   --texto-sm: 14px;
   --texto-md: 16px;

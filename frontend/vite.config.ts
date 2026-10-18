@@ -1,5 +1,7 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 /**
@@ -7,12 +9,17 @@ import { VitePWA } from 'vite-plugin-pwa'
  * mesmo host (ADR-007), então o service worker precisa saber o que é API.
  * `/agenda` sozinho é tela do app (a API só tem `/agenda/...`).
  */
-const CAMINHO_API = /^\/(auth|clients|dashboard|insights|visits|stock-messages|contacts|users|health)(\/|$)|^\/agenda\//
+const CAMINHO_API = /^\/(auth|clients|dashboard|insights|visits|stock-messages|contacts|users|campaigns|goals|erp|health)(\/|$)|^\/agenda\//
 
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('src', import.meta.url)) },
+  },
   plugins: [
     react(),
+    // Base de interface do protótipo (Etapa 8): Tailwind 4 lê src/styles.css
+    tailwindcss(),
     // PWA instalável, sem modo offline de escrita (ADR-012): o service worker
     // guarda só a casca do app (HTML, JS, CSS, fontes, ícones); a API passa
     // sempre pela rede. Service worker só no build/preview, não no `npm run dev`.
@@ -25,9 +32,9 @@ export default defineConfig({
         description: 'Gestão de visitas para representantes comerciais',
         lang: 'pt-BR',
         theme_color: '#ffffff',
-        background_color: '#f4f5f7',
+        background_color: '#f8f6f4',
         display: 'standalone',
-        start_url: '/clientes',
+        start_url: '/',
         scope: '/',
         icons: [
           { src: 'pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
@@ -48,7 +55,7 @@ export default defineConfig({
             // Esta função é copiada como texto para o sw.js: não pode usar
             // CAMINHO_API daqui (não existe lá), por isso a expressão repetida.
             urlPattern: ({ url }) =>
-              /^\/(auth|clients|dashboard|insights|visits|stock-messages|contacts|users|health)(\/|$)|^\/agenda\//.test(
+              /^\/(auth|clients|dashboard|insights|visits|stock-messages|contacts|users|campaigns|goals|erp|health)(\/|$)|^\/agenda\//.test(
                 url.pathname,
               ),
             handler: 'NetworkOnly',

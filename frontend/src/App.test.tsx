@@ -9,8 +9,8 @@ import { listClients, type ClienteCompleto, type ClienteListItem } from './servi
 /**
  * `/clientes/:id` (rota única `ClientesOuFicha`, Etapa 7): desktop = lista com
  * a ficha ao lado; celular = só a ficha. Renderiza o `App` de verdade (com o
- * `BrowserRouter` na URL do teste e a sessão salva em `localStorage`); só a
- * camada de serviços é simulada.
+ * `BrowserRouter` na URL do teste e a sessão salva em `localStorage`), dentro
+ * da moldura (Etapa 8); só a camada de serviços é simulada.
  */
 
 const LISTA: ClienteListItem[] = [
@@ -80,6 +80,7 @@ vi.mock('./services/stockMessages', () => ({
   buscarProposta: vi.fn(),
   gerarMensagem: vi.fn(),
 }));
+vi.mock('./services/agenda', () => ({ buscarAgendaDoDia: vi.fn(async () => ({ atrasadas: [], hoje: [] })) }));
 
 function abrirApp(caminho: string) {
   localStorage.setItem(
@@ -112,7 +113,7 @@ afterEach(() => {
 });
 
 describe('rota /clientes/:id', () => {
-  it('desktop: uma só navegação, lista com o cliente aberto destacado e a ficha embutida (sem "Voltar" nem h1 "Cliente")', async () => {
+  it('desktop: uma só navegação, lista com o cliente aberto destacado e a ficha embutida (sem "Voltar")', async () => {
     simularLargura(true);
     abrirApp('/clientes/c1');
 
@@ -120,8 +121,7 @@ describe('rota /clientes/:id', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Doces da Vovó' })).toBeInTheDocument();
 
     expect(screen.getAllByRole('navigation')).toHaveLength(1);
-    expect(screen.queryByRole('link', { name: 'Voltar' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 1, name: 'Cliente' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Clientes' })).toBeInTheDocument();
 
     expect(rolarParaTopo).toHaveBeenCalledWith({ top: 0 });
@@ -129,12 +129,12 @@ describe('rota /clientes/:id', () => {
     const ficha = screen.getByRole('region', { name: 'Ficha do cliente' });
     expect(within(ficha).getByRole('link', { name: 'Novo check-in' })).toHaveAttribute('href', '/clientes/c1/check-in');
 
-    const itemAberto = document.querySelector('a.item-lista[href="/clientes/c1"]');
-    expect(itemAberto).not.toBeNull();
-    expect(itemAberto).toHaveClass('ativo');
-    const outroItem = document.querySelector('a.item-lista[href="/clientes/c2"]');
-    expect(outroItem).not.toBeNull();
-    expect(outroItem).not.toHaveClass('ativo');
+    const itemAberto = screen.getByRole('link', { name: /Doces da Vovó/ });
+    expect(itemAberto).toHaveAttribute('href', '/clientes/c1');
+    expect(itemAberto).toHaveAttribute('aria-current', 'page');
+    const outroItem = screen.getByRole('link', { name: /Empório Central/ });
+    expect(outroItem).toHaveAttribute('href', '/clientes/c2');
+    expect(outroItem).not.toHaveAttribute('aria-current');
   });
 
   it('desktop em /clientes: lista com o convite "Selecione um cliente" e nenhum item destacado', async () => {
@@ -144,22 +144,22 @@ describe('rota /clientes/:id', () => {
     expect(await screen.findByText('Empório Central')).toBeInTheDocument();
     expect(screen.getByText('Selecione um cliente')).toBeInTheDocument();
     expect(rolarParaTopo).not.toHaveBeenCalled();
-    expect(document.querySelectorAll('a.item-lista')).toHaveLength(2);
-    expect(document.querySelector('a.item-lista.ativo')).toBeNull();
+    expect(screen.getByRole('link', { name: /Doces da Vovó/ })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: /Empório Central/ })).not.toHaveAttribute('aria-current');
     expect(screen.queryByRole('region', { name: 'Ficha do cliente' })).not.toBeInTheDocument();
   });
 
-  it('celular: só a ficha, com "Voltar" para a lista, h1 "Cliente" e a navegação da própria ficha', async () => {
+  it('celular: só a ficha, com "Voltar" e o título "Clientes" na barra superior e a navegação inferior', async () => {
     simularLargura(false);
     abrirApp('/clientes/c1');
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Doces da Vovó' })).toBeInTheDocument();
 
-    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute('href', '/clientes');
-    expect(screen.getByRole('heading', { level: 1, name: 'Cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Clientes' })).toBeInTheDocument();
     expect(screen.getAllByRole('navigation')).toHaveLength(1);
     expect(screen.queryByRole('region', { name: 'Ficha do cliente' })).not.toBeInTheDocument();
-    expect(document.querySelector('a.item-lista')).toBeNull();
+    expect(screen.queryByRole('link', { name: /Empório Central/ })).not.toBeInTheDocument();
   });
 
   it('celular em /clientes: só a lista, sem ficha', async () => {
@@ -168,7 +168,7 @@ describe('rota /clientes/:id', () => {
 
     expect(await screen.findByText('Empório Central')).toBeInTheDocument();
     expect(screen.queryByText('Selecione um cliente')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Voltar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument();
   });
 });
 
@@ -189,13 +189,14 @@ describe('troca de usuário no mesmo navegador', () => {
     },
   ];
 
-  it('sair e entrar como outro usuário não mostra a lista do anterior, nem antes do refetch terminar', async () => {
+  it('sair pelo menu da conta e entrar como outro usuário leva à tela inicial dele, sem a lista do anterior nem antes do refetch terminar', async () => {
     simularLargura(false);
     const usuario = userEvent.setup({ delay: null });
     abrirApp('/clientes');
     expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
 
-    await usuario.click(screen.getByRole('button', { name: 'Sair' }));
+    await usuario.click(screen.getByRole('button', { name: 'Conta de Eduarda Fischer' }));
+    await usuario.click(await screen.findByRole('menuitem', { name: 'Sair' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Entrar' })).toBeInTheDocument();
 
     // A lista do Rafael só chega quando o teste mandar: enquanto isso, nada da carteira da Eduarda.
@@ -211,6 +212,10 @@ describe('troca de usuário no mesmo navegador', () => {
     await usuario.type(screen.getByLabelText('E-mail'), 'rafael@exemplo.com');
     await usuario.type(screen.getByLabelText('Senha'), 'segredo123');
     await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    // A tela inicial do representante, não a última tela de quem saiu
+    expect(await screen.findByRole('heading', { level: 1, name: 'Agenda' })).toBeInTheDocument();
+    await usuario.click(screen.getByRole('link', { name: 'Clientes' }));
 
     expect(await screen.findByText('Carregando clientes...')).toBeInTheDocument();
     expect(screen.queryByText('Doces da Vovó')).not.toBeInTheDocument();

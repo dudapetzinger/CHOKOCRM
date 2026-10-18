@@ -2,7 +2,10 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { RequireAuth } from './auth/RequireAuth';
+import { useAuth } from './auth/useAuth';
 import { RepresentanteProvider } from './representante/RepresentanteContext';
+import { Moldura } from './components/crm/Moldura';
+import { Toaster } from './components/ui/sonner';
 import { LoginPage } from './pages/LoginPage';
 import { ClientesPage } from './pages/ClientesPage';
 import { NovoClientePage } from './pages/NovoClientePage';
@@ -10,6 +13,7 @@ import { ClienteDetalhePage } from './pages/ClienteDetalhePage';
 import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
 import { LimiteDeErroDeCarregamento } from './components/LimiteDeErroDeCarregamento';
+import { rotaInicialDoPapel } from './lib/rotaInicial';
 import { useLarguraDesktop } from './lib/useLarguraDesktop';
 import { AvisoNovaVersao } from './pwa/AvisoNovaVersao';
 import { AvisoSemRede } from './pwa/AvisoSemRede';
@@ -29,6 +33,12 @@ function ClientesOuFicha() {
   return id && !desktop ? <ClienteDetalhePage /> : <ClientesPage />;
 }
 
+/** `/` e endereços desconhecidos levam à tela inicial do papel (spec 6.5). */
+function TelaInicial() {
+  const { user } = useAuth();
+  return user ? <Navigate to={rotaInicialDoPapel(user.role)} replace /> : null;
+}
+
 export function App() {
   return (
     <BrowserRouter>
@@ -43,42 +53,22 @@ export function App() {
           <BannerInstalar />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            {/* Telas autenticadas dentro da moldura (menu, barra superior e navegação) */}
             <Route
-              path="/clientes/:id?"
               element={
                 <RequireAuth>
-                  <ClientesOuFicha />
+                  <Moldura />
                 </RequireAuth>
               }
-            />
-            <Route
-              path="/clientes/novo"
-              element={
-                <RequireAuth>
-                  <NovoClientePage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/clientes/:id/check-in"
-              element={
-                <RequireAuth>
-                  <CheckInPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/agenda"
-              element={
-                <RequireAuth>
-                  <AgendaPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/painel"
-              element={
-                <RequireAuth>
+            >
+              <Route path="/" element={<TelaInicial />} />
+              <Route path="/clientes/:id?" element={<ClientesOuFicha />} />
+              <Route path="/clientes/novo" element={<NovoClientePage />} />
+              <Route path="/clientes/:id/check-in" element={<CheckInPage />} />
+              <Route path="/agenda" element={<AgendaPage />} />
+              <Route
+                path="/painel"
+                element={
                   <LimiteDeErroDeCarregamento>
                     <Suspense
                       fallback={
@@ -92,12 +82,12 @@ export function App() {
                       <PainelPage />
                     </Suspense>
                   </LimiteDeErroDeCarregamento>
-                </RequireAuth>
-              }
-            />
-            <Route path="/" element={<Navigate to="/clientes" replace />} />
-            <Route path="*" element={<Navigate to="/clientes" replace />} />
+                }
+              />
+              <Route path="*" element={<TelaInicial />} />
+            </Route>
           </Routes>
+          <Toaster />
         </RepresentanteProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -6,7 +6,13 @@
    1. Tokens, tipografia, formulários e botões ficam em arquivos próprios
    (Etapa 7), importados aqui — o @import precisa vir antes de qualquer
    outra regra. O layout desktop (≥ 768 px) fica em desktop.css, importado
-   por main.tsx depois deste arquivo para vencer na cascata. */
+   por main.tsx depois deste arquivo para vencer na cascata.
+
+   Etapa 8 (revisão): a moldura (menu, barra superior, navegação inferior)
+   passou a ser a do protótipo, em components/crm/Moldura.tsx, com
+   Tailwind; as telas ainda não migradas ficam dentro dela, na .container.
+   As regras de elemento daqui (h1–h3, p, campos) valem só dentro da
+   .container, para não vazarem para a moldura nova. */
 @import './tokens.css';
 @import './tipografia.css';
 @import './formularios.css';
@@ -35,69 +41,61 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1,
-h2,
-h3,
-p {
+:where(.container) :is(h1, h2, h3, p) {
   margin: 0 0 var(--espaco-3) 0;
 }
 
-/* Container mobile-first: centraliza o "app" em telas largas, sem exceder
-   480px. Mesmo fundo do body e sem sombra (Etapa 8): o "app" não é mais um
-   cartão sobre o fundo. `clip` em vez de `hidden`: `hidden` cria contêiner
-   de rolagem e a barra superior (position: sticky) parava de grudar. */
+/* O preflight do Tailwind (src/styles.css, Etapa 8) zera o que o navegador
+   dava e a interface antiga usava: marcador e recuo das listas, ícones e
+   imagens na linha do texto, link sublinhado, margem de caixa de seleção e
+   o botão do campo de arquivo. Nas telas antigas (.container) e nas faixas
+   do PWA, que ficam fora delas (.avisos-app e .banner-instalar, seção 25),
+   volta o padrão do navegador (`revert`); especificidade zero, então
+   qualquer regra antiga continua valendo por cima. */
+:where(.container, .avisos-app, .banner-instalar) :where(ul, ol) {
+  margin-block: revert;
+  padding-inline-start: revert;
+  list-style: revert;
+}
+
+:where(.container, .avisos-app, .banner-instalar) :where(img, svg) {
+  display: revert;
+  vertical-align: revert;
+}
+
+:where(.container, .avisos-app, .banner-instalar) :where(a) {
+  color: revert;
+  text-decoration: revert;
+}
+
+:where(.container, .avisos-app, .banner-instalar) :where(input[type='checkbox'], input[type='radio']) {
+  margin: revert;
+}
+
+:where(.container, .avisos-app, .banner-instalar) :where(input[type='file']) {
+  font-size: revert;
+}
+
+:where(.container, .avisos-app, .banner-instalar) ::file-selector-button {
+  all: revert;
+}
+
+/* Container mobile-first: centraliza a tela antiga em telas largas, sem
+   exceder 480px, dentro do <main> da moldura (que já ocupa a altura da
+   tela). `clip` em vez de `hidden`: `hidden` cria contêiner de rolagem e a
+   coluna da lista (position: sticky, desktop.css) parava de grudar. */
 .container {
   max-width: 480px;
-  min-height: 100vh;
   margin: 0 auto;
   background-color: var(--fundo);
   position: relative;
   overflow-x: clip;
 }
 
-/* Área de conteúdo das telas internas */
+/* Área de conteúdo das telas antigas: o respiro em volta vem do <main> da
+   moldura (16 px no celular, 24 a partir de 768). */
 .conteudo {
-  padding: 16px;
-}
-
-/* ==========================================================================
-   3. Barra superior (.topo)
-   ========================================================================== */
-.topo {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 56px;
-  padding: 0 16px;
-  background-color: var(--superficie);
-  border-bottom: 1px solid var(--borda);
-  color: var(--texto);
-}
-
-.topo h1 {
-  font-size: var(--texto-lg);
-  font-weight: var(--peso-semi);
-  color: var(--texto);
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* "Voltar" / "Sair": botão terciário (className="btn-terciario topo-acao",
-   formularios.css), com 44 px de alvo de toque no celular. Aqui só o que é
-   da barra: não encolher, não quebrar e um padding menor, puxado para a
-   borda para o texto alinhar com o título. */
-.topo-acao {
-  flex-shrink: 0;
-  gap: 6px;
-  padding: 0 var(--espaco-2);
-  margin-inline: calc(-1 * var(--espaco-2));
-  white-space: nowrap;
+  padding: 0;
 }
 
 /* ==========================================================================
@@ -154,40 +152,6 @@ p {
    vez do marrom padrão de .card-titulo (docs/prototipo/painel.html) */
 .aviso-atencao .card-titulo {
   color: inherit;
-}
-
-/* ==========================================================================
-   8. Tela de login
-   Cabeçalho de marca (logotipo textual, sem imagens) e área central.
-   ========================================================================== */
-.tela-login {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 32px 20px 40px;
-}
-
-.marca {
-  text-align: center;
-  margin-bottom: var(--espaco-6);
-}
-
-/* Logotipo na entrada do app: o mesmo desenho do ícone do PWA
-   (public/logo.svg, ADR-012). O fundo creme do ícone some sobre o
-   .container; as margens negativas descontam a sobra do quadrado acima e
-   abaixo do texto (que ocupa o terço do meio). */
-.marca-logo-img {
-  display: block;
-  width: 200px;
-  height: 200px;
-  margin: -48px auto -40px;
-}
-
-.marca-slogan {
-  font-size: 13px;
-  color: var(--texto-suave);
-  margin: 0;
 }
 
 /* ==========================================================================
@@ -345,7 +309,8 @@ p {
    10. Botão flutuante ("Novo cliente", só no celular)
    Réplica do botão flutuante do protótipo (docs/prototipo/clientes.html),
    com o ícone plus. No desktop não é renderizado: o "Novo cliente" vira um
-   .btn-primario na barra de ferramentas (ClientesPage).
+   .btn-primario na barra de ferramentas (ClientesPage). Fica 16 px acima
+   da navegação inferior da moldura (56 px + a área segura do aparelho).
    ========================================================================== */
 .conteudo-com-flutuante {
   padding-bottom: 88px;
@@ -355,7 +320,7 @@ p {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 72px;
+  bottom: calc(72px + env(safe-area-inset-bottom));
   max-width: 480px;
   margin: 0 auto;
   display: flex;
@@ -671,72 +636,6 @@ p {
   max-height: 16rem;
   object-fit: cover;
   border-radius: 0.5rem;
-}
-
-/* ==========================================================================
-   16. Navegação inferior (.nav-inferior)
-   Barra fixa com os atalhos das telas internas: Clientes, Agenda e, só para
-   o gestor, Painel. Não aparece na tela de login. Uso (ver
-   components/NavInferior.tsx):
-   <nav class="nav-inferior" aria-label="Navegação principal">
-     <NavLink to="/clientes"><span class="icone">👥</span>Clientes</NavLink>
-     <NavLink to="/agenda"><span class="icone">🗓️</span>Agenda</NavLink>
-     <NavLink to="/painel"><span class="icone">📊</span>Painel</NavLink>
-   </nav>
-   A classe "ativo" marca a aba da tela atual. Toda tela que renderiza a
-   barra deve somar `.conteudo-com-nav` à `.conteudo`, para reservar o
-   espaço ocupado por ela (ver docs/prototipo/css/estilo.css).
-   ========================================================================== */
-.conteudo-com-nav {
-  padding-bottom: 96px;
-}
-
-.nav-inferior {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 20;
-  display: flex;
-  max-width: 480px;
-  margin: 0 auto;
-  background-color: var(--superficie);
-  border-top: 1px solid var(--borda);
-}
-
-/* Marca (logotipo + nome): só na barra lateral do desktop (desktop.css) */
-.nav-marca {
-  display: none;
-}
-
-.nav-inferior a {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 8px 4px 10px;
-  font-size: var(--texto-xs);
-  font-weight: var(--peso-medio);
-  color: var(--texto-suave);
-  text-decoration: none;
-  text-align: center;
-}
-
-/* Ícone SVG (components/Icone.tsx): a cor vem do link (currentColor) */
-.nav-inferior a .icone {
-  display: block;
-}
-
-/* Ativo: rótulo na cor da marca e ícone no destaque, sem filete */
-.nav-inferior a.ativo {
-  color: var(--marca);
-  font-weight: var(--peso-semi);
-}
-
-.nav-inferior a.ativo .icone {
-  color: var(--destaque);
 }
 
 /* ==========================================================================
@@ -1301,8 +1200,8 @@ p {
 /* ==========================================================================
    25. App instalável (ADR-012): faixas de aviso e convite para instalar
    .avisos-app (sem internet, versão nova) fica no fluxo normal, acima da
-   barra superior: não é sticky, para nunca cobrir o "Sair"/"Voltar" da
-   barra, que gruda no topo ao rolar; vazio, não ocupa espaço. O
+   barra superior: não é sticky, para nunca cobrir o "Voltar" e o menu da
+   conta da barra, que gruda no topo ao rolar; vazio, não ocupa espaço. O
    .banner-instalar rola com a página e some com "Agora não" (src/pwa/).
    ========================================================================== */
 .avisos-app:empty {

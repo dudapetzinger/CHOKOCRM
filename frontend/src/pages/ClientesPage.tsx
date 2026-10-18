@@ -8,7 +8,6 @@ import { BarraDeFerramentas } from '../components/BarraDeFerramentas';
 import { ItemListaCliente } from '../components/ItemListaCliente';
 import { LayoutDuasColunas } from '../components/LayoutDuasColunas';
 import { LegendaSituacao } from '../components/LegendaSituacao';
-import { NavInferior } from '../components/NavInferior';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { ordenarPorUrgencia } from '../lib/ordenarPorUrgencia';
 import { useLarguraDesktop } from '../lib/useLarguraDesktop';
@@ -36,7 +35,7 @@ function contarPorAba(clientes: readonly ClienteListItem[]): Record<Aba, number>
  * celular, `/clientes/:id` abre só a ficha (ver `ClientesOuFicha` em App.tsx).
  */
 export function ClientesPage() {
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
   const { id: clienteAbertoId } = useParams<{ id?: string }>();
   const desktop = useLarguraDesktop();
   const [busca, setBusca] = useState('');
@@ -173,15 +172,7 @@ export function ClientesPage() {
 
   return (
     <div className="container">
-      <header className="topo">
-        <h1>Clientes</h1>
-        <button type="button" className="btn-terciario topo-acao" onClick={logout}>
-          <Icone nome="log-out" tamanho={18} />
-          Sair
-        </button>
-      </header>
-
-      <div className="conteudo conteudo-com-flutuante conteudo-com-nav">
+      <div className="conteudo conteudo-com-flutuante">
         {desktop ? (
           <LayoutDuasColunas
             className="clientes-colunas"
@@ -200,8 +191,6 @@ export function ClientesPage() {
           colunaLista
         )}
       </div>
-
-      <NavInferior />
     </div>
   );
 }

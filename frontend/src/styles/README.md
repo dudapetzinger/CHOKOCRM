@@ -3,14 +3,24 @@
 CSS escrito à mão, sem framework. Mobile-first: a base é o celular (largura de
 referência 390 px) e o desktop (≥ 768 px) vem por cima.
 
+**Em migração (Etapa 8, revisão pelo protótipo Lovable):** a base nova é
+Tailwind 4 + shadcn, em `src/styles.css` e `src/components/{ui,crm}/`. A
+moldura (menu lateral, barra superior, navegação inferior, menu da conta) já é
+a nova (`components/crm/Moldura.tsx`); as telas ainda não migradas continuam
+com este CSS, dentro da `.container`, e saem daqui uma a uma. As regras de
+elemento (h1–h3, `p`, campos) valem só dentro da `.container`, para não
+vazarem para a interface nova.
+
 ## Ordem de import
 
 `main.tsx` importa, nesta ordem:
 
-1. as fontes `@fontsource/figtree` (400, 500, 600, 700), servidas pelo próprio app;
-2. `global.css`, que começa com `@import` de `tokens.css`, `tipografia.css` e
+1. as fontes `@fontsource/plus-jakarta-sans` (400, 500, 600, 700, 800), servidas pelo próprio app;
+2. `src/styles.css` (Tailwind e tokens do protótipo), antes do CSS antigo: este
+   não tem camada e por isso vence o preflight e as utilidades do Tailwind;
+3. `global.css`, que começa com `@import` de `tokens.css`, `tipografia.css` e
    `formularios.css` (o `@import` precisa vir antes de qualquer regra);
-3. `desktop.css`, por último, para vencer na cascata as regras de mesma
+4. `desktop.css`, por último, para vencer na cascata as regras de mesma
    especificidade do `global.css`.
 
 ## O que vive em cada arquivo
@@ -20,8 +30,8 @@ referência 390 px) e o desktop (≥ 768 px) vem por cima.
 | `tokens.css` | Variáveis em `:root`: cores, espaçamentos, raios, sombra, fontes e escala de tipografia. Única fonte de cores cruas (hex, `rgba`); a exceção é a seta do `<select>` em `formularios.css`, um SVG em data URI, que não lê variáveis CSS e repete o hex de `--texto-suave`. |
 | `tipografia.css` | Fonte, tamanho e altura de linha do corpo; títulos (`h1`–`h3`, `.card-titulo`). |
 | `formularios.css` | Campos (`.campo`), select compacto (`.select`), busca com lupa (`.campo-busca`), botões (`.btn-primario`, `.btn-secundario`, `.btn-terciario`, `.btn-perigo`, modificadores `.btn-bloco` e `.btn-icone`), controle segmentado (`.segmentado`, `.segmentado-compacto`), área de texto. |
-| `global.css` | Base e componentes do celular, em 25 seções numeradas (moldura, cartões, listas, navegação, ficha, agenda, painel...). |
-| `desktop.css` | Tudo de ≥ 768 px: grade navegação lateral + conteúdo, duas colunas, ajustes de 1024 e 1200. |
+| `global.css` | Base e componentes do celular, em seções numeradas (cartões, listas, ficha, agenda, painel...); as da moldura antiga (barra superior, login, navegação inferior) saíram na Etapa 8. |
+| `desktop.css` | Tudo de ≥ 768 px: largura da `.container`, duas colunas, ajustes de 1024 e 1200. |
 
 ## Tokens semânticos
 
@@ -29,7 +39,7 @@ Nas regras dos componentes, use estes nomes em vez de hex ou das cores da marca.
 
 | Token | Valor | Uso |
 |---|---|---|
-| `--fundo` | `#f4f5f7` | fundo da página |
+| `--fundo` | `#f8f6f4` | fundo da página (o mesmo `--background` da moldura nova) |
 | `--superficie` | `#ffffff` | cartões, listas, barra superior, navegação |
 | `--superficie-suave` | `#f8f9fb` | hover de linha, estado vazio |
 | `--borda` | `#e3e6ea` | borda de cartões, listas, campos, divisórias |

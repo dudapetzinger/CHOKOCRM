@@ -1,8 +1,10 @@
-/* ChokoCRM — tipografia (Etapa 7, Figtree na Etapa 8).
-   Figtree em títulos e texto, uma família só; escala de tamanhos e pesos em
-   tokens.css. Corpo em 16 px (--texto-md): a Figtree tem x-height alta e
-   fica confortável no celular nesse tamanho. Títulos em 600, sem
-   letter-spacing negativo. */
+/* ChokoCRM — tipografia (Etapa 7; Plus Jakarta Sans na revisão da Etapa 8).
+   Uma família só em títulos e texto; escala de tamanhos e pesos em
+   tokens.css. Corpo em 16 px (--texto-md). Títulos em 600, sem
+   letter-spacing negativo. Os títulos h1–h3 valem só dentro de .container
+   (as telas antigas): a moldura nova e as telas migradas usam as classes do
+   Tailwind, que perderiam para estas regras sem camada. :where() mantém a
+   especificidade de antes. */
 body {
   font-family: var(--fonte-texto);
   font-size: var(--texto-md);
@@ -10,24 +12,22 @@ body {
   line-height: 1.5;
 }
 
-h1,
-h2,
-h3,
+:where(.container) :is(h1, h2, h3),
 .card-titulo {
   font-family: var(--fonte-titulos);
   font-weight: var(--peso-semi);
   line-height: 1.2;
 }
 
-h1 {
+:where(.container) h1 {
   font-size: var(--texto-xl);
 }
 
-h2 {
+:where(.container) h2 {
   font-size: var(--texto-lg);
 }
 
-h3 {
+:where(.container) h3 {
   font-size: var(--texto-md);
 }
 

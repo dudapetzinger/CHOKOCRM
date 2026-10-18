@@ -11,7 +11,8 @@ export type UsuarioAutenticado = {
 
 export type AuthContextValue = {
   user: UsuarioAutenticado | null;
-  login: (email: string, senha: string) => Promise<void>;
+  /** Entra e devolve o usuário (o login usa o papel para escolher a tela inicial). */
+  login: (email: string, senha: string) => Promise<UsuarioAutenticado>;
   logout: () => void;
 };
 

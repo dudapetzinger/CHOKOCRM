@@ -16,6 +16,9 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Alias "@/..." → src/ (o mesmo do vite.config.ts e do vitest.config.ts) */
+    "paths": { "@/*": ["./src/*"] },
+
     /* Type checking */
     "strict": true,
 

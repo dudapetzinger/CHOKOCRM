@@ -31,7 +31,6 @@ import { GraficoVisitasPorSemana } from '../components/graficos/GraficoVisitasPo
 import { ListaClientesEsfriando } from '../components/graficos/ListaClientesEsfriando';
 import { KpisCard } from '../components/KpisCard';
 import { LayoutDuasColunas } from '../components/LayoutDuasColunas';
-import { NavInferior } from '../components/NavInferior';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { useClientesDaCarteira, useKpisPorRepresentante, useVendasMensais } from '../hooks/useDashboard';
 import { useAlertasDeProducao } from '../hooks/useInsights';
@@ -285,19 +284,11 @@ function PainelGestor() {
 }
 
 export function PainelPage() {
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
 
   return (
     <div className="container">
-      <header className="topo">
-        <h1>Painel de indicadores</h1>
-        <button type="button" className="btn-terciario topo-acao" onClick={logout}>
-          <Icone nome="log-out" tamanho={18} />
-          Sair
-        </button>
-      </header>
-
-      <div className="conteudo conteudo-com-nav">
+      <div className="conteudo">
         <SeletorRepresentante />
 
         {user?.role === 'GESTOR' ? (
@@ -308,8 +299,6 @@ export function PainelPage() {
           </p>
         )}
       </div>
-
-      <NavInferior />
     </div>
   );
 }

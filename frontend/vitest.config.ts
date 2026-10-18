@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@': fileURLToPath(new URL('src', import.meta.url)),
       // Módulo virtual do vite-plugin-pwa (que não roda nos testes): ver o stub
       'virtual:pwa-register/react': fileURLToPath(new URL('src/test/pwaRegisterStub.ts', import.meta.url)),
     },

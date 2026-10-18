@@ -6,40 +6,21 @@
    lib/useLarguraDesktop.ts. Abaixo de 768 nada aqui vale: o celular segue
    exatamente como em global.css.
 
-   - .container vira uma grade: navegação lateral na 1ª coluna, barra
-     superior e conteúdo na 2ª. Telas sem navegação (login, novo cliente,
-     check-in) usam .container-estreito: uma coluna só, centralizada.
-   - .nav-lateral (NavInferior) deixa de ser a barra fixa de baixo: coluna
-     branca com borda à direita e a marca (.nav-marca) no topo — de 768 a
-     1199 só o logotipo, a partir de 1200 também o nome "ChokoCRM".
+   - .container ocupa a largura do <main> da moldura (até 1280 px); o menu
+     lateral e a barra superior são da moldura nova (components/crm/
+     Moldura.tsx, Etapa 8). Novo cliente e check-in usam
+     .container-estreito: uma coluna só, centralizada.
    - .duas-colunas (components/LayoutDuasColunas.tsx): Clientes (lista |
      ficha), Agenda (Atrasadas | Hoje) e Painel.
    - A linha de cliente (.item-lista com .info) vira uma linha só, com a
      etiqueta de situação à direita.
-   - De 768 a 1199 a barra lateral fica estreita (ícone sobre o rótulo), e
-     até 1023 as duas colunas dividem o espaço ao meio, para nenhuma ficar
+   - Até 1023 as duas colunas dividem o espaço ao meio, para nenhuma ficar
      espremida num tablet em pé. A partir de 1200 a lista de Clientes tem
      440 px. */
 
 @media (min-width: 768px) {
-  /* ---- Moldura: navegação | (barra superior + conteúdo) ---- */
   .container {
     max-width: 1280px;
-    display: grid;
-    grid-template-columns: 88px minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
-    /* `clip` em vez de `hidden`: não cria contêiner de rolagem, então a
-       barra superior e a lateral grudam de fato (position: sticky). */
-    overflow-x: clip;
-  }
-
-  .container > * {
-    grid-column: 2;
-  }
-
-  .container > .nav-lateral {
-    grid-column: 1;
-    grid-row: 1 / span 2;
   }
 
   .container-estreito {
@@ -47,75 +28,9 @@
     display: block;
   }
 
-  /* Sem barra inferior nem botão flutuante sobre o conteúdo: só respiro */
-  .conteudo-com-flutuante,
-  .conteudo-com-nav {
-    padding-bottom: var(--espaco-5);
-  }
-
-  /* ---- Navegação lateral ---- */
-  .nav-lateral {
-    position: sticky;
-    top: 0;
-    left: auto;
-    right: auto;
-    bottom: auto;
-    align-self: start;
-    height: 100vh;
-    max-width: none;
-    margin: 0;
-    flex-direction: column;
-    justify-content: flex-start;
-    gap: var(--espaco-1);
-    padding: var(--espaco-3) var(--espaco-2);
-    background-color: var(--superficie);
-    border-top: none;
-    border-right: 1px solid var(--borda);
-  }
-
-  /* Marca no topo da coluna: só o logotipo até 1199 px */
-  .nav-marca {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--espaco-2);
-    padding: var(--espaco-1) 0 var(--espaco-3);
-  }
-
-  .nav-marca img {
-    display: block;
-    width: 32px;
-    height: 32px;
-  }
-
-  .nav-marca-nome {
-    display: none;
-  }
-
-  /* Título da barra superior: 20 px desde o tablet (no celular, 18) */
-  .topo h1 {
-    font-size: 20px;
-  }
-
-  .nav-lateral a {
-    flex: 0 0 auto;
-    padding: var(--espaco-2) var(--espaco-1);
-    border-radius: var(--raio-sm);
-    font-size: var(--texto-sm);
-    font-weight: var(--peso-medio);
-    color: var(--texto-suave);
-  }
-
-  .nav-lateral a:hover,
-  .nav-lateral a:focus-visible {
-    background-color: var(--superficie-suave);
-    color: var(--texto);
-  }
-
-  /* Ativo: fundo de destaque suave e texto na cor da marca, sem filete */
-  .nav-lateral a.ativo {
-    background-color: var(--destaque-suave);
-    color: var(--marca);
+  /* Sem botão flutuante sobre o conteúdo: o respiro de baixo é o do <main> */
+  .conteudo-com-flutuante {
+    padding-bottom: 0;
   }
 
   /* ---- Duas colunas ---- */
@@ -131,12 +46,13 @@
   }
 
   /* Clientes: a lista rola na própria coluna, presa abaixo da barra
-     superior (56 px), e a ficha rola com a página. O respiro de 2–4 px
-     evita cortar a borda da lista e o anel de foco. */
+     superior (56 px) com o respiro do <main> da moldura (24 px), e a ficha
+     rola com a página. O respiro de 2–4 px evita cortar a borda da lista e
+     o anel de foco. */
   .clientes-colunas > .coluna:first-child {
     position: sticky;
-    top: calc(56px + var(--espaco-4));
-    max-height: calc(100vh - 56px - 2 * var(--espaco-4));
+    top: calc(56px + var(--espaco-5));
+    max-height: calc(100vh - 56px - 2 * var(--espaco-5));
     overflow-y: auto;
     overscroll-behavior: contain;
     margin: -2px -4px 0;
@@ -197,39 +113,9 @@
 }
 
 @media (min-width: 1200px) {
-  .container {
-    grid-template-columns: 232px minmax(0, 1fr);
-  }
-
-  .nav-lateral {
-    padding: var(--espaco-4) var(--espaco-3);
-  }
-
   /* Clientes: lista de 440 px, para a barra de ferramentas do gestor
      (select, busca e legenda) caber numa linha */
   .clientes-colunas {
     grid-template-columns: minmax(360px, 440px) minmax(0, 1fr);
-  }
-
-  /* A partir de 1200 a marca ganha o nome ao lado do logotipo */
-  .nav-marca {
-    justify-content: flex-start;
-    padding: 0 var(--espaco-2) var(--espaco-4);
-  }
-
-  .nav-marca-nome {
-    display: inline;
-    font-size: var(--texto-lg);
-    font-weight: var(--peso-forte);
-    color: var(--marca);
-  }
-
-  .nav-lateral a {
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: var(--espaco-3);
-    padding: var(--espaco-3) var(--espaco-4);
-    font-size: var(--texto-sm);
-    text-align: left;
   }
 }
