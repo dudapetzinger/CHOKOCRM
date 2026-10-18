@@ -8,13 +8,8 @@ import '@fontsource/plus-jakarta-sans/500.css';
 import '@fontsource/plus-jakarta-sans/600.css';
 import '@fontsource/plus-jakarta-sans/700.css';
 import '@fontsource/plus-jakarta-sans/800.css';
-// Tailwind e os tokens do protótipo ANTES do CSS antigo: o antigo, sem
-// camada, vence o preflight e as utilidades nas telas ainda não migradas
-// (ver o cabeçalho de styles.css)
+// Tailwind e os tokens do protótipo: o único arquivo de estilo (ver o cabeçalho dele)
 import './styles.css';
-import './styles/global.css';
-// Depois de global.css: as regras de ≥ 768 px precisam vir por último na cascata
-import './styles/desktop.css';
 import App from './App.tsx';
 
 const RECARREGOU_POR_ARQUIVO_VELHO = 'chokocrm:recarregou-por-arquivo-velho';

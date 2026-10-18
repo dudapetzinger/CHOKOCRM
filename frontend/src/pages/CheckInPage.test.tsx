@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -83,6 +83,17 @@ function FichaFalsa() {
 // Sem atraso entre as teclas: o teste não depende da velocidade da máquina.
 let usuario: ReturnType<typeof userEvent.setup>;
 
+/**
+ * Preenche um campo de uma vez (um evento de mudança), em vez de digitar
+ * tecla a tecla: o que estes testes conferem é o formulário, não a
+ * digitação, e cada tecla (e cada clique simulado) re-renderiza a página
+ * inteira — com a suíte toda rodando, a digitação longa passava dos 15 s do
+ * limite por teste e travava o CI.
+ */
+function preencher(campo: HTMLElement, texto: string) {
+  fireEvent.change(campo, { target: { value: texto } });
+}
+
 beforeEach(() => {
   usuario = userEvent.setup({ delay: null });
   vi.mocked(getCliente).mockReset().mockResolvedValue(FICHA);
@@ -146,10 +157,10 @@ describe('CheckInPage', () => {
     const grupo = screen.getByRole('group', { name: 'Novo contato' });
     expect(within(grupo).getByLabelText('Nome')).toHaveFocus();
 
-    await usuario.type(within(grupo).getByLabelText('Nome'), 'Jonas Kruger');
-    await usuario.type(within(grupo).getByLabelText('Cargo'), 'Gerente');
-    await usuario.type(within(grupo).getByLabelText('Telefone'), '(47) 98888-1212');
-    await usuario.type(within(grupo).getByLabelText('E-mail'), 'jonas@saobento.com.br');
+    preencher(within(grupo).getByLabelText('Nome'), 'Jonas Kruger');
+    preencher(within(grupo).getByLabelText('Cargo'), 'Gerente');
+    preencher(within(grupo).getByLabelText('Telefone'), '(47) 98888-1212');
+    preencher(within(grupo).getByLabelText('E-mail'), 'jonas@saobento.com.br');
     await usuario.click(within(grupo).getByRole('button', { name: 'Adicionar' }));
 
     expect(createContato).toHaveBeenCalledWith('c1', expect.objectContaining({ nome: 'Jonas Kruger' }));
@@ -157,7 +168,7 @@ describe('CheckInPage', () => {
     expect(select).toHaveDisplayValue('Jonas Kruger — Gerente');
     expect(select).toHaveFocus();
 
-    await usuario.type(screen.getByLabelText('O que aconteceu na visita'), 'Apresentei o catálogo de Natal.');
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Apresentei o catálogo de Natal.');
     await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
 
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ contactId: 'ct9' }));
@@ -184,7 +195,7 @@ describe('CheckInPage', () => {
 
     await usuario.click(screen.getByRole('radio', { name: 'Negociação' }));
     await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), 'Marta Hoffmann — Compradora');
-    await usuario.type(screen.getByLabelText('O que aconteceu na visita'), '  Reposição do mostruário.  ');
+    preencher(screen.getByLabelText('O que aconteceu na visita'), '  Reposição do mostruário.  ');
     await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
 
     expect(registrarCheckIn).toHaveBeenCalledTimes(1);
@@ -204,7 +215,7 @@ describe('CheckInPage', () => {
     renderizar();
     await esperarCliente();
 
-    await usuario.type(screen.getByLabelText('O que aconteceu na visita'), 'Cliente fechado para balanço.');
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Cliente fechado para balanço.');
     await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
 
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ contactId: expect.anything() }));
@@ -233,7 +244,7 @@ describe('CheckInPage', () => {
     await esperarCliente();
 
     await usuario.click(screen.getByRole('radio', { name: 'Sem venda' }));
-    await usuario.type(screen.getByLabelText('O que aconteceu na visita'), 'Cliente pediu retorno em novembro.');
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Cliente pediu retorno em novembro.');
     await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Data e hora da visita não podem estar no futuro.');
@@ -248,7 +259,7 @@ describe('CheckInPage', () => {
     await esperarCliente();
 
     await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), '+ Novo contato…');
-    await usuario.type(screen.getByLabelText('O que aconteceu na visita'), 'Conversei com o gerente novo.');
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Conversei com o gerente novo.');
     await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
 
     expect(screen.getByText('Adicione ou cancele o contato novo antes de salvar.')).toBeInTheDocument();
@@ -263,7 +274,7 @@ describe('CheckInPage', () => {
 
     await usuario.upload(screen.getByLabelText('Foto (opcional)'), foto);
     expect(screen.getByRole('img', { name: 'Prévia da foto do check-in' })).toHaveAttribute('src', 'blob:previa');
-    await usuario.type(screen.getByLabelText('O que aconteceu na visita'), 'Vitrine montada.');
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Vitrine montada.');
     await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
 
     expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
@@ -281,7 +292,7 @@ describe('CheckInPage', () => {
       screen.getByLabelText('Foto (opcional)'),
       new File(['foto'], 'vitrine.jpg', { type: 'image/jpeg' }),
     );
-    await usuario.type(screen.getByLabelText('O que aconteceu na visita'), 'Vitrine montada.');
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Vitrine montada.');
     await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
 
     expect(await screen.findByText('Ficha do cliente (foto: nao-enviada)')).toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
@@ -53,6 +53,17 @@ function FichaFalsa() {
 // Sem atraso entre as teclas: o teste não depende da velocidade da máquina.
 let usuario: ReturnType<typeof userEvent.setup>;
 
+/**
+ * Preenche um campo de uma vez (um evento de mudança), em vez de digitar
+ * tecla a tecla: o que estes testes conferem é o formulário, não a
+ * digitação, e cada tecla (e cada clique simulado) re-renderiza a página
+ * inteira — com a suíte toda rodando, a digitação longa passava dos 15 s do
+ * limite por teste e travava o CI.
+ */
+function preencher(campo: HTMLElement, texto: string) {
+  fireEvent.change(campo, { target: { value: texto } });
+}
+
 beforeEach(() => {
   usuario = userEvent.setup({ delay: null });
   vi.mocked(createCliente).mockReset().mockResolvedValue(CRIADO);
@@ -88,26 +99,26 @@ function campoDoCliente(rotulo: string): HTMLElement {
   return campo;
 }
 
-async function preencherDados(exceto: string[] = []) {
+function preencherDados(exceto: string[] = []) {
   for (const [rotulo, valor] of Object.entries(DADOS)) {
-    if (!exceto.includes(rotulo)) await usuario.type(campoDoCliente(rotulo), valor);
+    if (!exceto.includes(rotulo)) preencher(campoDoCliente(rotulo), valor);
   }
 }
 
-async function preencherContato(numero: number, nome: string) {
+function preencherContato(numero: number, nome: string) {
   const quadro = within(screen.getByRole('group', { name: `Contato ${numero}` }));
-  await usuario.type(quadro.getByLabelText('Nome'), nome);
-  await usuario.type(quadro.getByLabelText('Cargo'), 'Compradora');
-  await usuario.type(quadro.getByLabelText('Telefone'), '(47) 99900-8080');
-  await usuario.type(quadro.getByLabelText('E-mail'), 'compras@docesdaserra.com.br');
+  preencher(quadro.getByLabelText('Nome'), nome);
+  preencher(quadro.getByLabelText('Cargo'), 'Compradora');
+  preencher(quadro.getByLabelText('Telefone'), '(47) 99900-8080');
+  preencher(quadro.getByLabelText('E-mail'), 'compras@docesdaserra.com.br');
 }
 
 describe('NovoClientePage', () => {
   it('exige nome fantasia e cidade', async () => {
     renderizar();
 
-    await preencherDados(['Nome fantasia', 'Cidade']);
-    await preencherContato(1, 'Marta Hoffmann');
+    preencherDados(['Nome fantasia', 'Cidade']);
+    preencherContato(1, 'Marta Hoffmann');
     await usuario.click(screen.getByRole('button', { name: 'Salvar cliente' }));
 
     expect(screen.getByText('Nome fantasia é obrigatório.')).toBeInTheDocument();
@@ -149,9 +160,9 @@ describe('NovoClientePage', () => {
   it('sucesso avisa "Cliente cadastrado" e abre a ficha do cliente criado', async () => {
     renderizar();
 
-    await preencherDados();
+    preencherDados();
     await usuario.click(screen.getByRole('radio', { name: '20 dias' }));
-    await preencherContato(1, 'Marta Hoffmann');
+    preencherContato(1, 'Marta Hoffmann');
     await usuario.click(screen.getByRole('button', { name: 'Salvar cliente' }));
 
     expect(createCliente).toHaveBeenCalledTimes(1);
@@ -190,7 +201,7 @@ describe('NovoClientePage', () => {
     expect(segundo.getByRole('radio', { name: 'Contato principal' })).toBeChecked();
     expect(primeiro.getByRole('radio', { name: 'Contato principal' })).not.toBeChecked();
 
-    await usuario.type(segundo.getByLabelText('Nome'), 'Jonas Kruger');
+    preencher(segundo.getByLabelText('Nome'), 'Jonas Kruger');
     await usuario.click(primeiro.getByRole('button', { name: 'Remover' }));
 
     expect(screen.queryByRole('group', { name: 'Contato 2' })).not.toBeInTheDocument();
@@ -205,8 +216,8 @@ describe('NovoClientePage', () => {
     vi.mocked(createCliente).mockRejectedValue(new ApiError('CONFLICT', 'Já existe um cliente com este CNPJ.'));
     renderizar();
 
-    await preencherDados();
-    await preencherContato(1, 'Marta Hoffmann');
+    preencherDados();
+    preencherContato(1, 'Marta Hoffmann');
     await usuario.click(screen.getByRole('button', { name: 'Salvar cliente' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Já existe um cliente com este CNPJ.');

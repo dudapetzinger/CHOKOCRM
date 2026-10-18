@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
@@ -226,8 +226,11 @@ describe('troca de usuário no mesmo navegador', () => {
       user: { id: 'r2', nome: 'Rafael Schmitt', email: 'rafael@exemplo.com', role: 'REPRESENTANTE' },
     });
 
-    await usuario.type(screen.getByLabelText('E-mail'), 'rafael@exemplo.com');
-    await usuario.type(screen.getByLabelText('Senha'), 'segredo123');
+    // Campos preenchidos de uma vez, sem digitar tecla a tecla: o teste é da
+    // troca de usuário, não da digitação (cada tecla re-renderiza o app
+    // inteiro, e a digitação longa passava dos 15 s com a suíte toda rodando).
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'rafael@exemplo.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'segredo123' } });
     await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
 
     // A tela inicial do representante, não a última tela de quem saiu

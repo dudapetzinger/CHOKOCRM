@@ -20,13 +20,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, MessageCircle, Phone, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { useRepresentantes } from '../hooks/useRepresentantes';
 import { descreverSituacao } from '../lib/descreverSituacao';
 import { useDevolverFoco } from '../lib/useFoco';
 import { telefoneParaWaMe } from '../lib/telefone';
 import { mensagemErroApi, updateCliente, type ClienteCompleto } from '../services/clients';
 import { EtiquetaSituacao } from './EtiquetaSituacao';
-import { Avatar, Etiqueta } from './crm/ui';
+import { Avatar, CLASSES_SELECT, Etiqueta } from './crm/ui';
 import { NovoContato } from './crm/NovoContato';
 
 const MENSAGEM_ERRO_TRANSFERIR = 'Não foi possível transferir o cliente.';
@@ -61,11 +62,13 @@ function TransferirCliente({ cliente }: { cliente: ClienteCompleto }) {
 
   return (
     <>
-      <span className="inline-flex items-center gap-1">
+      {/* Em telas estreitas o select encolhe (o nome fica cortado) em vez de
+          passar da borda do cartão */}
+      <span className="inline-flex max-w-full min-w-0 items-center gap-1">
         Rep.:
         <select
           aria-label="Transferir cliente"
-          className="max-w-full rounded-md border border-input bg-card px-1.5 py-0.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 max-md:min-h-11 max-md:text-base"
+          className={cn(CLASSES_SELECT, 'min-w-0 max-w-full')}
           value={valor}
           disabled={transferir.isPending}
           onChange={(event) => {

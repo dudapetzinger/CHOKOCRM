@@ -45,12 +45,12 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <RepresentanteProvider>
-          {/* PWA (ADR-012): faixas de sem internet e de versão nova, acima da
-              barra superior; abaixo, o convite para instalar (só com usuário logado). */}
-          <div className="avisos-app">
-            <AvisoSemRede />
-            <AvisoNovaVersao />
-          </div>
+          {/* PWA (ADR-012): faixas de sem internet e de versão nova, no fluxo
+              acima da barra superior (não grudam no topo, para nunca cobrir o
+              "Voltar" e o menu da conta); abaixo, o convite para instalar (só
+              com usuário logado), que rola com a página. */}
+          <AvisoSemRede />
+          <AvisoNovaVersao />
           <BannerInstalar />
           <Routes>
             <Route path="/login" element={<LoginPage />} />

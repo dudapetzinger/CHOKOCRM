@@ -291,7 +291,7 @@ export function DadosCadastrais({ cliente }: Props) {
 
           {!modoEdicaoCliente && !confirmandoInativacao && (
             <>
-              <dl className="grid gap-x-4 gap-y-0.5 text-sm @sm:grid-cols-[8rem_minmax(0,1fr)] @sm:gap-y-2">
+              <dl className="grid grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-0.5 text-sm @sm:grid-cols-[8rem_minmax(0,1fr)] @sm:gap-y-2">
                 {dados.map(([rotulo, valor]) => (
                   <div key={rotulo} className="contents">
                     <dt className="text-muted-foreground">{rotulo}</dt>

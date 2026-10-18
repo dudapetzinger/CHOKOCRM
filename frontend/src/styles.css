@@ -1,15 +1,47 @@
-/* ChokoCRM — base de interface do protótipo Lovable (Etapa 8).
-   Tailwind 4 + tokens do protótipo (.superpowers/referencia-lovable/src/styles.css),
-   com os ajustes de contraste da spec (6.3): texto sempre com 4,5:1 ou mais.
+/* ChokoCRM — o único arquivo de estilo do front (Etapa 8, revisão pelo
+   protótipo Lovable). Tailwind 4 + os tokens do protótipo
+   (.superpowers/referencia-lovable/src/styles.css), com os ajustes de
+   contraste da spec (6.3): texto sempre com 4,5:1 ou mais. O CSS escrito à
+   mão das Etapas 1–7 e os ícones SVG próprios saíram: as telas usam só
+   utilidades do Tailwind, os componentes do shadcn (src/components/ui/) e
+   as peças do protótipo (src/components/crm/: Cartao, Etiqueta, Aviso,
+   Campo, Avatar, CLASSES_COR, CLASSES_SELECT, CLASSES_BOTAO_PERIGO, a
+   Moldura). Ícones: lucide-react, decorativos (aria-hidden) ao lado do texto.
 
-   Convivência com o CSS antigo (src/styles/*.css) enquanto as telas migram:
-   main.tsx importa este arquivo ANTES de styles/global.css e styles/desktop.css.
-   O CSS antigo não tem camada (@layer), e regra sem camada vence qualquer
-   camada do Tailwind (preflight e utilidades), seja qual for a
-   especificidade: as telas ainda não migradas continuam como estão. As
-   regras antigas de elemento (h1–h3, p, campos) valem só dentro de
-   .container, a casca das telas antigas, para não vazarem para a moldura
-   nova. Sai tudo na tarefa que remove o CSS antigo. */
+   Ordem de import (main.tsx): as fontes @fontsource/plus-jakarta-sans
+   (400, 500, 600, 700, 800), servidas pelo próprio app para o PWA abrir sem
+   rede, e depois este arquivo.
+
+   Mobile-first: a base é o celular. A partir de 768 px (md:) a moldura troca
+   a navegação inferior pelo menu lateral de 240 px; a partir de 1024 px
+   (lg:) as telas de duas colunas (lista + ficha, Agenda, Painel) abrem lado
+   a lado. Abaixo de 768 px todo controle tocável tem 44 px ou mais
+   (max-md:min-h-11 / max-md:h-11) e os campos têm 16 px de fonte, para o
+   iOS não dar zoom (spec 6.2 e 6.4).
+
+   Tokens (nas telas, use estes nomes em vez de cores cruas):
+   - background: fundo da página; card: cartões, listas, barra superior,
+     navegação; muted: fundo de estado vazio e de linha em hover.
+   - border / input: borda de cartões e divisórias / contorno de campo.
+   - foreground / muted-foreground: texto principal / secundário.
+   - primary (#c55200, 4,6:1 com branco): fundo do botão primário e texto de
+     ação (text-primary) SÓ sobre superfície branca; sobre o background cai
+     para 4,2:1 e reprova. primary-hover escurece no hover.
+   - primary-vivo (#e66e20, o laranja do protótipo): só onde não há texto em
+     cima (anel de foco, ícone ativo do menu, marcador "Hoje").
+   - primary-soft + brown: item ativo e chips; texto sobre o laranja suave vai
+     sempre em text-brown (9,6:1), nunca em text-primary.
+   - destructive: texto e botão de perigo, também SÓ sobre branco (ver
+     CLASSES_BOTAO_PERIGO); destructive-hover escurece.
+   - st-green / st-yellow / st-orange / st-red (+ -soft e -text): as cores de
+     classificação (a regra é do backend, o valor é do protótipo). Etiquetas
+     com texto usam o par -soft + -text (verde e vermelho) ou text-brown
+     (amarelo e laranja); o ponto de cor é marca sem texto.
+   - chart / chart-soft / chart-text: séries dos gráficos e chips de campanha.
+
+   Marrom e laranja só na marca e nas ações; o resto (fundos, superfícies,
+   bordas, texto) é neutro. Cartões e listas têm borda, sem sombra; sombra
+   só no que flutua (menus, banner de instalar, tooltip). */
 @import "tailwindcss" source(none);
 @source "./";
 @import "tw-animate-css";
@@ -141,6 +173,13 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Com viewport-fit=cover (index.html), o iPhone deitado põe o entalhe
+       sobre a página: o conteúdo começa depois dele. Embaixo, quem cuida é
+       a navegação inferior (env(safe-area-inset-bottom), Moldura.tsx). */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   /* Movimento reduzido (spec 6.4): sem transições nem animações */

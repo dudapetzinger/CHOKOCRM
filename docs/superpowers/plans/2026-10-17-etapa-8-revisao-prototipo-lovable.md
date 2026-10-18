@@ -696,7 +696,7 @@ Mensagem sugerida: `feat: painel do representante, mapa por cidade e exportacao`
 **Files:**
 - Create: `backend/src/seed/demonstracao.ts` (`semear`, `reiniciarDemonstracao`; dentro do `include` do tsconfig, como `config/eventosSazonaisSeed.ts`)
 - Modify: `backend/prisma/seed.ts` (só chama as funções), `backend/package.json` (`"db:seed:reset": "node --import tsx prisma/seed.ts --reset"`)
-- Modify: `docs/casos-de-uso.md`, `docs/modelo-de-dados.md`, `docs/arquitetura.md`, `docs/guia-de-desenvolvimento.md` (§9: `db:seed:reset`, `SMTP_*`, `EMAIL_FROM`, `APP_URL`; checklist de religar), `README.md`
+- Modify: `docs/casos-de-uso.md`, `docs/modelo-de-dados.md`, `docs/arquitetura.md`, `docs/especificacao-tecnica.md` (base de interface Tailwind + shadcn no lugar de `styles/*.css`, Fraunces/Manrope e `LayoutDuasColunas`; `ritmoSemanal` e contagens por resultado no lugar de `porSemana`), `docs/guia-de-desenvolvimento.md` (§9: `db:seed:reset`, `SMTP_*`, `EMAIL_FROM`, `APP_URL`; checklist de religar), `README.md`
 - Test: `backend/tests/seed.test.ts` (novo)
 
 **Interfaces:**

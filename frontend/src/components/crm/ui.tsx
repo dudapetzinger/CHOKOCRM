@@ -41,7 +41,7 @@ const CLASSES_AVISO = {
 } as const;
 
 /**
- * Aviso em caixa, no lugar do `.aviso` do CSS antigo: `erro` (falha de
+ * Aviso em caixa dentro das telas: `erro` (falha de
  * carregamento ou de envio, texto vermelho escuro sobre o fundo suave,
  * 5,6:1), `atencao` (texto marrom sobre o amarelo suave) e `info`. Com o
  * fundo próprio, o contraste vale tanto sobre o cartão quanto sobre o fundo

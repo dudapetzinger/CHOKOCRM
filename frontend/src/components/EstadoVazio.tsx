@@ -29,13 +29,13 @@ const ICONES = {
   user: User,
 } satisfies Record<string, LucideIcon>;
 
-export type IconeVazio = keyof typeof ICONES;
+export type SimboloVazio = keyof typeof ICONES;
 
 /**
  * Estado vazio de listas e cartões (Etapa 8, visual do protótipo): ícone
  * decorativo à frente de uma frase curta, numa caixa tracejada.
  */
-export function EstadoVazio({ icone, children }: { icone: IconeVazio; children: ReactNode }) {
+export function EstadoVazio({ icone, children }: { icone: SimboloVazio; children: ReactNode }) {
   const Simbolo = ICONES[icone];
   return (
     <p className="flex items-center gap-3 rounded-lg border border-dashed bg-muted px-4 py-3 text-sm text-muted-foreground">

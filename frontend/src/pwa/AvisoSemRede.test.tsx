@@ -26,7 +26,8 @@ describe('AvisoSemRede', () => {
 
     const aviso = screen.getByRole('status');
     expect(aviso).toHaveTextContent(TEXTO);
-    expect(aviso).toHaveClass('aviso', 'aviso-atencao');
+    // O ícone de sem rede é decorativo: o leitor de tela lê só a frase
+    expect(aviso.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('chamada à API que falhou por rede → mostra o aviso; resposta seguinte → some', () => {

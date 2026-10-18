@@ -11,8 +11,10 @@
  *   sem usuário logado, nem por 30 dias depois de "Agora não".
  */
 import { useContext, useEffect, useState } from 'react';
+import { Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { AuthContext } from '../auth/auth-context';
-import { Icone } from '../components/Icone';
 
 export const CHAVE_INSTALAR_DISPENSADO = 'chokocrm:instalar-dispensado';
 
@@ -102,29 +104,36 @@ export function BannerInstalar() {
     }
   }
 
+  // Cartão com sombra (o que flutua sobre a tela), até 560 px, centralizado;
+  // 8 px de respiro dos lados no celular. Rola com a página.
   return (
-    <section className="banner-instalar" aria-labelledby="titulo-banner-instalar">
-      <img className="banner-instalar-icone" src="/pwa-192.png" alt="" width={44} height={44} />
-      <div className="banner-instalar-texto">
-        <p id="titulo-banner-instalar" className="banner-instalar-titulo">
+    <section
+      className="mx-2 my-2 grid max-w-[560px] grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-xl border bg-card p-4 shadow-lg min-[576px]:mx-auto print:hidden"
+      aria-labelledby="titulo-banner-instalar"
+    >
+      <img className="size-11 rounded-md" src="/pwa-192.png" alt="" width={44} height={44} />
+      <div className="min-w-0">
+        <p id="titulo-banner-instalar" className="font-semibold text-foreground">
           Use o ChokoCRM como app
         </p>
-        <p className="banner-instalar-descricao">
+        <p className="text-sm text-muted-foreground">
           {ios
             ? 'No iPhone: toque em Compartilhar e depois em "Adicionar à Tela de Início".'
             : 'Ícone na tela inicial e tela cheia, sem a barra do navegador.'}
         </p>
       </div>
-      <div className="banner-instalar-acoes">
+      {/* Os dois botões dividem a linha (em telas estreitas, um embaixo do
+          outro); só "Agora não" (iPhone) fica à direita, na largura do texto */}
+      <div className="col-span-full flex flex-wrap justify-end gap-2">
         {evento && (
-          <button type="button" className="btn-primario" onClick={() => void instalar()}>
-            <Icone nome="download" tamanho={16} />
+          <Button type="button" className="flex-1" onClick={() => void instalar()}>
+            <Download aria-hidden="true" />
             Instalar o ChokoCRM
-          </button>
+          </Button>
         )}
-        <button type="button" className="btn-secundario" onClick={dispensar}>
+        <Button type="button" variant="outline" className={cn(evento && 'flex-1')} onClick={dispensar}>
           Agora não
-        </button>
+        </Button>
       </div>
     </section>
   );
