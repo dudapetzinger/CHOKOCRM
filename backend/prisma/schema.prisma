@@ -26,18 +26,36 @@ enum EventoSazonal {
 }
 
 model User {
-  id              String                @id @default(uuid())
-  nome            String
-  email           String                @unique
-  senhaHash       String                @map("senha_hash")
-  role            Role
-  criadoEm        DateTime              @default(now()) @map("criado_em")
-  visits          Visit[]
-  scheduleChanges VisitScheduleChange[]
-  stockMessages   StockMessage[]
-  clients         Client[]
+  id                  String                @id @default(uuid())
+  nome                String
+  /// Sempre em minúsculas (gravado e comparado assim).
+  email               String                @unique
+  senhaHash           String                @map("senha_hash")
+  role                Role
+  ativo               Boolean               @default(true)
+  telefone            String?
+  criadoEm            DateTime              @default(now()) @map("criado_em")
+  visits              Visit[]
+  scheduleChanges     VisitScheduleChange[]
+  stockMessages       StockMessage[]
+  clients             Client[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+/// Link de redefinição de senha: o banco guarda só o hash SHA-256 do token.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique @map("token_hash")
+  expiraEm  DateTime  @map("expira_em")
+  usadoEm   DateTime? @map("usado_em")
+  criadoEm  DateTime  @default(now()) @map("criado_em")
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model Client {

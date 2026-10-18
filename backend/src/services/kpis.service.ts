@@ -117,7 +117,8 @@ export async function obterKpisPorRepresentante(
   const [visitas, ativos, todosOsRepresentantes] = await Promise.all([
     visitRepository.listNoPeriodo(inicioDoDia(desde), fimDoDia(fim), representanteId),
     clientRepository.listAtivosParaAgenda(representanteId),
-    userRepository.listByRole('REPRESENTANTE'),
+    // Inclui inativos: inativar a conta não apaga o histórico do comparativo.
+    userRepository.listByRole('REPRESENTANTE', { incluirInativos: true }),
   ]);
 
   const inicioDoPeriodo = inicioDoDia(inicio);

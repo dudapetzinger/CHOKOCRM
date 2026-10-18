@@ -152,6 +152,18 @@ export async function update(id: string, data: UpdateClientInput): Promise<Clien
 }
 
 /**
+ * Passa a carteira inteira de um usuário para outro — clientes ativos e
+ * inativos, num único UPDATE — e devolve quantos clientes mudaram de dono.
+ */
+export async function transferirCarteira(origemId: string, destinoId: string): Promise<number> {
+  const { count } = await prisma.client.updateMany({
+    where: { representanteId: origemId },
+    data: { representanteId: destinoId },
+  });
+  return count;
+}
+
+/**
  * Única via de alteração de `Client.recorrenciaDias` (UC09): grava o
  * histórico auditável em `VisitScheduleChange` e atualiza o cliente na
  * mesma transação, para que nunca exista mudança de recorrência sem o

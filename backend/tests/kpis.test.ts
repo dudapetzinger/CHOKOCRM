@@ -402,6 +402,18 @@ describe('GET /dashboard/kpis/por-representante', () => {
     ]);
   });
 
+  it('representante inativo continua no comparativo: inativar a conta não apaga o histórico do período', async () => {
+    await prisma.user.update({ where: { id: representanteId }, data: { ativo: false } });
+
+    const res = await request(app)
+      .get('/dashboard/kpis/por-representante')
+      .query({ periodoDias: 365 })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.representantes).toEqual([expect.objectContaining({ id: representanteId, visitas: 5 })]);
+  });
+
   it('periodoDias=365 inclui as visitas antigas da carteira', async () => {
     const res = await request(app)
       .get('/dashboard/kpis/por-representante')

@@ -7,6 +7,7 @@ const TABELAS_EM_ORDEM_DE_DEPENDENCIA = [
   'contacts',
   'seasonal_events',
   'clients',
+  'password_reset_tokens',
   'users',
 ];
 

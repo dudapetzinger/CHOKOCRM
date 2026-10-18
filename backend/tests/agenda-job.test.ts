@@ -89,6 +89,17 @@ describe('executarAgendaDiaria', () => {
     });
   });
 
+  it('representante inativo não gera log', async () => {
+    await prisma.user.update({ where: { id: representanteBId }, data: { ativo: false } });
+    const infoSpy = jest.spyOn(logger, 'info');
+
+    await executarAgendaDiaria(new Date());
+
+    const registros = infoSpy.mock.calls.map(([obj]) => obj as Record<string, unknown>).filter((o) => o?.job === NOME_JOB);
+    expect(registros).toHaveLength(1);
+    expect(registros[0]).toMatchObject({ representanteId: representanteAId });
+  });
+
   it('falha de um representante não interrompe os demais', async () => {
     const infoSpy = jest.spyOn(logger, 'info');
     const errorSpy = jest.spyOn(logger, 'error');

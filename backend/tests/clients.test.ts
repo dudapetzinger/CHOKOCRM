@@ -896,6 +896,46 @@ describe('PUT /clients/:id', () => {
     expect(salvo.representanteId).toBe(outroRepresentante.id);
   });
 
+  it('com representanteId de representante inativo responde 400 "Representante inativo." e nada muda', async () => {
+    const id = await idDoClientePorNomeFantasia('Café Blumenau');
+    const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+    const inativo = await prisma.user.create({
+      data: {
+        nome: 'Representante Inativo',
+        email: 'inativo.clients-teste@chokolaten.com.br',
+        role: 'REPRESENTANTE',
+        ativo: false,
+        senhaHash,
+      },
+    });
+
+    const res = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .send({ representanteId: inativo.id });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toBe('Representante inativo.');
+
+    const salvo = await prisma.client.findUniqueOrThrow({ where: { id } });
+    expect(salvo.representanteId).toBe(representanteId);
+  });
+
+  it('reenviar o dono atual, mesmo inativo, não é transferência e passa', async () => {
+    const id = await idDoClientePorNomeFantasia('Café Blumenau');
+    await prisma.user.update({ where: { id: representanteId }, data: { ativo: false } });
+
+    const res = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .send({ representanteId, telefone: '(47) 3000-1111' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.representante.id).toBe(representanteId);
+    expect(res.body.telefone).toBe('(47) 3000-1111');
+  });
+
   it('com representanteId de gestor ou inexistente responde 400', async () => {
     const id = await idDoClientePorNomeFantasia('Café Blumenau');
 

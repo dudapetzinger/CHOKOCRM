@@ -20,6 +20,7 @@ const MENSAGEM_CONTATO_PRINCIPAL_UNICO = 'Cadastro exige exatamente um contato m
 const MENSAGEM_SOMENTE_REPRESENTANTE_CADASTRA = 'Somente representante cadastra cliente em carteira.';
 const MENSAGEM_SOMENTE_GESTOR_TRANSFERE = 'Somente o gestor transfere um cliente de carteira.';
 const MENSAGEM_REPRESENTANTE_INVALIDO = 'Representante informado não existe ou não é representante.';
+const MENSAGEM_REPRESENTANTE_INATIVO = 'Representante inativo.';
 
 // A regra de carteira vive em `carteira.ts`, que não depende de
 // `erp.service` (este já é dependência daqui; ver o import circular evitado
@@ -245,6 +246,12 @@ export async function updateClient(
     const novoRepresentante = await userRepository.findById(input.representanteId);
     if (!novoRepresentante || novoRepresentante.role !== 'REPRESENTANTE') {
       throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_REPRESENTANTE_INVALIDO, 400);
+    }
+
+    // Só representante ativo recebe cliente. Reenviar o dono atual (mesmo
+    // inativo) não é transferência e passa.
+    if (!novoRepresentante.ativo && novoRepresentante.id !== existente.representanteId) {
+      throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_REPRESENTANTE_INATIVO, 400);
     }
   }
 
