@@ -13,6 +13,7 @@ import {
   type Campanha,
 } from '../services/campaigns';
 import { listarProdutos, type Produto } from '../services/erp';
+import { listarMetas, type Meta } from '../services/goals';
 import { CampanhasPage } from './CampanhasPage';
 
 vi.mock('../services/campaigns', async (importOriginal) => ({
@@ -21,6 +22,10 @@ vi.mock('../services/campaigns', async (importOriginal) => ({
   criarCampanha: vi.fn(),
   atualizarCampanha: vi.fn(),
   excluirCampanha: vi.fn(),
+}));
+vi.mock('../services/goals', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/goals')>()),
+  listarMetas: vi.fn(),
 }));
 vi.mock('../services/erp', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/erp')>()),
@@ -78,6 +83,18 @@ const FEIRA: Campanha = {
   resultados: [],
 };
 
+const META_DO_NATAL: Meta = {
+  id: 'm1',
+  representante: { id: 'r1', nome: 'Eduarda Fischer' },
+  periodo: 'CAMPANHA',
+  inicio: '2026-10-10',
+  fim: '2026-12-24',
+  metaVisitas: 4,
+  metaVendas: 1000,
+  campanhaId: 'cp2',
+  realizado: { visitas: 2, vendas: 503.7 },
+};
+
 let usuario: ReturnType<typeof userEvent.setup>;
 
 /** Preenche de uma vez (um evento de mudança), como no teste do check-in. */
@@ -102,6 +119,9 @@ beforeEach(() => {
   }));
   vi.mocked(excluirCampanha).mockReset().mockResolvedValue(undefined);
   vi.mocked(listarProdutos).mockReset().mockResolvedValue(PRODUTOS);
+  vi.mocked(listarMetas)
+    .mockReset()
+    .mockImplementation(async (filtro) => (filtro?.campanhaId === 'cp2' ? [META_DO_NATAL] : []));
 });
 
 function renderizar(role: Role = 'GESTOR') {
@@ -188,11 +208,31 @@ describe('CampanhasPage — cartões', () => {
     expect(within(pascoa).queryByRole('list', { name: 'Produtos em destaque' })).not.toBeInTheDocument();
   });
 
-  it('não tem a área "Metas da campanha" (vem depois)', async () => {
+  it('cada cartão tem "Metas da campanha" abaixo das vendas vinculadas, com as metas daquela campanha', async () => {
     renderizar();
-    await cartao('Natal Chokolaten');
+    const natal = await cartao('Natal Chokolaten');
+    const pascoa = await cartao('Páscoa Chokolaten');
 
-    expect(screen.queryByText(/Metas da campanha/)).not.toBeInTheDocument();
+    const metasDoNatal = within(natal).getByRole('region', { name: 'Metas da campanha' });
+    expect(await within(metasDoNatal).findByText('R$ 503,70 de R$ 1.000,00 · 50 %')).toBeInTheDocument();
+    expect(within(metasDoNatal).getByText('2 de 4 · 50 %')).toBeInTheDocument();
+    expect(within(metasDoNatal).getByText('Por campanha')).toBeInTheDocument();
+    const metasDaPascoa = within(pascoa).getByRole('region', { name: 'Metas da campanha' });
+    expect(await within(metasDaPascoa).findByText('Nenhuma meta definida para esta campanha.')).toBeInTheDocument();
+    expect(listarMetas).toHaveBeenCalledWith({ campanhaId: 'cp2', representanteId: undefined });
+
+    // Abaixo das vendas vinculadas
+    const vendas = within(natal).getByRole('heading', { name: 'Vendas vinculadas por representante' });
+    expect(vendas.compareDocumentPosition(metasDoNatal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('o representante vê as metas da campanha sem "Nova meta"', async () => {
+    renderizar('REPRESENTANTE');
+    const natal = await cartao('Natal Chokolaten');
+
+    const metasDoNatal = within(natal).getByRole('region', { name: 'Metas da campanha' });
+    expect(await within(metasDoNatal).findByText('2 de 4 · 50 %')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nova meta' })).not.toBeInTheDocument();
   });
 
   it('sem campanhas, diz que não há nenhuma', async () => {

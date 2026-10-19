@@ -494,6 +494,34 @@ describe('DELETE /campaigns/:id', () => {
     expect(cliente.lembrete).toBe('Levar kits');
   });
 
+  it('excluir a campanha apaga as metas dela; as outras metas ficam', async () => {
+    const id = (await criarCampanha()).body.id as string;
+    const metaDaCampanha = await autenticado(request(app).post('/goals'), tokenGestor).send({
+      representanteId: eduardaId,
+      periodo: 'CAMPANHA',
+      campanhaId: id,
+      inicio: daquiA(-5),
+      fim: daquiA(30),
+      metaVisitas: 10,
+      metaVendas: 5000,
+    });
+    const metaSemCampanha = await autenticado(request(app).post('/goals'), tokenGestor).send({
+      representanteId: eduardaId,
+      periodo: 'PERSONALIZADO',
+      inicio: daquiA(-5),
+      fim: daquiA(30),
+      metaVisitas: 10,
+      metaVendas: 5000,
+    });
+    expect([metaDaCampanha.status, metaSemCampanha.status]).toEqual([201, 201]);
+
+    const res = await autenticado(request(app).delete(`/campaigns/${id}`), tokenGestor);
+
+    expect(res.status).toBe(204);
+    const metas = await prisma.goal.findMany({ select: { id: true } });
+    expect(metas).toEqual([{ id: metaSemCampanha.body.id }]);
+  });
+
   it('o representante não exclui (403) e a campanha continua', async () => {
     const id = (await criarCampanha()).body.id as string;
 

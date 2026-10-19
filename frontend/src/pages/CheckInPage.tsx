@@ -248,8 +248,9 @@ export function CheckInPage() {
 
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['agenda'] });
-      // As vendas e visitas vinculadas da campanha mudam
+      // As vendas e visitas vinculadas da campanha e o realizado das metas mudam
       queryClient.invalidateQueries({ queryKey: ['campanhas'] });
+      queryClient.invalidateQueries({ queryKey: ['metas'] });
       queryClient.invalidateQueries({ queryKey: ['client', id, 'visits'] });
       queryClient.invalidateQueries({ queryKey: ['client', id] });
 

@@ -6,7 +6,7 @@
  * hoje em São Paulo), desconto em vermelho, período, descrição, produtos em
  * destaque e as vendas vinculadas: por representante para o gestor, "Minhas
  * vendas vinculadas" para o representante (o backend já manda só a linha
- * dele).
+ * dele) e, embaixo, as "Metas da campanha" (spec 7.8, `MetasPanel`).
  *
  * Só o gestor tem "Nova campanha ou evento", editar e excluir (o backend
  * também barra). O formulário abre num cartão no topo, para criar e para
@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '../auth/useAuth';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { Segmentado, type Opcao } from '../components/Segmentado';
+import { MetasPanel } from '../components/crm/MetasPanel';
 import { Aviso, Campo, CLASSES_BOTAO_PERIGO, Etiqueta } from '../components/crm/ui';
 import { useCampanhas } from '../hooks/useCampanhas';
 import { useProdutos } from '../hooks/useDadosErp';
@@ -122,6 +123,8 @@ function FormularioCampanha({ campanha, aoFechar }: { campanha: Campanha | null;
     mutationFn: (input: CampanhaInput) => (campanha ? atualizarCampanha(campanha.id, input) : criarCampanha(input)),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['campanhas'] });
+      // O período da campanha pode ter mudado (e com ele o realizado das metas)
+      if (campanha) void queryClient.invalidateQueries({ queryKey: ['metas'] });
       toast.success(campanha ? 'Campanha atualizada' : 'Campanha criada — os representantes já podem ver');
       aoFechar();
     },
@@ -315,6 +318,8 @@ function ConfirmarExclusao({ campanha, aoFechar }: { campanha: Campanha; aoFecha
     mutationFn: () => excluirCampanha(campanha.id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['campanhas'] });
+      // As metas da campanha foram apagadas junto (FK em cascata)
+      void queryClient.invalidateQueries({ queryKey: ['metas'] });
       toast.success('Campanha excluída');
       aoFechar();
     },
@@ -441,6 +446,8 @@ function CartaoCampanha({
           </ul>
         )}
       </div>
+
+      <MetasPanel campanha={campanha} />
     </li>
   );
 }

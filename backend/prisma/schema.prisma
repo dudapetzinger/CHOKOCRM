@@ -23,6 +23,15 @@ enum TipoCampanha {
   EVENTO
 }
 
+/// Periodicidade da meta (spec 7.8): semana de segunda a domingo, mês do
+/// primeiro ao último dia, período livre ou dentro do período da campanha.
+enum PeriodoMeta {
+  SEMANAL
+  MENSAL
+  PERSONALIZADO
+  CAMPANHA
+}
+
 enum EventoSazonal {
   PASCOA
   DIA_DAS_MAES
@@ -46,6 +55,7 @@ model User {
   stockMessages       StockMessage[]
   clients             Client[]
   passwordResetTokens PasswordResetToken[]
+  metas               Goal[]
 
   @@map("users")
 }
@@ -207,7 +217,29 @@ model Campaign {
   criadoEm              DateTime     @default(now()) @map("criado_em")
   visits                Visit[]
   clientesProximaVisita Client[]
+  metas                 Goal[]
 
   @@index([inicio])
   @@map("campaigns")
+}
+
+/// Meta de visitas e vendas de um representante (spec 7.8), sem campanha ou
+/// de uma campanha (excluir a campanha apaga as metas dela). O realizado é
+/// calculado a cada leitura, das visitas do representante no período.
+model Goal {
+  id              String      @id @default(uuid())
+  representanteId String      @map("representante_id")
+  representante   User        @relation(fields: [representanteId], references: [id])
+  periodo         PeriodoMeta
+  inicio          DateTime    @db.Date
+  fim             DateTime    @db.Date
+  metaVisitas     Int         @map("meta_visitas")
+  metaVendas      Decimal     @map("meta_vendas") @db.Decimal(12, 2)
+  campanhaId      String?     @map("campanha_id")
+  campanha        Campaign?   @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+  criadoEm        DateTime    @default(now()) @map("criado_em")
+
+  @@index([representanteId])
+  @@index([campanhaId])
+  @@map("goals")
 }

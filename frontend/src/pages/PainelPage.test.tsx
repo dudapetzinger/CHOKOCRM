@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthContext } from '../auth/auth-context';
 import { useClientesDaCarteira, useKpisPorRepresentante, useVendasMensais } from '../hooks/useDashboard';
@@ -9,6 +10,7 @@ import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { ApiError } from '../services/api';
 import type { ClienteListItem } from '../services/clients';
 import type { KpisPorRepresentante, VendasMensais } from '../services/dashboard';
+import { listarMetas, type Meta } from '../services/goals';
 import type { Alertas } from '../services/insights';
 import type { Kpis } from '../services/kpis';
 import { PainelPage } from './PainelPage';
@@ -31,6 +33,23 @@ vi.mock('../hooks/useDashboard', () => ({
 }));
 
 vi.mock('../hooks/useInsights', () => ({ useAlertasDeProducao: vi.fn() }));
+
+vi.mock('../services/goals', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/goals')>()),
+  listarMetas: vi.fn(),
+}));
+
+const META_DA_EDUARDA: Meta = {
+  id: 'm1',
+  representante: { id: 'u1', nome: 'Eduarda Fischer' },
+  periodo: 'MENSAL',
+  inicio: '2026-10-01',
+  fim: '2026-10-31',
+  metaVisitas: 10,
+  metaVendas: 6000,
+  campanhaId: null,
+  realizado: { visitas: 7, vendas: 4200 },
+};
 
 function consulta<T>(data: T) {
   return { data, isLoading: false, isError: false, error: null, isPlaceholderData: false };
@@ -119,6 +138,7 @@ const CLIENTE_ESFRIANDO: ClienteListItem = {
 type Retorno<F extends (...args: never[]) => unknown> = ReturnType<F>;
 
 beforeEach(() => {
+  vi.mocked(listarMetas).mockReset().mockResolvedValue([META_DA_EDUARDA]);
   vi.mocked(useRepresentanteSelecionado).mockReturnValue(undefined);
   vi.mocked(useKpis).mockReturnValue(consulta(KPIS) as unknown as Retorno<typeof useKpis>);
   vi.mocked(useKpisPorRepresentante).mockReturnValue(
@@ -137,12 +157,15 @@ function renderizarComo(role: 'GESTOR' | 'REPRESENTANTE') {
     login: vi.fn(),
     logout: vi.fn(),
   };
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <AuthContext.Provider value={auth}>
-      <MemoryRouter>
-        <PainelPage />
-      </MemoryRouter>
-    </AuthContext.Provider>,
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={auth}>
+        <MemoryRouter>
+          <PainelPage />
+        </MemoryRouter>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
   );
 }
 
@@ -184,19 +207,19 @@ describe('PainelPage (gestor)', () => {
     ]);
   });
 
-  it('os blocos na ordem do protótipo, sem metas, mapa nem exportação', () => {
+  it('os blocos na ordem do protótipo (metas logo abaixo dos KPIs), sem mapa nem exportação', () => {
     renderizarComo('GESTOR');
 
     const titulos = screen.getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent);
     expect(titulos).toEqual([
       'Quem está visitando pouco?',
+      'Metas de visitas e vendas',
       'Resultado das visitas por representante',
       'Ritmo de visitas — últimas 8 semanas',
       'Quais clientes estão esfriando?',
       'O próximo evento está chegando e o estoque acompanha?',
       'Época do ano',
     ]);
-    expect(screen.queryByText(/Metas/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Mapa/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Planilha|PDF/ })).not.toBeInTheDocument();
   });
@@ -223,6 +246,24 @@ describe('PainelPage (gestor)', () => {
     expect(useVendasMensais).toHaveBeenCalledWith('u1');
     expect(useClientesDaCarteira).toHaveBeenCalledWith('u1');
     expect(useAlertasDeProducao).toHaveBeenCalledWith(90, 'u1');
+  });
+
+  it('metas de visitas e vendas: as sem campanha, com o progresso e "Nova meta" para o gestor', async () => {
+    renderizarComo('GESTOR');
+
+    const metas = screen.getByRole('region', { name: 'Metas de visitas e vendas' });
+    expect(await within(metas).findByText('R$ 4.200,00 de R$ 6.000,00 · 70 %')).toBeInTheDocument();
+    expect(within(metas).getByText('7 de 10 · 70 %')).toBeInTheDocument();
+    expect(within(metas).getByRole('button', { name: 'Nova meta' })).toBeInTheDocument();
+    expect(listarMetas).toHaveBeenCalledWith({ campanhaId: undefined, representanteId: undefined });
+  });
+
+  it('as metas seguem o representante escolhido', async () => {
+    vi.mocked(useRepresentanteSelecionado).mockReturnValue('u1');
+    renderizarComo('GESTOR');
+
+    await screen.findByText('7 de 10 · 70 %');
+    expect(listarMetas).toHaveBeenCalledWith({ campanhaId: undefined, representanteId: 'u1' });
   });
 
   it('trocar o período para 90 dias refaz os indicadores e o resultado por representante com 90', async () => {

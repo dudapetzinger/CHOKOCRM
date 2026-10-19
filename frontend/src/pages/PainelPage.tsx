@@ -3,7 +3,8 @@
  * `routes/painel.tsx` do protótipo, com os gráficos dele desenhados à mão, na
  * Etapa 8). No topo, a barra com o seletor de representante e o período e a
  * faixa de dados simulados; depois "Quem está visitando pouco?" com os quatro
- * indicadores e, em duas colunas a partir de 1024 px (empilhadas abaixo):
+ * indicadores, as "Metas de visitas e vendas" (spec 7.8) e, em duas colunas
+ * a partir de 1024 px (empilhadas abaixo):
  *   - à esquerda, o resultado das visitas por representante (barra
  *     empilhada), o ritmo de visitas das 8 últimas semanas e "Quais clientes
  *     estão esfriando?" (distribuição por cor e os cinco mais urgentes);
@@ -25,6 +26,7 @@ import { DistribuicaoPorCor } from '../components/crm/graficos/DistribuicaoPorCo
 import { ResultadoPorRepresentante } from '../components/crm/graficos/ResultadoPorRepresentante';
 import { RitmoSemanal } from '../components/crm/graficos/RitmoSemanal';
 import { VendasMensais } from '../components/crm/graficos/VendasMensais';
+import { MetasPanel } from '../components/crm/MetasPanel';
 import { Aviso, Cartao } from '../components/crm/ui';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { HORIZONTE_PADRAO_DIAS } from '../components/FiltroHorizonte';
@@ -242,6 +244,8 @@ function PainelGestor() {
       {simulado && <AvisoSimulado className="" />}
 
       <KpisCard periodoDias={periodoDias} representanteId={representanteId} />
+
+      <MetasPanel representanteId={representanteId} />
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <div className="min-w-0 space-y-4">
