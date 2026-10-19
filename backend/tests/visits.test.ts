@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
+import { CATALOGO } from '../src/providers/erp/mock/catalogo';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -312,6 +313,140 @@ describe('POST /clients/:id/visits', () => {
   });
 });
 
+describe('POST /clients/:id/visits com pedido', () => {
+  function postar(corpo: Record<string, unknown>) {
+    return request(app).post(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`).send(corpo);
+  }
+
+  it('VENDA com itens grava nome e preço do catálogo e devolve o total do pedido', async () => {
+    const res = await postar(
+      payloadCheckIn({
+        itens: [
+          { sku: 'BOMB-SORT', quantidade: 10 },
+          { sku: 'PAO-MEL', quantidade: 3 },
+        ],
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(res.body.itens).toEqual([
+      { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
+      { sku: 'PAO-MEL', produtoNome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
+    ]);
+    // 10 × 42,00 + 3 × 27,90, sem o erro de ponto flutuante de 3 * 27.9
+    expect(res.body.totalPedido).toBe(503.7);
+
+    const gravados = await prisma.visitItem.findMany({ where: { visitId: res.body.id }, orderBy: { sku: 'asc' } });
+    expect(gravados.map((item) => [item.sku, item.produtoNome, item.quantidade, item.precoUnitario.toFixed(2)])).toEqual([
+      ['BOMB-SORT', 'Bombons sortidos', 10, '42.00'],
+      ['PAO-MEL', 'Pães de mel', 3, '27.90'],
+    ]);
+  });
+
+  it('o pedido gravado guarda o preço do dia: mudar o catálogo depois não muda o pedido', async () => {
+    const criada = await postar(payloadCheckIn({ itens: [{ sku: 'BOMB-SORT', quantidade: 10 }] }));
+    expect(criada.status).toBe(201);
+
+    const produto = CATALOGO.find((item) => item.sku === 'BOMB-SORT')!;
+    const precoOriginal = produto.precoUnitario;
+    try {
+      produto.precoUnitario = 99.9;
+
+      const res = await request(app).get(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`);
+
+      expect(res.body.data[0].itens).toEqual([
+        { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
+      ]);
+      expect(res.body.data[0].totalPedido).toBe(420);
+    } finally {
+      produto.precoUnitario = precoOriginal;
+    }
+  });
+
+  it('SKU repetido em duas linhas vira uma linha só, com as quantidades somadas', async () => {
+    const res = await postar(
+      payloadCheckIn({
+        itens: [
+          { sku: 'TRUF-70', quantidade: 4 },
+          { sku: 'TRUF-70', quantidade: 6 },
+        ],
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(res.body.itens).toEqual([
+      { sku: 'TRUF-70', produtoNome: 'Trufas 70% cacau', quantidade: 10, precoUnitario: 36 },
+    ]);
+    expect(res.body.totalPedido).toBe(360);
+  });
+
+  it('VENDA sem itens devolve itens vazio e total zero', async () => {
+    const res = await postar(payloadCheckIn());
+
+    expect(res.status).toBe(201);
+    expect(res.body.itens).toEqual([]);
+    expect(res.body.totalPedido).toBe(0);
+  });
+
+  it.each(['NEGOCIACAO', 'SEM_VENDA'])('recusa itens em visita com resultado %s', async (resultado) => {
+    const res = await postar(payloadCheckIn({ resultado, itens: [{ sku: 'BOMB-SORT', quantidade: 2 }] }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toBe('Pedido só pode ser registrado em visita com venda.');
+    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
+  });
+
+  it('recusa SKU fora do catálogo sem gravar a visita', async () => {
+    const res = await postar(
+      payloadCheckIn({
+        itens: [
+          { sku: 'BOMB-SORT', quantidade: 2 },
+          { sku: 'NAO-EXISTE', quantidade: 1 },
+        ],
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toBe('Produto não encontrado no catálogo.');
+    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
+    expect(await prisma.visitItem.count()).toBe(0);
+  });
+
+  it.each([
+    ['zero', 0],
+    ['negativa', -3],
+    ['fracionada', 1.5],
+    ['em texto', '10'],
+  ])('recusa quantidade %s', async (_rotulo, quantidade) => {
+    const res = await postar(payloadCheckIn({ itens: [{ sku: 'BOMB-SORT', quantidade }] }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
+  });
+
+  it('recusa preço ou nome enviados no item: eles vêm do catálogo', async () => {
+    const res = await postar(
+      payloadCheckIn({ itens: [{ sku: 'BOMB-SORT', quantidade: 1, precoUnitario: 0.01, produtoNome: 'Brinde' }] }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
+  });
+
+  it('recusa pedido com mais de 30 linhas', async () => {
+    const itens = Array.from({ length: 31 }, () => ({ sku: 'BOMB-SORT', quantidade: 1 }));
+
+    const res = await postar(payloadCheckIn({ itens }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
 describe('GET /clients/:id/visits', () => {
   async function criarVisita(descricao: string, dataHora: string, resultado = 'VENDA'): Promise<void> {
     await request(app)
@@ -347,6 +482,37 @@ describe('GET /clients/:id/visits', () => {
       'Visita do meio.',
       'Visita antiga.',
     ]);
+  });
+
+  it('traz o pedido de cada visita e o total; visita sem pedido vem com itens vazio', async () => {
+    await request(app)
+      .post(`/clients/${clienteId}/visits`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        descricao: 'Visita com pedido.',
+        resultado: 'VENDA',
+        dataHora: '2026-09-18T13:00:00.000Z',
+        itens: [
+          { sku: 'TAB-LEITE', quantidade: 12 },
+          { sku: 'DRAGEE', quantidade: 5 },
+        ],
+      });
+    await criarVisita('Visita sem pedido.', '2026-09-10T13:00:00.000Z', 'NEGOCIACAO');
+
+    const res = await request(app).get(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const [comPedido, semPedido] = res.body.data;
+    expect(comPedido.itens).toEqual(
+      expect.arrayContaining([
+        { sku: 'TAB-LEITE', produtoNome: 'Tablete de chocolate ao leite', quantidade: 12, precoUnitario: 9 },
+        { sku: 'DRAGEE', produtoNome: 'Dragées de chocolate', quantidade: 5, precoUnitario: 24 },
+      ]),
+    );
+    expect(comPedido.itens).toHaveLength(2);
+    expect(comPedido.totalPedido).toBe(228);
+    expect(semPedido.itens).toEqual([]);
+    expect(semPedido.totalPedido).toBe(0);
   });
 
   it('não vaza visita de outro cliente', async () => {
@@ -414,6 +580,36 @@ describe('PATCH /visits/:id', () => {
     expect(res.body.descricao).toBe('Descrição corrigida: fechou 12 caixas de trufa.');
     expect(res.body.editadoEm).not.toBeNull();
     expect(res.body.resultado).toBe('NEGOCIACAO');
+  });
+
+  it('editar a descrição mantém o pedido da visita', async () => {
+    const criada = await request(app)
+      .post(`/clients/${clienteId}/visits`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ descricao: 'Pedido de bombons.', resultado: 'VENDA', itens: [{ sku: 'BOMB-SORT', quantidade: 10 }] });
+
+    const res = await request(app)
+      .patch(`/visits/${criada.body.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ descricao: 'Pedido de bombons para o Natal.' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.itens).toEqual([
+      { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
+    ]);
+    expect(res.body.totalPedido).toBe(420);
+  });
+
+  it('recusa itens na edição: o pedido não muda depois do check-in', async () => {
+    const id = await criarVisitaRetornandoId();
+
+    const res = await request(app)
+      .patch(`/visits/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ descricao: 'Tentando mudar o pedido.', itens: [{ sku: 'BOMB-SORT', quantidade: 1 }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('recusa campo diferente de descricao', async () => {

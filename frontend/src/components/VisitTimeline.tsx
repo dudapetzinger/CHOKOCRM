@@ -5,19 +5,21 @@
  *
  * Visual do protótipo (Etapa 8): linha do tempo com um ponto por visita, a
  * data e o resultado numa etiqueta (venda em verde, negociação em laranja,
- * sem venda neutra) e a foto em miniatura.
+ * sem venda neutra), o pedido da visita com venda ("Pedido · total" e uma
+ * linha por item, com o preço gravado no check-in) e a foto em miniatura.
  *
  * Componente de apresentação: não chama a API: recebe os dados e os
  * callbacks da página (ver docs/arquitetura.md).
  */
 import { useState } from 'react';
-import { Camera, Pencil } from 'lucide-react';
+import { Camera, Pencil, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ROTULO_RESULTADO, type ResultadoVisita } from '../services/visits';
 import type { Visita } from '../services/visits';
 import { VisitaFoto } from './VisitaFoto';
 import { formatarDataHora } from '../lib/formatarData';
+import { formatarMoeda } from '../lib/formatarMoeda';
 import { EstadoVazio } from './EstadoVazio';
 import { Aviso, Etiqueta } from './crm/ui';
 
@@ -146,6 +148,28 @@ export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarF
                     </Button>
                   )}
                 </>
+              )}
+
+              {visita.itens.length > 0 && (
+                <div className="mt-2 rounded-lg bg-muted p-2.5 text-sm">
+                  <p id={`pedido-${visita.id}`} className="mb-1 flex items-center gap-1.5 font-medium">
+                    {/* Marca sem texto: o laranja vivo vale aqui (spec 6.3) */}
+                    <ShoppingBag aria-hidden="true" className="size-4 shrink-0 text-primary-vivo" />
+                    Pedido · {formatarMoeda(visita.totalPedido)}
+                  </p>
+                  <ul aria-labelledby={`pedido-${visita.id}`} className="space-y-0.5">
+                    {visita.itens.map((item, indice) => (
+                      <li key={`${item.sku}-${indice}`} className="flex justify-between gap-3 text-muted-foreground">
+                        <span className="min-w-0">
+                          {item.quantidade}× {item.produtoNome}
+                        </span>
+                        <span className="shrink-0 tabular-nums">
+                          {formatarMoeda(item.quantidade * item.precoUnitario)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
 
               {visita.temFoto ? (

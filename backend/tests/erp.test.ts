@@ -5,6 +5,7 @@ import { logger } from '../src/lib/logger';
 import { prisma } from '../src/lib/prisma';
 import { erpProvider } from '../src/providers/erp';
 import { ErpIndisponivelError, type StockSnapshot } from '../src/providers/erp/ErpProvider';
+import { CATALOGO } from '../src/providers/erp/mock/catalogo';
 import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
 import * as erpService from '../src/services/erp.service';
 import type { ItemBaixo } from '../src/services/erp.service';
@@ -222,6 +223,36 @@ describe('GET /clients/:id/erp', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('OK');
+  });
+});
+
+describe('GET /erp/produtos', () => {
+  it('sem token responde 401', async () => {
+    const res = await request(app).get('/erp/produtos');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('devolve o catálogo com o preço unitário, na ordem do catálogo', async () => {
+    const res = await request(app).get('/erp/produtos').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(
+      CATALOGO.map((produto) => ({ sku: produto.sku, nome: produto.nome, precoUnitario: produto.precoUnitario })),
+    );
+    expect(res.body.data).toContainEqual({ sku: 'BOMB-SORT', nome: 'Bombons sortidos', precoUnitario: 42 });
+    for (const produto of res.body.data as { precoUnitario: number }[]) {
+      expect(produto.precoUnitario).toBeGreaterThan(0);
+      expect(Math.round(produto.precoUnitario * 100) / 100).toBe(produto.precoUnitario);
+    }
+  });
+
+  it('gestor também consulta o catálogo (200)', async () => {
+    const res = await request(app).get('/erp/produtos').set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(CATALOGO.length);
   });
 });
 

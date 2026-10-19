@@ -1,8 +1,9 @@
 import { z } from 'zod';
 
 /**
- * Validação do check-in de visita (UC07) e da edição posterior da
- * descrição (UC08). O schema Prisma (`prisma/schema.prisma`) exige
+ * Validação do check-in de visita (UC07), com o pedido opcional da visita
+ * com venda, e da edição posterior da descrição (UC08), que não mexe no
+ * pedido. O schema Prisma (`prisma/schema.prisma`) exige
  * `descricao` e `resultado` como NOT NULL — este zod reflete a mesma
  * obrigatoriedade, conforme o dicionário de dados
  * (docs/modelo-de-dados.md).
@@ -34,6 +35,27 @@ const dataHoraSchema = z
   .transform((valor) => new Date(valor))
   .refine((data) => data.getTime() <= Date.now(), { message: MENSAGEM_DATA_FUTURA });
 
+const MAXIMO_ITENS_DO_PEDIDO = 30;
+const MAXIMO_QUANTIDADE_POR_ITEM = 99999;
+const MENSAGEM_QUANTIDADE = 'Quantidade do item deve ser um número inteiro maior que zero.';
+
+/**
+ * Item do pedido (spec 7.5): só o SKU e a quantidade. Nome e preço vêm do
+ * catálogo do ERP no serviço — por isso o objeto é `strict`: um preço
+ * mandado pelo cliente HTTP é recusado, nunca usado. Quantidade em texto
+ * ("10") também é recusada, como a data solta acima.
+ */
+const itemDoPedidoSchema = z
+  .object({
+    sku: z.string({ message: 'Informe o produto do item.' }).trim().min(1, 'Informe o produto do item.'),
+    quantidade: z
+      .number({ message: MENSAGEM_QUANTIDADE })
+      .int(MENSAGEM_QUANTIDADE)
+      .min(1, MENSAGEM_QUANTIDADE)
+      .max(MAXIMO_QUANTIDADE_POR_ITEM, `Quantidade do item não pode passar de ${MAXIMO_QUANTIDADE_POR_ITEM}.`),
+  })
+  .strict();
+
 export const createVisitSchema = z
   .object({
     descricao: descricaoSchema,
@@ -42,6 +64,11 @@ export const createVisitSchema = z
     }),
     dataHora: dataHoraSchema.optional(),
     contactId: z.string().uuid('Identificador do contato inválido.').optional(),
+    /** Pedido, só com resultado VENDA (regra no serviço, com a mensagem própria). */
+    itens: z
+      .array(itemDoPedidoSchema)
+      .max(MAXIMO_ITENS_DO_PEDIDO, `O pedido pode ter no máximo ${MAXIMO_ITENS_DO_PEDIDO} itens.`)
+      .optional(),
   })
   .strict();
 

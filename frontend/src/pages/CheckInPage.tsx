@@ -1,9 +1,14 @@
 /**
  * Tela de check-in de visita (UC07), no visual do protótipo
  * (`routes/checkin.$id.tsx`, Etapa 8): um cartão de 560 px com o cliente,
- * data e hora, resultado, contato atendido, o que aconteceu na visita, foto
- * e as ações. Os blocos que ainda não existem no app (pedido, próxima
- * visita, campanhas) entram depois, nesta mesma ordem.
+ * data e hora, resultado, contato atendido, pedido (só com resultado Venda),
+ * o que aconteceu na visita, foto e as ações. Os blocos que ainda não
+ * existem no app (próxima visita, campanhas) entram depois, nesta mesma ordem.
+ *
+ * O pedido começa com uma linha no primeiro produto do catálogo, sem
+ * quantidade; vão para a API só as linhas com quantidade, e só com Venda
+ * (trocar o resultado esconde o bloco e o pedido não vai). Sem o catálogo,
+ * o bloco avisa e o check-in ainda pode ser salvo sem pedido.
  *
  * A data/hora vem preenchida com o agora e admite ajuste para lançar visita
  * já ocorrida. "+ Novo contato…" no select do contato abre o `NovoContato`
@@ -21,18 +26,21 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useProdutos } from '../hooks/useDadosErp';
 import { comprimirImagem } from '../lib/comprimirImagem';
 import { useDevolverFoco, useFocoNoPrimeiroErro } from '../lib/useFoco';
 import { getCliente, mensagemErroApi, type Contato } from '../services/clients';
 import { registrarCheckIn, enviarFoto } from '../services/visits';
-import type { ResultadoVisita } from '../services/visits';
+import type { ItemPedido, ResultadoVisita } from '../services/visits';
 import { AreaTextoCrescente } from '../components/AreaTextoCrescente';
 import { SegmentadoResultado } from '../components/SegmentadoResultado';
 import { NovoContato } from '../components/crm/NovoContato';
+import { PedidoCampos } from '../components/crm/PedidoCampos';
 import { Aviso, Campo, Cartao, CLASSES_SELECT } from '../components/crm/ui';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar o cliente.';
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar o check-in.';
+const MENSAGEM_ERRO_PRODUTOS = 'Não foi possível carregar os produtos.';
 
 /** Valor da opção "+ Novo contato…" (não é id de contato). */
 const NOVO_CONTATO = '__novo';
@@ -71,6 +79,12 @@ export function CheckInPage() {
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
   // Contatos criados aqui, até a nova leitura do cliente trazê-los
   const [contatosCriados, setContatosCriados] = useState<Contato[]>([]);
+  // `null` até a primeira mudança: antes disso o pedido é a linha inicial
+  const [itensEditados, setItensEditados] = useState<ItemPedido[] | null>(null);
+
+  const { data: produtos, isLoading: carregandoProdutos, isError: erroProdutos } = useProdutos();
+  const primeiroProduto = produtos?.[0];
+  const itens = itensEditados ?? (primeiroProduto ? [{ sku: primeiroProduto.sku, quantidade: 0 }] : []);
 
   const { ref: selectContato, devolverFoco } = useDevolverFoco<HTMLSelectElement>(novoContatoAberto);
   const { ref: formulario, focarPrimeiroErro } = useFocoNoPrimeiroErro<HTMLFormElement>();
@@ -134,12 +148,15 @@ export function CheckInPage() {
     setSalvando(true);
     setErroEnvio(null);
 
+    const itensDoPedido = resultado === 'VENDA' ? itens.filter((item) => item.quantidade > 0) : [];
+
     try {
       const visita = await registrarCheckIn(id, {
         descricao: descricao.trim(),
         resultado,
         dataHora: new Date(dataHora).toISOString(),
         ...(contactId ? { contactId } : {}),
+        ...(itensDoPedido.length > 0 ? { itens: itensDoPedido } : {}),
       });
 
       queryClient.invalidateQueries({ queryKey: ['clients'] });
@@ -230,6 +247,23 @@ export function CheckInPage() {
           </Campo>
 
           {novoContatoAberto && id && <NovoContato clienteId={id} aoConcluir={concluirNovoContato} />}
+
+          {resultado === 'VENDA' && (
+            <PedidoCampos
+              produtos={produtos ?? []}
+              itens={itens}
+              aoMudar={setItensEditados}
+              aviso={
+                erroProdutos ? (
+                  <Aviso tom="erro" role="alert">
+                    {MENSAGEM_ERRO_PRODUTOS}
+                  </Aviso>
+                ) : (
+                  carregandoProdutos && <p className="text-sm text-muted-foreground">Carregando produtos...</p>
+                )
+              }
+            />
+          )}
 
           <Campo rotulo="O que aconteceu na visita" htmlFor="checkin-descricao" erro={erros.descricao}>
             <AreaTextoCrescente

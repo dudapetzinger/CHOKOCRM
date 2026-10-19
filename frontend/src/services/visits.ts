@@ -16,6 +16,14 @@ export const ROTULO_RESULTADO: Record<ResultadoVisita, string> = {
   SEM_VENDA: 'Sem venda',
 };
 
+/** Item gravado no pedido da visita: nome e preço do catálogo no dia do check-in. */
+export type ItemPedidoVisita = {
+  sku: string;
+  produtoNome: string;
+  quantidade: number;
+  precoUnitario: number;
+};
+
 export type Visita = {
   id: string;
   dataHora: string;
@@ -26,13 +34,22 @@ export type Visita = {
   temFoto: boolean;
   criadoEm: string;
   editadoEm: string | null;
+  /** Vazio quando a visita não tem pedido. */
+  itens: ItemPedidoVisita[];
+  /** Calculado no backend, em reais. */
+  totalPedido: number;
 };
+
+/** Linha do pedido no check-in: só produto e quantidade (o preço vem do catálogo, no backend). */
+export type ItemPedido = { sku: string; quantidade: number };
 
 export type CheckInInput = {
   descricao: string;
   resultado: ResultadoVisita;
   dataHora?: string;
   contactId?: string;
+  /** Só com resultado VENDA, e sem linhas de quantidade 0. */
+  itens?: ItemPedido[];
 };
 
 export async function listarVisitas(clienteId: string): Promise<Visita[]> {

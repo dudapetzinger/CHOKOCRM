@@ -3,6 +3,7 @@ import { prisma } from '../../src/lib/prisma';
 const TABELAS_EM_ORDEM_DE_DEPENDENCIA = [
   'stock_messages',
   'visit_schedule_changes',
+  'visit_items',
   'visits',
   'contacts',
   'seasonal_events',

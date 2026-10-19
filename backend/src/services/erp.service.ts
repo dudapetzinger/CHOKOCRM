@@ -7,6 +7,7 @@ import {
   type StockSnapshot,
   type Volume,
 } from '../providers/erp/ErpProvider';
+import { CATALOGO } from '../providers/erp/mock/catalogo';
 import * as clientRepository from '../repositories/client.repository';
 import { logger } from '../lib/logger';
 // De `carteira`, não de `client.service`: este depende daqui (`consultarUltimasVendas`).
@@ -102,6 +103,16 @@ async function consultarEmLote<T>(
 /** Indica se o ERP em uso é o simulado (mock de demonstração), para telas e insights sinalizarem isso. */
 export function erpSimulado(): boolean {
   return erpProvider.simulado;
+}
+
+export type ProdutoDTO = { sku: string; nome: string; precoUnitario: number };
+
+/**
+ * Produtos que o check-in oferece no pedido (spec 7.5), na ordem do
+ * catálogo: os mesmos do histórico do ERP simulado, com o preço do dia.
+ */
+export function listarProdutos(): ProdutoDTO[] {
+  return CATALOGO.map(({ sku, nome, precoUnitario }) => ({ sku, nome, precoUnitario }));
 }
 
 /**

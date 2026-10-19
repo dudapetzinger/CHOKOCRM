@@ -1,12 +1,29 @@
 import type { Prisma, ResultadoVisita } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
+/**
+ * Itens do pedido em ordem alfabética do produto: a tabela não guarda a
+ * ordem das linhas do formulário, e o id (uuid) não serve de ordem. O
+ * serviço junta as linhas do mesmo SKU, então o nome não se repete.
+ */
 const INCLUDE_RELACOES = {
   contact: { select: { id: true, nome: true } },
   user: { select: { id: true, nome: true } },
+  itens: {
+    select: { sku: true, produtoNome: true, quantidade: true, precoUnitario: true },
+    orderBy: { produtoNome: 'asc' },
+  },
 } as const;
 
 export type VisitComRelacoes = Prisma.VisitGetPayload<{ include: typeof INCLUDE_RELACOES }>;
+
+/** Linha do pedido já com nome e preço do catálogo (o serviço resolve). */
+export type ItemDoPedidoData = {
+  sku: string;
+  produtoNome: string;
+  quantidade: number;
+  precoUnitario: number;
+};
 
 export type CreateVisitData = {
   clientId: string;
@@ -15,10 +32,15 @@ export type CreateVisitData = {
   dataHora: Date;
   descricao: string;
   resultado: ResultadoVisita;
+  itens: ItemDoPedidoData[];
 };
 
-export async function create(data: CreateVisitData): Promise<VisitComRelacoes> {
-  return prisma.visit.create({ data, include: INCLUDE_RELACOES });
+/** Visita e itens num `create` aninhado: o Prisma grava tudo numa transação só. */
+export async function create({ itens, ...data }: CreateVisitData): Promise<VisitComRelacoes> {
+  return prisma.visit.create({
+    data: { ...data, ...(itens.length > 0 ? { itens: { create: itens } } : {}) },
+    include: INCLUDE_RELACOES,
+  });
 }
 
 /** Timeline do cliente: mais recente primeiro (usa o índice da migration). */

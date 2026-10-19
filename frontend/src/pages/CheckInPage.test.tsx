@@ -6,6 +6,7 @@ import { Toaster } from '../components/ui/sonner';
 import { comprimirImagem } from '../lib/comprimirImagem';
 import { ApiError } from '../services/api';
 import { createContato, getCliente, type ClienteCompleto, type Contato } from '../services/clients';
+import { listarProdutos, type Produto } from '../services/erp';
 import { enviarFoto, registrarCheckIn, type Visita } from '../services/visits';
 import { CheckInPage } from './CheckInPage';
 
@@ -13,6 +14,10 @@ vi.mock('../services/clients', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/clients')>()),
   getCliente: vi.fn(),
   createContato: vi.fn(),
+}));
+vi.mock('../services/erp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/erp')>()),
+  listarProdutos: vi.fn(),
 }));
 vi.mock('../services/visits', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/visits')>()),
@@ -71,7 +76,15 @@ const VISITA: Visita = {
   temFoto: false,
   criadoEm: '2026-10-18T13:00:00.000Z',
   editadoEm: null,
+  itens: [],
+  totalPedido: 0,
 };
+
+const PRODUTOS: Produto[] = [
+  { sku: 'BOMB-SORT', nome: 'Bombons sortidos', precoUnitario: 42 },
+  { sku: 'BARRA-70', nome: 'Barra de chocolate 70% cacau', precoUnitario: 18 },
+  { sku: 'PAO-MEL', nome: 'Pães de mel', precoUnitario: 27.9 },
+];
 
 /** A ficha, para conferir a volta (e o aviso da foto que não subiu). */
 function FichaFalsa() {
@@ -98,6 +111,7 @@ beforeEach(() => {
   usuario = userEvent.setup({ delay: null });
   vi.mocked(getCliente).mockReset().mockResolvedValue(FICHA);
   vi.mocked(createContato).mockReset().mockResolvedValue(CONTATO_NOVO);
+  vi.mocked(listarProdutos).mockReset().mockResolvedValue(PRODUTOS);
   vi.mocked(registrarCheckIn).mockReset().mockResolvedValue(VISITA);
   vi.mocked(enviarFoto).mockReset().mockResolvedValue(undefined);
   vi.mocked(comprimirImagem).mockReset().mockResolvedValue(new Blob(['jpeg'], { type: 'image/jpeg' }));
@@ -136,6 +150,7 @@ describe('CheckInPage', () => {
       screen.getByLabelText('Data e hora'),
       screen.getByRole('radiogroup', { name: 'Resultado' }),
       screen.getByRole('combobox', { name: 'Contato atendido' }),
+      screen.getByRole('group', { name: 'Pedido' }),
       screen.getByLabelText('O que aconteceu na visita'),
       screen.getByLabelText('Foto (opcional)'),
       screen.getByRole('button', { name: 'Salvar check-in' }),
@@ -265,6 +280,97 @@ describe('CheckInPage', () => {
     expect(screen.getByText('Adicione ou cancele o contato novo antes de salvar.')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Novo contato' })).toBeInTheDocument();
     expect(registrarCheckIn).not.toHaveBeenCalled();
+  });
+
+  it('pedido só aparece com resultado Venda', async () => {
+    renderizar();
+    await esperarCliente();
+
+    // Venda é o resultado padrão: o pedido começa com uma linha, no primeiro produto
+    const pedido = screen.getByRole('group', { name: 'Pedido' });
+    const produto = await within(pedido).findByRole('combobox', { name: 'Produto do item 1' });
+    expect(produto).toHaveDisplayValue(/^Bombons sortidos · R\$\s42,00$/);
+    expect(within(pedido).getAllByRole('combobox')).toHaveLength(1);
+
+    await usuario.click(screen.getByRole('radio', { name: 'Negociação' }));
+    expect(screen.queryByRole('group', { name: 'Pedido' })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('radio', { name: 'Sem venda' }));
+    expect(screen.queryByRole('group', { name: 'Pedido' })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('radio', { name: 'Venda' }));
+    expect(screen.getByRole('group', { name: 'Pedido' })).toBeInTheDocument();
+  });
+
+  it('envia itens sem as linhas de quantidade 0', async () => {
+    renderizar();
+    await esperarCliente();
+    const pedido = screen.getByRole('group', { name: 'Pedido' });
+    await within(pedido).findByRole('combobox', { name: 'Produto do item 1' });
+
+    preencher(within(pedido).getByRole('spinbutton', { name: 'Quantidade do item 1' }), '10');
+    await usuario.click(within(pedido).getByRole('button', { name: 'Adicionar item' }));
+    await usuario.click(within(pedido).getByRole('button', { name: 'Adicionar item' }));
+    preencher(within(pedido).getByRole('spinbutton', { name: 'Quantidade do item 3' }), '3');
+    expect(within(pedido).getByText('R$ 503,70')).toBeInTheDocument();
+
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Pedido de bombons e pães de mel.');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'BOMB-SORT', quantidade: 10 },
+          { sku: 'PAO-MEL', quantidade: 3 },
+        ],
+      }),
+    );
+  });
+
+  it('Venda com o pedido em branco vai sem itens', async () => {
+    renderizar();
+    await esperarCliente();
+    await within(screen.getByRole('group', { name: 'Pedido' })).findByRole('combobox', { name: 'Produto do item 1' });
+
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Venda acertada por telefone depois.');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ itens: expect.anything() }));
+  });
+
+  it('o pedido preenchido não vai quando o resultado muda para outro', async () => {
+    renderizar();
+    await esperarCliente();
+    const pedido = screen.getByRole('group', { name: 'Pedido' });
+    await within(pedido).findByRole('combobox', { name: 'Produto do item 1' });
+    preencher(within(pedido).getByRole('spinbutton', { name: 'Quantidade do item 1' }), '10');
+
+    await usuario.click(screen.getByRole('radio', { name: 'Negociação' }));
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Cliente vai pensar até sexta.');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.not.objectContaining({ itens: expect.anything() }),
+    );
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ resultado: 'NEGOCIACAO' }));
+  });
+
+  it('sem o catálogo, o pedido avisa e o check-in ainda salva', async () => {
+    vi.mocked(listarProdutos).mockRejectedValue(new ApiError('NETWORK', 'Você está sem internet.'));
+    renderizar();
+    await esperarCliente();
+
+    const pedido = screen.getByRole('group', { name: 'Pedido' });
+    expect(await within(pedido).findByText('Não foi possível carregar os produtos.')).toBeInTheDocument();
+    expect(within(pedido).getByRole('button', { name: 'Adicionar item' })).toBeDisabled();
+
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Venda registrada sem o pedido.');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ itens: expect.anything() }));
   });
 
   it('com foto, envia a foto comprimida depois do check-in', async () => {

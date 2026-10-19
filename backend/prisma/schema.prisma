@@ -110,9 +110,26 @@ model Visit {
   fotoPath  String?         @map("foto_path")
   criadoEm  DateTime        @default(now()) @map("criado_em")
   editadoEm DateTime?       @map("editado_em")
+  itens     VisitItem[]
 
   @@index([clientId, dataHora(sort: Desc)])
   @@map("visits")
+}
+
+/// Item do pedido registrado no check-in com resultado VENDA. Nome e preço
+/// são copiados do catálogo do ERP no momento do check-in: o pedido não muda
+/// se o catálogo mudar depois.
+model VisitItem {
+  id            String  @id @default(uuid())
+  visitId       String  @map("visit_id")
+  visit         Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  sku           String
+  produtoNome   String  @map("produto_nome")
+  quantidade    Int
+  precoUnitario Decimal @map("preco_unitario") @db.Decimal(10, 2)
+
+  @@index([visitId])
+  @@map("visit_items")
 }
 
 model VisitScheduleChange {

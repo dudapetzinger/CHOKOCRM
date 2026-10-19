@@ -25,3 +25,12 @@ export type DadosErp =
 export function buscarDadosErp(clienteId: string): Promise<DadosErp> {
   return api.get<DadosErp>(`/clients/${clienteId}/erp`);
 }
+
+/** Produto do catálogo do ERP, com o preço do dia (`ProdutoDTO` do backend). */
+export type Produto = { sku: string; nome: string; precoUnitario: number };
+
+/** Catálogo para o pedido do check-in (spec 7.5), na ordem do ERP. */
+export async function listarProdutos(): Promise<Produto[]> {
+  const resposta = await api.get<{ data: Produto[] }>('/erp/produtos');
+  return resposta.data;
+}

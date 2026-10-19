@@ -1,22 +1,32 @@
-import type { ResultadoVisita } from '@prisma/client';
+import { Prisma, type ResultadoVisita } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import { detectarImagem } from '../lib/imageType';
+import { CATALOGO } from '../providers/erp/mock/catalogo';
 import { fileStorage } from '../storage';
 import * as clientRepository from '../repositories/client.repository';
 import * as visitRepository from '../repositories/visit.repository';
-import type { VisitComCarteira, VisitComRelacoes } from '../repositories/visit.repository';
+import type { ItemDoPedidoData, VisitComCarteira, VisitComRelacoes } from '../repositories/visit.repository';
 import type { CreateVisitInput, UpdateVisitInput } from '../schemas/visit.schema';
 import { ehDeOutraCarteira, exigirClienteDaCarteira, exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CLIENTE_INATIVO = 'Cliente inativo não recebe check-in.';
 const MENSAGEM_CONTATO_DE_OUTRO_CLIENTE = 'Contato informado não pertence a este cliente.';
+const MENSAGEM_PEDIDO_SEM_VENDA = 'Pedido só pode ser registrado em visita com venda.';
+const MENSAGEM_PRODUTO_DESCONHECIDO = 'Produto não encontrado no catálogo.';
 const MENSAGEM_VISITA_NAO_ENCONTRADA = 'Visita não encontrada.';
 const MENSAGEM_APENAS_AUTOR = 'Apenas o autor do check-in pode alterá-lo.';
 const MENSAGEM_FOTO_JA_EXISTE = 'Esta visita já tem foto de comprovação.';
 const MENSAGEM_FOTO_INVALIDA = 'O arquivo enviado não é uma imagem JPEG, PNG ou WebP.';
 const MENSAGEM_SEM_FOTO = 'Esta visita não tem foto de comprovação.';
+
+export type ItemDoPedidoDTO = {
+  sku: string;
+  produtoNome: string;
+  quantidade: number;
+  precoUnitario: number;
+};
 
 export type VisitaDTO = {
   id: string;
@@ -28,14 +38,26 @@ export type VisitaDTO = {
   temFoto: boolean;
   criadoEm: string;
   editadoEm: string | null;
+  /** Pedido da visita (vazio sem pedido), com o preço gravado no check-in. */
+  itens: ItemDoPedidoDTO[];
+  /** Soma de quantidade × preço unitário dos itens, em reais com 2 casas. */
+  totalPedido: number;
 };
 
 /**
  * O DTO expõe `temFoto`, e nunca o `fotoPath`: a chave interna do
  * armazenamento não é assunto do cliente HTTP — a foto é lida pela rota
  * `GET /visits/:id/foto`, autenticada como as demais.
+ *
+ * O total é somado em `Decimal` (o tipo da coluna) e só no fim vira
+ * `number`: em ponto flutuante, 3 × 27,90 daria 83,69999….
  */
 export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
+  const totalPedido = visit.itens.reduce(
+    (soma, item) => soma.plus(item.precoUnitario.times(item.quantidade)),
+    new Prisma.Decimal(0),
+  );
+
   return {
     id: visit.id,
     dataHora: visit.dataHora.toISOString(),
@@ -46,7 +68,43 @@ export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
     temFoto: visit.fotoPath !== null,
     criadoEm: visit.criadoEm.toISOString(),
     editadoEm: visit.editadoEm ? visit.editadoEm.toISOString() : null,
+    itens: visit.itens.map((item) => ({
+      sku: item.sku,
+      produtoNome: item.produtoNome,
+      quantidade: item.quantidade,
+      precoUnitario: item.precoUnitario.toDecimalPlaces(2).toNumber(),
+    })),
+    totalPedido: totalPedido.toDecimalPlaces(2).toNumber(),
   };
+}
+
+/**
+ * Linhas do pedido com nome e preço do catálogo do ERP, nunca do corpo da
+ * requisição (spec 7.5). Pedido só em visita com venda; linhas do mesmo SKU
+ * viram uma só, com as quantidades somadas. Lista vazia é "sem pedido".
+ */
+function montarItensDoPedido(
+  itens: CreateVisitInput['itens'],
+  resultado: ResultadoVisita,
+): ItemDoPedidoData[] {
+  if (!itens || itens.length === 0) return [];
+
+  if (resultado !== 'VENDA') {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_PEDIDO_SEM_VENDA, 400);
+  }
+
+  const quantidadePorSku = new Map<string, number>();
+  for (const item of itens) {
+    quantidadePorSku.set(item.sku, (quantidadePorSku.get(item.sku) ?? 0) + item.quantidade);
+  }
+
+  return [...quantidadePorSku].map(([sku, quantidade]) => {
+    const produto = CATALOGO.find((candidato) => candidato.sku === sku);
+    if (!produto) {
+      throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_PRODUTO_DESCONHECIDO, 400);
+    }
+    return { sku, produtoNome: produto.nome, quantidade, precoUnitario: produto.precoUnitario };
+  });
 }
 
 /**
@@ -94,6 +152,8 @@ export async function createVisit(
     }
   }
 
+  const itens = montarItensDoPedido(input.itens, input.resultado);
+
   const visita = await visitRepository.create({
     clientId,
     userId: usuario.id,
@@ -101,6 +161,7 @@ export async function createVisit(
     dataHora: input.dataHora ?? new Date(),
     descricao: input.descricao,
     resultado: input.resultado,
+    itens,
   });
 
   return toVisitaDTO(visita);
