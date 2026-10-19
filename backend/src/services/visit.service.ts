@@ -6,9 +6,15 @@ import { CATALOGO } from '../providers/erp/mock/catalogo';
 import { fileStorage } from '../storage';
 import * as clientRepository from '../repositories/client.repository';
 import * as visitRepository from '../repositories/visit.repository';
-import type { ItemDoPedidoData, VisitComCarteira, VisitComRelacoes } from '../repositories/visit.repository';
+import type {
+  ItemDoPedidoData,
+  ProximaVisitaDoClienteData,
+  VisitComCarteira,
+  VisitComRelacoes,
+} from '../repositories/visit.repository';
 import type { CreateVisitInput, UpdateVisitInput } from '../schemas/visit.schema';
 import { ehDeOutraCarteira, exigirClienteDaCarteira, exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
+import { colunaDateDaData } from './classificacao.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CLIENTE_INATIVO = 'Cliente inativo não recebe check-in.';
@@ -108,6 +114,22 @@ function montarItensDoPedido(
 }
 
 /**
+ * Próxima visita e lembrete que o check-in grava no cliente (spec 7.4). A
+ * visita nova substitui a data marcada antes (ruling R22): sem data (`null`
+ * ou campo ausente), apaga a data e o lembrete e a agenda volta à
+ * recorrência — uma data antiga, talvez vencida, deixaria o cliente recém-
+ * visitado como atrasado; e lembrete sem data não vale. Com data, o lembrete
+ * é o do corpo (ausente ou em branco: nenhum).
+ */
+function montarProximaVisitaDoCliente(input: CreateVisitInput): ProximaVisitaDoClienteData {
+  if (input.proximaVisita === null || input.proximaVisita === undefined) {
+    return { proximaVisita: null, lembrete: null };
+  }
+
+  return { proximaVisita: colunaDateDaData(input.proximaVisita), lembrete: input.lembrete ?? null };
+}
+
+/**
  * Check-in novo exige, nesta ordem: cliente existe (404) -> é da carteira
  * do representante (403) -> está ativo (409).
  */
@@ -162,6 +184,7 @@ export async function createVisit(
     descricao: input.descricao,
     resultado: input.resultado,
     itens,
+    proximaVisitaDoCliente: montarProximaVisitaDoCliente(input),
   });
 
   return toVisitaDTO(visita);

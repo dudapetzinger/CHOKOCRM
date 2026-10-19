@@ -11,10 +11,17 @@ export type AgendaItem = {
   id: string;
   nomeFantasia: string;
   cidade: string;
+  /** Rua e número do cliente. */
+  endereco: string;
   cor: Cor;
   diasSemVisita: number | null;
+  /** Data prevista (`AAAA-MM-DD`): a marcada no check-in ou a da recorrência. */
   proximaVisita: string;
+  /** Positivo em atrasadas, 0 hoje, negativo nos próximos dias (-1 = amanhã). */
   diasAtraso: number;
+  /** A data prevista veio do check-in (e não da recorrência). */
+  marcadaNoCheckIn: boolean;
+  lembrete: string | null;
   rebaixadoPorVenda: boolean;
   representante: { id: string; nome: string };
 };
@@ -22,6 +29,8 @@ export type AgendaItem = {
 export type Agenda = {
   atrasadas: AgendaItem[];
   hoje: AgendaItem[];
+  /** Data prevista de amanhã a hoje + 7, em ordem de data e depois de cor. */
+  proximos7Dias: AgendaItem[];
 };
 
 type AgendaResponse = { data: Agenda };

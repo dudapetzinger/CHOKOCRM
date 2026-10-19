@@ -39,6 +39,8 @@ const cliente: ClienteCompleto = {
   recorrenciaChanges: [],
   rebaixadoPorVenda: false,
   diasSemCompra: 3,
+  proximaVisita: null,
+  lembrete: null,
 };
 
 function renderizar() {

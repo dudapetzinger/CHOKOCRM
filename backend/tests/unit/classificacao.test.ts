@@ -11,6 +11,8 @@ import {
   aplicarRebaixamentoPorVenda,
   inicioDoDia,
   fimDoDia,
+  dataDaColunaDate,
+  colunaDateDaData,
 } from '../../src/services/classificacao.service';
 
 const hoje = new Date('2026-09-27T15:00:00Z');
@@ -172,6 +174,32 @@ describe('calcularProximaVisita', () => {
   it('sem visita usa criadoEm como base', () => {
     const criadoEm = diasAtras(20);
     expect(calcularProximaVisita(null, criadoEm, 15)).toBe(somarDias(dataCalendario(hoje), -5));
+  });
+
+  it('a data marcada no check-in, quando existe, ganha da recorrência (antes ou depois dela)', () => {
+    const ultima = { dataHora: diasAtras(40), resultado: 'VENDA' as const };
+    const criadoEm = diasAtras(100);
+
+    expect(calcularProximaVisita(ultima, criadoEm, 15, '2026-09-28')).toBe('2026-09-28');
+    expect(calcularProximaVisita(null, criadoEm, 15, '2026-10-30')).toBe('2026-10-30');
+  });
+
+  it('com a data marcada nula, volta à recorrência', () => {
+    const ultima = { dataHora: diasAtras(10), resultado: 'VENDA' as const };
+    expect(calcularProximaVisita(ultima, diasAtras(100), 15, null)).toBe(somarDias(dataCalendario(hoje), 5));
+  });
+});
+
+describe('dataDaColunaDate/colunaDateDaData', () => {
+  it('lê a coluna @db.Date (meia-noite UTC) sem passar pelo fuso: o dia não volta um', () => {
+    // Em São Paulo, 2026-10-20T00:00Z ainda é dia 19 às 21h
+    expect(dataCalendario(new Date('2026-10-20T00:00:00.000Z'))).toBe('2026-10-19');
+    expect(dataDaColunaDate(new Date('2026-10-20T00:00:00.000Z'))).toBe('2026-10-20');
+  });
+
+  it('grava a data de calendário como meia-noite UTC, ida e volta', () => {
+    expect(colunaDateDaData('2026-10-20').toISOString()).toBe('2026-10-20T00:00:00.000Z');
+    expect(dataDaColunaDate(colunaDateDaData('2026-12-31'))).toBe('2026-12-31');
   });
 });
 

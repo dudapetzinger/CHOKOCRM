@@ -74,6 +74,9 @@ function clienteAtivo(id: string, erpId: string | null): ClienteParaAgenda {
     erpId,
     visits: [],
     representante: { id: 'rep-1', nome: 'Representante' },
+    proximaVisita: null,
+    lembrete: null,
+    endereco: 'Rua XV de Novembro, 100',
   };
 }
 

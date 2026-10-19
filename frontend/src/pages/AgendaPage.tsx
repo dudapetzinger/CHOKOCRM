@@ -1,15 +1,19 @@
 /**
  * Agenda do dia (UC10, Etapa 4; visual de `routes/agenda.tsx` do protótipo na
  * Etapa 8): visitas atrasadas e previstas para hoje, priorizadas pela cor de
- * classificação. O representante vê só a própria carteira; o gestor vê todos
- * os clientes ou só os do representante escolhido no seletor (ver `GET
+ * classificação, e as previstas para os próximos 7 dias, em ordem de data. A
+ * data prevista é a marcada no check-in ou, sem ela, a da recorrência (spec
+ * 7.4). O representante vê só a própria carteira; o gestor vê todos os
+ * clientes ou só os do representante escolhido no seletor (ver `GET
  * /agenda/today`). Com o seletor em "Todos", cada linha diz de qual
  * representante é o cliente.
  *
  * A partir de 1024 px (spec 8), Atrasadas e Hoje ficam lado a lado e aparecem
  * mesmo vazias. Abaixo disso (celular e tablet, com o menu lateral de 240 px
  * as duas colunas não cabem) ficam empilhadas, só as que têm visitas, e a
- * agenda vazia vira uma única mensagem.
+ * agenda vazia vira uma única mensagem. "Próximos 7 dias" vem depois, na
+ * largura toda, e só aparece quando tem visitas (como "Próximas agendadas" no
+ * protótipo).
  */
 import { useId } from 'react';
 import { useAuth } from '../auth/useAuth';
@@ -23,14 +27,6 @@ import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
 import type { AgendaItem } from '../services/agenda';
 
-/** O backend põe em `atrasadas` quem tem `diasAtraso > 0` e em `hoje` quem vence hoje. */
-function linhaDoPrazo(item: AgendaItem): string {
-  if (item.diasAtraso > 0) {
-    return `Próxima visita venceu há ${item.diasAtraso} ${item.diasAtraso === 1 ? 'dia' : 'dias'}`;
-  }
-  return 'Visita prevista para hoje';
-}
-
 type SecaoAgendaProps = {
   titulo: string;
   itens: AgendaItem[];
@@ -43,8 +39,8 @@ type SecaoAgendaProps = {
  * contagem numa pílula e uma linha por cliente. É uma região com o nome
  * "Título · N"; a pílula é só visual (o nome já diz a contagem, como nas abas
  * de Clientes). Quem pode fazer check-in e se a linha diz o representante
- * vêm do usuário e do seletor, então quem usa só passa o título e os itens
- * (a Task 10 reaproveita para "Próximos 7 dias").
+ * vêm do usuário e do seletor, então quem usa só passa o título e os itens;
+ * cada linha descreve o próprio prazo (atrasada, hoje ou "Prevista para").
  */
 export function SecaoAgenda({ titulo, itens, textoVazio = 'Nenhuma visita.' }: SecaoAgendaProps) {
   const { user } = useAuth();
@@ -75,7 +71,6 @@ export function SecaoAgenda({ titulo, itens, textoVazio = 'Nenhuma visita.' }: S
             <AgendaItemRow
               key={item.id}
               item={item}
-              linhaDias={linhaDoPrazo(item)}
               podeCheckIn={podeCheckIn}
               mostrarRepresentante={mostrarRepresentante}
             />
@@ -95,10 +90,11 @@ export function AgendaPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Área de topo: hoje só a barra do gestor (o select some para o
-          representante e a área com ele). A Task 13 põe aqui o segmentado
-          "Agenda do dia | Calendário" e o roteiro; a Task 11, os chips das
-          campanhas. */}
+      {/* Área de topo, acima das seções: hoje só a barra do gestor (o select
+          some para o representante e a área com ele). É o lugar dos controles
+          que valem para a agenda inteira — a troca entre agenda do dia e
+          calendário, o roteiro do dia e as campanhas em andamento (spec 7.6,
+          7.7 e 7.9). */}
       <div className="flex flex-wrap items-center gap-3 empty:hidden">
         <SeletorRepresentante className="w-full md:w-auto" />
       </div>
@@ -134,6 +130,8 @@ export function AgendaPage() {
           {data.hoje.length > 0 && <SecaoAgenda titulo="Hoje" itens={data.hoje} />}
         </>
       )}
+
+      {data && data.proximos7Dias.length > 0 && <SecaoAgenda titulo="Próximos 7 dias" itens={data.proximos7Dias} />}
     </div>
   );
 }

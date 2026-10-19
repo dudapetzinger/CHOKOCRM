@@ -11,6 +11,7 @@ import { DadosErpCard } from '../components/DadosErpCard';
 import { InsightsCard } from '../components/InsightsCard';
 import { MensagemEstoqueCard } from '../components/MensagemEstoqueCard';
 import { Aviso, Cartao } from '../components/crm/ui';
+import { AvisoProximaVisita } from '../components/crm/AvisoProximaVisita';
 import { useAuth } from '../auth/useAuth';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
@@ -22,8 +23,9 @@ const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do cliente.
  * Ficha do cliente (UC06). Desde a Etapa 7 (spec 5.5) abre pelo que se usa em
  * campo; na Etapa 8 (spec 7.2) tem o visual do protótipo (`crm/ficha.tsx`) e
  * esta ordem: cabeçalho (com Ligar, WhatsApp, "Novo check-in", "Adicionar
- * contato" e, para o gestor, a transferência) → mensagem de estoque →
- * insights → dados do ERP → histórico de visitas → recorrência → dados
+ * contato" e, para o gestor, a transferência) → aviso da próxima visita
+ * marcada no check-in e do lembrete (quando há um dos dois) → mensagem de
+ * estoque → insights → dados do ERP → histórico de visitas → recorrência → dados
  * cadastrais (recolhidos em `DadosCadastrais`). Os avisos de sucesso são
  * `toast`; os erros ficam na própria ficha.
  *
@@ -117,6 +119,10 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
 
       {ehRepresentante && !cliente.ativo && (
         <p className="text-sm text-muted-foreground">Cliente inativo não recebe check-in novo.</p>
+      )}
+
+      {(cliente.proximaVisita || cliente.lembrete) && (
+        <AvisoProximaVisita data={cliente.proximaVisita} lembrete={cliente.lembrete} />
       )}
 
       <MensagemEstoqueCard clienteId={id!} podeGerar={ehRepresentante && cliente.ativo} />

@@ -25,6 +25,15 @@ export type ItemDoPedidoData = {
   precoUnitario: number;
 };
 
+/**
+ * Campos do cliente que todo check-in regrava junto com a visita (spec 7.4):
+ * `proximaVisita` já como valor de coluna `@db.Date`; `null` apaga.
+ */
+export type ProximaVisitaDoClienteData = {
+  proximaVisita: Date | null;
+  lembrete: string | null;
+};
+
 export type CreateVisitData = {
   clientId: string;
   userId: string;
@@ -33,13 +42,23 @@ export type CreateVisitData = {
   descricao: string;
   resultado: ResultadoVisita;
   itens: ItemDoPedidoData[];
+  proximaVisitaDoCliente: ProximaVisitaDoClienteData;
 };
 
-/** Visita e itens num `create` aninhado: o Prisma grava tudo numa transação só. */
-export async function create({ itens, ...data }: CreateVisitData): Promise<VisitComRelacoes> {
-  return prisma.visit.create({
-    data: { ...data, ...(itens.length > 0 ? { itens: { create: itens } } : {}) },
-    include: INCLUDE_RELACOES,
+/**
+ * Visita, itens do pedido (`create` aninhado) e a próxima visita do cliente
+ * numa transação só: ou o check-in fica inteiro, ou nada muda.
+ */
+export async function create({ itens, proximaVisitaDoCliente, ...data }: CreateVisitData): Promise<VisitComRelacoes> {
+  return prisma.$transaction(async (tx) => {
+    const visita = await tx.visit.create({
+      data: { ...data, ...(itens.length > 0 ? { itens: { create: itens } } : {}) },
+      include: INCLUDE_RELACOES,
+    });
+
+    await tx.client.update({ where: { id: data.clientId }, data: proximaVisitaDoCliente });
+
+    return visita;
   });
 }
 

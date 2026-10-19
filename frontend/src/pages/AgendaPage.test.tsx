@@ -22,10 +22,13 @@ const ATRASADA: AgendaItem = {
   id: 'c1',
   nomeFantasia: 'Doces da Vovó',
   cidade: 'Joinville',
+  endereco: 'Rua das Palmeiras, 50',
   cor: 'VERMELHO',
   diasSemVisita: 40,
   proximaVisita: '2026-10-10',
   diasAtraso: 5,
+  marcadaNoCheckIn: false,
+  lembrete: null,
   rebaixadoPorVenda: false,
   representante: { id: 'u1', nome: 'Eduarda Fischer' },
 };
@@ -34,26 +37,49 @@ const HOJE: AgendaItem = {
   id: 'c2',
   nomeFantasia: 'Empório Central',
   cidade: 'Blumenau',
+  endereco: 'Rua XV de Novembro, 100',
   cor: 'LARANJA',
   diasSemVisita: 14,
   proximaVisita: '2026-10-15',
   diasAtraso: 0,
+  marcadaNoCheckIn: false,
+  lembrete: null,
   rebaixadoPorVenda: false,
   representante: { id: 'u2', nome: 'Rafael Schmitt' },
 };
 
-/** A resposta do servidor: a agenda, um erro (a requisição falha) ou `'carregando'` (nunca responde). */
-function prepararResposta(resposta: Agenda | Error | 'carregando') {
+const PROXIMA: AgendaItem = {
+  id: 'c3',
+  nomeFantasia: 'Armazém São Bento',
+  cidade: 'Pomerode',
+  endereco: 'Rua Hermann Weege, 100',
+  cor: 'VERDE',
+  diasSemVisita: 3,
+  proximaVisita: '2026-10-20',
+  diasAtraso: -2,
+  marcadaNoCheckIn: true,
+  lembrete: 'Levar amostras de Natal',
+  rebaixadoPorVenda: false,
+  representante: { id: 'u1', nome: 'Eduarda Fischer' },
+};
+
+/**
+ * A resposta do servidor: a agenda (as listas omitidas vêm vazias), um erro
+ * (a requisição falha) ou `'carregando'` (nunca responde).
+ */
+type Resposta = Partial<Agenda> | Error | 'carregando';
+
+function prepararResposta(resposta: Resposta) {
   if (resposta === 'carregando') {
     vi.mocked(buscarAgendaDoDia).mockReturnValue(new Promise(() => {}));
   } else if (resposta instanceof Error) {
     vi.mocked(buscarAgendaDoDia).mockRejectedValue(resposta);
   } else {
-    vi.mocked(buscarAgendaDoDia).mockResolvedValue(resposta);
+    vi.mocked(buscarAgendaDoDia).mockResolvedValue({ atrasadas: [], hoje: [], proximos7Dias: [], ...resposta });
   }
 }
 
-function renderizarComo(role: Role, resposta: Agenda | Error | 'carregando') {
+function renderizarComo(role: Role, resposta: Resposta) {
   prepararResposta(resposta);
   const auth = {
     user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role },
@@ -98,7 +124,7 @@ describe('AgendaPage (celular)', () => {
     const atrasadas = within(secao('Atrasadas · 1'));
     expect(atrasadas.getByText('Doces da Vovó')).toBeInTheDocument();
     expect(atrasadas.getByText('Atrasado · 40 dias sem visita')).toBeInTheDocument();
-    expect(atrasadas.getByText('Joinville · Próxima visita venceu há 5 dias')).toBeInTheDocument();
+    expect(atrasadas.getByText('Joinville · Visita prevista venceu há 5 dias')).toBeInTheDocument();
 
     const hoje = within(secao('Hoje · 1'));
     expect(hoje.getByText('Empório Central')).toBeInTheDocument();
@@ -108,10 +134,10 @@ describe('AgendaPage (celular)', () => {
     expect(screen.queryByText('Nenhuma visita atrasada ou prevista para hoje.')).not.toBeInTheDocument();
   });
 
-  it('"Próxima visita venceu há 1 dia" usa o singular', async () => {
+  it('"Visita prevista venceu há 1 dia" usa o singular', async () => {
     renderizarComo('REPRESENTANTE', { atrasadas: [{ ...ATRASADA, diasAtraso: 1 }], hoje: [] });
 
-    expect(await screen.findByText('Joinville · Próxima visita venceu há 1 dia')).toBeInTheDocument();
+    expect(await screen.findByText('Joinville · Visita prevista venceu há 1 dia')).toBeInTheDocument();
   });
 
   it('cada visita é um item de lista e a contagem acompanha o número de itens', async () => {
@@ -146,6 +172,32 @@ describe('AgendaPage (celular)', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 1' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 2, name: /^Hoje/ })).not.toBeInTheDocument();
+  });
+
+  it('mostra a seção "Próximos 7 dias" só quando há itens', async () => {
+    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], proximos7Dias: [PROXIMA] });
+
+    const proximos = within(await screen.findByRole('region', { name: 'Próximos 7 dias · 1' }));
+    expect(proximos.getByText('Armazém São Bento')).toBeInTheDocument();
+    expect(proximos.getByText('Pomerode · Prevista para 20/10 · Levar amostras de Natal')).toBeInTheDocument();
+    expect(proximos.getByRole('link', { name: 'Check-in' })).toHaveAttribute('href', '/clientes/c3/check-in');
+    // Depois de Atrasadas
+    const titulos = screen.getAllByRole('heading', { level: 2 });
+    expect(titulos.map((titulo) => titulo.getAttribute('aria-label'))).toEqual(['Atrasadas · 1', 'Próximos 7 dias · 1']);
+  });
+
+  it('sem visitas nos próximos 7 dias, a seção não aparece', async () => {
+    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE], proximos7Dias: [] });
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: /^Próximos 7 dias/ })).not.toBeInTheDocument();
+  });
+
+  it('só com visitas nos próximos 7 dias: a mensagem de hoje e a seção dos próximos', async () => {
+    renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA] });
+
+    expect(await screen.findByText('Nenhuma visita atrasada ou prevista para hoje.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Próximos 7 dias · 1' })).toBeInTheDocument();
   });
 
   it('agenda vazia mostra uma única mensagem e nenhuma seção', async () => {
@@ -236,5 +288,26 @@ describe('AgendaPage (desktop, a partir de 1024 px)', () => {
     expect(titulos.map((titulo) => titulo.getAttribute('aria-label'))).toEqual(['Atrasadas · 1', 'Hoje · 1']);
     expect(within(secao('Atrasadas · 1')).getByText('Doces da Vovó')).toBeInTheDocument();
     expect(within(secao('Hoje · 1')).getByText('Empório Central')).toBeInTheDocument();
+  });
+
+  it('"Próximos 7 dias" vem depois das duas colunas, só quando há itens', async () => {
+    simularLargura(true);
+    renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA] });
+
+    const titulos = await screen.findAllByRole('heading', { level: 2 });
+    expect(titulos.map((titulo) => titulo.getAttribute('aria-label'))).toEqual([
+      'Atrasadas · 0',
+      'Hoje · 0',
+      'Próximos 7 dias · 1',
+    ]);
+    expect(within(secao('Próximos 7 dias · 1')).getByText('Armazém São Bento')).toBeInTheDocument();
+  });
+
+  it('sem itens, "Próximos 7 dias" não aparece nem vazio', async () => {
+    simularLargura(true);
+    renderizarComo('REPRESENTANTE', {});
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 0' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: /^Próximos 7 dias/ })).not.toBeInTheDocument();
   });
 });

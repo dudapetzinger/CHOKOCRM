@@ -57,6 +57,20 @@ export function fimDoDia(dia: DataCalendario): Date {
   return new Date(`${dia}T23:59:59.999-03:00`);
 }
 
+/**
+ * Coluna `@db.Date` (o Prisma devolve meia-noite UTC) como `DataCalendario`.
+ * Não passa pelo fuso: em São Paulo, meia-noite UTC ainda é o dia anterior, e
+ * `dataCalendario` devolveria a data errada.
+ */
+export function dataDaColunaDate(valor: Date): DataCalendario {
+  return valor.toISOString().slice(0, 10);
+}
+
+/** `DataCalendario` como valor de coluna `@db.Date` (meia-noite UTC), o inverso de `dataDaColunaDate`. */
+export function colunaDateDaData(dia: DataCalendario): Date {
+  return new Date(`${dia}T00:00:00.000Z`);
+}
+
 /** `ate - de`, em dias de calendário; pode ser negativo. */
 export function diasEntre(de: DataCalendario, ate: DataCalendario): number {
   return (epocaDoDia(ate) - epocaDoDia(de)) / MILISSEGUNDOS_POR_DIA;
@@ -151,12 +165,22 @@ export function classificacaoDoCliente(
   };
 }
 
-/** Soma a recorrência à data da última visita ou, sem visita, à de `criadoEm`. */
+/**
+ * Data prevista da próxima visita (spec 7.4): a marcada no check-in, quando
+ * existe, ganha; senão, a recorrência somada à data da última visita ou, sem
+ * visita, à de `criadoEm`. Só a agenda usa esta data — a cor de
+ * classificação continua pela última visita.
+ */
 export function calcularProximaVisita(
   ultima: UltimaVisita,
   criadoEm: Date,
   recorrenciaDias: number,
+  proximaVisitaAgendada: DataCalendario | null = null,
 ): DataCalendario {
+  if (proximaVisitaAgendada !== null) {
+    return proximaVisitaAgendada;
+  }
+
   const base = ultima === null ? criadoEm : ultima.dataHora;
   return somarDias(dataCalendario(base), recorrenciaDias);
 }

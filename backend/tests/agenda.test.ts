@@ -7,6 +7,7 @@ import { prisma } from '../src/lib/prisma';
 import { erpProvider } from '../src/providers/erp';
 import { ErpIndisponivelError } from '../src/providers/erp/ErpProvider';
 import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
+import { dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 /** Procura, entre ERP-1001 e ERP-1300, um erpId cujo perfil tenha `mesesSemCompra >= minMeses`. */
@@ -175,7 +176,32 @@ describe('GET /agenda/today', () => {
     const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenC}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual({ atrasadas: [], hoje: [] });
+    expect(res.body.data).toEqual({ atrasadas: [], hoje: [], proximos7Dias: [] });
+  });
+
+  it('traz os próximos 7 dias com a data marcada no check-in, o lembrete e o endereço (spec 7.4)', async () => {
+    // Visitado há 3 dias com recorrência de 15: pela recorrência, só daqui a 12 dias
+    const daquiADoisDias = somarDias(dataCalendario(new Date()), 2);
+    await prisma.client.update({
+      where: { id: clienteFuturoId },
+      data: { proximaVisita: new Date(`${daquiADoisDias}T00:00:00.000Z`), lembrete: 'Levar amostras de Natal' },
+    });
+
+    const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.proximos7Dias).toEqual([
+      expect.objectContaining({
+        id: clienteFuturoId,
+        proximaVisita: daquiADoisDias,
+        diasAtraso: -2,
+        marcadaNoCheckIn: true,
+        lembrete: 'Levar amostras de Natal',
+        endereco: 'Rua Hermann Weege, 100',
+      }),
+    ]);
+    const [atrasado] = res.body.data.atrasadas;
+    expect(atrasado).toMatchObject({ endereco: 'Rua Hermann Weege, 100', lembrete: null, marcadaNoCheckIn: false });
   });
 
   it('item traz cor, diasSemVisita, proximaVisita YYYY-MM-DD e diasAtraso', async () => {
@@ -240,7 +266,7 @@ describe('GET /agenda/today com representanteId', () => {
       .set('Authorization', `Bearer ${tokenGestor}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual({ atrasadas: [], hoje: [] });
+    expect(res.body.data).toEqual({ atrasadas: [], hoje: [], proximos7Dias: [] });
   });
 
   it('representante A com ?representanteId=<B> continua vendo a própria carteira', async () => {

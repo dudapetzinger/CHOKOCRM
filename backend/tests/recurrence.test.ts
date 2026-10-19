@@ -192,6 +192,42 @@ describe('PUT /clients/:id/recurrence', () => {
     expect(registro).toMatchObject({ recorrenciaAnterior: 15, recorrenciaNova: 45, userId: representanteId });
   });
 
+  it('alterar a recorrência apaga a próxima visita marcada e mantém o lembrete (spec 7.4)', async () => {
+    await prisma.client.update({
+      where: { id: clienteId },
+      data: { proximaVisita: new Date('2026-12-01T00:00:00.000Z'), lembrete: 'Levar amostras de Natal' },
+    });
+
+    const res = await request(app)
+      .put(`/clients/${clienteId}/recurrence`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload());
+
+    expect(res.status).toBe(200);
+    expect(res.body.proximaVisita).toBeNull();
+    expect(res.body.lembrete).toBe('Levar amostras de Natal');
+
+    const salvo = await prisma.client.findUniqueOrThrow({ where: { id: clienteId } });
+    expect(salvo.proximaVisita).toBeNull();
+    expect(salvo.lembrete).toBe('Levar amostras de Natal');
+  });
+
+  it('recorrência recusada não apaga a próxima visita marcada', async () => {
+    await prisma.client.update({
+      where: { id: clienteId },
+      data: { proximaVisita: new Date('2026-12-01T00:00:00.000Z') },
+    });
+
+    const res = await request(app)
+      .put(`/clients/${clienteId}/recurrence`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload({ recorrenciaDias: 15 }));
+
+    expect(res.status).toBe(400);
+    const salvo = await prisma.client.findUniqueOrThrow({ where: { id: clienteId } });
+    expect(salvo.proximaVisita?.toISOString().slice(0, 10)).toBe('2026-12-01');
+  });
+
   it('duas alterações aparecem na ficha da mais recente para a mais antiga', async () => {
     await request(app)
       .put(`/clients/${clienteId}/recurrence`)

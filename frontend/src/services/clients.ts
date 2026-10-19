@@ -75,6 +75,10 @@ export type ClienteCompleto = {
   recorrenciaChanges: RecorrenciaChange[];
   rebaixadoPorVenda: boolean;
   diasSemCompra: number | null;
+  /** Próxima visita marcada no check-in (`AAAA-MM-DD`); `null` quando a agenda segue a recorrência. */
+  proximaVisita: string | null;
+  /** Anotação que acompanha a próxima visita. */
+  lembrete: string | null;
 };
 
 export type ContatoInput = {

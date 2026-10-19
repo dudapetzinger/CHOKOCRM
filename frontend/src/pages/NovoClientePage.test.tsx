@@ -43,6 +43,8 @@ const CRIADO: ClienteCompleto = {
   recorrenciaChanges: [],
   rebaixadoPorVenda: false,
   diasSemCompra: null,
+  proximaVisita: null,
+  lembrete: null,
 };
 
 function FichaFalsa() {

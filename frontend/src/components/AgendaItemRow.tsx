@@ -1,8 +1,9 @@
 /**
  * Uma linha da agenda do dia (UC10, Etapa 4; situação em texto na Etapa 7;
  * visual da `Secao` de `routes/agenda.tsx` do protótipo na Etapa 8): avatar,
- * nome e etiqueta de situação, "cidade · prazo" e, para o gestor com o
- * seletor em "Todos", "Rep.: Nome". Só o representante dono da carteira tem
+ * nome e etiqueta de situação, "cidade · prazo da visita prevista · lembrete"
+ * (`descreverPrazoDaVisita`, spec 7.4) e, para o gestor com o seletor em
+ * "Todos", "Rep.: Nome". Só o representante dono da carteira tem
  * o atalho "Check-in" (UC07). É um `<li>`: quem usa a põe dentro de uma
  * lista (`SecaoAgenda`).
  *
@@ -19,18 +20,18 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import type { AgendaItem } from '../services/agenda';
+import { descreverPrazoDaVisita } from '../lib/descreverPrazo';
 import { descreverSituacao } from '../lib/descreverSituacao';
 import { Avatar } from './crm/ui';
 import { EtiquetaSituacao } from './EtiquetaSituacao';
 
 type Props = {
   item: AgendaItem;
-  linhaDias: string;
   podeCheckIn: boolean;
   mostrarRepresentante: boolean;
 };
 
-export function AgendaItemRow({ item, linhaDias, podeCheckIn, mostrarRepresentante }: Props) {
+export function AgendaItemRow({ item, podeCheckIn, mostrarRepresentante }: Props) {
   return (
     <li className="@container px-4 py-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -44,8 +45,8 @@ export function AgendaItemRow({ item, linhaDias, podeCheckIn, mostrarRepresentan
               <span className="font-semibold text-foreground">{item.nomeFantasia}</span>
               <EtiquetaSituacao cor={item.cor} texto={descreverSituacao(item)} />
             </span>
-            <span className="block text-sm text-muted-foreground">
-              {item.cidade} · {linhaDias}
+            <span className="block text-sm break-words text-muted-foreground">
+              {item.cidade} · {descreverPrazoDaVisita(item)}
             </span>
             {mostrarRepresentante && (
               <span className="block text-[13px] text-muted-foreground">Rep.: {item.representante.nome}</span>

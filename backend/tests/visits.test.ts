@@ -3,6 +3,7 @@ import request from 'supertest';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
 import { CATALOGO } from '../src/providers/erp/mock/catalogo';
+import { dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -444,6 +445,165 @@ describe('POST /clients/:id/visits com pedido', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('POST /clients/:id/visits com a próxima visita (spec 7.4)', () => {
+  const MENSAGEM_DATA_PASSADA = 'A próxima visita não pode ser antes de hoje.';
+
+  /** Hoje + `dias`, como data de calendário em São Paulo (o "hoje" do servidor). */
+  function daquiA(dias: number): string {
+    return somarDias(dataCalendario(new Date()), dias);
+  }
+
+  function postar(corpo: Record<string, unknown>) {
+    return request(app).post(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`).send(corpo);
+  }
+
+  async function clienteNoBanco() {
+    const cliente = await prisma.client.findUniqueOrThrow({ where: { id: clienteId } });
+    return {
+      proximaVisita: cliente.proximaVisita ? cliente.proximaVisita.toISOString().slice(0, 10) : null,
+      lembrete: cliente.lembrete,
+    };
+  }
+
+  /** Detalhes do erro de validação do zod: `{ path, message }[]`. */
+  function mensagensDoErro(res: request.Response): string[] {
+    return (res.body.error.details ?? []).map((detalhe: { message: string }) => detalhe.message);
+  }
+
+  it('grava a próxima visita e o lembrete no cliente, e a ficha devolve os dois', async () => {
+    const data = daquiA(10);
+
+    const res = await postar(payloadCheckIn({ proximaVisita: data, lembrete: '  Levar amostras de Natal  ' }));
+
+    expect(res.status).toBe(201);
+    expect(await clienteNoBanco()).toEqual({ proximaVisita: data, lembrete: 'Levar amostras de Natal' });
+
+    const ficha = await request(app).get(`/clients/${clienteId}`).set('Authorization', `Bearer ${token}`);
+    expect(ficha.body.proximaVisita).toBe(data);
+    expect(ficha.body.lembrete).toBe('Levar amostras de Natal');
+  });
+
+  it('aceita a próxima visita para hoje', async () => {
+    const res = await postar(payloadCheckIn({ proximaVisita: daquiA(0) }));
+
+    expect(res.status).toBe(201);
+    expect((await clienteNoBanco()).proximaVisita).toBe(daquiA(0));
+  });
+
+  it('proximaVisita null apaga a data e o lembrete (mesmo com lembrete no corpo)', async () => {
+    await prisma.client.update({
+      where: { id: clienteId },
+      data: { proximaVisita: new Date(`${daquiA(5)}T00:00:00.000Z`), lembrete: 'Lembrete antigo' },
+    });
+
+    const res = await postar(payloadCheckIn({ proximaVisita: null, lembrete: 'Será ignorado' }));
+
+    expect(res.status).toBe(201);
+    expect(await clienteNoBanco()).toEqual({ proximaVisita: null, lembrete: null });
+  });
+
+  it('lembrete em branco apaga o lembrete anterior e grava a data', async () => {
+    await prisma.client.update({ where: { id: clienteId }, data: { lembrete: 'Lembrete antigo' } });
+
+    const res = await postar(payloadCheckIn({ proximaVisita: daquiA(3), lembrete: '   ' }));
+
+    expect(res.status).toBe(201);
+    expect(await clienteNoBanco()).toEqual({ proximaVisita: daquiA(3), lembrete: null });
+  });
+
+  it('sem proximaVisita, a visita nova substitui a data marcada: apaga data e lembrete e a agenda volta à recorrência (R22)', async () => {
+    // Data marcada que já venceu: sem apagar, o cliente recém-visitado continuaria atrasado
+    await prisma.client.update({
+      where: { id: clienteId },
+      data: { proximaVisita: new Date(`${daquiA(-3)}T00:00:00.000Z`), lembrete: 'Levar amostras' },
+    });
+    const antes = await request(app).get('/agenda/today').set('Authorization', `Bearer ${token}`);
+    expect(antes.body.data.atrasadas.map((item: { id: string }) => item.id)).toContain(clienteId);
+
+    // Lembrete sem data não vale: vai junto com a data
+    const res = await postar(payloadCheckIn({ lembrete: 'Lembrete sem data' }));
+
+    expect(res.status).toBe(201);
+    expect(await clienteNoBanco()).toEqual({ proximaVisita: null, lembrete: null });
+    const depois = await request(app).get('/agenda/today').set('Authorization', `Bearer ${token}`);
+    const listados = [...depois.body.data.atrasadas, ...depois.body.data.hoje, ...depois.body.data.proximos7Dias];
+    // Visitado agora com recorrência de 15 dias: fora das três listas
+    expect(listados.map((item: { id: string }) => item.id)).not.toContain(clienteId);
+  });
+
+  it('data nova sem lembrete apaga o lembrete anterior', async () => {
+    await prisma.client.update({ where: { id: clienteId }, data: { lembrete: 'Lembrete da visita anterior' } });
+
+    const res = await postar(payloadCheckIn({ proximaVisita: daquiA(4) }));
+
+    expect(res.status).toBe(201);
+    expect(await clienteNoBanco()).toEqual({ proximaVisita: daquiA(4), lembrete: null });
+  });
+
+  it('recusa data no passado com a mensagem própria, sem gravar a visita nem mexer no cliente', async () => {
+    const res = await postar(payloadCheckIn({ proximaVisita: daquiA(-1), lembrete: 'Levar amostras' }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mensagensDoErro(res)).toContain(MENSAGEM_DATA_PASSADA);
+    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
+    expect(await clienteNoBanco()).toEqual({ proximaVisita: null, lembrete: null });
+  });
+
+  it.each([
+    ['no formato brasileiro', '20/10/2026'],
+    ['com hora', '2026-10-20T09:00:00.000Z'],
+    ['que não existe', '2027-02-30'],
+    ['numérica', 20261020],
+  ])('recusa data %s', async (_rotulo, valor) => {
+    const res = await postar(payloadCheckIn({ proximaVisita: valor }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
+  });
+
+  it('recusa lembrete com mais de 200 caracteres', async () => {
+    const res = await postar(payloadCheckIn({ proximaVisita: daquiA(3), lembrete: 'a'.repeat(201) }));
+
+    expect(res.status).toBe(400);
+    expect(mensagensDoErro(res)).toContain('O lembrete pode ter no máximo 200 caracteres.');
+    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
+  });
+
+  it('grava visita, pedido e próxima visita juntos', async () => {
+    const res = await postar(
+      payloadCheckIn({ itens: [{ sku: 'BOMB-SORT', quantidade: 2 }], proximaVisita: daquiA(15), lembrete: 'Repor bombons' }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(res.body.totalPedido).toBe(84);
+    expect(await prisma.visitItem.count({ where: { visitId: res.body.id } })).toBe(1);
+    expect(await clienteNoBanco()).toEqual({ proximaVisita: daquiA(15), lembrete: 'Repor bombons' });
+  });
+
+  it('pedido recusado não grava a próxima visita', async () => {
+    const res = await postar(
+      payloadCheckIn({ resultado: 'SEM_VENDA', itens: [{ sku: 'BOMB-SORT', quantidade: 2 }], proximaVisita: daquiA(15) }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(await clienteNoBanco()).toEqual({ proximaVisita: null, lembrete: null });
+  });
+
+  it('a data marcada não muda a cor: a classificação segue pela última visita', async () => {
+    const quarentaDiasAtras = new Date(Date.now() - 40 * 86_400_000).toISOString();
+
+    const res = await postar(payloadCheckIn({ dataHora: quarentaDiasAtras, proximaVisita: daquiA(1) }));
+
+    expect(res.status).toBe(201);
+    const ficha = await request(app).get(`/clients/${clienteId}`).set('Authorization', `Bearer ${token}`);
+    expect(ficha.body.proximaVisita).toBe(daquiA(1));
+    expect(ficha.body.cor).toBe('VERMELHO');
+    expect(ficha.body.diasSemVisita).toBe(40);
   });
 });
 

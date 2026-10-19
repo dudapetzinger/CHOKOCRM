@@ -2,8 +2,17 @@
  * Tela de check-in de visita (UC07), no visual do protótipo
  * (`routes/checkin.$id.tsx`, Etapa 8): um cartão de 560 px com o cliente,
  * data e hora, resultado, contato atendido, pedido (só com resultado Venda),
- * o que aconteceu na visita, foto e as ações. Os blocos que ainda não
- * existem no app (próxima visita, campanhas) entram depois, nesta mesma ordem.
+ * o que aconteceu na visita, foto, próxima visita | lembrete e as ações. As
+ * campanhas do protótipo ainda não existem no app.
+ *
+ * Próxima visita (spec 7.4): sugerida como a data da visita + a recorrência
+ * do cliente, e acompanha a "Data e hora" até a representante mudar a data
+ * ela mesma. Se a sugestão cairia antes de hoje (visita antiga lançada
+ * depois), o campo fica vazio: sem data, a agenda segue a recorrência. Todo
+ * check-in substitui a data marcada antes: a data vai para a API com o
+ * lembrete (em branco, `null`: o lembrete anterior não fica pendurado na
+ * data nova); sem data, vai `proximaVisita: null`, que apaga a data e o
+ * lembrete do cliente — por isso o lembrete fica desabilitado sem data.
  *
  * O pedido começa com uma linha no primeiro produto do catálogo, sem
  * quantidade; vão para a API só as linhas com quantidade, e só com Venda
@@ -45,13 +54,31 @@ const MENSAGEM_ERRO_PRODUTOS = 'Não foi possível carregar os produtos.';
 /** Valor da opção "+ Novo contato…" (não é id de contato). */
 const NOVO_CONTATO = '__novo';
 
-type Erros = Partial<Record<'dataHora' | 'contato' | 'descricao', string>>;
+type Erros = Partial<Record<'dataHora' | 'contato' | 'descricao' | 'proximaVisita', string>>;
+
+const MENSAGEM_PROXIMA_VISITA_PASSADA = 'A próxima visita não pode ser antes de hoje.';
 
 /** `datetime-local` espera `YYYY-MM-DDTHH:mm` no fuso do dispositivo. */
 function agoraParaCampoLocal(): string {
   const agora = new Date();
   const deslocamento = agora.getTimezoneOffset() * 60 * 1000;
   return new Date(agora.getTime() - deslocamento).toISOString().slice(0, 16);
+}
+
+/** Data `AAAA-MM-DD` + `dias`, em dias de calendário (sem passar pelo fuso). */
+function somarDias(data: string, dias: number): string {
+  const [ano, mes, dia] = data.split('-').map(Number);
+  return new Date(Date.UTC(ano!, mes! - 1, dia! + dias)).toISOString().slice(0, 10);
+}
+
+/**
+ * Data da visita (a parte da data de "Data e hora", no fuso do dispositivo)
+ * + recorrência. Vazia sem data da visita ou quando cairia antes de `hoje`.
+ */
+function sugerirProximaVisita(dataHora: string, recorrenciaDias: number, hoje: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(dataHora)) return '';
+  const sugestao = somarDias(dataHora.slice(0, 10), recorrenciaDias);
+  return sugestao < hoje ? '' : sugestao;
 }
 
 export function CheckInPage() {
@@ -81,6 +108,13 @@ export function CheckInPage() {
   const [contatosCriados, setContatosCriados] = useState<Contato[]>([]);
   // `null` até a primeira mudança: antes disso o pedido é a linha inicial
   const [itensEditados, setItensEditados] = useState<ItemPedido[] | null>(null);
+  // `null` até a representante mudar a data: antes disso vale a sugestão
+  const [proximaVisitaEditada, setProximaVisitaEditada] = useState<string | null>(null);
+  const [lembrete, setLembrete] = useState('');
+
+  const hoje = agoraParaCampoLocal().slice(0, 10);
+  const sugestao = cliente ? sugerirProximaVisita(dataHora, cliente.recorrenciaDias, hoje) : '';
+  const proximaVisita = proximaVisitaEditada ?? sugestao;
 
   const { data: produtos, isLoading: carregandoProdutos, isError: erroProdutos } = useProdutos();
   const primeiroProduto = produtos?.[0];
@@ -139,6 +173,7 @@ export function CheckInPage() {
     // O contato digitado e não adicionado se perderia em silêncio
     if (novoContatoAberto) encontrados.contato = 'Adicione ou cancele o contato novo antes de salvar.';
     if (descricao.trim().length < 3) encontrados.descricao = 'Descreva a visita com pelo menos 3 caracteres.';
+    if (proximaVisita && proximaVisita < hoje) encontrados.proximaVisita = MENSAGEM_PROXIMA_VISITA_PASSADA;
     setErros(encontrados);
     if (Object.keys(encontrados).length > 0) {
       focarPrimeiroErro();
@@ -149,6 +184,9 @@ export function CheckInPage() {
     setErroEnvio(null);
 
     const itensDoPedido = resultado === 'VENDA' ? itens.filter((item) => item.quantidade > 0) : [];
+    const camposDaProximaVisita = proximaVisita
+      ? { proximaVisita, lembrete: lembrete.trim() || null }
+      : { proximaVisita: null };
 
     try {
       const visita = await registrarCheckIn(id, {
@@ -157,6 +195,7 @@ export function CheckInPage() {
         dataHora: new Date(dataHora).toISOString(),
         ...(contactId ? { contactId } : {}),
         ...(itensDoPedido.length > 0 ? { itens: itensDoPedido } : {}),
+        ...camposDaProximaVisita,
       });
 
       queryClient.invalidateQueries({ queryKey: ['clients'] });
@@ -301,6 +340,39 @@ export function CheckInPage() {
                 className="max-h-56 w-full rounded-lg border object-cover"
               />
             )}
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Campo rotulo="Próxima visita" htmlFor="checkin-proxima-visita" erro={erros.proximaVisita}>
+                <Input
+                  id="checkin-proxima-visita"
+                  type="date"
+                  min={hoje}
+                  value={proximaVisita}
+                  aria-describedby="checkin-proxima-visita-ajuda"
+                  onChange={(e) => {
+                    setProximaVisitaEditada(e.target.value);
+                    limparErro('proximaVisita');
+                  }}
+                />
+              </Campo>
+              <Campo rotulo="Lembrete (opcional)" htmlFor="checkin-lembrete">
+                <Input
+                  id="checkin-lembrete"
+                  value={lembrete}
+                  maxLength={200}
+                  disabled={!proximaVisita}
+                  placeholder="Ex.: levar amostras de Natal"
+                  aria-describedby="checkin-proxima-visita-ajuda"
+                  onChange={(e) => setLembrete(e.target.value)}
+                />
+              </Campo>
+            </div>
+            <p id="checkin-proxima-visita-ajuda" className="text-xs text-muted-foreground">
+              {cliente && `Sugestão: data da visita + recorrência de ${cliente.recorrenciaDias} dias. `}
+              Sem data, a agenda segue a recorrência (e não há lembrete).
+            </p>
           </div>
 
           {erroEnvio && (

@@ -64,6 +64,8 @@ const FICHA: ClienteCompleto = {
   recorrenciaChanges: [],
   rebaixadoPorVenda: false,
   diasSemCompra: null,
+  proximaVisita: null,
+  lembrete: null,
 };
 
 const VISITA: Visita = {
@@ -153,6 +155,8 @@ describe('CheckInPage', () => {
       screen.getByRole('group', { name: 'Pedido' }),
       screen.getByLabelText('O que aconteceu na visita'),
       screen.getByLabelText('Foto (opcional)'),
+      screen.getByLabelText('Próxima visita'),
+      screen.getByLabelText('Lembrete (opcional)'),
       screen.getByRole('button', { name: 'Salvar check-in' }),
     ];
     for (let i = 1; i < controles.length; i++) {
@@ -219,6 +223,8 @@ describe('CheckInPage', () => {
       resultado: 'NEGOCIACAO',
       dataHora: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/),
       contactId: 'ct1',
+      proximaVisita: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      lembrete: null,
     });
     // O aviso aparece antes de a navegação terminar: espera a ficha, depois confere o aviso
     expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
@@ -403,5 +409,101 @@ describe('CheckInPage', () => {
 
     expect(await screen.findByText('Ficha do cliente (foto: nao-enviada)')).toBeInTheDocument();
     expect(registrarCheckIn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
+  beforeEach(() => {
+    // Só o relógio: a sugestão e o "hoje" não dependem do dia em que o teste roda.
+    // 18/10/2026, 13h30 no fuso do dispositivo; a recorrência do cliente é 15 dias.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 18, 13, 30) });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function salvarComDescricao() {
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Reposição do mostruário.');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+  }
+
+  it('sugere a próxima visita = data da visita + recorrência e envia proximaVisita e lembrete', async () => {
+    renderizar();
+    await esperarCliente();
+    const proxima = screen.getByLabelText('Próxima visita');
+
+    expect(proxima).toHaveValue('2026-11-02');
+    expect(proxima).toHaveAccessibleDescription(/recorrência de 15 dias/);
+
+    // A sugestão acompanha a data da visita
+    preencher(screen.getByLabelText('Data e hora'), '2026-10-16T09:00');
+    expect(proxima).toHaveValue('2026-10-31');
+
+    preencher(screen.getByLabelText('Lembrete (opcional)'), '  Levar amostras de Natal  ');
+    await salvarComDescricao();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ proximaVisita: '2026-10-31', lembrete: 'Levar amostras de Natal' }),
+    );
+  });
+
+  it('depois que a representante muda a data, mudar a data da visita não mexe mais nela', async () => {
+    renderizar();
+    await esperarCliente();
+    const proxima = screen.getByLabelText('Próxima visita');
+
+    preencher(proxima, '2026-11-10');
+    preencher(screen.getByLabelText('Data e hora'), '2026-10-16T09:00');
+    expect(proxima).toHaveValue('2026-11-10');
+
+    await salvarComDescricao();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ proximaVisita: '2026-11-10', lembrete: null }),
+    );
+  });
+
+  it('apagar a data envia proximaVisita: null', async () => {
+    renderizar();
+    await esperarCliente();
+    preencher(screen.getByLabelText('Lembrete (opcional)'), 'Levar amostras');
+
+    preencher(screen.getByLabelText('Próxima visita'), '');
+
+    // Sem data, o lembrete não é salvo: o campo fica desabilitado
+    expect(screen.getByLabelText('Lembrete (opcional)')).toBeDisabled();
+    await salvarComDescricao();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ proximaVisita: null }));
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ lembrete: expect.anything() }));
+  });
+
+  it('data antes de hoje mostra o erro junto do campo, com o foco nele, e não envia', async () => {
+    renderizar();
+    await esperarCliente();
+
+    preencher(screen.getByLabelText('Próxima visita'), '2026-10-17');
+    await salvarComDescricao();
+
+    const proxima = screen.getByLabelText('Próxima visita');
+    expect(proxima).toHaveAttribute('aria-invalid', 'true');
+    expect(proxima).toHaveAccessibleDescription(/A próxima visita não pode ser antes de hoje\./);
+    expect(proxima).toHaveFocus();
+    expect(registrarCheckIn).not.toHaveBeenCalled();
+  });
+
+  it('visita antiga: a sugestão cairia antes de hoje, então o campo fica vazio e a agenda segue a recorrência', async () => {
+    renderizar();
+    await esperarCliente();
+
+    preencher(screen.getByLabelText('Data e hora'), '2026-09-01T09:00');
+
+    expect(screen.getByLabelText('Próxima visita')).toHaveValue('');
+    await salvarComDescricao();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ proximaVisita: null }));
   });
 });

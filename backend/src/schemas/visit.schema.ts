@@ -1,9 +1,11 @@
 import { z } from 'zod';
+import { dataCalendario } from '../services/classificacao.service';
 
 /**
  * Validação do check-in de visita (UC07), com o pedido opcional da visita
- * com venda, e da edição posterior da descrição (UC08), que não mexe no
- * pedido. O schema Prisma (`prisma/schema.prisma`) exige
+ * com venda e a próxima visita prevista com o lembrete, e da edição
+ * posterior da descrição (UC08), que não mexe em nenhum dos dois. O schema
+ * Prisma (`prisma/schema.prisma`) exige
  * `descricao` e `resultado` como NOT NULL — este zod reflete a mesma
  * obrigatoriedade, conforme o dicionário de dados
  * (docs/modelo-de-dados.md).
@@ -56,6 +58,28 @@ const itemDoPedidoSchema = z
   })
   .strict();
 
+const MENSAGEM_PROXIMA_VISITA_INVALIDA = 'Data da próxima visita inválida.';
+const MENSAGEM_PROXIMA_VISITA_PASSADA = 'A próxima visita não pode ser antes de hoje.';
+const MAXIMO_LEMBRETE = 200;
+
+/**
+ * Próxima visita prevista (spec 7.4): data de calendário `AAAA-MM-DD`
+ * (data que não existe, como 30/02, é recusada), hoje ou depois. "Hoje" é o
+ * de São Paulo no momento da requisição — `refine`, pelo mesmo motivo da
+ * data/hora da visita acima. `abort` no formato: data inválida não ganha
+ * também a mensagem de data passada.
+ */
+const proximaVisitaSchema = z.iso
+  .date({ error: MENSAGEM_PROXIMA_VISITA_INVALIDA, abort: true })
+  .refine((data) => data >= dataCalendario(new Date()), { message: MENSAGEM_PROXIMA_VISITA_PASSADA });
+
+/** Lembrete da próxima visita: texto livre; em branco vira `null` (sem lembrete). */
+const lembreteSchema = z
+  .string({ error: 'Lembrete inválido.' })
+  .trim()
+  .max(MAXIMO_LEMBRETE, `O lembrete pode ter no máximo ${MAXIMO_LEMBRETE} caracteres.`)
+  .transform((texto) => (texto === '' ? null : texto));
+
 export const createVisitSchema = z
   .object({
     descricao: descricaoSchema,
@@ -69,6 +93,14 @@ export const createVisitSchema = z
       .array(itemDoPedidoSchema)
       .max(MAXIMO_ITENS_DO_PEDIDO, `O pedido pode ter no máximo ${MAXIMO_ITENS_DO_PEDIDO} itens.`)
       .optional(),
+    /**
+     * Gravados no cliente junto com a visita: a visita nova substitui a data
+     * marcada antes. `proximaVisita` `null` ou ausente apaga a data e o
+     * lembrete (o lembrete do corpo é ignorado) e a agenda volta à
+     * recorrência; com data, lembrete ausente também apaga o anterior.
+     */
+    proximaVisita: proximaVisitaSchema.nullable().optional(),
+    lembrete: lembreteSchema.nullable().optional(),
   })
   .strict();
 

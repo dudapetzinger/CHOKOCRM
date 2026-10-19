@@ -26,6 +26,8 @@ const FICHA: ClienteCompleto = {
   recorrenciaChanges: [],
   rebaixadoPorVenda: false,
   diasSemCompra: null,
+  proximaVisita: null,
+  lembrete: null,
 };
 
 vi.mock('../services/clients', async (importOriginal) => ({
@@ -85,5 +87,30 @@ describe('ClienteDetalhePage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Você está sem internet.');
     expect(screen.getByRole('heading', { level: 2, name: 'Doces da Vovó' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Novo check-in' })).toBeInTheDocument();
+  });
+
+  it('o aviso da próxima visita fica logo abaixo do cabeçalho, antes da mensagem de estoque', async () => {
+    vi.mocked(getCliente).mockResolvedValue({
+      ...FICHA,
+      proximaVisita: '2026-10-20',
+      lembrete: 'Levar amostras de Natal',
+    });
+    renderizar();
+
+    const cabecalho = await screen.findByRole('heading', { level: 2, name: 'Doces da Vovó' });
+    const aviso = screen.getByRole('note');
+    expect(aviso).toHaveTextContent('Próxima visita: 20/10/2026');
+    expect(aviso).toHaveTextContent('Lembrete: Levar amostras de Natal');
+    expect(cabecalho.compareDocumentPosition(aviso)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    const mensagemEstoque = screen.getByRole('region', { name: 'Mensagem de estoque' });
+    expect(aviso.compareDocumentPosition(mensagemEstoque)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('sem data marcada nem lembrete, não há aviso', async () => {
+    vi.mocked(getCliente).mockResolvedValue(FICHA);
+    renderizar();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Doces da Vovó' })).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 });

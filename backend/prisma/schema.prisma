@@ -69,6 +69,11 @@ model Client {
   email           String
   erpId           String?               @map("erp_id")
   recorrenciaDias Int                   @default(15) @map("recorrencia_dias")
+  /// Data prevista da próxima visita, marcada no check-in (spec 7.4). Nula:
+  /// a agenda usa a última visita (ou o cadastro) + a recorrência.
+  proximaVisita   DateTime?             @map("proxima_visita") @db.Date
+  /// Anotação que acompanha a próxima visita (até 200 caracteres).
+  lembrete        String?
   ativo           Boolean               @default(true)
   criadoEm        DateTime              @default(now()) @map("criado_em")
   representanteId String                @map("representante_id")

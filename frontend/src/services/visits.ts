@@ -50,6 +50,14 @@ export type CheckInInput = {
   contactId?: string;
   /** Só com resultado VENDA, e sem linhas de quantidade 0. */
   itens?: ItemPedido[];
+  /**
+   * Próxima visita prevista (`AAAA-MM-DD`, hoje ou depois), gravada no
+   * cliente: a visita nova substitui a data marcada antes. `null` (ou
+   * ausente) apaga a data e o lembrete e a agenda volta à recorrência.
+   */
+  proximaVisita?: string | null;
+  /** Até 200 caracteres; só vale com data. `null` (ou ausente) apaga o lembrete. */
+  lembrete?: string | null;
 };
 
 export async function listarVisitas(clienteId: string): Promise<Visita[]> {

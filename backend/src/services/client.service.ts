@@ -11,7 +11,7 @@ import {
   representanteEfetivo,
   type UsuarioAutenticado,
 } from './carteira';
-import { classificacaoDoCliente, type Cor } from './classificacao.service';
+import { classificacaoDoCliente, dataDaColunaDate, type Cor } from './classificacao.service';
 import { consultarUltimasVendas } from './erp.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
@@ -79,6 +79,9 @@ export type ClienteCompletoDTO = {
   diasSemCompra: number | null;
   representante: { id: string; nome: string };
   recorrenciaChanges: RecorrenciaChangeDTO[];
+  /** Data marcada no check-in (`AAAA-MM-DD`, spec 7.4); `null` quando a agenda segue a recorrência. */
+  proximaVisita: string | null;
+  lembrete: string | null;
 };
 
 function toListItemDTO(client: ClientComContatoPrincipal, hoje: Date, ultimaVenda: Date | null): ClienteListItemDTO {
@@ -141,6 +144,8 @@ function toClienteCompletoDTO(client: ClientComContatos, hoje: Date, ultimaVenda
       autor: { id: change.user.id, nome: change.user.nome },
       data: change.data.toISOString(),
     })),
+    proximaVisita: client.proximaVisita ? dataDaColunaDate(client.proximaVisita) : null,
+    lembrete: client.lembrete,
   };
 }
 

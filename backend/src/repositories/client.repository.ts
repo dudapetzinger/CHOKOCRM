@@ -1,6 +1,7 @@
 import type { Client, Contact, Prisma, ResultadoVisita, VisitScheduleChange } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import type { CreateClientInput, UpdateClientInput } from '../schemas/client.schema';
+import { dataDaColunaDate, type DataCalendario } from '../services/classificacao.service';
 
 export type AtivoFiltro = 'ativos' | 'todos';
 
@@ -32,34 +33,48 @@ export type ClienteParaAgenda = {
   id: string;
   nomeFantasia: string;
   cidade: string;
+  /** Rua e número, para o roteiro do dia. */
+  endereco: string;
   criadoEm: Date;
   recorrenciaDias: number;
   erpId: string | null;
   visits: { dataHora: Date; resultado: ResultadoVisita }[];
   /** Dono da carteira, exibido nos itens da agenda. */
   representante: { id: string; nome: string };
+  /** Data marcada no check-in (spec 7.4), já como data de calendário. */
+  proximaVisita: DataCalendario | null;
+  lembrete: string | null;
 };
 
 /**
  * Clientes ativos elegíveis para a agenda do dia (UC10), também base dos
  * indicadores (UC14) e dos alertas (UC15): sem `representanteId`, todos os
  * representantes (visão do gestor); com `representanteId`, só a carteira
- * daquele representante.
+ * daquele representante. A próxima visita sai daqui já como `DataCalendario`
+ * (ver `dataDaColunaDate`), para ninguém a passar pelo fuso por engano.
  */
 export async function listAtivosParaAgenda(representanteId?: string): Promise<ClienteParaAgenda[]> {
-  return prisma.client.findMany({
+  const clientes = await prisma.client.findMany({
     where: { ativo: true, ...(representanteId ? { representanteId } : {}) },
     select: {
       id: true,
       nomeFantasia: true,
       cidade: true,
+      endereco: true,
       criadoEm: true,
       recorrenciaDias: true,
       erpId: true,
+      proximaVisita: true,
+      lembrete: true,
       visits: SELECT_ULTIMA_VISITA,
       representante: { select: { id: true, nome: true } },
     },
   });
+
+  return clientes.map(({ proximaVisita, ...cliente }) => ({
+    ...cliente,
+    proximaVisita: proximaVisita ? dataDaColunaDate(proximaVisita) : null,
+  }));
 }
 
 export async function findByCnpj(cnpj: string): Promise<Client | null> {
@@ -167,7 +182,9 @@ export async function transferirCarteira(origemId: string, destinoId: string): P
  * Única via de alteração de `Client.recorrenciaDias` (UC09): grava o
  * histórico auditável em `VisitScheduleChange` e atualiza o cliente na
  * mesma transação, para que nunca exista mudança de recorrência sem o
- * respectivo registro de justificativa.
+ * respectivo registro de justificativa. Apaga a próxima visita marcada no
+ * check-in: quem muda o ritmo espera que a próxima data acompanhe a
+ * recorrência nova; o lembrete continua (spec 7.4).
  */
 export async function updateRecorrenciaComHistorico(params: {
   clientId: string;
@@ -189,6 +206,6 @@ export async function updateRecorrenciaComHistorico(params: {
         data: new Date(),
       },
     }),
-    prisma.client.update({ where: { id: clientId }, data: { recorrenciaDias: nova } }),
+    prisma.client.update({ where: { id: clientId }, data: { recorrenciaDias: nova, proximaVisita: null } }),
   ]);
 }

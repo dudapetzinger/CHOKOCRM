@@ -8,6 +8,7 @@ import {
 import { logger } from '../src/lib/logger';
 import { prisma } from '../src/lib/prisma';
 import * as userRepository from '../src/repositories/user.repository';
+import { dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -98,6 +99,20 @@ describe('executarAgendaDiaria', () => {
     const registros = infoSpy.mock.calls.map(([obj]) => obj as Record<string, unknown>).filter((o) => o?.job === NOME_JOB);
     expect(registros).toHaveLength(1);
     expect(registros[0]).toMatchObject({ representanteId: representanteAId });
+  });
+
+  it('registra só atrasadas e hoje: a visita marcada para os próximos dias fica fora do log', async () => {
+    const amanha = somarDias(dataCalendario(new Date()), 1);
+    await prisma.client.updateMany({ data: { proximaVisita: new Date(`${amanha}T00:00:00.000Z`) } });
+    const infoSpy = jest.spyOn(logger, 'info');
+
+    await executarAgendaDiaria(new Date());
+
+    const registro = infoSpy.mock.calls
+      .map(([obj]) => obj as Record<string, unknown>)
+      .find((o) => o?.job === NOME_JOB && o.representanteId === representanteAId);
+    expect(registro).toMatchObject({ atrasadas: 0, hoje: 0, clientes: [] });
+    expect(registro).not.toHaveProperty('proximos7Dias');
   });
 
   it('falha de um representante não interrompe os demais', async () => {

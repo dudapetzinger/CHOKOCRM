@@ -590,6 +590,8 @@ describe('POST /clients', () => {
       diasSemCompra: null,
       representante: { id: representanteId, nome: REPRESENTANTE.nome },
       recorrenciaChanges: [],
+      proximaVisita: null,
+      lembrete: null,
     });
 
     const persistido = await prisma.client.findUnique({ where: { id: res.body.id } });

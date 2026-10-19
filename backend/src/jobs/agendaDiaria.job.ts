@@ -11,8 +11,10 @@ export const NOME_JOB = 'agenda-diaria';
 /**
  * Job diário (UC10): calcula a agenda de cada representante e registra um
  * log estruturado por representante — não persiste nada, apenas alerta via
- * log (o consumo/alerta em si fica a cargo de quem lê os logs). Falha ao
- * calcular a agenda de um representante não interrompe os demais.
+ * log (o consumo/alerta em si fica a cargo de quem lê os logs). O alerta é
+ * do que já venceu ou vence hoje: os próximos 7 dias da agenda ficam fora do
+ * log. Falha ao calcular a agenda de um representante não interrompe os
+ * demais.
  */
 export async function executarAgendaDiaria(hoje: Date = new Date()): Promise<void> {
   const representantes = await userRepository.listByRole('REPRESENTANTE');

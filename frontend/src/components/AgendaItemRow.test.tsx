@@ -7,21 +7,27 @@ const item: AgendaItem = {
   id: 'c1',
   nomeFantasia: 'Doce Encanto',
   cidade: 'Blumenau',
+  endereco: 'Rua XV de Novembro, 100',
   cor: 'VERMELHO',
   diasSemVisita: 40,
   proximaVisita: '2026-10-01',
   diasAtraso: 13,
+  marcadaNoCheckIn: false,
+  lembrete: null,
   rebaixadoPorVenda: false,
   representante: { id: 'u2', nome: 'Rafael Schmitt' },
 };
 
-function renderizar({ mostrarRepresentante = false, podeCheckIn = false } = {}) {
+function renderizar({
+  mostrarRepresentante = false,
+  podeCheckIn = false,
+  ...mudancas
+}: { mostrarRepresentante?: boolean; podeCheckIn?: boolean } & Partial<AgendaItem> = {}) {
   return render(
     <MemoryRouter>
       <ul>
         <AgendaItemRow
-          item={item}
-          linhaDias="Próxima visita venceu há 13 dias"
+          item={{ ...item, ...mudancas }}
           podeCheckIn={podeCheckIn}
           mostrarRepresentante={mostrarRepresentante}
         />
@@ -37,7 +43,32 @@ describe('AgendaItemRow', () => {
     expect(screen.getByRole('listitem')).toBeInTheDocument();
     expect(screen.getByText('Doce Encanto')).toBeInTheDocument();
     expect(screen.getByText('Atrasado · 40 dias sem visita')).toBeInTheDocument();
-    expect(screen.getByText('Blumenau · Próxima visita venceu há 13 dias')).toBeInTheDocument();
+    expect(screen.getByText('Blumenau · Visita prevista venceu há 13 dias')).toBeInTheDocument();
+  });
+
+  it('diz "Visita prevista venceu há 3 dias", "Visita prevista para hoje" e "Prevista para 20/10"', () => {
+    const { unmount } = renderizar({ diasAtraso: 3, proximaVisita: '2026-10-15' });
+    expect(screen.getByText('Blumenau · Visita prevista venceu há 3 dias')).toBeInTheDocument();
+    unmount();
+
+    const segunda = renderizar({ diasAtraso: 0, proximaVisita: '2026-10-18' });
+    expect(screen.getByText('Blumenau · Visita prevista para hoje')).toBeInTheDocument();
+    segunda.unmount();
+
+    renderizar({ diasAtraso: -2, proximaVisita: '2026-10-20', marcadaNoCheckIn: true });
+    expect(screen.getByText('Blumenau · Prevista para 20/10')).toBeInTheDocument();
+  });
+
+  it('"venceu há 1 dia" no singular', () => {
+    renderizar({ diasAtraso: 1 });
+
+    expect(screen.getByText('Blumenau · Visita prevista venceu há 1 dia')).toBeInTheDocument();
+  });
+
+  it('acrescenta " · levar amostras" quando há lembrete', () => {
+    renderizar({ diasAtraso: -2, proximaVisita: '2026-10-20', lembrete: 'levar amostras' });
+
+    expect(screen.getByText('Blumenau · Prevista para 20/10 · levar amostras')).toBeInTheDocument();
   });
 
   it('o avatar (decorativo) e o nome levam para a ficha do cliente no mesmo link', () => {
