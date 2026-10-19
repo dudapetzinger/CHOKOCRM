@@ -18,8 +18,9 @@ const DIAS_DE_VOLUME = 90;
 
 /**
  * Único módulo do sistema que fala com `erpProvider` (Task 4 do plano de
- * design da Etapa 5): services e controllers de cliente/agenda consomem
- * `consultarUltimasVendas` daqui, nunca o provider diretamente.
+ * design da Etapa 5) e com o catálogo do ERP: services e controllers de
+ * cliente/agenda consomem `consultarUltimasVendas` daqui; o check-in e as
+ * campanhas, `buscarProduto`. Nunca o provider diretamente.
  */
 export type DadosErpDTO =
   | {
@@ -113,6 +114,16 @@ export type ProdutoDTO = { sku: string; nome: string; precoUnitario: number };
  */
 export function listarProdutos(): ProdutoDTO[] {
   return CATALOGO.map(({ sku, nome, precoUnitario }) => ({ sku, nome, precoUnitario }));
+}
+
+/**
+ * Um produto do catálogo pelo SKU, com o preço do dia; `null` se o SKU não
+ * existe. É por aqui que o pedido do check-in e as campanhas validam os
+ * SKUs: nenhum outro módulo lê o catálogo do ERP direto.
+ */
+export function buscarProduto(sku: string): ProdutoDTO | null {
+  const produto = CATALOGO.find((candidato) => candidato.sku === sku);
+  return produto ? { sku: produto.sku, nome: produto.nome, precoUnitario: produto.precoUnitario } : null;
 }
 
 /**

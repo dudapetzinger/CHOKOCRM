@@ -22,6 +22,8 @@ export type AgendaItem = {
   /** A data prevista veio do check-in (e não da recorrência). */
   marcadaNoCheckIn: boolean;
   lembrete: string | null;
+  /** Campanha da próxima visita (spec 7.7). */
+  proximaCampanha: { id: string; nome: string } | null;
   rebaixadoPorVenda: boolean;
   representante: { id: string; nome: string };
 };

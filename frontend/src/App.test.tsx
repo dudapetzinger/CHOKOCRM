@@ -64,6 +64,7 @@ const FICHA: ClienteCompleto = {
   diasSemCompra: null,
   proximaVisita: null,
   lembrete: null,
+  proximaCampanha: null,
 };
 
 vi.mock('./services/clients', async (importOriginal) => ({
@@ -84,6 +85,10 @@ vi.mock('./services/stockMessages', () => ({
 }));
 vi.mock('./services/agenda', () => ({
   buscarAgendaDoDia: vi.fn(async () => ({ atrasadas: [], hoje: [], proximos7Dias: [] })),
+}));
+vi.mock('./services/campaigns', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./services/campaigns')>()),
+  listarCampanhas: vi.fn(async () => []),
 }));
 // O Painel tem testes próprios; aqui só importa a rota em que se chega.
 vi.mock('./pages/PainelPage', () => ({ default: () => <p>conteúdo do painel</p> }));

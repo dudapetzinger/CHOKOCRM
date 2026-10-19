@@ -6,10 +6,15 @@ import { AuthContext, type Role } from '../auth/auth-context';
 import { RepresentanteProvider } from '../representante/RepresentanteContext';
 import { ApiError } from '../services/api';
 import { buscarAgendaDoDia, type Agenda, type AgendaItem } from '../services/agenda';
+import { listarCampanhas, type Campanha } from '../services/campaigns';
 import { removerSimulacaoDeLargura, simularLargura } from '../test/simularLargura';
 import { AgendaPage } from './AgendaPage';
 
 vi.mock('../services/agenda', () => ({ buscarAgendaDoDia: vi.fn() }));
+vi.mock('../services/campaigns', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/campaigns')>()),
+  listarCampanhas: vi.fn(),
+}));
 
 vi.mock('../services/users', () => ({
   listRepresentantes: vi.fn().mockResolvedValue([
@@ -29,6 +34,7 @@ const ATRASADA: AgendaItem = {
   diasAtraso: 5,
   marcadaNoCheckIn: false,
   lembrete: null,
+  proximaCampanha: null,
   rebaixadoPorVenda: false,
   representante: { id: 'u1', nome: 'Eduarda Fischer' },
 };
@@ -44,6 +50,7 @@ const HOJE: AgendaItem = {
   diasAtraso: 0,
   marcadaNoCheckIn: false,
   lembrete: null,
+  proximaCampanha: null,
   rebaixadoPorVenda: false,
   representante: { id: 'u2', nome: 'Rafael Schmitt' },
 };
@@ -59,6 +66,7 @@ const PROXIMA: AgendaItem = {
   diasAtraso: -2,
   marcadaNoCheckIn: true,
   lembrete: 'Levar amostras de Natal',
+  proximaCampanha: { id: 'cp2', nome: 'Natal Chokolaten' },
   rebaixadoPorVenda: false,
   representante: { id: 'u1', nome: 'Eduarda Fischer' },
 };
@@ -108,6 +116,7 @@ function secao(nome: string) {
 
 beforeEach(() => {
   simularLargura(false);
+  vi.mocked(listarCampanhas).mockReset().mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -254,6 +263,53 @@ describe('AgendaPage (celular)', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Você está sem internet.');
     expect(screen.getByText('Doces da Vovó')).toBeInTheDocument();
+  });
+});
+
+describe('AgendaPage — campanhas em andamento (spec 7.6 e 7.7)', () => {
+  function campanha(id: string, nome: string, status: Campanha['status']): Campanha {
+    return {
+      id,
+      nome,
+      tipo: 'CAMPANHA',
+      inicio: '2026-10-01',
+      fim: '2026-12-31',
+      descricao: '',
+      desconto: null,
+      produtos: [],
+      status,
+      resultados: [],
+    };
+  }
+
+  it('mostra um chip por campanha em andamento, com link para Campanhas; programadas e encerradas ficam de fora', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([
+      campanha('cp1', 'Páscoa Chokolaten', 'ENCERRADA'),
+      campanha('cp2', 'Natal Chokolaten', 'EM_ANDAMENTO'),
+      campanha('cp3', 'Feira Sabores do Vale', 'PROGRAMADA'),
+      campanha('cp4', 'Semana do Cacau', 'EM_ANDAMENTO'),
+    ]);
+    renderizarComo('REPRESENTANTE', { hoje: [HOJE] });
+
+    const chips = await screen.findByRole('list', { name: 'Campanhas em andamento' });
+    const links = within(chips).getAllByRole('link');
+    expect(links.map((link) => link.textContent)).toEqual(['Natal Chokolaten', 'Semana do Cacau']);
+    for (const link of links) expect(link).toHaveAttribute('href', '/campanhas');
+  });
+
+  it('sem campanha em andamento, não há chips', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([campanha('cp3', 'Feira Sabores do Vale', 'PROGRAMADA')]);
+    renderizarComo('REPRESENTANTE', { hoje: [HOJE] });
+
+    await screen.findByRole('region', { name: 'Hoje · 1' });
+    expect(screen.queryByRole('list', { name: 'Campanhas em andamento' })).not.toBeInTheDocument();
+  });
+
+  it('a linha do cliente traz a etiqueta da campanha da próxima visita', async () => {
+    renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA] });
+
+    const proximos = await screen.findByRole('region', { name: 'Próximos 7 dias · 1' });
+    expect(within(proximos).getByText('Natal Chokolaten')).toBeInTheDocument();
   });
 });
 

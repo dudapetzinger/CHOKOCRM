@@ -3,7 +3,8 @@ import { dataCalendario } from '../services/classificacao.service';
 
 /**
  * Validação do check-in de visita (UC07), com o pedido opcional da visita
- * com venda e a próxima visita prevista com o lembrete, e da edição
+ * com venda, a próxima visita prevista com o lembrete e as campanhas da
+ * visita e da próxima visita, e da edição
  * posterior da descrição (UC08), que não mexe em nenhum dos dois. O schema
  * Prisma (`prisma/schema.prisma`) exige
  * `descricao` e `resultado` como NOT NULL — este zod reflete a mesma
@@ -80,6 +81,8 @@ const lembreteSchema = z
   .max(MAXIMO_LEMBRETE, `O lembrete pode ter no máximo ${MAXIMO_LEMBRETE} caracteres.`)
   .transform((texto) => (texto === '' ? null : texto));
 
+const campanhaIdSchema = z.string().uuid('Identificador da campanha inválido.');
+
 export const createVisitSchema = z
   .object({
     descricao: descricaoSchema,
@@ -101,6 +104,13 @@ export const createVisitSchema = z
      */
     proximaVisita: proximaVisitaSchema.nullable().optional(),
     lembrete: lembreteSchema.nullable().optional(),
+    /**
+     * Campanhas (spec 7.7): a da visita e a da próxima visita, que vai para
+     * o cliente com a data (sem data, é ignorada, como o lembrete). Só
+     * campanha não encerrada (regra no serviço, com a mensagem própria).
+     */
+    campanhaId: campanhaIdSchema.nullable().optional(),
+    proximaCampanhaId: campanhaIdSchema.nullable().optional(),
   })
   .strict();
 

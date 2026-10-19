@@ -1,0 +1,63 @@
+import type { Campaign, TipoCampanha } from '@prisma/client';
+import { prisma } from '../lib/prisma';
+import type { VisitaVinculada } from '../services/campaign.regras';
+
+/** Campanha como a tabela a grava: `inicio` e `fim` já como valor de coluna `@db.Date`. */
+export type CampanhaData = {
+  nome: string;
+  tipo: TipoCampanha;
+  inicio: Date;
+  fim: Date;
+  descricao: string;
+  desconto: number | null;
+  produtos: string[];
+};
+
+/** Todas, em ordem de início (e de nome, no mesmo dia). */
+export async function listar(): Promise<Campaign[]> {
+  return prisma.campaign.findMany({ orderBy: [{ inicio: 'asc' }, { nome: 'asc' }] });
+}
+
+export async function findById(id: string): Promise<Campaign | null> {
+  return prisma.campaign.findUnique({ where: { id } });
+}
+
+export async function create(data: CampanhaData): Promise<Campaign> {
+  return prisma.campaign.create({ data });
+}
+
+export async function update(id: string, data: CampanhaData): Promise<Campaign> {
+  return prisma.campaign.update({ where: { id }, data });
+}
+
+/** As visitas e próximas visitas vinculadas ficam sem campanha (`onDelete: SetNull`). */
+export async function remove(id: string): Promise<void> {
+  await prisma.campaign.delete({ where: { id } });
+}
+
+/**
+ * Visitas vinculadas às campanhas, com o autor e o pedido, para as vendas
+ * vinculadas. Com `campanhaId`, só as daquela campanha; com `autorId`, só
+ * as daquele autor (o representante vê só a própria linha).
+ */
+export async function listarVisitasVinculadas(
+  filtro: { campanhaId?: string; autorId?: string } = {},
+): Promise<(VisitaVinculada & { campanhaId: string })[]> {
+  const visitas = await prisma.visit.findMany({
+    where: {
+      campanhaId: filtro.campanhaId ?? { not: null },
+      ...(filtro.autorId ? { userId: filtro.autorId } : {}),
+    },
+    select: {
+      campanhaId: true,
+      resultado: true,
+      user: { select: { id: true, nome: true } },
+      itens: { select: { quantidade: true, precoUnitario: true } },
+    },
+  });
+
+  // O `where` já deixa de fora as sem campanha; o filtro só estreita o tipo.
+  return visitas.flatMap(({ campanhaId, user, ...visita }) =>
+    campanhaId ? [{ ...visita, campanhaId, autor: user }] : [],
+  );
+}

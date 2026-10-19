@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { AvisoProximaVisita } from './AvisoProximaVisita';
 
 describe('AvisoProximaVisita', () => {
@@ -24,5 +24,26 @@ describe('AvisoProximaVisita', () => {
     const aviso = screen.getByRole('note');
     expect(aviso).toHaveTextContent('Próxima visita: 01/12/2026');
     expect(aviso).not.toHaveTextContent('Lembrete');
+  });
+
+  it('mostra a etiqueta da campanha da próxima visita (spec 7.7)', () => {
+    render(<AvisoProximaVisita data="2026-12-01" lembrete={null} campanha="Natal Chokolaten" />);
+
+    const aviso = screen.getByRole('note');
+    expect(within(aviso).getByText('Natal Chokolaten')).toBeInTheDocument();
+    expect(aviso).toHaveTextContent('Campanha: Natal Chokolaten');
+  });
+
+  it('só com a campanha (a recorrência mudou e apagou a data), o aviso ainda aparece', () => {
+    render(<AvisoProximaVisita data={null} lembrete={null} campanha="Natal Chokolaten" />);
+
+    expect(screen.getByRole('note')).toHaveTextContent('Natal Chokolaten');
+    expect(screen.getByRole('note')).not.toHaveTextContent('Próxima visita');
+  });
+
+  it('sem data, lembrete nem campanha, não desenha nada', () => {
+    const { container } = render(<AvisoProximaVisita data={null} lembrete={null} campanha={null} />);
+
+    expect(container).toBeEmptyDOMElement();
   });
 });

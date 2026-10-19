@@ -27,6 +27,8 @@ export type AgendaItem = {
   /** A data prevista veio do check-in (`true`) ou da recorrência (`false`). */
   marcadaNoCheckIn: boolean;
   lembrete: string | null;
+  /** Campanha da próxima visita (spec 7.7), para a etiqueta da linha. */
+  proximaCampanha: { id: string; nome: string } | null;
   rebaixadoPorVenda: boolean;
   /** Dono da carteira do cliente (não o autor da última visita). */
   representante: { id: string; nome: string };
@@ -109,6 +111,7 @@ export function montarAgenda(
       diasAtraso,
       marcadaNoCheckIn: cliente.proximaVisita !== null,
       lembrete: cliente.lembrete,
+      proximaCampanha: cliente.proximaCampanha,
       rebaixadoPorVenda,
       representante: cliente.representante,
     };

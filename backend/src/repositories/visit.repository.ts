@@ -9,6 +9,7 @@ import { prisma } from '../lib/prisma';
 const INCLUDE_RELACOES = {
   contact: { select: { id: true, nome: true } },
   user: { select: { id: true, nome: true } },
+  campanha: { select: { id: true, nome: true } },
   itens: {
     select: { sku: true, produtoNome: true, quantidade: true, precoUnitario: true },
     orderBy: { produtoNome: 'asc' },
@@ -26,18 +27,20 @@ export type ItemDoPedidoData = {
 };
 
 /**
- * Campos do cliente que todo check-in regrava junto com a visita (spec 7.4):
- * `proximaVisita` já como valor de coluna `@db.Date`; `null` apaga.
+ * Campos do cliente que todo check-in regrava junto com a visita (spec 7.4
+ * e 7.7): `proximaVisita` já como valor de coluna `@db.Date`; `null` apaga.
  */
 export type ProximaVisitaDoClienteData = {
   proximaVisita: Date | null;
   lembrete: string | null;
+  proximaCampanhaId: string | null;
 };
 
 export type CreateVisitData = {
   clientId: string;
   userId: string;
   contactId?: string;
+  campanhaId: string | null;
   dataHora: Date;
   descricao: string;
   resultado: ResultadoVisita;

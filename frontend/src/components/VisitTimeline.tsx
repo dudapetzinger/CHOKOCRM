@@ -5,7 +5,8 @@
  *
  * Visual do protótipo (Etapa 8): linha do tempo com um ponto por visita, a
  * data e o resultado numa etiqueta (venda em verde, negociação em laranja,
- * sem venda neutra), o pedido da visita com venda ("Pedido · total" e uma
+ * sem venda neutra), a etiqueta azul da campanha vinculada (spec 7.7), o
+ * pedido da visita com venda ("Pedido · total" e uma
  * linha por item, com o preço gravado no check-in) e a foto em miniatura.
  *
  * Componente de apresentação: não chama a API: recebe os dados e os
@@ -22,6 +23,7 @@ import { formatarDataHora } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
 import { EstadoVazio } from './EstadoVazio';
 import { Aviso, Etiqueta } from './crm/ui';
+import { EtiquetaCampanha } from './crm/EtiquetaCampanha';
 
 const TOM_RESULTADO: Record<ResultadoVisita, 'verde' | 'laranja' | 'neutro'> = {
   VENDA: 'verde',
@@ -100,6 +102,7 @@ export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarF
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="text-sm font-medium">{formatarDataHora(visita.dataHora)}</span>
                 <Etiqueta tom={TOM_RESULTADO[visita.resultado]}>{ROTULO_RESULTADO[visita.resultado]}</Etiqueta>
+                {visita.campanha && <EtiquetaCampanha nome={visita.campanha.nome} />}
                 <span className="text-xs text-muted-foreground">
                   {visita.contato ? `Contato: ${visita.contato.nome}` : 'Sem contato informado'} · por{' '}
                   {visita.autor.nome}

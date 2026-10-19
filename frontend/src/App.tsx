@@ -12,6 +12,7 @@ import { NovoClientePage } from './pages/NovoClientePage';
 import { ClienteDetalhePage } from './pages/ClienteDetalhePage';
 import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
+import { CampanhasPage } from './pages/CampanhasPage';
 import { UsuariosPage } from './pages/UsuariosPage';
 import { NovoUsuarioPage } from './pages/NovoUsuarioPage';
 import { AlterarSenhaPage } from './pages/AlterarSenhaPage';
@@ -74,6 +75,7 @@ export function App() {
               <Route path="/clientes/novo" element={<NovoClientePage />} />
               <Route path="/clientes/:id/check-in" element={<CheckInPage />} />
               <Route path="/agenda" element={<AgendaPage />} />
+              <Route path="/campanhas" element={<CampanhasPage />} />
               <Route
                 path="/painel"
                 element={

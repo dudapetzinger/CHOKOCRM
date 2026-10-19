@@ -25,6 +25,7 @@ function renderizar({ papel = 'REPRESENTANTE', entradas = ['/clientes'] }: { pap
             <Route path="/clientes/:id/check-in" element={<p>tela de check-in</p>} />
             <Route path="/agenda" element={<p>tela da agenda</p>} />
             <Route path="/painel" element={<p>tela do painel</p>} />
+            <Route path="/campanhas" element={<p>tela de campanhas</p>} />
             <Route path="/usuarios" element={<p>tela de usuários</p>} />
             <Route path="/usuarios/novo" element={<p>tela de novo usuário</p>} />
             <Route path="/conta/senha" element={<p>tela de alterar senha</p>} />
@@ -48,18 +49,18 @@ afterEach(() => {
 });
 
 describe('Moldura', () => {
-  // Ordens fixadas (spec 6.5). Campanhas entra na Task 11 e o Painel do
-  // representante na Task 14: quem acrescentar estende estas listas.
-  it('gestor vê Painel, Clientes, Agenda e Usuários nessa ordem', () => {
+  // Ordens fixadas (spec 6.5). O Painel do representante entra depois
+  // (entre Clientes e Campanhas): quem acrescentar estende estas listas.
+  it('gestor vê Painel, Clientes, Agenda, Campanhas e Usuários nessa ordem', () => {
     renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
 
-    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Usuários']);
+    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas', 'Usuários']);
   });
 
-  it('representante vê Agenda e Clientes, sem Painel nem Usuários', () => {
+  it('representante vê Agenda, Clientes e Campanhas, sem Painel nem Usuários', () => {
     renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
 
-    expect(atalhos()).toEqual(['Agenda', 'Clientes']);
+    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Campanhas']);
     expect(screen.queryByRole('link', { name: 'Painel' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument();
   });
@@ -67,11 +68,11 @@ describe('Moldura', () => {
   it('desktop: as mesmas ordens no menu lateral', () => {
     simularLargura(true);
     const { unmount } = renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
-    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Usuários']);
+    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas', 'Usuários']);
     unmount();
 
     renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
-    expect(atalhos()).toEqual(['Agenda', 'Clientes']);
+    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Campanhas']);
   });
 
   it('em "Novo usuário" o atalho Usuários fica marcado e o celular mostra "Voltar"', () => {
@@ -89,6 +90,17 @@ describe('Moldura', () => {
 
     renderizar({ entradas: ['/agenda'] });
     expect(screen.getByRole('heading', { level: 1, name: 'Agenda' })).toBeInTheDocument();
+  });
+
+  it('título de Campanhas é "Campanhas e eventos", com o atalho marcado, para os dois papéis', () => {
+    const { unmount } = renderizar({ papel: 'GESTOR', entradas: ['/campanhas'] });
+    expect(screen.getByRole('heading', { level: 1, name: 'Campanhas e eventos' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Campanhas' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByText('tela de campanhas')).toBeInTheDocument();
+    unmount();
+
+    renderizar({ papel: 'REPRESENTANTE', entradas: ['/campanhas'] });
+    expect(screen.getByRole('link', { name: 'Campanhas' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('título do Painel é "Painel de indicadores"', () => {
@@ -136,7 +148,7 @@ describe('Moldura', () => {
     expect(screen.getByRole('img', { name: 'ChokoCRM' })).toHaveAttribute('src', '/logo.svg');
     expect(screen.getByText('Chokolaten')).toBeInTheDocument();
     expect(screen.getAllByRole('navigation')).toHaveLength(1);
-    expect(atalhos()).toEqual(['Agenda', 'Clientes']);
+    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Campanhas']);
     expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument();
   });
 });
@@ -149,6 +161,7 @@ describe('tituloDaRota', () => {
     ['/clientes/novo', 'Novo cliente', true],
     ['/clientes/c1', 'Clientes', true],
     ['/clientes/c1/check-in', 'Novo check-in', true],
+    ['/campanhas', 'Campanhas e eventos', false],
     ['/usuarios', 'Usuários', false],
     ['/usuarios/novo', 'Novo usuário', true],
     ['/conta/senha', 'Alterar senha', true],

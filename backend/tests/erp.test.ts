@@ -256,6 +256,17 @@ describe('GET /erp/produtos', () => {
   });
 });
 
+describe('erp.service.buscarProduto', () => {
+  it('acha o produto do catálogo pelo SKU, com o preço do dia', () => {
+    expect(erpService.buscarProduto('PAO-MEL')).toEqual({ sku: 'PAO-MEL', nome: 'Pães de mel', precoUnitario: 27.9 });
+  });
+
+  it('SKU fora do catálogo dá null', () => {
+    expect(erpService.buscarProduto('NAO-EXISTE')).toBeNull();
+    expect(erpService.buscarProduto('pao-mel')).toBeNull();
+  });
+});
+
 describe('erp.service — consultas para insights', () => {
   /** Itens com `quantidade < 10` do snapshot de data mais recente, derivados direto do histórico do provider. */
   function itensBaixosDaDataMaisRecente(historico: StockSnapshot[]): ItemBaixo[] {

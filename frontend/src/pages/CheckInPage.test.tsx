@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from '../components/ui/sonner';
 import { comprimirImagem } from '../lib/comprimirImagem';
 import { ApiError } from '../services/api';
+import { listarCampanhas, type Campanha } from '../services/campaigns';
 import { createContato, getCliente, type ClienteCompleto, type Contato } from '../services/clients';
 import { listarProdutos, type Produto } from '../services/erp';
 import { enviarFoto, registrarCheckIn, type Visita } from '../services/visits';
@@ -24,7 +25,30 @@ vi.mock('../services/visits', async (importOriginal) => ({
   registrarCheckIn: vi.fn(),
   enviarFoto: vi.fn(),
 }));
+vi.mock('../services/campaigns', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/campaigns')>()),
+  listarCampanhas: vi.fn(),
+}));
 vi.mock('../lib/comprimirImagem', () => ({ comprimirImagem: vi.fn() }));
+
+function campanha(id: string, nome: string, status: Campanha['status']): Campanha {
+  return {
+    id,
+    nome,
+    tipo: 'CAMPANHA',
+    inicio: '2026-10-01',
+    fim: '2026-12-31',
+    descricao: '',
+    desconto: null,
+    produtos: [],
+    status,
+    resultados: [],
+  };
+}
+
+const PASCOA = campanha('cp1', 'Páscoa Chokolaten', 'ENCERRADA');
+const NATAL = campanha('cp2', 'Natal Chokolaten', 'EM_ANDAMENTO');
+const FEIRA = campanha('cp3', 'Feira Sabores do Vale', 'PROGRAMADA');
 
 const MARTA: Contato = {
   id: 'ct1',
@@ -66,6 +90,7 @@ const FICHA: ClienteCompleto = {
   diasSemCompra: null,
   proximaVisita: null,
   lembrete: null,
+  proximaCampanha: null,
 };
 
 const VISITA: Visita = {
@@ -80,6 +105,7 @@ const VISITA: Visita = {
   editadoEm: null,
   itens: [],
   totalPedido: 0,
+  campanha: null,
 };
 
 const PRODUTOS: Produto[] = [
@@ -114,6 +140,7 @@ beforeEach(() => {
   vi.mocked(getCliente).mockReset().mockResolvedValue(FICHA);
   vi.mocked(createContato).mockReset().mockResolvedValue(CONTATO_NOVO);
   vi.mocked(listarProdutos).mockReset().mockResolvedValue(PRODUTOS);
+  vi.mocked(listarCampanhas).mockReset().mockResolvedValue([PASCOA, NATAL, FEIRA]);
   vi.mocked(registrarCheckIn).mockReset().mockResolvedValue(VISITA);
   vi.mocked(enviarFoto).mockReset().mockResolvedValue(undefined);
   vi.mocked(comprimirImagem).mockReset().mockResolvedValue(new Blob(['jpeg'], { type: 'image/jpeg' }));
@@ -150,6 +177,7 @@ describe('CheckInPage', () => {
     expect(screen.getByText(/Cliente:/)).toHaveTextContent('Cliente: Armazém São Bento');
     const controles = [
       screen.getByLabelText('Data e hora'),
+      screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' }),
       screen.getByRole('radiogroup', { name: 'Resultado' }),
       screen.getByRole('combobox', { name: 'Contato atendido' }),
       screen.getByRole('group', { name: 'Pedido' }),
@@ -157,6 +185,7 @@ describe('CheckInPage', () => {
       screen.getByLabelText('Foto (opcional)'),
       screen.getByLabelText('Próxima visita'),
       screen.getByLabelText('Lembrete (opcional)'),
+      screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' }),
       screen.getByRole('button', { name: 'Salvar check-in' }),
     ];
     for (let i = 1; i < controles.length; i++) {
@@ -505,5 +534,114 @@ describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
     await salvarComDescricao();
 
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ proximaVisita: null }));
+  });
+});
+
+describe('CheckInPage — campanhas (spec 7.7)', () => {
+  /** Os textos das opções de um select, na ordem. */
+  function opcoes(select: HTMLElement): string[] {
+    return within(select)
+      .getAllByRole('option')
+      .map((opcao) => opcao.textContent ?? '');
+  }
+
+  async function esperarCampanhas(select: HTMLElement) {
+    await within(select).findByRole('option', { name: 'Natal Chokolaten' });
+  }
+
+  async function salvarComDescricao() {
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Apresentei os kits de Natal.');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+  }
+
+  it('os selects listam só campanhas não encerradas, depois de "Sem campanha"', async () => {
+    renderizar();
+    await esperarCliente();
+    const daVisita = screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' });
+    const daProxima = screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' });
+    await esperarCampanhas(daVisita);
+
+    expect(opcoes(daVisita)).toEqual(['Sem campanha', 'Natal Chokolaten', 'Feira Sabores do Vale']);
+    expect(opcoes(daProxima)).toEqual(['Sem campanha', 'Natal Chokolaten', 'Feira Sabores do Vale']);
+    expect(daVisita).toHaveDisplayValue('Sem campanha');
+    expect(daProxima).toHaveDisplayValue('Sem campanha');
+  });
+
+  it('envia a campanha da visita e a da próxima visita', async () => {
+    renderizar();
+    await esperarCliente();
+    const daVisita = screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' });
+    await esperarCampanhas(daVisita);
+
+    await usuario.selectOptions(daVisita, 'Natal Chokolaten');
+    await usuario.selectOptions(
+      screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' }),
+      'Feira Sabores do Vale',
+    );
+    await salvarComDescricao();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ campanhaId: 'cp2', proximaCampanhaId: 'cp3' }),
+    );
+  });
+
+  it('sem campanha escolhida, o check-in vai sem os dois campos', async () => {
+    renderizar();
+    await esperarCliente();
+    await esperarCampanhas(screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' }));
+
+    await salvarComDescricao();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.not.objectContaining({ campanhaId: expect.anything() }),
+    );
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.not.objectContaining({ proximaCampanhaId: expect.anything() }),
+    );
+  });
+
+  it('a campanha da próxima visita só aparece com data; sem data, não vai', async () => {
+    renderizar();
+    await esperarCliente();
+    await esperarCampanhas(screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' }));
+    await usuario.selectOptions(
+      screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' }),
+      'Natal Chokolaten',
+    );
+
+    preencher(screen.getByLabelText('Próxima visita'), '');
+
+    expect(screen.queryByRole('combobox', { name: 'Campanha da próxima visita (opcional)' })).not.toBeInTheDocument();
+    await salvarComDescricao();
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.not.objectContaining({ proximaCampanhaId: expect.anything() }),
+    );
+  });
+
+  it('a campanha marcada para esta visita (próxima visita do cliente) já vem escolhida nos dois selects', async () => {
+    vi.mocked(getCliente).mockResolvedValue({ ...FICHA, proximaCampanha: { id: 'cp2', nome: 'Natal Chokolaten' } });
+    renderizar();
+    await esperarCliente();
+    const daVisita = screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' });
+    await esperarCampanhas(daVisita);
+
+    expect(daVisita).toHaveDisplayValue('Natal Chokolaten');
+    expect(screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' })).toHaveDisplayValue(
+      'Natal Chokolaten',
+    );
+  });
+
+  it('campanha marcada que já encerrou não vem escolhida', async () => {
+    vi.mocked(getCliente).mockResolvedValue({ ...FICHA, proximaCampanha: { id: 'cp1', nome: 'Páscoa Chokolaten' } });
+    renderizar();
+    await esperarCliente();
+    const daVisita = screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' });
+    await esperarCampanhas(daVisita);
+
+    expect(daVisita).toHaveDisplayValue('Sem campanha');
   });
 });

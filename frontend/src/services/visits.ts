@@ -38,6 +38,8 @@ export type Visita = {
   itens: ItemPedidoVisita[];
   /** Calculado no backend, em reais. */
   totalPedido: number;
+  /** Campanha da visita (spec 7.7); `null` sem campanha ou depois de a campanha ser excluída. */
+  campanha: { id: string; nome: string } | null;
 };
 
 /** Linha do pedido no check-in: só produto e quantidade (o preço vem do catálogo, no backend). */
@@ -58,6 +60,10 @@ export type CheckInInput = {
   proximaVisita?: string | null;
   /** Até 200 caracteres; só vale com data. `null` (ou ausente) apaga o lembrete. */
   lembrete?: string | null;
+  /** Campanha da visita, não encerrada (spec 7.7). */
+  campanhaId?: string;
+  /** Campanha da próxima visita: só vale com data; ausente apaga a anterior, como o lembrete. */
+  proximaCampanhaId?: string;
 };
 
 export async function listarVisitas(clienteId: string): Promise<Visita[]> {

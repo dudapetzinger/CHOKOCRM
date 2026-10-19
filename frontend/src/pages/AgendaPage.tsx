@@ -6,7 +6,8 @@
  * 7.4). O representante vê só a própria carteira; o gestor vê todos os
  * clientes ou só os do representante escolhido no seletor (ver `GET
  * /agenda/today`). Com o seletor em "Todos", cada linha diz de qual
- * representante é o cliente.
+ * representante é o cliente. No topo, os chips das campanhas em andamento
+ * (spec 7.7).
  *
  * A partir de 1024 px (spec 8), Atrasadas e Hoje ficam lado a lado e aparecem
  * mesmo vazias. Abaixo disso (celular e tablet, com o menu lateral de 240 px
@@ -16,12 +17,16 @@
  * protótipo).
  */
 import { useId } from 'react';
+import { Link } from 'react-router-dom';
+import { Megaphone } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { AgendaItemRow } from '../components/AgendaItemRow';
 import { Aviso } from '../components/crm/ui';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { useAgenda } from '../hooks/useAgenda';
+import { useCampanhas } from '../hooks/useCampanhas';
+import { campanhasEmAndamento } from '../services/campaigns';
 import { useLarguraDuasColunas } from '../lib/useLarguraDesktop';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
@@ -81,6 +86,35 @@ export function SecaoAgenda({ titulo, itens, textoVazio = 'Nenhuma visita.' }: S
   );
 }
 
+/**
+ * Chips das campanhas em andamento hoje (spec 7.6 e 7.7; `routes/agenda.tsx`
+ * do protótipo), cada um levando a Campanhas. Sem nenhuma, não desenha nada.
+ * Azul das campanhas com o texto em `--chart-text` (5,3:1 sobre o fundo da
+ * página); 44 px de altura no celular.
+ */
+function CampanhasEmAndamento() {
+  const { data } = useCampanhas();
+  const emAndamento = campanhasEmAndamento(data ?? []);
+
+  if (emAndamento.length === 0) return null;
+
+  return (
+    <ul aria-label="Campanhas em andamento" className="flex flex-wrap gap-2">
+      {emAndamento.map((campanha) => (
+        <li key={campanha.id}>
+          <Link
+            to="/campanhas"
+            className="inline-flex items-center gap-1.5 rounded-full bg-chart-soft px-3 py-1 text-xs font-medium text-chart-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11"
+          >
+            <Megaphone aria-hidden="true" className="size-3.5 shrink-0" />
+            {campanha.nome}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function AgendaPage() {
   const representanteId = useRepresentanteSelecionado();
   const { data, isLoading, isError, error } = useAgenda(representanteId);
@@ -90,13 +124,14 @@ export function AgendaPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Área de topo, acima das seções: hoje só a barra do gestor (o select
-          some para o representante e a área com ele). É o lugar dos controles
-          que valem para a agenda inteira — a troca entre agenda do dia e
-          calendário, o roteiro do dia e as campanhas em andamento (spec 7.6,
-          7.7 e 7.9). */}
+      {/* Área de topo, acima das seções: a barra do gestor (o select some
+          para o representante) e os chips das campanhas em andamento; sem
+          nenhum dos dois, a área some. É o lugar dos controles que valem para
+          a agenda inteira — também a troca entre agenda do dia e calendário e
+          o roteiro do dia (spec 7.6 e 7.9). */}
       <div className="flex flex-wrap items-center gap-3 empty:hidden">
         <SeletorRepresentante className="w-full md:w-auto" />
+        <CampanhasEmAndamento />
       </div>
 
       <p className="text-sm text-muted-foreground">

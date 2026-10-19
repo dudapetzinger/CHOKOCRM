@@ -27,6 +27,7 @@ export type ClientComContatos = Client & {
   visits: { dataHora: Date; resultado: ResultadoVisita }[];
   representante: { id: string; nome: string };
   scheduleChanges: (VisitScheduleChange & { user: { id: string; nome: string } })[];
+  proximaCampanha: { id: string; nome: string } | null;
 };
 
 export type ClienteParaAgenda = {
@@ -44,6 +45,8 @@ export type ClienteParaAgenda = {
   /** Data marcada no check-in (spec 7.4), já como data de calendário. */
   proximaVisita: DataCalendario | null;
   lembrete: string | null;
+  /** Campanha da próxima visita (spec 7.7), para a etiqueta da agenda. */
+  proximaCampanha: { id: string; nome: string } | null;
 };
 
 /**
@@ -66,6 +69,7 @@ export async function listAtivosParaAgenda(representanteId?: string): Promise<Cl
       erpId: true,
       proximaVisita: true,
       lembrete: true,
+      proximaCampanha: { select: { id: true, nome: true } },
       visits: SELECT_ULTIMA_VISITA,
       representante: { select: { id: true, nome: true } },
     },
@@ -92,6 +96,7 @@ export async function findById(id: string): Promise<ClientComContatos | null> {
         orderBy: { data: 'desc' },
         include: { user: { select: { id: true, nome: true } } },
       },
+      proximaCampanha: { select: { id: true, nome: true } },
     },
   });
 }

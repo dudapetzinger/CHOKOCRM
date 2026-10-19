@@ -82,6 +82,8 @@ export type ClienteCompletoDTO = {
   /** Data marcada no check-in (`AAAA-MM-DD`, spec 7.4); `null` quando a agenda segue a recorrência. */
   proximaVisita: string | null;
   lembrete: string | null;
+  /** Campanha da próxima visita (spec 7.7); `null` sem campanha. */
+  proximaCampanha: { id: string; nome: string } | null;
 };
 
 function toListItemDTO(client: ClientComContatoPrincipal, hoje: Date, ultimaVenda: Date | null): ClienteListItemDTO {
@@ -146,6 +148,9 @@ function toClienteCompletoDTO(client: ClientComContatos, hoje: Date, ultimaVenda
     })),
     proximaVisita: client.proximaVisita ? dataDaColunaDate(client.proximaVisita) : null,
     lembrete: client.lembrete,
+    proximaCampanha: client.proximaCampanha
+      ? { id: client.proximaCampanha.id, nome: client.proximaCampanha.nome }
+      : null,
   };
 }
 

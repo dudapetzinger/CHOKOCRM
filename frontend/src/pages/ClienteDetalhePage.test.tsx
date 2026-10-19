@@ -28,6 +28,7 @@ const FICHA: ClienteCompleto = {
   diasSemCompra: null,
   proximaVisita: null,
   lembrete: null,
+  proximaCampanha: null,
 };
 
 vi.mock('../services/clients', async (importOriginal) => ({
@@ -104,6 +105,19 @@ describe('ClienteDetalhePage', () => {
     expect(cabecalho.compareDocumentPosition(aviso)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     const mensagemEstoque = screen.getByRole('region', { name: 'Mensagem de estoque' });
     expect(aviso.compareDocumentPosition(mensagemEstoque)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('o aviso traz a etiqueta da campanha da próxima visita', async () => {
+    vi.mocked(getCliente).mockResolvedValue({
+      ...FICHA,
+      proximaVisita: '2026-10-20',
+      proximaCampanha: { id: 'cp2', nome: 'Natal Chokolaten' },
+    });
+    renderizar();
+
+    const aviso = await screen.findByRole('note');
+    expect(aviso).toHaveTextContent('Próxima visita: 20/10/2026');
+    expect(aviso).toHaveTextContent('Campanha: Natal Chokolaten');
   });
 
   it('sem data marcada nem lembrete, não há aviso', async () => {

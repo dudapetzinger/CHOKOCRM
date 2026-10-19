@@ -592,6 +592,7 @@ describe('POST /clients', () => {
       recorrenciaChanges: [],
       proximaVisita: null,
       lembrete: null,
+      proximaCampanha: null,
     });
 
     const persistido = await prisma.client.findUnique({ where: { id: res.body.id } });

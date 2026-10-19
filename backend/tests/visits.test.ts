@@ -607,6 +607,133 @@ describe('POST /clients/:id/visits com a próxima visita (spec 7.4)', () => {
   });
 });
 
+describe('POST /clients/:id/visits com campanha (spec 7.7)', () => {
+  const MENSAGEM_CAMPANHA = 'Campanha encerrada ou inexistente.';
+
+  function daquiA(dias: number): string {
+    return somarDias(dataCalendario(new Date()), dias);
+  }
+
+  function postar(corpo: Record<string, unknown>) {
+    return request(app).post(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`).send(corpo);
+  }
+
+  async function criarCampanha(nome: string, inicio: number, fim: number): Promise<string> {
+    const campanha = await prisma.campaign.create({
+      data: {
+        nome,
+        tipo: 'CAMPANHA',
+        inicio: new Date(`${daquiA(inicio)}T00:00:00.000Z`),
+        fim: new Date(`${daquiA(fim)}T00:00:00.000Z`),
+        produtos: [],
+      },
+    });
+    return campanha.id;
+  }
+
+  it('vincula a visita e a próxima visita a campanhas não encerradas; timeline, ficha e agenda trazem o nome', async () => {
+    const natal = await criarCampanha('Natal Chokolaten', -5, 30);
+    const feira = await criarCampanha('Feira Sabores do Vale', 3, 3);
+
+    const res = await postar(
+      payloadCheckIn({ campanhaId: natal, proximaVisita: daquiA(3), proximaCampanhaId: feira }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(res.body.campanha).toEqual({ id: natal, nome: 'Natal Chokolaten' });
+    expect((await prisma.visit.findUniqueOrThrow({ where: { id: res.body.id } })).campanhaId).toBe(natal);
+    expect((await prisma.client.findUniqueOrThrow({ where: { id: clienteId } })).proximaCampanhaId).toBe(feira);
+
+    const timeline = await request(app).get(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`);
+    expect(timeline.body.data[0].campanha).toEqual({ id: natal, nome: 'Natal Chokolaten' });
+
+    const ficha = await request(app).get(`/clients/${clienteId}`).set('Authorization', `Bearer ${token}`);
+    expect(ficha.body.proximaCampanha).toEqual({ id: feira, nome: 'Feira Sabores do Vale' });
+
+    const agenda = await request(app).get('/agenda/today').set('Authorization', `Bearer ${token}`);
+    const item = agenda.body.data.proximos7Dias.find((linha: { id: string }) => linha.id === clienteId);
+    expect(item.proximaCampanha).toEqual({ id: feira, nome: 'Feira Sabores do Vale' });
+  });
+
+  it('sem campanha: a visita vem com campanha null e a ficha com proximaCampanha null', async () => {
+    const res = await postar(payloadCheckIn({ proximaVisita: daquiA(3) }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.campanha).toBeNull();
+    const ficha = await request(app).get(`/clients/${clienteId}`).set('Authorization', `Bearer ${token}`);
+    expect(ficha.body.proximaCampanha).toBeNull();
+  });
+
+  it('aceita campanha programada e campanha no último dia', async () => {
+    const programada = await criarCampanha('Black Friday do Cacau', 10, 12);
+    const ultimoDia = await criarCampanha('Semana do Cacau', -6, 0);
+
+    const res = await postar(
+      payloadCheckIn({ campanhaId: ultimoDia, proximaVisita: daquiA(10), proximaCampanhaId: programada }),
+    );
+
+    expect(res.status).toBe(201);
+  });
+
+  it('recusa campanha da visita encerrada (400) sem gravar a visita nem mexer no cliente', async () => {
+    const encerrada = await criarCampanha('Páscoa', -60, -1);
+
+    const res = await postar(payloadCheckIn({ campanhaId: encerrada, proximaVisita: daquiA(3), lembrete: 'Levar kits' }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toBe(MENSAGEM_CAMPANHA);
+    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
+    const cliente = await prisma.client.findUniqueOrThrow({ where: { id: clienteId } });
+    expect(cliente.proximaVisita).toBeNull();
+    expect(cliente.lembrete).toBeNull();
+  });
+
+  it('recusa campanha da próxima visita encerrada (400)', async () => {
+    const encerrada = await criarCampanha('Páscoa', -60, -1);
+
+    const res = await postar(payloadCheckIn({ proximaVisita: daquiA(3), proximaCampanhaId: encerrada }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toBe(MENSAGEM_CAMPANHA);
+    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
+  });
+
+  it('recusa campanha inexistente (400)', async () => {
+    const res = await postar(payloadCheckIn({ campanhaId: ID_INEXISTENTE }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toBe(MENSAGEM_CAMPANHA);
+  });
+
+  it('sem data da próxima visita, a campanha da próxima visita não vale (como o lembrete)', async () => {
+    const natal = await criarCampanha('Natal Chokolaten', -5, 30);
+    await prisma.client.update({ where: { id: clienteId }, data: { proximaCampanhaId: natal } });
+
+    const res = await postar(payloadCheckIn({ proximaVisita: null, proximaCampanhaId: natal }));
+
+    expect(res.status).toBe(201);
+    expect((await prisma.client.findUniqueOrThrow({ where: { id: clienteId } })).proximaCampanhaId).toBeNull();
+  });
+
+  it('a visita nova substitui a campanha da próxima visita: com data e sem campanha, apaga a anterior', async () => {
+    const natal = await criarCampanha('Natal Chokolaten', -5, 30);
+    await prisma.client.update({ where: { id: clienteId }, data: { proximaCampanhaId: natal } });
+
+    const res = await postar(payloadCheckIn({ proximaVisita: daquiA(5) }));
+
+    expect(res.status).toBe(201);
+    expect((await prisma.client.findUniqueOrThrow({ where: { id: clienteId } })).proximaCampanhaId).toBeNull();
+  });
+
+  it('recusa identificador de campanha que não é UUID', async () => {
+    const res = await postar(payloadCheckIn({ campanhaId: 'natal' }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
 describe('GET /clients/:id/visits', () => {
   async function criarVisita(descricao: string, dataHora: string, resultado = 'VENDA'): Promise<void> {
     await request(app)

@@ -2,7 +2,6 @@ import { Prisma, type ResultadoVisita } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import { detectarImagem } from '../lib/imageType';
-import { CATALOGO } from '../providers/erp/mock/catalogo';
 import { fileStorage } from '../storage';
 import * as clientRepository from '../repositories/client.repository';
 import * as visitRepository from '../repositories/visit.repository';
@@ -13,8 +12,10 @@ import type {
   VisitComRelacoes,
 } from '../repositories/visit.repository';
 import type { CreateVisitInput, UpdateVisitInput } from '../schemas/visit.schema';
+import { exigirCampanhaNaoEncerrada } from './campaign.service';
 import { ehDeOutraCarteira, exigirClienteDaCarteira, exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
 import { colunaDateDaData } from './classificacao.service';
+import { buscarProduto } from './erp.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CLIENTE_INATIVO = 'Cliente inativo não recebe check-in.';
@@ -48,6 +49,8 @@ export type VisitaDTO = {
   itens: ItemDoPedidoDTO[];
   /** Soma de quantidade × preço unitário dos itens, em reais com 2 casas. */
   totalPedido: number;
+  /** Campanha da visita (spec 7.7); `null` sem campanha ou depois de a campanha ser excluída. */
+  campanha: { id: string; nome: string } | null;
 };
 
 /**
@@ -81,6 +84,7 @@ export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
       precoUnitario: item.precoUnitario.toDecimalPlaces(2).toNumber(),
     })),
     totalPedido: totalPedido.toDecimalPlaces(2).toNumber(),
+    campanha: visit.campanha ? { id: visit.campanha.id, nome: visit.campanha.nome } : null,
   };
 }
 
@@ -105,7 +109,7 @@ function montarItensDoPedido(
   }
 
   return [...quantidadePorSku].map(([sku, quantidade]) => {
-    const produto = CATALOGO.find((candidato) => candidato.sku === sku);
+    const produto = buscarProduto(sku);
     if (!produto) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_PRODUTO_DESCONHECIDO, 400);
     }
@@ -114,19 +118,24 @@ function montarItensDoPedido(
 }
 
 /**
- * Próxima visita e lembrete que o check-in grava no cliente (spec 7.4). A
- * visita nova substitui a data marcada antes (ruling R22): sem data (`null`
- * ou campo ausente), apaga a data e o lembrete e a agenda volta à
- * recorrência — uma data antiga, talvez vencida, deixaria o cliente recém-
- * visitado como atrasado; e lembrete sem data não vale. Com data, o lembrete
- * é o do corpo (ausente ou em branco: nenhum).
+ * Próxima visita, lembrete e campanha da próxima visita que o check-in grava
+ * no cliente (spec 7.4 e 7.7). A visita nova substitui a data marcada antes
+ * (ruling R22): sem data (`null` ou campo ausente), apaga a data, o lembrete
+ * e a campanha e a agenda volta à recorrência — uma data antiga, talvez
+ * vencida, deixaria o cliente recém-visitado como atrasado; e lembrete ou
+ * campanha sem data não valem. Com data, lembrete e campanha são os do corpo
+ * (ausentes ou em branco: nenhum).
  */
 function montarProximaVisitaDoCliente(input: CreateVisitInput): ProximaVisitaDoClienteData {
   if (input.proximaVisita === null || input.proximaVisita === undefined) {
-    return { proximaVisita: null, lembrete: null };
+    return { proximaVisita: null, lembrete: null, proximaCampanhaId: null };
   }
 
-  return { proximaVisita: colunaDateDaData(input.proximaVisita), lembrete: input.lembrete ?? null };
+  return {
+    proximaVisita: colunaDateDaData(input.proximaVisita),
+    lembrete: input.lembrete ?? null,
+    proximaCampanhaId: input.proximaCampanhaId ?? null,
+  };
 }
 
 /**
@@ -175,16 +184,25 @@ export async function createVisit(
   }
 
   const itens = montarItensDoPedido(input.itens, input.resultado);
+  const proximaVisitaDoCliente = montarProximaVisitaDoCliente(input);
+  const campanhaId = input.campanhaId ?? null;
+
+  // Campanha encerrada ou inexistente: 400 antes de gravar qualquer coisa
+  if (campanhaId) await exigirCampanhaNaoEncerrada(campanhaId);
+  if (proximaVisitaDoCliente.proximaCampanhaId) {
+    await exigirCampanhaNaoEncerrada(proximaVisitaDoCliente.proximaCampanhaId);
+  }
 
   const visita = await visitRepository.create({
     clientId,
     userId: usuario.id,
     contactId: input.contactId,
+    campanhaId,
     dataHora: input.dataHora ?? new Date(),
     descricao: input.descricao,
     resultado: input.resultado,
     itens,
-    proximaVisitaDoCliente: montarProximaVisitaDoCliente(input),
+    proximaVisitaDoCliente,
   });
 
   return toVisitaDTO(visita);

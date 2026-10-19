@@ -41,6 +41,7 @@ const cliente: ClienteCompleto = {
   diasSemCompra: 3,
   proximaVisita: null,
   lembrete: null,
+  proximaCampanha: null,
 };
 
 function renderizar() {

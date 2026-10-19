@@ -36,6 +36,7 @@ function clienteAtivo(id: string, erpId: string | null, ultimaVisita: UltimaVisi
     proximaVisita: null,
     lembrete: null,
     endereco: 'Rua XV de Novembro, 100',
+    proximaCampanha: null,
   };
 }
 

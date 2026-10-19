@@ -1,7 +1,8 @@
 /**
  * Uma linha da agenda do dia (UC10, Etapa 4; situação em texto na Etapa 7;
  * visual da `Secao` de `routes/agenda.tsx` do protótipo na Etapa 8): avatar,
- * nome e etiqueta de situação, "cidade · prazo da visita prevista · lembrete"
+ * nome, etiqueta de situação e a da campanha da próxima visita (spec 7.7),
+ * "cidade · prazo da visita prevista · lembrete"
  * (`descreverPrazoDaVisita`, spec 7.4) e, para o gestor com o seletor em
  * "Todos", "Rep.: Nome". Só o representante dono da carteira tem
  * o atalho "Check-in" (UC07). É um `<li>`: quem usa a põe dentro de uma
@@ -23,6 +24,7 @@ import type { AgendaItem } from '../services/agenda';
 import { descreverPrazoDaVisita } from '../lib/descreverPrazo';
 import { descreverSituacao } from '../lib/descreverSituacao';
 import { Avatar } from './crm/ui';
+import { EtiquetaCampanha } from './crm/EtiquetaCampanha';
 import { EtiquetaSituacao } from './EtiquetaSituacao';
 
 type Props = {
@@ -44,6 +46,7 @@ export function AgendaItemRow({ item, podeCheckIn, mostrarRepresentante }: Props
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="font-semibold text-foreground">{item.nomeFantasia}</span>
               <EtiquetaSituacao cor={item.cor} texto={descreverSituacao(item)} />
+              {item.proximaCampanha && <EtiquetaCampanha nome={item.proximaCampanha.nome} />}
             </span>
             <span className="block text-sm break-words text-muted-foreground">
               {item.cidade} · {descreverPrazoDaVisita(item)}

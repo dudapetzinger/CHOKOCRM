@@ -17,6 +17,12 @@ enum ResultadoVisita {
   SEM_VENDA
 }
 
+enum TipoCampanha {
+  CAMPANHA
+  PROMOCAO
+  EVENTO
+}
+
 enum EventoSazonal {
   PASCOA
   DIA_DAS_MAES
@@ -59,29 +65,33 @@ model PasswordResetToken {
 }
 
 model Client {
-  id              String                @id @default(uuid())
-  razaoSocial     String                @map("razao_social")
-  nomeFantasia    String                @map("nome_fantasia")
-  cnpj            String                @unique
-  cidade          String
-  endereco        String
-  telefone        String
-  email           String
-  erpId           String?               @map("erp_id")
-  recorrenciaDias Int                   @default(15) @map("recorrencia_dias")
+  id                String                @id @default(uuid())
+  razaoSocial       String                @map("razao_social")
+  nomeFantasia      String                @map("nome_fantasia")
+  cnpj              String                @unique
+  cidade            String
+  endereco          String
+  telefone          String
+  email             String
+  erpId             String?               @map("erp_id")
+  recorrenciaDias   Int                   @default(15) @map("recorrencia_dias")
   /// Data prevista da próxima visita, marcada no check-in (spec 7.4). Nula:
   /// a agenda usa a última visita (ou o cadastro) + a recorrência.
-  proximaVisita   DateTime?             @map("proxima_visita") @db.Date
+  proximaVisita     DateTime?             @map("proxima_visita") @db.Date
   /// Anotação que acompanha a próxima visita (até 200 caracteres).
-  lembrete        String?
-  ativo           Boolean               @default(true)
-  criadoEm        DateTime              @default(now()) @map("criado_em")
-  representanteId String                @map("representante_id")
-  representante   User                  @relation(fields: [representanteId], references: [id])
-  contacts        Contact[]
-  visits          Visit[]
-  scheduleChanges VisitScheduleChange[]
-  stockMessages   StockMessage[]
+  lembrete          String?
+  /// Campanha da próxima visita (spec 7.7): gravada e apagada com a data a
+  /// cada check-in. Excluir a campanha só desvincula.
+  proximaCampanhaId String?               @map("proxima_campanha_id")
+  proximaCampanha   Campaign?             @relation(fields: [proximaCampanhaId], references: [id], onDelete: SetNull)
+  ativo             Boolean               @default(true)
+  criadoEm          DateTime              @default(now()) @map("criado_em")
+  representanteId   String                @map("representante_id")
+  representante     User                  @relation(fields: [representanteId], references: [id])
+  contacts          Contact[]
+  visits            Visit[]
+  scheduleChanges   VisitScheduleChange[]
+  stockMessages     StockMessage[]
 
   @@index([representanteId])
   @@map("clients")
@@ -102,22 +112,26 @@ model Contact {
 }
 
 model Visit {
-  id        String          @id @default(uuid())
-  clientId  String          @map("client_id")
-  client    Client          @relation(fields: [clientId], references: [id])
-  userId    String          @map("user_id")
-  user      User            @relation(fields: [userId], references: [id])
-  contactId String?         @map("contact_id")
-  contact   Contact?        @relation(fields: [contactId], references: [id])
-  dataHora  DateTime        @map("data_hora")
-  descricao String
-  resultado ResultadoVisita
-  fotoPath  String?         @map("foto_path")
-  criadoEm  DateTime        @default(now()) @map("criado_em")
-  editadoEm DateTime?       @map("editado_em")
-  itens     VisitItem[]
+  id         String          @id @default(uuid())
+  clientId   String          @map("client_id")
+  client     Client          @relation(fields: [clientId], references: [id])
+  userId     String          @map("user_id")
+  user       User            @relation(fields: [userId], references: [id])
+  contactId  String?         @map("contact_id")
+  contact    Contact?        @relation(fields: [contactId], references: [id])
+  dataHora   DateTime        @map("data_hora")
+  descricao  String
+  resultado  ResultadoVisita
+  fotoPath   String?         @map("foto_path")
+  criadoEm   DateTime        @default(now()) @map("criado_em")
+  editadoEm  DateTime?       @map("editado_em")
+  /// Campanha da visita (spec 7.7). Excluir a campanha só desvincula.
+  campanhaId String?         @map("campanha_id")
+  campanha   Campaign?       @relation(fields: [campanhaId], references: [id], onDelete: SetNull)
+  itens      VisitItem[]
 
   @@index([clientId, dataHora(sort: Desc)])
+  @@index([campanhaId])
   @@map("visits")
 }
 
@@ -175,4 +189,25 @@ model SeasonalEvent {
   stockMessages     StockMessage[]
 
   @@map("seasonal_events")
+}
+
+/// Campanha, promoção ou evento comercial (spec 7.7), criado pelo gestor.
+/// `inicio` e `fim` são dias de calendário, os dois inclusivos (o status é
+/// calculado em `campaign.regras.ts`, nunca gravado). `desconto` em % (0–100)
+/// e `produtos` com os SKUs do catálogo do ERP em destaque.
+model Campaign {
+  id                    String       @id @default(uuid())
+  nome                  String
+  tipo                  TipoCampanha
+  inicio                DateTime     @db.Date
+  fim                   DateTime     @db.Date
+  descricao             String       @default("")
+  desconto              Int?
+  produtos              String[]
+  criadoEm              DateTime     @default(now()) @map("criado_em")
+  visits                Visit[]
+  clientesProximaVisita Client[]
+
+  @@index([inicio])
+  @@map("campaigns")
 }

@@ -24,7 +24,7 @@ const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do cliente.
  * campo; na Etapa 8 (spec 7.2) tem o visual do protótipo (`crm/ficha.tsx`) e
  * esta ordem: cabeçalho (com Ligar, WhatsApp, "Novo check-in", "Adicionar
  * contato" e, para o gestor, a transferência) → aviso da próxima visita
- * marcada no check-in e do lembrete (quando há um dos dois) → mensagem de
+ * marcada no check-in, da campanha dela e do lembrete (quando há algum) → mensagem de
  * estoque → insights → dados do ERP → histórico de visitas → recorrência → dados
  * cadastrais (recolhidos em `DadosCadastrais`). Os avisos de sucesso são
  * `toast`; os erros ficam na própria ficha.
@@ -121,9 +121,12 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
         <p className="text-sm text-muted-foreground">Cliente inativo não recebe check-in novo.</p>
       )}
 
-      {(cliente.proximaVisita || cliente.lembrete) && (
-        <AvisoProximaVisita data={cliente.proximaVisita} lembrete={cliente.lembrete} />
-      )}
+      {/* Some sozinho sem data, lembrete nem campanha */}
+      <AvisoProximaVisita
+        data={cliente.proximaVisita}
+        lembrete={cliente.lembrete}
+        campanha={cliente.proximaCampanha?.nome ?? null}
+      />
 
       <MensagemEstoqueCard clienteId={id!} podeGerar={ehRepresentante && cliente.ativo} />
 

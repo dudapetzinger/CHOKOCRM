@@ -20,6 +20,7 @@ function clienteFabricado(overrides: Partial<ClienteParaAgenda> & { id: string }
     proximaVisita: null,
     lembrete: null,
     endereco: 'Rua XV de Novembro, 100',
+    proximaCampanha: null,
     ...overrides,
   };
 }

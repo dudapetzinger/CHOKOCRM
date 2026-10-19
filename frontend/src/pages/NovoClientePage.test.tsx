@@ -45,6 +45,7 @@ const CRIADO: ClienteCompleto = {
   diasSemCompra: null,
   proximaVisita: null,
   lembrete: null,
+  proximaCampanha: null,
 };
 
 function FichaFalsa() {

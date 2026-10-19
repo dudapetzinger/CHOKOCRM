@@ -15,6 +15,7 @@ function visita(sobrescrever: Partial<Visita>): Visita {
     editadoEm: null,
     itens: [],
     totalPedido: 0,
+    campanha: null,
     ...sobrescrever,
   };
 }
@@ -44,6 +45,18 @@ describe('VisitTimeline', () => {
     expect(linhas[0]).toHaveTextContent('R$ 420,00');
     expect(linhas[1]).toHaveTextContent('3× Pães de mel');
     expect(linhas[1]).toHaveTextContent('R$ 83,70');
+  });
+
+  it('mostra a etiqueta da campanha da visita ao lado do resultado (spec 7.7)', () => {
+    renderizar([
+      visita({ id: 'v1', campanha: { id: 'cp2', nome: 'Natal Chokolaten' } }),
+      visita({ id: 'v2', descricao: 'Visita sem campanha.' }),
+    ]);
+
+    const [comCampanha, semCampanha] = screen.getAllByRole('listitem');
+    expect(within(comCampanha!).getByText('Natal Chokolaten')).toBeInTheDocument();
+    expect(comCampanha).toHaveTextContent('Campanha: Natal Chokolaten');
+    expect(semCampanha).not.toHaveTextContent('Campanha');
   });
 
   it('visita sem itens não mostra pedido', () => {

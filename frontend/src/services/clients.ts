@@ -79,6 +79,8 @@ export type ClienteCompleto = {
   proximaVisita: string | null;
   /** Anotação que acompanha a próxima visita. */
   lembrete: string | null;
+  /** Campanha da próxima visita (spec 7.7). */
+  proximaCampanha: { id: string; nome: string } | null;
 };
 
 export type ContatoInput = {

@@ -14,6 +14,7 @@ const item: AgendaItem = {
   diasAtraso: 13,
   marcadaNoCheckIn: false,
   lembrete: null,
+  proximaCampanha: null,
   rebaixadoPorVenda: false,
   representante: { id: 'u2', nome: 'Rafael Schmitt' },
 };
@@ -79,6 +80,17 @@ describe('AgendaItemRow', () => {
     const avatar = within(ficha).getByText('DE');
     expect(avatar).toHaveAttribute('aria-hidden', 'true');
     expect(within(ficha).getByText('Doce Encanto')).toBeInTheDocument();
+  });
+
+  it('mostra a etiqueta da campanha da próxima visita, dentro do link da ficha (spec 7.7)', () => {
+    const { unmount } = renderizar({ proximaCampanha: { id: 'cp2', nome: 'Natal Chokolaten' } });
+    const ficha = screen.getByRole('link', { name: /Doce Encanto/ });
+    expect(within(ficha).getByText('Natal Chokolaten')).toBeInTheDocument();
+    expect(ficha).toHaveTextContent('Campanha: Natal Chokolaten');
+    unmount();
+
+    renderizar();
+    expect(screen.queryByText(/Campanha/)).not.toBeInTheDocument();
   });
 
   it('mostra "Rep.:" só quando mostrarRepresentante', () => {

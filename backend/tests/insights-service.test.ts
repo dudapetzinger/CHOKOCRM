@@ -77,6 +77,7 @@ function clienteAtivo(id: string, erpId: string | null): ClienteParaAgenda {
     proximaVisita: null,
     lembrete: null,
     endereco: 'Rua XV de Novembro, 100',
+    proximaCampanha: null,
   };
 }
 

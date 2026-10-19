@@ -1,9 +1,15 @@
 /**
  * Tela de check-in de visita (UC07), no visual do protótipo
  * (`routes/checkin.$id.tsx`, Etapa 8): um cartão de 560 px com o cliente,
- * data e hora, resultado, contato atendido, pedido (só com resultado Venda),
- * o que aconteceu na visita, foto, próxima visita | lembrete e as ações. As
- * campanhas do protótipo ainda não existem no app.
+ * data e hora, campanha da visita, resultado, contato atendido, pedido (só
+ * com resultado Venda), o que aconteceu na visita, foto, próxima visita |
+ * lembrete, campanha da próxima visita (só com data) e as ações.
+ *
+ * Campanhas (spec 7.7): os dois selects listam só as não encerradas (status
+ * do backend). Como no protótipo, os dois começam na campanha marcada para
+ * esta visita no check-in anterior (a próxima visita do cliente), se ela
+ * ainda não encerrou. Sem campanha escolhida, o campo não vai; sem data, a
+ * campanha da próxima visita também não (o backend a apaga junto com a data).
  *
  * Próxima visita (spec 7.4): sugerida como a data da visita + a recorrência
  * do cliente, e acompanha a "Data e hora" até a representante mudar a data
@@ -35,7 +41,9 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useCampanhas } from '../hooks/useCampanhas';
 import { useProdutos } from '../hooks/useDadosErp';
+import { campanhasNaoEncerradas, type Campanha } from '../services/campaigns';
 import { comprimirImagem } from '../lib/comprimirImagem';
 import { useDevolverFoco, useFocoNoPrimeiroErro } from '../lib/useFoco';
 import { getCliente, mensagemErroApi, type Contato } from '../services/clients';
@@ -81,6 +89,34 @@ function sugerirProximaVisita(dataHora: string, recorrenciaDias: number, hoje: s
   return sugestao < hoje ? '' : sugestao;
 }
 
+/** Select de campanha não encerrada, com "Sem campanha" (valor vazio) primeiro. */
+function SelectCampanha({
+  id,
+  rotulo,
+  campanhas,
+  valor,
+  onChange,
+}: {
+  id: string;
+  rotulo: string;
+  campanhas: Campanha[];
+  valor: string;
+  onChange: (valor: string) => void;
+}) {
+  return (
+    <Campo rotulo={rotulo} htmlFor={id}>
+      <select id={id} className={cn(CLASSES_SELECT, 'w-full')} value={valor} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Sem campanha</option>
+        {campanhas.map((campanha) => (
+          <option key={campanha.id} value={campanha.id}>
+            {campanha.nome}
+          </option>
+        ))}
+      </select>
+    </Campo>
+  );
+}
+
 export function CheckInPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -115,6 +151,17 @@ export function CheckInPage() {
   const hoje = agoraParaCampoLocal().slice(0, 10);
   const sugestao = cliente ? sugerirProximaVisita(dataHora, cliente.recorrenciaDias, hoje) : '';
   const proximaVisita = proximaVisitaEditada ?? sugestao;
+
+  const { data: todasAsCampanhas } = useCampanhas();
+  const campanhas = campanhasNaoEncerradas(todasAsCampanhas ?? []);
+  // A campanha marcada para esta visita no check-in anterior, se ainda vale
+  const idMarcado = cliente?.proximaCampanha?.id;
+  const campanhaMarcada = idMarcado && campanhas.some((campanha) => campanha.id === idMarcado) ? idMarcado : '';
+  // `null` até a representante escolher: antes disso vale a campanha marcada
+  const [campanhaEditada, setCampanhaEditada] = useState<string | null>(null);
+  const [proximaCampanhaEditada, setProximaCampanhaEditada] = useState<string | null>(null);
+  const campanhaId = campanhaEditada ?? campanhaMarcada;
+  const proximaCampanhaId = proximaCampanhaEditada ?? campanhaMarcada;
 
   const { data: produtos, isLoading: carregandoProdutos, isError: erroProdutos } = useProdutos();
   const primeiroProduto = produtos?.[0];
@@ -185,7 +232,7 @@ export function CheckInPage() {
 
     const itensDoPedido = resultado === 'VENDA' ? itens.filter((item) => item.quantidade > 0) : [];
     const camposDaProximaVisita = proximaVisita
-      ? { proximaVisita, lembrete: lembrete.trim() || null }
+      ? { proximaVisita, lembrete: lembrete.trim() || null, ...(proximaCampanhaId ? { proximaCampanhaId } : {}) }
       : { proximaVisita: null };
 
     try {
@@ -193,6 +240,7 @@ export function CheckInPage() {
         descricao: descricao.trim(),
         resultado,
         dataHora: new Date(dataHora).toISOString(),
+        ...(campanhaId ? { campanhaId } : {}),
         ...(contactId ? { contactId } : {}),
         ...(itensDoPedido.length > 0 ? { itens: itensDoPedido } : {}),
         ...camposDaProximaVisita,
@@ -200,6 +248,8 @@ export function CheckInPage() {
 
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['agenda'] });
+      // As vendas e visitas vinculadas da campanha mudam
+      queryClient.invalidateQueries({ queryKey: ['campanhas'] });
       queryClient.invalidateQueries({ queryKey: ['client', id, 'visits'] });
       queryClient.invalidateQueries({ queryKey: ['client', id] });
 
@@ -258,6 +308,14 @@ export function CheckInPage() {
               required
             />
           </Campo>
+
+          <SelectCampanha
+            id="checkin-campanha"
+            rotulo="Campanha da visita (opcional)"
+            campanhas={campanhas}
+            valor={campanhaId}
+            onChange={setCampanhaEditada}
+          />
 
           <div className="space-y-1.5">
             {/* O grupo já se chama "Resultado"; o rótulo visível não é lido de novo */}
@@ -374,6 +432,16 @@ export function CheckInPage() {
               Sem data, a agenda segue a recorrência (e não há lembrete).
             </p>
           </div>
+
+          {proximaVisita && (
+            <SelectCampanha
+              id="checkin-proxima-campanha"
+              rotulo="Campanha da próxima visita (opcional)"
+              campanhas={campanhas}
+              valor={proximaCampanhaId}
+              onChange={setProximaCampanhaEditada}
+            />
+          )}
 
           {erroEnvio && (
             <Aviso tom="erro" role="alert">
