@@ -1,5 +1,14 @@
 import '@testing-library/jest-dom/vitest'
+import { configure } from '@testing-library/react'
 import { toast } from 'sonner'
+
+/**
+ * `findBy*` e `waitFor` esperam até 5 s em vez de 1 s: com a cobertura ligada
+ * (como no CI), o jsdom fica bem mais lento, e o calendário (42 dias, cada um
+ * um botão) passava de 1 s para aparecer quando a suíte inteira rodava junto —
+ * o mesmo motivo do `testTimeout` de 15 s em vitest.config.ts.
+ */
+configure({ asyncUtilTimeout: 5000 })
 
 /**
  * O que o jsdom não implementa e o Radix (menus e popovers do shadcn, Etapa 8)

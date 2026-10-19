@@ -4,7 +4,7 @@ Este documento descreve o modelo de dados do ChokoCRM. Complementa a [especifica
 
 ## 1. Visão geral
 
-Este documento descreve o modelo de dados do ChokoCRM: o diagrama entidade-relacionamento (ER) das sete entidades persistidas e o dicionário de dados correspondente, campo a campo. Os nomes de entidades e campos aqui definidos são canônicos e serão implementados literalmente no `schema.prisma` da Etapa 2 (Fundação).
+Este documento descreve o modelo de dados do ChokoCRM: o diagrama entidade-relacionamento (ER) das onze entidades persistidas e o dicionário de dados correspondente, campo a campo. Os nomes de entidades e campos aqui definidos são canônicos e foram implementados literalmente no `schema.prisma` a partir da Etapa 2 (Fundação). As sete primeiras vêm da proposta; a Etapa 8 (revisão pelo protótipo) acrescentou `PasswordResetToken`, `VisitItem`, `Campaign` e `Goal` (seções 3.8 a 3.11) e campos novos em `User`, `Client` e `Visit`.
 
 Duas classes de informação relevantes ao domínio **não são modeladas como entidade persistida** neste documento, por decisão explícita da especificação técnica:
 
@@ -25,6 +25,12 @@ erDiagram
   CLIENT ||--o{ STOCK_MESSAGE : recebe
   CONTACT |o--o{ VISIT : atendida_por
   SEASONAL_EVENT |o--o{ STOCK_MESSAGE : contextualiza
+  USER ||--o{ PASSWORD_RESET_TOKEN : pede
+  VISIT ||--o{ VISIT_ITEM : "tem no pedido"
+  CAMPAIGN |o--o{ VISIT : vincula
+  CAMPAIGN |o--o{ CLIENT : "vincula a próxima visita"
+  USER ||--o{ GOAL : "tem meta"
+  CAMPAIGN |o--o{ GOAL : "tem meta"
 ```
 
 Leitura das cardinalidades:
@@ -34,8 +40,11 @@ Leitura das cardinalidades:
 - Um **Client** possui vários `Contact`, recebe várias `Visit` e várias `StockMessage`, e tem várias `VisitScheduleChange`; cada uma dessas ocorrências pertence a exatamente um cliente.
 - Um **Contact** pode ser atendido em zero ou várias `Visit` (campo `contact_id` opcional em `Visit` — nem toda visita identifica um contato específico); cada visita está associada a no máximo um contato.
 - Um **SeasonalEvent** pode contextualizar zero ou várias `StockMessage` (campo `evento_sazonal` opcional em `StockMessage` — a mensagem pode ser gerada sem evento sazonal vigente); cada mensagem está associada a no máximo um evento sazonal.
+- Um **User** pode ter vários `PasswordResetToken` (links de redefinição pedidos pelo gestor; só o último vale) e várias `Goal` (metas de visitas e vendas); cada token e cada meta pertencem a exatamente um usuário.
+- Uma **Visit** com resultado `VENDA` pode ter vários `VisitItem` (o pedido do check-in); cada item pertence a exatamente uma visita e é apagado com ela.
+- Uma **Campaign** pode estar vinculada a zero ou várias `Visit` (`campanha_id`), a zero ou vários `Client` pela próxima visita (`proxima_campanha_id`) e a zero ou várias `Goal` (metas da campanha). Excluir a campanha desvincula visitas e clientes e apaga as metas dela.
 
-As entidades do diagrama (em maiúsculas, convenção do Mermaid) correspondem uma a uma às entidades do dicionário de dados da seção 3: `USER` → `User`, `CLIENT` → `Client`, `CONTACT` → `Contact`, `VISIT` → `Visit`, `VISIT_SCHEDULE_CHANGE` → `VisitScheduleChange`, `STOCK_MESSAGE` → `StockMessage`, `SEASONAL_EVENT` → `SeasonalEvent`.
+As entidades do diagrama (em maiúsculas, convenção do Mermaid) correspondem uma a uma às entidades do dicionário de dados da seção 3: `USER` → `User`, `CLIENT` → `Client`, `CONTACT` → `Contact`, `VISIT` → `Visit`, `VISIT_SCHEDULE_CHANGE` → `VisitScheduleChange`, `STOCK_MESSAGE` → `StockMessage`, `SEASONAL_EVENT` → `SeasonalEvent`, `PASSWORD_RESET_TOKEN` → `PasswordResetToken`, `VISIT_ITEM` → `VisitItem`, `CAMPAIGN` → `Campaign`, `GOAL` → `Goal`.
 
 ## 3. Dicionário de dados
 
@@ -54,7 +63,9 @@ Convenções adotadas nas tabelas abaixo:
 | nome | Texto | Sim | Nome completo do usuário. |
 | email | Texto (único) | Sim | E-mail de login; identificador de autenticação. |
 | senha_hash | Texto | Sim | Hash da senha de acesso; a senha em texto plano nunca é armazenada. |
-| role | Enum: `REPRESENTANTE` \| `GESTOR` | Sim | Papel do usuário; define autorização (ex.: painel de indicadores e alertas gerenciais restritos a `GESTOR`, conforme seções 4.1 e 7 da especificação). |
+| role | Enum: `REPRESENTANTE` \| `GESTOR` | Sim | Papel do usuário; define autorização (ex.: gestão de usuários, de campanhas e de metas restritas a `GESTOR`, conforme seções 4.1 e 7 da especificação). Desde a Etapa 8 o painel e os alertas de produção servem os dois papéis, com o representante limitado à própria carteira. |
+| ativo | Booleano | Sim | Conta ativa (Etapa 8; padrão `true`). Conta inativa não entra (o login responde 403 "Conta inativa. Fale com o gestor."), não aparece no seletor de representante nem na transferência e é ignorada pelo job diário; os clientes da carteira continuam com ela até o gestor transferi-los. |
+| telefone | Texto | Não | Telefone de contato do usuário (Etapa 8), exibido na tela Usuários. |
 | criado_em | Data/hora | Sim | Data e hora de criação do registro, preenchida automaticamente. |
 
 ### 3.2 Client
@@ -71,6 +82,9 @@ Convenções adotadas nas tabelas abaixo:
 | email | Texto | Sim | E-mail de contato do cliente. |
 | erp_id | Texto | Não | Identificador do cliente no ERP da Senior Sistemas; chave usada nas consultas ao `ErpProvider` (seção 4 deste documento). Preenchimento recomendado assim que disponível, mas opcional no cadastro — o cliente pode ainda não ter vínculo com o ERP (UC02, UC11 em `docs/casos-de-uso.md`). |
 | recorrencia_dias | Número inteiro | Sim | Intervalo, em dias, entre visitas recorrentes a este cliente. **Valor padrão: 15. Faixa sugerida: 15 a 30.** Alteração exige registro correspondente em `VisitScheduleChange`, com justificativa (seção 6.2 da especificação). |
+| proxima_visita | Data | Não | Data prevista da próxima visita, marcada no check-in (Etapa 8, UC17). Quando existe, é ela que a agenda usa; nula, a agenda usa a última visita (ou o cadastro) + `recorrencia_dias`. Cada check-in regrava (ou apaga) a data, e alterar a recorrência (UC09) a apaga. |
+| lembrete | Texto (até 200 caracteres) | Não | Anotação que acompanha a próxima visita (Etapa 8), mostrada na agenda, no calendário e na ficha. O banco recusa mais de 200 caracteres (`CHECK`). |
+| proxima_campanha_id | Chave estrangeira → `Campaign.id` | Não | Campanha da próxima visita (Etapa 8), gravada e apagada junto com `proxima_visita` a cada check-in. Excluir a campanha só desvincula (`ON DELETE SET NULL`). |
 | ativo | Booleano | Sim | Indica se o cliente está ativo na carteira do representante. A especificação não define valor padrão explícito para este campo; sugere-se `true` na criação, como decisão de implementação da Etapa 2. |
 | representante_id | FK → User.id | Sim | Representante dono da carteira. Preenchido automaticamente com o usuário que cadastra; só o gestor transfere (Etapa 4). |
 | criado_em | Data/hora | Sim | Data e hora de criação do registro. |
@@ -101,6 +115,9 @@ Convenções adotadas nas tabelas abaixo:
 | foto_path | Texto | Não | Chave da foto de comprovação de presença no armazenamento de arquivos (ex.: `visits/<id>.jpg`), nunca um caminho absoluto. Nulo quando a visita não tem foto — a foto é **opcional** e pode ser anexada **uma única vez**. |
 | criado_em | Data/hora | Sim | Momento em que o check-in foi **registrado** no sistema. Distinto de `data_hora`, que é quando a visita **ocorreu** (o representante pode lançar visita retroativa). |
 | editado_em | Data/hora | Não | Momento da última edição da descrição. Nulo enquanto a descrição nunca foi editada. Somente a descrição é editável, e somente pelo autor (UC08). |
+| campanha_id | Chave estrangeira → `Campaign.id` | Não | Campanha a que a visita foi vinculada no check-in (Etapa 8, UC18); só entram campanhas não encerradas. Excluir a campanha só desvincula (`ON DELETE SET NULL`). |
+
+O pedido da visita fica em `VisitItem` (seção 3.9); o total do pedido (soma de quantidade × preço unitário) é calculado na leitura, nunca gravado.
 
 ### 3.5 VisitScheduleChange
 
@@ -142,6 +159,68 @@ Convenções adotadas nas tabelas abaixo:
 
 **Migration da `chave` (Etapa 6B):** `20261007141059_seasonal_event_chave` cria o enum `EventoSazonal` e a coluna `chave` em quatro passos, para não quebrar bancos já semeados pela Etapa 6A: (1) cria o tipo; (2) adiciona a coluna como anulável; (3) preenche as linhas existentes a partir do prefixo de `nome` ("Páscoa ", "Dia das Mães ", "Dia dos Namorados ", "Dia dos Pais ", "Natal "); (4) torna a coluna `NOT NULL`. Um `nome` fora desse padrão deixaria a `chave` nula e o passo 4 falharia — comportamento desejado, porque a migration não inventa chave. O `SeasonalEvent` também ganhou a consulta `findNoIntervalo(de, ate)` no repository (eventos com `data_fim` no intervalo, ambos os limites inclusivos, em ordem de data).
 
+### 3.8 PasswordResetToken
+
+Link de redefinição de senha (Etapa 8, UC22), enviado por e-mail quando o gestor pede a redefinição da senha de alguém.
+
+| Campo | Tipo | Obrigatório | Descrição / Regra |
+|---|---|---|---|
+| id | Identificador único (UUID) | Sim | Chave primária. |
+| user_id | Chave estrangeira → `User.id` | Sim | Dono da conta; apagar o usuário apaga os tokens dele (`ON DELETE CASCADE`). |
+| token_hash | Texto (único) | Sim | Hash SHA-256 do token. O token em si (32 bytes aleatórios) só existe no link do e-mail, no fragmento da URL (`/redefinir-senha#<token>`), e nunca é gravado. |
+| expira_em | Data/hora | Sim | Validade de 24 horas a partir do pedido. |
+| usado_em | Data/hora | Não | Momento em que o link foi usado; o link vale uma vez só. Pedir um novo invalida os anteriores ainda não usados. |
+| criado_em | Data/hora | Sim | Momento do pedido. |
+
+### 3.9 VisitItem
+
+Item do pedido registrado no check-in com resultado `VENDA` (Etapa 8, UC16).
+
+| Campo | Tipo | Obrigatório | Descrição / Regra |
+|---|---|---|---|
+| id | Identificador único (UUID) | Sim | Chave primária. |
+| visit_id | Chave estrangeira → `Visit.id` | Sim | Visita do pedido; apagar a visita apaga os itens (`ON DELETE CASCADE`). |
+| sku | Texto | Sim | SKU do produto no catálogo do ERP (`GET /erp/produtos`); SKU desconhecido é recusado (400). |
+| produto_nome | Texto | Sim | Nome do produto copiado do catálogo no momento do check-in. |
+| quantidade | Número inteiro | Sim | Quantidade pedida, maior que zero (`CHECK`); linhas com quantidade 0 são descartadas pelo formulário. |
+| preco_unitario | Decimal (10,2) | Sim | Preço do catálogo no momento do check-in, não negativo (`CHECK`). Como nome e preço são copiados, o pedido não muda se o catálogo mudar depois. |
+
+### 3.10 Campaign
+
+Campanha, promoção ou evento comercial criado pelo gestor (Etapa 8, UC18).
+
+| Campo | Tipo | Obrigatório | Descrição / Regra |
+|---|---|---|---|
+| id | Identificador único (UUID) | Sim | Chave primária. |
+| nome | Texto | Sim | Nome da campanha. |
+| tipo | Enum `TipoCampanha`: `CAMPANHA` \| `PROMOCAO` \| `EVENTO` | Sim | Tipo exibido no cartão. |
+| inicio | Data | Sim | Primeiro dia da campanha (inclusivo). |
+| fim | Data | Sim | Último dia da campanha (inclusivo); o banco recusa fim antes do início (`CHECK`). O status — Programada, Em andamento, Encerrada — é calculado a cada leitura pelo dia de hoje em `America/Sao_Paulo`, nunca gravado. |
+| descricao | Texto | Sim | Descrição livre (padrão vazio). |
+| desconto | Número inteiro | Não | Desconto em %, de 0 a 100 (`CHECK`); nulo = sem desconto. |
+| produtos | Lista de texto | Sim | SKUs do catálogo do ERP em destaque na campanha (validados no backend). |
+| criado_em | Data/hora | Sim | Data e hora de criação. |
+
+### 3.11 Goal
+
+Meta de visitas e vendas de um representante (Etapa 8, UC19), sem campanha ou de uma campanha.
+
+| Campo | Tipo | Obrigatório | Descrição / Regra |
+|---|---|---|---|
+| id | Identificador único (UUID) | Sim | Chave primária. |
+| representante_id | Chave estrangeira → `User.id` | Sim | Representante da meta. |
+| periodo | Enum `PeriodoMeta`: `SEMANAL` \| `MENSAL` \| `PERSONALIZADO` \| `CAMPANHA` | Sim | Semanal = de segunda a domingo; mensal = do primeiro ao último dia do mês; personalizado = período livre; campanha = dentro do período da campanha. O banco exige `campanha_id` só no período `CAMPANHA` (`CHECK`). |
+| inicio | Data | Sim | Primeiro dia da meta (inclusivo). Nas metas semanal e mensal, o backend recalcula o período a partir dele. |
+| fim | Data | Sim | Último dia da meta (inclusivo); fim antes do início é recusado (`CHECK`). |
+| meta_visitas | Número inteiro | Sim | Meta de visitas, não negativa. |
+| meta_vendas | Decimal (12,2) | Sim | Meta de vendas em reais, não negativa. |
+| campanha_id | Chave estrangeira → `Campaign.id` | Não | Campanha da meta; excluir a campanha apaga as metas dela (`ON DELETE CASCADE`). |
+| criado_em | Data/hora | Sim | Data e hora de criação. |
+
+**Realizado:** não é gravado. A cada leitura, conta as visitas feitas pelo representante (autor da visita) no período — e vinculadas à campanha, na meta de campanha — e soma o total dos pedidos das que tiveram resultado `VENDA`.
+
+**Seed de demonstração (Etapa 8):** `backend/src/seed/demonstracao.ts` grava, relativo ao dia em que roda, três campanhas (uma em andamento), metas mensais para os dois representantes e uma da campanha em andamento, pedidos de dois itens do catálogo em toda visita de venda e a próxima visita com lembrete em três clientes (um com campanha). `npm run db:seed:reset` apaga e recria esses dados, mantendo as contas criadas pelo app ([guia de desenvolvimento](guia-de-desenvolvimento.md#4-banco-de-dados-migrations-e-seed)).
+
 ## 4. Dados externos (ERP)
 
 Dados de **venda e estoque não são persistidos** no banco de dados do ChokoCRM. Eles são obtidos sob demanda a partir do ERP da Senior Sistemas, por meio da interface `ErpProvider` (padrão Adapter, seção 4.3 da especificação):
@@ -159,6 +238,7 @@ interface ErpProvider {
 - Enquanto a API real da Senior não estiver disponível, a interface é implementada por `MockErpProvider`, cujos dados **não vêm de nenhuma tabela nem de seed do Prisma**: são gerados em memória, a cada chamada, por um gerador determinístico (`providers/erp/mock/gerador.ts`) — um hash do `erp_id` (FNV-1a) alimenta um PRNG (mulberry32) que produz 24 meses de histórico de vendas e 12 snapshots quinzenais de estoque, aplicando o calendário sazonal (picos de venda nos 30 dias antes de Páscoa, Dia das Mães, Dia dos Namorados, Dia dos Pais e Natal) como multiplicador de valor. O mesmo `erp_id`, consultado no mesmo dia de calendário, sempre reproduz o mesmo histórico — determinismo que serve de base estável ao módulo de insights (seção 6.4 da especificação) e aos testes automatizados.
 - Um `erp_id` terminado em `-0` é a convenção do mock para "cliente desconhecido no ERP": o gerador devolve vendas e estoque vazios, e `obterDadosErp` responde `NAO_ENCONTRADO` (UC11, `docs/casos-de-uso.md`).
 - A futura substituição por uma implementação real (`SeniorErpProvider`) troca apenas a classe que implementa `ErpProvider`; nenhuma outra camada do sistema (services, controllers, repositories, frontend) precisa ser alterada — este é exatamente o propósito do padrão Adapter adotado (seções 4.1 e 4.3 da especificação).
+- O catálogo de produtos (SKU, nome e, desde a Etapa 8, preço unitário) também vem do provedor simulado (`providers/erp/mock/catalogo.ts`, exposto em `GET /erp/produtos`); o check-in copia nome e preço para `VisitItem` (seção 3.9).
 - Não havendo persistência local, `Sale`, `Period`, `Volume` e `StockSnapshot` são tipos de dados **de integração** (contrato do `ErpProvider`), e não entidades do banco de dados do ChokoCRM — por isso não constam do dicionário de dados da seção 3.
 
 ## 5. Cor do cliente

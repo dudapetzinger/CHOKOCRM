@@ -38,6 +38,18 @@ Cadastro de clientes com múltiplos contatos; check-in de visitas com descriçã
 
 Na Etapa 7, o representante passou a ver e alterar só a própria carteira, e o gestor ganhou um seletor de representante nas telas de clientes, agenda e painel; a lista de clientes ganhou abas por ação (Prioridade, Atenção, Em dia e Todos), uma etiqueta que diz em palavras a situação de cada cliente e a ordem por urgência; a ficha passou a abrir pelas ações de campo; o painel do gestor passou a responder a três perguntas com gráficos — visitas por representante, vendas dos últimos 12 meses com os eventos sazonais e os clientes esfriando —; no computador, as telas usam duas colunas e navegação lateral; e o app pode ser instalado no celular como PWA, sem modo offline de escrita ([ADR-012](docs/arquitetura.md#adr-012--pwa-instalável-sem-modo-offline-de-escrita)).
 
+Na Etapa 8, o app passou à interface do protótipo aprovado pela Chokolaten (Tailwind e shadcn — [ADR-013](docs/arquitetura.md#adr-013--base-de-interface-do-protótipo-lovable-tailwind--shadcn)) e ganhou:
+
+- **Pedido no check-in:** com resultado "Venda", os produtos do catálogo do ERP com quantidade e total; o pedido aparece no histórico e soma nas metas, nas campanhas e na planilha.
+- **Próxima visita e lembrete:** marcadas no check-in, usadas pela agenda, que ganhou "Próximos 7 dias".
+- **Campanhas e eventos:** criados pelo gestor, com status, desconto, produtos em destaque, visitas vinculadas no check-in e vendas vinculadas por representante.
+- **Metas de visitas e vendas:** semanais, mensais, livres ou de campanha, com o realizado calculado das visitas e dos pedidos.
+- **Calendário do mês e roteiro do dia** na agenda, com o trajeto aberto no Google Maps ([ADR-016](docs/arquitetura.md#adr-016--coordenadas-estáticas-dos-municípios-de-sc-no-roteiro-e-no-mapa)).
+- **Painel também para o representante**, com a própria carteira ([ADR-015](docs/arquitetura.md#adr-015--painel-também-para-o-representante-limitado-à-própria-carteira)), mapa de clientes por cidade, ritmo das últimas 8 semanas e exportação em planilha (CSV) e PDF.
+- **Gestão de usuários pelo gestor:** criar contas, editar, inativar, transferir a carteira e enviar o link de redefinição de senha por e-mail ([ADR-014](docs/arquitetura.md#adr-014--e-mail-por-smtp-com-o-token-no-fragmento-da-url)); cada um pode alterar a própria senha pelo menu da conta.
+
+**Como o gestor cria as contas:** entra com a conta de gestor, abre **Usuários → Novo usuário**, informa nome, e-mail, telefone, papel (representante ou gestor) e uma senha inicial (mínimo de 6 caracteres) e passa o e-mail e a senha à pessoa, que pode trocá-la em **menu da conta → Alterar senha**. Se ela esquecer a senha, o gestor usa **Redefinir senha** na linha dela: o ChokoCRM envia ao e-mail de cadastro um link válido por 24 horas para ela mesma definir a senha nova (em produção, isso depende da conta de e-mail remetente configurada no App Service — ver o [guia](docs/guia-de-desenvolvimento.md#92-configurações-do-app-service)). Inativar uma conta bloqueia o próximo login; os clientes dela ficam na carteira até o gestor transferi-los.
+
 Cada funcionalidade está especificada como caso de uso em [docs/casos-de-uso.md](docs/casos-de-uso.md), com as regras de negócio detalhadas na [seção 6 da especificação técnica](docs/especificacao-tecnica.md#6-regras-de-negócio-principais).
 
 ## 3. Especificação técnica
@@ -60,25 +72,25 @@ Diagrama entidade-relacionamento, dicionário de dados campo a campo, tratamento
 
 ## 6. Arquitetura e decisões técnicas
 
-Arquitetura em camadas documentada nos três níveis do modelo C4 (contexto, contêineres e componentes), estrutura de pastas do repositório e o registro das decisões técnicas em ADRs — ORM, integração com o ERP por Adapter, mensageria por link `wa.me`, cálculo da cor, hospedagem, autenticação, ferramentas de qualidade, armazenamento das fotos de comprovação de visita, carteira por representante e app instalável (PWA).
+Arquitetura em camadas documentada nos três níveis do modelo C4 (contexto, contêineres e componentes), estrutura de pastas do repositório e o registro das decisões técnicas em ADRs — ORM, integração com o ERP por Adapter, mensageria por link `wa.me`, cálculo da cor, hospedagem, autenticação, ferramentas de qualidade, armazenamento das fotos de comprovação de visita, carteira por representante, app instalável (PWA) e, na Etapa 8, a base de interface do protótipo, o e-mail por SMTP, o painel do representante e as coordenadas dos municípios de SC.
 
 → [docs/arquitetura.md](docs/arquitetura.md) · [diagramas C4](docs/arquitetura.md#1-visão-geral) · [ADRs](docs/arquitetura.md#3-decisões-arquiteturais-adrs)
 
 ## 7. Protótipo navegável
 
-Protótipo estático das telas principais — login, lista de clientes com as cores, ficha do cliente, check-in, agenda do dia e painel de indicadores — feito na Etapa 1 e usado como referência visual da implementação.
+Protótipo estático das telas principais — login, lista de clientes com as cores, ficha do cliente, check-in, agenda do dia e painel de indicadores — feito na Etapa 1 e usado como referência visual da implementação até a Etapa 7. Na Etapa 8, a referência passou a ser o protótipo feito no Lovable e aprovado pela Chokolaten, descrito na [spec da etapa](docs/superpowers/specs/2026-10-17-etapa-8-revisao-prototipo-lovable-design.md).
 
 → [docs/prototipo/index.html](docs/prototipo/index.html)
 
 ## 8. Tecnologias
 
-React 19 com Vite e TypeScript no frontend, com Recharts nos gráficos e `vite-plugin-pwa` no app instalável; Node.js 22 com Express 5 e TypeScript no backend; PostgreSQL 16 com Prisma como ORM; autenticação por JWT; Docker Compose no ambiente de desenvolvimento; GitHub Actions na integração e na entrega contínuas; Azure na produção.
+React 19 com Vite e TypeScript no frontend, com Tailwind CSS 4, componentes shadcn (Radix), ícones lucide e `vite-plugin-pwa` no app instalável; Node.js 22 com Express 5 e TypeScript no backend; PostgreSQL 16 com Prisma como ORM; autenticação por JWT; e-mail por SMTP (`nodemailer`) para o link de redefinição de senha; Docker Compose no ambiente de desenvolvimento; GitHub Actions na integração e na entrega contínuas; Azure na produção.
 
 A integração com o ERP da Senior é feita por trás de uma interface substituível (`ErpProvider`), com implementação simulada enquanto a API real não é consumida. As mensagens de consulta de estoque **não** usam a API oficial do WhatsApp: o sistema gera o texto e o link `wa.me`, e o envio é feito manualmente pelo representante — a justificativa está no [ADR-005](docs/arquitetura.md#adr-005--mensagem-de-estoque-via-link-wame).
 
 ## 9. Como executar localmente
 
-O ambiente completo (PostgreSQL, API e frontend) sobe com um comando via Docker Compose. Pré-requisitos, variáveis de ambiente, migrations, seed e alternativa sem Docker estão no guia de desenvolvimento.
+O ambiente completo (PostgreSQL, API e frontend) sobe com um comando via Docker Compose. Pré-requisitos, variáveis de ambiente, migrations, seed (`npm run db:seed`, que só acrescenta, e `npm run db:seed:reset`, que renova a demonstração com as datas de hoje mantendo as contas criadas pelo app) e alternativa sem Docker estão no guia de desenvolvimento.
 
 → [docs/guia-de-desenvolvimento.md](docs/guia-de-desenvolvimento.md)
 
@@ -92,7 +104,7 @@ Para testar o app instalável (PWA), que só existe no build, o guia traz o rote
 
 ## 10. Testes
 
-No backend, testes unitários com Jest sobre a camada de negócio (regras puras: cor do cliente, próxima visita, insights, templates de mensagem e indicadores) e testes de integração com Supertest sobre as rotas críticas, contra um PostgreSQL de teste. No frontend, desde a Etapa 7, testes com Vitest e Testing Library (`npm test` em `frontend/`), sem backend, sobre as regras da interface, os componentes e as páginas, com cerca de 59 % de cobertura de linhas. O CI roda as duas suítes com cobertura e envia os dois relatórios ao SonarCloud. Cada módulo entregue em uma etapa do cronograma inclui seus testes.
+No backend, testes unitários com Jest sobre a camada de negócio (regras puras: cor do cliente, próxima visita, insights, templates de mensagem e indicadores) e testes de integração com Supertest sobre as rotas críticas, contra um PostgreSQL de teste. No frontend, desde a Etapa 7, testes com Vitest e Testing Library (`npm test` em `frontend/`), sem backend, sobre as regras da interface, os componentes e as páginas, com cerca de 86 % de cobertura de linhas (Etapa 8). O CI roda as duas suítes com cobertura e envia os dois relatórios ao SonarCloud. Cada módulo entregue em uma etapa do cronograma inclui seus testes.
 
 A estratégia está na [seção 10 da especificação técnica](docs/especificacao-tecnica.md#10-testes) e na [seção 5.1 do documento de arquitetura](docs/arquitetura.md#51-testes). Como rodar: [guia de desenvolvimento](docs/guia-de-desenvolvimento.md).
 
@@ -112,7 +124,7 @@ Análise estática de código pelo SonarCloud, executada como job do pipeline de
 
 ## 13. Cronograma de entregas
 
-O projeto é entregue em seis etapas, da documentação e protótipo até o deploy em produção e os testes com os representantes, mais uma Etapa 7 de refino de UX, gráficos e PWA, antes dos testes de campo.
+O projeto é entregue em seis etapas, da documentação e protótipo até o deploy em produção e os testes com os representantes, mais uma Etapa 7 de refino de UX, gráficos e PWA e uma Etapa 8 de revisão pelo protótipo do Lovable, antes dos testes de campo.
 
 → [seção 11 da especificação técnica](docs/especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)
 

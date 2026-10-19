@@ -74,9 +74,17 @@ beforeEach(() => {
 
 function renderizar(role: Role = 'REPRESENTANTE') {
   const auth = {
-    user: { id: 'r1', nome: 'Eduarda Petzinger', email: 'eduarda@chokolaten.com.br', role },
+    user: {
+      id: 'r1',
+      nome: 'Eduarda Petzinger',
+      email: 'eduarda@chokolaten.com.br',
+      role,
+      telefone: null,
+      ativo: true,
+    },
     login: vi.fn(),
     logout: vi.fn(),
+    recarregarUsuario: vi.fn(async () => {}),
   };
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   render(

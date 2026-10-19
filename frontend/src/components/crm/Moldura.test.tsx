@@ -10,9 +10,10 @@ const NOMES: Record<Role, string> = { GESTOR: 'Gestor Chokolaten', REPRESENTANTE
 /** A moldura como layout das rotas, com uma tela de mentira em cada uma. */
 function renderizar({ papel = 'REPRESENTANTE', entradas = ['/clientes'] }: { papel?: Role; entradas?: string[] } = {}) {
   const auth = {
-    user: { id: 'u1', nome: NOMES[papel], email: 'usuaria@exemplo.com', role: papel },
+    user: { id: 'u1', nome: NOMES[papel], email: 'usuaria@exemplo.com', role: papel, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
+    recarregarUsuario: vi.fn(async () => {}),
   };
   return render(
     <AuthContext.Provider value={auth}>

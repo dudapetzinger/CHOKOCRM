@@ -76,9 +76,10 @@ beforeEach(() => {
 
 function renderizar(elemento: ReactElement, role: Role = 'REPRESENTANTE') {
   const auth = {
-    user: { id: 'g1', nome: 'Usuário', email: 'usuario@exemplo.com', role },
+    user: { id: 'g1', nome: 'Usuário', email: 'usuario@exemplo.com', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
+    recarregarUsuario: vi.fn(async () => {}),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(

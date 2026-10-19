@@ -46,7 +46,11 @@ function preencher(rotulo: string, texto: string) {
   fireEvent.change(screen.getByLabelText(rotulo), { target: { value: texto } });
 }
 
-function preencherTudo({ atual = 'antiga123', nova = 'novinha1', confirmacao = nova } = {}) {
+function preencherTudo({
+  atual = 'antiga123',
+  nova = 'novinha1',
+  confirmacao = nova,
+}: { atual?: string; nova?: string; confirmacao?: string } = {}) {
   preencher('Senha atual', atual);
   preencher('Nova senha', nova);
   preencher('Confirmar nova senha', confirmacao);

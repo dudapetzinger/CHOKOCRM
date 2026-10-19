@@ -56,6 +56,15 @@ describe('MapaPorCidade', () => {
     expect(screen.getAllByRole('button')).toHaveLength(2);
   });
 
+  it('toda bolha tem área de toque de pelo menos 44 px, mesmo a de um cliente só', () => {
+    renderizar();
+
+    for (const bolha of screen.getAllByRole('button')) {
+      const raios = [...bolha.querySelectorAll('circle')].map((circulo) => Number(circulo.getAttribute('r')));
+      expect(Math.max(...raios) * 2).toBeGreaterThanOrEqual(44);
+    }
+  });
+
   it('o nome de cada cidade aparece no mapa', () => {
     renderizar();
 

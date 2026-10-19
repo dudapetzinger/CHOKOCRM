@@ -10,6 +10,8 @@ const USUARIO: UsuarioAutenticado = {
   nome: 'Ana Representante',
   email: 'ana@chokolaten.com.br',
   role: 'REPRESENTANTE',
+  telefone: null,
+  ativo: true,
 };
 
 const UA_ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/141.0 Mobile Safari/537.36';
@@ -20,9 +22,8 @@ const DIA_MS = 24 * 60 * 60 * 1000;
 
 function comUsuario(usuario: UsuarioAutenticado | null) {
   return function Provedor({ children }: { children: ReactNode }) {
-    return (
-      <AuthContext.Provider value={{ user: usuario, login: vi.fn(), logout: vi.fn() }}>{children}</AuthContext.Provider>
-    );
+    const auth = { user: usuario, login: vi.fn(), logout: vi.fn(), recarregarUsuario: vi.fn(async () => {}) };
+    return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
   };
 }
 
@@ -212,7 +213,12 @@ describe('BannerInstalar', () => {
   });
 
   it('sem usuário logado → não aparece; o evento fica guardado e o banner surge depois do login', () => {
-    const contexto = (usuario: UsuarioAutenticado | null) => ({ user: usuario, login: vi.fn(), logout: vi.fn() });
+    const contexto = (usuario: UsuarioAutenticado | null) => ({
+      user: usuario,
+      login: vi.fn(),
+      logout: vi.fn(),
+      recarregarUsuario: vi.fn(async () => {}),
+    });
     const { rerender } = render(
       <AuthContext.Provider value={contexto(null)}>
         <BannerInstalar />

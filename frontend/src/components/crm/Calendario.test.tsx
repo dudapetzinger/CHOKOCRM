@@ -59,9 +59,10 @@ function FichaFalsa() {
 function renderizar(role: Role = 'REPRESENTANTE', itens: ItemCalendario[] = [VISITA_MARCADA, VISITA_PREVISTA, SAZONAL]) {
   vi.mocked(buscarCalendario).mockImplementation(async (mes) => ({ mes, itens: mes === '2026-10' ? itens : [] }));
   const auth = {
-    user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role },
+    user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
+    recarregarUsuario: vi.fn(async () => {}),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(

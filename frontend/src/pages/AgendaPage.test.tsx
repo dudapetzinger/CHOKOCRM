@@ -90,9 +90,10 @@ function prepararResposta(resposta: Resposta) {
 function renderizarComo(role: Role, resposta: Resposta) {
   prepararResposta(resposta);
   const auth = {
-    user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role },
+    user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
+    recarregarUsuario: vi.fn(async () => {}),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(

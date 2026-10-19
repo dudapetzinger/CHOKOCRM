@@ -453,6 +453,20 @@ _configuracoes_app() {
     "WEB_DIR = /home/site/wwwroot/web"
 }
 
+# _configuracoes_email — configurações opcionais do envio de e-mail (Etapa 8):
+# o link de redefinição de senha. Sem SMTP_HOST, a redefinição responde 503
+# "Envio de e-mail não configurado."; o resto do app funciona. Nunca mostra
+# a senha.
+_configuracoes_email() {
+  printf '%s\n' \
+    "SMTP_HOST = (opcional) servidor SMTP da conta remetente (ex.: smtp.gmail.com)" \
+    "SMTP_PORT = (opcional) 587 (STARTTLS) ou 465 (TLS direto); padrão 587" \
+    "SMTP_USER = (opcional) usuário da conta remetente" \
+    "SMTP_PASS = (opcional, segredo) senha de app da conta remetente — só no portal" \
+    "EMAIL_FROM = (opcional) remetente, ex.: ChokoCRM <chokocrm@exemplo.com>; vazio = SMTP_USER" \
+    "APP_URL = (opcional) endereço público do app, com https://; vazio = FRONTEND_URL"
+}
+
 _checklist_desligar() {
   printf '%s\n' \
     "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Desabilitar (Disable), para não receber alertas com a produção desligada (o nome pode variar)." \
@@ -470,7 +484,8 @@ _checklist_religar() {
     "- [ ] Deploy: gh workflow run deploy.yml (ou um push na main)." \
     "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Habilitar (Enable) (o nome pode variar)." \
     "- [ ] Conferir o job smoke verde em $URL_GITHUB/actions e o teste de disponibilidade verde no $AI." \
-    "- [ ] Antes da apresentação (1 ou 2 dias antes, depois de religar o B1): rodar o seed por SSH (cd /home/site/wwwroot && npm run db:seed) e conferir no Painel as cores, a agenda, o seletor \"Todos · Eduarda · Rafael\" e os alertas de produção. O seed só grava visitas em cliente que ainda não tem nenhuma (para os clientes da Eduarda, registrar check-ins novos nos clientes-chave pelo próprio app) e devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção."
+    "- [ ] Envio de e-mail (Etapa 8): se a conta remetente já foi escolhida, conferir SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS e EMAIL_FROM nas configurações do App Service; sem elas, \"Redefinir senha\" em Usuários responde 503 \"Envio de e-mail não configurado.\"." \
+    "- [ ] Antes da validação com os representantes e de novo 1 ou 2 dias antes da apresentação (depois de religar o B1): renovar a demonstração por SSH (cd /home/site/wwwroot && npm run db:seed:reset -- --confirmar; em produção, sem --confirmar o comando se recusa a rodar) e conferir no Painel as cores, a agenda, as campanhas, as metas, o seletor \"Todos · Eduarda · Rafael\" e os alertas de produção. O reinício apaga e recria clientes, visitas, pedidos, campanhas e metas com datas de hoje e devolve as três contas de demonstração à senha de demonstração; as contas criadas pelo app ficam, com a senha delas, mas os dados que os representantes registraram durante a validação (clientes, visitas e pedidos) são apagados — antes da apresentação, só rodar se eles não precisarem ficar."
 }
 
 _status_secret() {
@@ -531,6 +546,8 @@ _gravar_resumo() {
     # shellcheck disable=SC2016 # crases literais (código no Markdown)
     printf 'Startup command `npm run start:prod`; Always On ligado; SCM Basic Auth ligado.\n\n'
     _configuracoes_app resumo | sed 's/^/- /'
+    printf '\nOpcionais (envio de e-mail, Etapa 8):\n\n'
+    _configuracoes_email | sed 's/^/- /'
     printf '\n## Desligar entre janelas\n\n'
     _checklist_desligar
     printf '\n## Religar\n\n'
@@ -657,6 +674,8 @@ step "Configurações → Variáveis de ambiente → Configurações de aplicati
 step "uma por vez (nome = valor):"
 note "(o nome do menu pode variar; em portais antigos fica em Configuração → Configurações de aplicativo)"
 _configuracoes_app tela | sed 's/^/      /'
+note "Opcionais (Etapa 8), para o link de redefinição de senha — podem ficar para quando a conta remetente for escolhida:"
+_configuracoes_email | sed 's/^/      /'
 warn "O JWT_SECRET acima foi gerado agora: cole-o só no portal. Ele não é gravado em disco nem no resumo."
 note "Re-execução: se o App Service já tem JWT_SECRET, mantenha o existente (trocar encerra as sessões abertas)."
 _copiar DATABASE_URL "$DATABASE_URL"
@@ -664,7 +683,7 @@ _copiar JWT_SECRET "$JWT_SECRET"
 _copiar APPLICATIONINSIGHTS_CONNECTION_STRING "$APPLICATIONINSIGHTS_CONNECTION_STRING"
 _limpar_area_de_transferencia
 step "Aplicar → Confirmar (o app reinicia)."
-pause "Enter quando as 14 configurações estiverem salvas"
+pause "Enter quando as 14 configurações (e as opcionais de e-mail que já tiver) estiverem salvas"
 
 printf '\n'
 step "Configurações → Configuração → Configurações gerais (Configuration → General settings):"
@@ -823,6 +842,7 @@ step "No terminal SSH, rode:  cd /home/site/wwwroot && npm run db:seed"
 note "Se o seed disser que DATABASE_URL ou JWT_SECRET não está definida, rode antes:"
 note "  export DATABASE_URL='<a do passo 2>' JWT_SECRET='<qualquer valor não vazio; para o seed, serve>'"
 warn "Basta rodar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção."
+note "Para renovar a demonstração depois (datas de hoje, campanhas e metas novas): npm run db:seed:reset -- --confirmar — apaga também os dados lançados pelos representantes; só as contas ficam."
 pause "Enter quando o seed terminar"
 
 # ── 11. Desligar / religar ────────────────────────────────────────────────

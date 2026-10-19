@@ -39,9 +39,10 @@ const CLIENTE: ClienteListItem = {
 
 function renderizar(role: Role = 'REPRESENTANTE') {
   const auth = {
-    user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role },
+    user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
+    recarregarUsuario: vi.fn(async () => {}),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const arvore = (

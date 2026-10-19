@@ -185,10 +185,11 @@ function renderizarComo(role: 'GESTOR' | 'REPRESENTANTE') {
   const auth = {
     user:
       role === 'GESTOR'
-        ? { id: 'g1', nome: 'Maicon', email: 'gestor@exemplo.com', role }
-        : { id: 'u1', nome: 'Eduarda Fischer', email: 'eduarda@exemplo.com', role },
+        ? { id: 'g1', nome: 'Maicon', email: 'gestor@exemplo.com', role, telefone: null, ativo: true }
+        : { id: 'u1', nome: 'Eduarda Fischer', email: 'eduarda@exemplo.com', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
+    recarregarUsuario: vi.fn(async () => {}),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(

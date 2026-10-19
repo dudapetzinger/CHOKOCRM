@@ -49,9 +49,17 @@ vi.mock('../services/stockMessages', () => ({
 
 function renderizar() {
   const auth = {
-    user: { id: 'r1', nome: 'Eduarda Fischer', email: 'eduarda@exemplo.com', role: 'REPRESENTANTE' as const },
+    user: {
+      id: 'r1',
+      nome: 'Eduarda Fischer',
+      email: 'eduarda@exemplo.com',
+      role: 'REPRESENTANTE' as const,
+      telefone: null,
+      ativo: true,
+    },
     login: vi.fn(),
     logout: vi.fn(),
+    recarregarUsuario: vi.fn(async () => {}),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(

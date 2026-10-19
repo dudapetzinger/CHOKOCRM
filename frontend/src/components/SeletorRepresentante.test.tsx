@@ -22,9 +22,10 @@ function Sonda() {
 function renderizarComo(role: Role, children: ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const auth = {
-    user: { id: 'g1', nome: 'Gestor', email: 'gestor@exemplo.com', role },
+    user: { id: 'g1', nome: 'Gestor', email: 'gestor@exemplo.com', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
+    recarregarUsuario: vi.fn(async () => {}),
   };
   return render(
     <AuthContext.Provider value={auth}>

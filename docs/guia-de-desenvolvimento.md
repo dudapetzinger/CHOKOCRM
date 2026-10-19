@@ -57,6 +57,16 @@ Mais duas controlam o provedor de ERP simulado da Etapa 5 (ver `backend/src/prov
 | `ERP_PROVIDER` | `mock` | Provedor de ERP em uso (`mock` por ora). |
 | `ERP_MOCK_FALHAR` | `false` | Força o mock a responder "indisponível" para demonstrar o fluxo de exceção da ficha (UC11 E3). |
 
+Desde a Etapa 8, seis controlam o envio de e-mail do link de redefinição de senha ([ADR-014](arquitetura.md#adr-014--e-mail-por-smtp-com-o-token-no-fragmento-da-url)). Em desenvolvimento ficam vazias: sem `SMTP_HOST`, o `ConsoleEmailProvider` escreve a mensagem e o link no log da API, e é dali que se copia o link para testar a página "Redefinir senha".
+
+| Variável | Padrão | Para quê |
+|----------|--------|----------|
+| `SMTP_HOST` | vazio | Servidor SMTP da conta remetente. Vazio = sem SMTP: fora de produção o e-mail vai para o log; **em produção, "Redefinir senha" responde 503 "Envio de e-mail não configurado."** (o resto do app funciona). |
+| `SMTP_PORT` | `587` | 465 usa TLS direto; as outras portas exigem STARTTLS — servidor sem TLS tem o envio recusado. |
+| `SMTP_USER` / `SMTP_PASS` | vazios | Usuário e senha (de app) da conta remetente. `SMTP_PASS` é segredo. |
+| `EMAIL_FROM` | vazio | Remetente, ex.: `ChokoCRM <chokocrm@exemplo.com>`; vazio = `SMTP_USER`. |
+| `APP_URL` | vazio | Endereço público do app, base do link (`{APP_URL}/redefinir-senha#<token>`). **Opcional: vazia, vale a `FRONTEND_URL`.** Em produção o valor efetivo precisa começar com `https://`, senão a API não sobe. |
+
 A `APPLICATIONINSIGHTS_CONNECTION_STRING` fica vazia em desenvolvimento, o que mantém a telemetria do Application Insights desligada. Os valores de produção estão em [Configurações do App Service](#92-configurações-do-app-service).
 
 ## 3. Subindo o ambiente com Docker Compose
@@ -90,7 +100,9 @@ npm run db:migrate
 npm run db:seed
 ```
 
-O seed é determinístico e cria 13 clientes com contatos (9 na carteira da Eduarda e 4 na do Rafael), um histórico de visitas suficiente para exercitar a classificação por cor, três usuários de desenvolvimento e, desde a Etapa 6A, os eventos sazonais (`SeasonalEvent`) do ano corrente e do seguinte — usados pela mensagem de consulta de estoque (UC12) e pelo módulo de insights (UC13 e UC15); o `upsert` por `nome` torna o seed idempotente, então rodá-lo de novo não duplica eventos, e desde a Etapa 6B ele grava e atualiza também a `chave` de cada evento:
+Para **renovar a demonstração** — apagar e recriar os dados com datas de hoje —, rode `npm run db:seed:reset` (também a partir de `backend/`). Ele apaga metas, itens de pedido, visitas, mensagens de estoque, mudanças de recorrência, contatos, clientes, campanhas e tokens de redefinição de senha, recria tudo e devolve as três contas abaixo à senha de demonstração (ativas). **As contas criadas pelo app são mantidas, com a senha delas**; os clientes, as visitas e os pedidos delas, não. Tudo roda numa transação só: se algo falhar no meio, nada é apagado. Com `NODE_ENV=production`, o reinício se recusa a rodar (código de saída 1) sem `--confirmar` ([9.5](#95-seed-em-produção)). O `db:seed` comum continua só acrescentando.
+
+O seed é determinístico e cria 13 clientes com contatos (9 na carteira da Eduarda e 4 na do Rafael), um histórico de visitas suficiente para exercitar a classificação por cor, três usuários de desenvolvimento (com telefone) e, desde a Etapa 8, pedidos de dois itens do catálogo em toda visita de venda, três campanhas — "Natal Chokolaten {ano}" (de daqui a 15 dias a 24/12), "Black Friday do Cacau" (a última semana de novembro) e "Feira Sabores do Vale — Blumenau" (de ontem a amanhã, em andamento) —, metas mensais para os dois representantes e uma da feira, três visitas vinculadas a campanhas e a próxima visita com lembrete em três clientes (uma com campanha). Cria também, desde a Etapa 6A, os eventos sazonais (`SeasonalEvent`) do ano corrente e do seguinte — usados pela mensagem de consulta de estoque (UC12) e pelo módulo de insights (UC13 e UC15); o `upsert` por `nome` torna o seed idempotente, então rodá-lo de novo não duplica eventos, e desde a Etapa 6B ele grava e atualiza também a `chave` de cada evento:
 
 | Perfil | E-mail | Senha |
 |--------|--------|-------|
@@ -98,15 +110,17 @@ O seed é determinístico e cria 13 clientes com contatos (9 na carteira da Edua
 | Representante (Rafael Schmitt) | `rafael@chokolaten.com.br` | `chokocrm123` |
 | Gestor (Maicon Krüger) | `gestor@chokolaten.com.br` | `chokocrm123` |
 
-A carteira do Rafael (Brusque, Itajaí, Rio do Sul e Indaial) tem menos visitas e nenhuma com venda nos últimos 30 dias, para o painel do gestor mostrar contraste entre os dois representantes; o Maicon, como gestor, vê as duas carteiras e alterna entre elas no seletor de representante. As visitas de demonstração são gravadas relativas ao dia em que o seed roda, então **as cores envelhecem com o calendário**: a cada dia sem visita nova, os clientes andam para laranja e vermelho. O seed só grava visitas em cliente que ainda não tem nenhuma; para renovar as cores no desenvolvimento, apague os dados (os testes já truncam as tabelas, ver [Testes e lint](#6-testes-e-lint), ou `docker compose down -v`) e rode o seed de novo.
+A carteira do Rafael (Brusque, Itajaí, Rio do Sul e Indaial) tem menos visitas e nenhuma com venda nos últimos 30 dias, para o painel do gestor mostrar contraste entre os dois representantes; o Maicon, como gestor, vê as duas carteiras e alterna entre elas no seletor de representante. As visitas de demonstração são gravadas relativas ao dia em que o seed roda, então **as cores envelhecem com o calendário**: a cada dia sem visita nova, os clientes andam para laranja e vermelho. O `db:seed` só grava visitas em cliente que ainda não tem nenhuma, só cria a campanha que ainda não existe com o mesmo nome e a meta que ainda não existe, e só marca a próxima visita em cliente sem uma; para renovar as cores e as datas, rode `npm run db:seed:reset`.
 
-São contas fictícias de demonstração, definidas em `backend/prisma/seed.ts`. O mesmo seed popula a produção de demonstração ([Seed em produção](#95-seed-em-produção)), que só fica ligada nas janelas de uso ([Produção no Azure](#9-produção-no-azure)); essas credenciais também valem lá — e, como estão publicadas aqui, a produção só deve guardar dados de demonstração.
+São contas fictícias de demonstração, definidas em `backend/src/seed/demonstracao.ts` (o `backend/prisma/seed.ts` só lê o `--reset` e chama `semear` ou `reiniciarDemonstracao`). O mesmo seed popula a produção de demonstração ([Seed em produção](#95-seed-em-produção)), que só fica ligada nas janelas de uso ([Produção no Azure](#9-produção-no-azure)); essas credenciais também valem lá — e, como estão publicadas aqui, a produção só deve guardar dados de demonstração.
 
 **Migration da Etapa 6B (`seasonal_event_chave`).** Ela acrescenta a coluna `chave` (enum `EventoSazonal`: `PASCOA`, `DIA_DAS_MAES`, `NAMORADOS`, `DIA_DOS_PAIS`, `NATAL`) a `seasonal_events` em quatro passos: cria o enum, adiciona a coluna anulável, preenche as linhas que já existem a partir do prefixo de `nome` ("Páscoa 2026" vira `PASCOA`, "Natal 2026" vira `NATAL`, e assim por diante) e só então a torna `NOT NULL`. Por isso um banco de desenvolvimento já semeado pela Etapa 6A migra com `npm run db:migrate`, sem perder os eventos nem precisar de novo seed. Um `nome` fora desse padrão deixaria a `chave` nula e o último passo falharia — de propósito: a migration não inventa chave. O `prisma migrate` passa a apontar essa migration como falhada, e num banco de desenvolvimento o caminho é recomeçar pelo volume (ver "Problemas comuns"). Não há variável de ambiente nova: o horizonte e os limiares dos insights ficam em `backend/src/config/sazonalidade.ts`.
 
 **Etapa 6C.** Sem migration nem variável de ambiente nova: os indicadores do painel do gestor são calculados a cada consulta, e o período padrão e os períodos aceitos ficam em `backend/src/config/kpis.ts`.
 
 **Etapa 7.** Sem migration nem variável de ambiente nova: a carteira já existia (`Client.representanteId`, Etapa 4), e os gráficos do painel são calculados a cada consulta. Muda só o seed — o segundo representante, os quatro clientes dele e o gestor renomeado para Maicon —, então um banco de desenvolvimento antigo recebe tudo isso com `npm run db:seed`, sem duplicar nada (como sempre, o seed devolve aos valores dele os usuários, clientes e contatos de demonstração).
+
+**Etapa 8.** Cinco migrations (`usuarios_ativo_telefone_redefinicao`, `itens_do_pedido`, `proxima_visita_e_lembrete`, `campanhas` e `metas`), aplicadas com `npm run db:migrate`, e as variáveis opcionais de e-mail da [seção 2](#2-variáveis-de-ambiente). Depois de migrar, `npm run db:seed:reset` deixa a demonstração com campanhas, metas e pedidos. O gestor cria as contas novas pelo app (Usuários → Novo usuário).
 
 ## 5. Executando sem Docker
 
@@ -165,7 +179,7 @@ npm test
 npm run lint
 ```
 
-Os testes truncam as tabelas para garantir isolamento entre casos, então **rode `npm run db:seed` depois de uma bateria de testes** se quiser voltar a navegar na aplicação com dados. Evite rodar duas baterias em paralelo contra o mesmo banco: elas competem pelas mesmas tabelas.
+Os testes truncam as tabelas para garantir isolamento entre casos, então **rode `npm run db:seed:reset` depois de uma bateria de testes** se quiser voltar a navegar na aplicação com dados. Evite rodar duas baterias em paralelo contra o mesmo banco: elas competem pelas mesmas tabelas.
 
 Frontend — Vitest com Testing Library (desde a Etapa 7), lint e build de produção:
 
@@ -174,11 +188,14 @@ cd frontend
 npm test
 npm run lint
 npm run build
+npm run typecheck:testes
 ```
+
+O `typecheck:testes` (Etapa 8) confere os tipos dos próprios testes (`tsconfig.test.json`), que o `build` não compila; leva cerca de 20 segundos, por isso fica fora do `lint`.
 
 Os testes do frontend rodam no jsdom, com os serviços HTTP simulados: não precisam da API nem do banco e podem rodar em paralelo com os do backend. `npm run test:watch` deixa o Vitest observando os arquivos, e `npm test -- --coverage` mostra a tabela de cobertura e grava `frontend/coverage/lcov.info` (a configuração está em `frontend/vitest.config.ts`). Os testes ficam ao lado do código (`*.test.ts` e `*.test.tsx` em `frontend/src/`), e o que é comum a eles em `frontend/src/test/`: o setup do `jest-dom`, a simulação da largura da tela (para o layout de duas colunas) e o substituto do registro do service worker, que não existe no jsdom.
 
-Esses mesmos comandos rodam no pipeline de integração contínua ([ci.yml](../.github/workflows/ci.yml)) a cada push e pull request. Lá, o backend e o frontend rodam `npm test -- --coverage`, que grava `backend/coverage/lcov.info` e `frontend/coverage/lcov.info` para o SonarCloud; localmente, a cobertura só é coletada se você passar `--coverage`. A cobertura de linhas do frontend está em cerca de 59 %; não há gate de cobertura no CI.
+Esses mesmos comandos rodam no pipeline de integração contínua ([ci.yml](../.github/workflows/ci.yml)) a cada push e pull request. Lá, o backend e o frontend rodam `npm test -- --coverage`, que grava `backend/coverage/lcov.info` e `frontend/coverage/lcov.info` para o SonarCloud; localmente, a cobertura só é coletada se você passar `--coverage`. A cobertura de linhas do frontend está em cerca de 86 % (Etapa 8); não há gate de cobertura no CI.
 
 ## 7. Portas e endereços
 
@@ -224,7 +241,7 @@ Fora o grupo de recursos, os nomes aceitam um sufixo (ex.: `-pac8`) para quando 
 
 ### 9.2 Configurações do App Service
 
-Ficam em Configurações → Variáveis de ambiente → Configurações de aplicativo. Os segredos da aplicação (`DATABASE_URL`, `JWT_SECRET`, connection string) existem só aí — nem no repositório, nem nos secrets do GitHub. O bloco "Produção (Azure App Service)" do `backend/.env.example` traz a mesma lista com valores fictícios.
+Ficam em Configurações → Variáveis de ambiente → Configurações de aplicativo. Os segredos da aplicação (`DATABASE_URL`, `JWT_SECRET`, connection string e, com o e-mail configurado, `SMTP_PASS`) existem só aí — nem no repositório, nem nos secrets do GitHub. O bloco "Produção (Azure App Service)" do `backend/.env.example` traz a mesma lista com valores fictícios.
 
 | Variável | Valor | Para quê |
 |----------|-------|----------|
@@ -243,7 +260,18 @@ Ficam em Configurações → Variáveis de ambiente → Configurações de aplic
 | `WEBSITE_RUN_FROM_PACKAGE` | `0` | O pacote é extraído em `/home/site/wwwroot` em vez de montado só para leitura — é onde o seed roda ([9.5](#95-seed-em-produção)). |
 | `WEB_DIR` | `/home/site/wwwroot/web` | Pasta do build do frontend dentro do pacote publicado. A API serve os arquivos — `/assets/` com cache longo, os do PWA na raiz (`sw.js`, `registerSW.js`, `workbox-*.js` e `manifest.webmanifest`) com `Cache-Control: no-cache`, todos com `X-Content-Type-Options: nosniff` — e devolve o `index.html` na raiz e nas navegações do browser pelas rotas da SPA. Vazia (padrão em desenvolvimento, testes e CI), a API não serve o frontend; se a pasta não existir, a API sobe assim mesmo e registra um aviso no log. |
 
-São 14 configurações. A `PORT` não entra na lista: o App Service a injeta, e a API a lê pelo `env.PORT` (o padrão 3000 só vale fora do Azure).
+São 14 configurações. Desde a Etapa 8 há mais seis, **opcionais**, para o link de redefinição de senha — ficam para quando a conta remetente (Gmail com senha de app, Outlook, Brevo ou Azure Communication Services) for escolhida; sem elas, "Redefinir senha" em Usuários responde 503 "Envio de e-mail não configurado." e o resto do app funciona:
+
+| Variável | Valor | Para quê |
+|----------|-------|----------|
+| `SMTP_HOST` | Servidor SMTP da conta remetente (ex.: `smtp.gmail.com`) | Liga o `SmtpEmailProvider`. |
+| `SMTP_PORT` | `587` (STARTTLS) ou `465` (TLS direto) | Porta do servidor; padrão 587. |
+| `SMTP_USER` | Usuário da conta remetente | Autenticação no SMTP. |
+| `SMTP_PASS` | Senha de app da conta remetente (segredo) | Autenticação no SMTP; só no portal. |
+| `EMAIL_FROM` | `ChokoCRM <chokocrm@exemplo.com>` | Remetente; vazio = `SMTP_USER`. |
+| `APP_URL` | Normalmente não definida | Base do link do e-mail. Vazia, vale a `FRONTEND_URL` (o próprio App Service); só definir se o app tiver outro endereço, sempre com `https://`, senão a API não sobe. |
+
+A `PORT` não entra na lista: o App Service a injeta, e a API a lê pelo `env.PORT` (o padrão 3000 só vale fora do Azure).
 
 ### 9.3 Como o deploy acontece
 
@@ -296,6 +324,14 @@ cd /home/site/wwwroot && npm run db:seed
 
 O `npm run db:seed` chama `prisma db seed`, que executa `node --import tsx prisma/seed.ts` (`backend/prisma.config.ts`; pelo mesmo motivo, sem passar pelo `.bin/tsx`), e o seed importa módulos de `src/` em TypeScript. Como o pacote é montado com `npm ci --omit=dev`, `prisma` e `tsx` estão em `dependencies` no `backend/package.json` — o `prisma` também é quem roda o `migrate deploy` do start. O seed carrega `src/config/env.ts`, que exige `DATABASE_URL` e `JWT_SECRET`: se ele reclamar que alguma não está definida, exporte as duas na sessão antes (`export DATABASE_URL='...' JWT_SECRET='...'`) — a `DATABASE_URL` é a mesma das configurações, e para o seed qualquer valor não vazio de `JWT_SECRET` serve. Basta rodar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção. A exceção é quando o próprio seed muda, como na Etapa 7: o Rafael Schmitt, os quatro clientes dele e o gestor renomeado para Maicon Krüger só chegam à produção rodando o seed de novo (ver o checklist de religar em [9.8](#98-desligar-e-religar-entre-janelas)).
 
+**Renovar a demonstração (Etapa 8).** O `db:seed` não renova as datas: as visitas, as campanhas e as metas ficam com as datas do dia em que rodou, e as cores envelhecem. Para renovar, no mesmo SSH:
+
+```bash
+cd /home/site/wwwroot && npm run db:seed:reset -- --confirmar
+```
+
+Ele apaga e recria os dados de demonstração com as datas de hoje (clientes, contatos, visitas e pedidos, mensagens, mudanças de recorrência, campanhas, metas e links de redefinição) e devolve as três contas de demonstração à senha de demonstração. **Atenção: ele apaga também tudo o que os representantes registraram pelo app — por exemplo, os clientes, as visitas e os pedidos lançados durante a validação.** Só as contas criadas pelo app ficam, com a senha delas. Por isso, em produção (`NODE_ENV=production`), o comando sem `--confirmar` se recusa a rodar, explica o que seria apagado e sai com código 1; o `--` repassa o `--confirmar` ao script. Rode-o antes da validação e, de novo, 1 ou 2 dias antes da apresentação só se os dados da validação não precisarem ficar. Como o `db:seed`, ele carrega `src/config/env.ts` (mesmo `export` se faltar alguma variável).
+
 ### 9.6 Logs e monitoramento
 
 - **Log stream do App Service** (portal → `app-chokocrm-api` → Monitoramento → Fluxo de log): saída do processo — as migrations do start, a linha "Telemetria do Application Insights ativa" e os logs JSON do pino. É o primeiro lugar a olhar quando o `smoke` falha.
@@ -314,7 +350,7 @@ O `npm run db:seed` chama `prisma db seed`, que executa `node --import tsx prism
 
 ### 9.8 Desligar e religar entre janelas
 
-O wizard imprime estes checklists no último passo e os grava no resumo — sem os itens do seed e dos alertas de produção acrescentados na Etapa 7, que estão só aqui.
+O wizard imprime estes checklists no último passo e os grava no resumo — sem os itens do seed da Etapa 7 e dos alertas de produção, que estão só aqui.
 
 **Desligar:**
 
@@ -332,9 +368,10 @@ O wizard imprime estes checklists no último passo e os grava no resumo — sem 
 - [ ] Deploy: `gh workflow run deploy.yml` (ou um push na `main`).
 - [ ] Application Insights: `ai-chokocrm` → Disponibilidade → teste `health-api` → Habilitar (Enable) (o nome pode variar).
 - [ ] Conferir o job `smoke` verde no GitHub Actions e o teste de disponibilidade verde no Application Insights.
-- [ ] Rodar o seed por SSH de novo ([9.5](#95-seed-em-produção)) uma vez depois da Etapa 7: é ele que cria o Rafael Schmitt e os quatro clientes dele e renomeia o gestor para Maicon Krüger. As visitas do Rafael são gravadas relativas ao dia em que o seed roda e não se renovam numa execução seguinte; para o contraste entre os representantes no Painel valer na apresentação, rode-o o mais perto dela possível (1 ou 2 dias antes). Depois, entrar como Maicon e conferir que o seletor do Painel mostra "Todos · Eduarda · Rafael".
+- [ ] Envio de e-mail (Etapa 8): se a conta remetente já foi escolhida, conferir `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` e `EMAIL_FROM` nas configurações do App Service ([9.2](#92-configurações-do-app-service)); `APP_URL` só se o app tiver outro endereço (vazia, vale a `FRONTEND_URL`; precisa ser `https://`). Sem SMTP, "Redefinir senha" responde 503 e o resto funciona.
+- [ ] Renovar a demonstração por SSH com `npm run db:seed:reset -- --confirmar` ([9.5](#95-seed-em-produção); em produção, sem `--confirmar` o comando se recusa a rodar) antes da validação com os representantes e de novo 1 ou 2 dias antes da apresentação: ele recria clientes, visitas, pedidos, campanhas e metas com as datas de hoje (o contraste entre os representantes no Painel, a feira em andamento, as metas do mês) e devolve as contas de demonstração à senha de demonstração, mantendo as contas criadas pelo app. **Ele apaga os dados que os representantes registraram durante a validação** (clientes, visitas e pedidos deles): antes da apresentação, só rodar se esses dados não precisarem ficar. Depois, entrar como Maicon e conferir que o seletor do Painel mostra "Todos · Eduarda · Rafael".
 - [ ] Reconferir os alertas de produção no Painel (bloco "O próximo evento está chegando e o estoque acompanha?"): eles dependem do estoque simulado — que avança de 15 em 15 dias — e dos eventos que caem no horizonte escolhido, e os dois mudam com a data. Os clientes do Rafael em Brusque e Itajaí foram calibrados em outubro com estoque baixo de produtos do Natal (`backend/src/config/erpIdsDemonstracao.ts`), mas isso só vale perto da data da calibração.
-- [ ] Antes da apresentação: conferir no Painel se as cores e a agenda ainda contam a história esperada. As cores do seed envelhecem com o calendário — as visitas de demonstração são relativas ao dia em que o seed rodou —, e rodar o seed de novo não renova as visitas de clientes que já têm visitas (os da Eduarda, semeados no primeiro deploy): para eles, registrar check-ins novos nos clientes-chave pelo próprio app.
+- [ ] Antes da apresentação: conferir no Painel se as cores, a agenda, as campanhas e as metas contam a história esperada. As cores do seed envelhecem com o calendário — as visitas de demonstração são relativas ao dia em que o seed rodou —; se envelheceram, rodar `npm run db:seed:reset -- --confirmar` de novo (apaga também os dados da validação).
 
 ### 9.9 Custos e orçamento
 

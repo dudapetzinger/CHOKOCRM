@@ -5,8 +5,22 @@ import { AuthContext, type UsuarioAutenticado } from '../auth/auth-context';
 import { RepresentanteProvider } from './RepresentanteContext';
 import { useRepresentante } from './useRepresentante';
 
-const GESTOR: UsuarioAutenticado = { id: 'g1', nome: 'Gestor', email: 'gestor@exemplo.com', role: 'GESTOR' };
-const OUTRO_GESTOR: UsuarioAutenticado = { id: 'g2', nome: 'Outro', email: 'outro@exemplo.com', role: 'GESTOR' };
+const GESTOR: UsuarioAutenticado = {
+  id: 'g1',
+  nome: 'Gestor',
+  email: 'gestor@exemplo.com',
+  role: 'GESTOR',
+  telefone: null,
+  ativo: true,
+};
+const OUTRO_GESTOR: UsuarioAutenticado = {
+  id: 'g2',
+  nome: 'Outro',
+  email: 'outro@exemplo.com',
+  role: 'GESTOR',
+  telefone: null,
+  ativo: true,
+};
 
 // Sem atraso entre as teclas: o teste não depende da velocidade da máquina.
 let usuario: ReturnType<typeof userEvent.setup>;
@@ -29,7 +43,7 @@ function Sonda() {
 
 function Harness({ usuario, children }: { usuario: UsuarioAutenticado | null; children: ReactNode }) {
   // Objeto novo a cada render, como o AuthProvider real faz ao recalcular o value.
-  const auth = { user: usuario, login: vi.fn(), logout: vi.fn() };
+  const auth = { user: usuario, login: vi.fn(), logout: vi.fn(), recarregarUsuario: vi.fn(async () => {}) };
   return (
     <AuthContext.Provider value={auth}>
       <RepresentanteProvider>{children}</RepresentanteProvider>

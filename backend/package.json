@@ -15,7 +15,8 @@
     "test": "jest --runInBand",
     "lint": "eslint src tests",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:seed:reset": "node --import tsx prisma/seed.ts --reset"
   },
   "keywords": [],
   "author": "",

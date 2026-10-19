@@ -32,6 +32,12 @@ const RAIO_MAXIMO = 28;
 const ESPACO_DO_NOME = 16;
 /** Largura aproximada de um caractere do nome (10 px), para o nome não sair pela borda. */
 const LARGURA_DO_CARACTERE = 5.6;
+/**
+ * Raio mínimo da área de toque de cada bolha: 44 px de diâmetro no celular
+ * (spec 6.4), mesmo nas bolhas pequenas (raio 10 com um cliente). A área é
+ * invisível; a bolha desenhada não muda.
+ */
+const RAIO_DO_TOQUE = 22;
 
 const CLASSES_BOLHA: Record<Cor, { fundo: string; numero: string }> = {
   VERDE: { fundo: 'fill-st-green', numero: 'fill-foreground' },
@@ -104,6 +110,7 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
                   onKeyDown={(evento) => aoTeclar(evento, cidade)}
                 >
                   <title>{cidade.clientes.map((cliente) => cliente.nomeFantasia).join(', ')}</title>
+                  <circle cx={ponto.x} cy={ponto.y} r={Math.max(raio, RAIO_DO_TOQUE)} fill="transparent" />
                   <circle
                     cx={ponto.x}
                     cy={ponto.y}

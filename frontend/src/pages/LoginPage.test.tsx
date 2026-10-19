@@ -33,7 +33,7 @@ function renderizar(
   login: (email: string, senha: string) => Promise<UsuarioAutenticado>,
   entrada: InitialEntry = '/login',
 ) {
-  const auth = { user: null, login, logout: vi.fn() };
+  const auth = { user: null, login, logout: vi.fn(), recarregarUsuario: vi.fn(async () => {}) };
   return render(
     <AuthContext.Provider value={auth}>
       <MemoryRouter initialEntries={[entrada]}>
