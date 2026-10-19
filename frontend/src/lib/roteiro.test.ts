@@ -1,8 +1,10 @@
 import { MUNICIPIOS_SC } from './municipiosSC';
 import {
   coordenadaDaCidade,
+  dividirEmTrechos,
   enderecoCompleto,
   linkGoogleMaps,
+  linksGoogleMaps,
   montarRoteiro,
   normalizarCidade,
   type Parada,
@@ -156,5 +158,83 @@ describe('linkGoogleMaps', () => {
       `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('Rua A, 10 — Blumenau/SC')}&travelmode=driving`,
     );
     expect(link).not.toContain('waypoints');
+  });
+});
+
+describe('linksGoogleMaps (trechos de até 5 paradas)', () => {
+  const dez = Array.from({ length: 10 }, (_, i) => parada(`p${i + 1}`, 'Blumenau', `Rua ${i + 1}, 10`));
+  const enderecoDe = (n: number) => encodeURIComponent(`Rua ${n}, 10 — Blumenau/SC`);
+  const waypointsDe = (url: string) => new URL(url).searchParams.get('waypoints')?.split('|') ?? [];
+
+  it('divide em trechos em que a origem é o destino do anterior, com no máximo 3 waypoints (celular)', () => {
+    expect(dividirEmTrechos(10)).toEqual([
+      { inicio: 0, fim: 4 },
+      { inicio: 4, fim: 8 },
+      { inicio: 8, fim: 9 },
+    ]);
+    expect(dividirEmTrechos(6)).toEqual([
+      { inicio: 0, fim: 4 },
+      { inicio: 4, fim: 5 },
+    ]);
+    expect(dividirEmTrechos(5)).toEqual([{ inicio: 0, fim: 4 }]);
+    expect(dividirEmTrechos(1)).toEqual([{ inicio: 0, fim: 0 }]);
+  });
+
+  it('10 paradas: o 1º trecho vai da parada 1 à 5 e cada trecho seguinte parte de onde o anterior terminou', () => {
+    const links = linksGoogleMaps(dez);
+
+    expect(links.map((link) => link.rotulo)).toEqual(['Trecho 1 de 3', 'Trecho 2 de 3', 'Trecho 3 de 3']);
+    const [primeiro, segundo, terceiro] = links.map((link) => new URL(link.url).searchParams);
+    expect(primeiro!.get('origin')).toBe('Rua 1, 10 — Blumenau/SC');
+    expect(primeiro!.get('waypoints')!.split('|')).toHaveLength(3);
+    expect(primeiro!.get('destination')).toBe('Rua 5, 10 — Blumenau/SC');
+    expect(segundo!.get('origin')).toBe('Rua 5, 10 — Blumenau/SC');
+    expect(segundo!.get('waypoints')!.split('|')).toHaveLength(3);
+    expect(segundo!.get('destination')).toBe('Rua 9, 10 — Blumenau/SC');
+    expect(terceiro!.get('origin')).toBe('Rua 9, 10 — Blumenau/SC');
+    expect(terceiro!.get('waypoints')).toBeNull();
+    expect(terceiro!.get('destination')).toBe('Rua 10, 10 — Blumenau/SC');
+  });
+
+  it('nenhuma parada fica de fora: juntos, os trechos cobrem as 10, e nenhum passa de 3 waypoints', () => {
+    const links = linksGoogleMaps(dez);
+    const cobertas = new Set<string>();
+
+    for (const { url } of links) {
+      const parametros = new URL(url).searchParams;
+      expect(waypointsDe(url).length).toBeLessThanOrEqual(3);
+      [parametros.get('origin'), parametros.get('destination'), ...waypointsDe(url)].forEach((endereco) =>
+        cobertas.add(endereco!),
+      );
+    }
+    expect(cobertas.size).toBe(10);
+  });
+
+  it('5 paradas: um link só, com 3 waypoints e sem rótulo', () => {
+    const [unico, ...outros] = linksGoogleMaps(dez.slice(0, 5));
+
+    expect(outros).toEqual([]);
+    expect(unico!.rotulo).toBe('');
+    expect(waypointsDe(unico!.url)).toHaveLength(3);
+    expect(unico!.url).toContain('%7C');
+    expect(unico!.url).toContain(`origin=${enderecoDe(1)}&destination=${enderecoDe(5)}&waypoints=`);
+  });
+
+  it('6 paradas: dois trechos, o 2º da parada 5 à 6', () => {
+    const links = linksGoogleMaps(dez.slice(0, 6));
+
+    expect(links.map((link) => link.rotulo)).toEqual(['Trecho 1 de 2', 'Trecho 2 de 2']);
+    expect(links[1]!.url).toBe(
+      `https://www.google.com/maps/dir/?api=1&origin=${enderecoDe(5)}&destination=${enderecoDe(6)}&travelmode=driving`,
+    );
+  });
+
+  it('1 parada: um link só, sem waypoints', () => {
+    const links = linksGoogleMaps(dez.slice(0, 1));
+
+    expect(links).toHaveLength(1);
+    expect(links[0]!.url).toBe(
+      `https://www.google.com/maps/dir/?api=1&destination=${enderecoDe(1)}&travelmode=driving`,
+    );
   });
 });

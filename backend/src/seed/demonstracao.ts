@@ -41,22 +41,37 @@ const PRAZO_DA_TRANSACAO_MS = 120_000;
 
 export type ModoDoSeed = 'semear' | 'reiniciar' | 'recusar';
 
-/** Aviso de `--reset` em produção sem `--confirmar` (o processo sai com código 1). */
-export const AVISO_RESET_EM_PRODUCAO = [
-  'Reinício da demonstração recusado: NODE_ENV=production.',
+/** Aviso de `--reset` em produção ou com banco remoto sem `--confirmar` (o processo sai com código 1). */
+export const AVISO_RESET_SEM_CONFIRMACAO = [
+  'Reinício da demonstração recusado: o ambiente é de produção ou o banco é remoto (não é localhost).',
   'O --reset apaga TODOS os clientes, contatos, visitas, pedidos, mensagens de estoque, campanhas e metas,',
   'inclusive os registrados pelos representantes de verdade (por exemplo, na validação); só as contas ficam.',
   'Para confirmar, rode de novo com --confirmar:  npm run db:seed:reset -- --confirmar',
 ].join('\n');
 
+/** Hosts que contam como banco local: a máquina de desenvolvimento e o serviço `db` do Docker Compose. */
+const HOSTS_LOCAIS = new Set(['localhost', '127.0.0.1', '::1', '[::1]', 'db']);
+
+/** O host da `DATABASE_URL` é local? URL malformada conta como remota (na dúvida, pede confirmação). */
+function bancoLocal(databaseUrl: string): boolean {
+  try {
+    return HOSTS_LOCAIS.has(new URL(databaseUrl).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 /**
  * O que `prisma/seed.ts` faz com os argumentos: sem `--reset`, só acrescenta;
- * com `--reset`, reinicia — em produção, só com `--confirmar` também, para o
- * comando destrutivo não rodar por engano (ruling R32).
+ * com `--reset`, reinicia — em produção ou com banco remoto (host da
+ * `DATABASE_URL` que não é localhost, 127.0.0.1, ::1 nem `db`), só com
+ * `--confirmar` também, para o comando destrutivo não rodar por engano
+ * (rulings R32 e R34: não depende só do `NODE_ENV`).
  */
-export function modoDoSeed(argumentos: readonly string[], ambiente: string): ModoDoSeed {
+export function modoDoSeed(argumentos: readonly string[], ambiente: string, databaseUrl: string): ModoDoSeed {
   if (!argumentos.includes('--reset')) return 'semear';
-  if (ambiente === 'production' && !argumentos.includes('--confirmar')) return 'recusar';
+  const exigeConfirmacao = ambiente === 'production' || !bancoLocal(databaseUrl);
+  if (exigeConfirmacao && !argumentos.includes('--confirmar')) return 'recusar';
   return 'reiniciar';
 }
 

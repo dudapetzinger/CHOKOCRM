@@ -75,5 +75,6 @@ export function baixarCsv(conteudo: string, nome: string): void {
   document.body.append(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  // Adiado: o Safari/iOS pode abortar o download se a URL é liberada logo após o clique.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

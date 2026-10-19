@@ -134,11 +134,38 @@ function terminaComACidade(endereco: string, cidade: string): boolean {
 }
 
 /**
- * Link de rota do Google Maps (Maps URLs, `api=1`): origem na primeira
- * parada, destino na última e as do meio como `waypoints` separados por `|`
- * (codificado `%7C`), de carro; cada endereço com `encodeURIComponent`. Com
- * uma parada só, vai só o destino — sem origem, o Google Maps parte da
- * localização do aparelho (origem e destino iguais dariam um trajeto vazio).
+ * Paradas por link do Google Maps: origem + até 3 waypoints + destino. A
+ * documentação dos Maps URLs aceita 3 waypoints nos navegadores de celular
+ * (9 nos demais); com mais que isso, o celular descarta paradas em silêncio.
+ */
+export const PARADAS_POR_TRECHO = 5;
+
+export type Trecho = { inicio: number; fim: number };
+
+/**
+ * Divide `total` paradas em trechos de até `PARADAS_POR_TRECHO`; a origem de
+ * cada trecho é o destino do anterior (a vendedora segue de onde parou):
+ * 10 paradas → 1–5, 5–9 e 9–10; 6 → 1–5 e 5–6; até 5 → um trecho só.
+ * `inicio` e `fim` são índices das paradas (base 0, `fim` inclusivo).
+ */
+export function dividirEmTrechos(total: number): Trecho[] {
+  const trechos: Trecho[] = [];
+  let inicio = 0;
+  do {
+    const fim = Math.min(inicio + PARADAS_POR_TRECHO - 1, total - 1);
+    trechos.push({ inicio, fim: Math.max(fim, inicio) });
+    inicio = fim;
+  } while (inicio < total - 1);
+  return trechos;
+}
+
+/**
+ * Link de rota do Google Maps (Maps URLs, `api=1`) para um trecho: origem na
+ * primeira parada, destino na última e as do meio como `waypoints` separados
+ * por `|` (codificado `%7C`), de carro; cada endereço com
+ * `encodeURIComponent`. Com uma parada só, vai só o destino — sem origem, o
+ * Google Maps parte da localização do aparelho (origem e destino iguais
+ * dariam um trajeto vazio).
  */
 export function linkGoogleMaps(paradas: Pick<Parada, 'endereco' | 'cidade'>[]): string {
   const enderecos = paradas.map((parada) => encodeURIComponent(enderecoCompleto(parada)));
@@ -154,4 +181,18 @@ export function linkGoogleMaps(paradas: Pick<Parada, 'endereco' | 'cidade'>[]): 
     (meio.length > 0 ? `&waypoints=${meio.join('%7C')}` : '') +
     '&travelmode=driving'
   );
+}
+
+/**
+ * Um link por trecho do roteiro (`dividirEmTrechos`), com o rótulo "Trecho 1
+ * de 3"; com um trecho só, o rótulo vem vazio e há um único link.
+ */
+export function linksGoogleMaps(
+  paradas: Pick<Parada, 'endereco' | 'cidade'>[],
+): { rotulo: string; url: string }[] {
+  const trechos = dividirEmTrechos(paradas.length);
+  return trechos.map(({ inicio, fim }, indice) => ({
+    rotulo: trechos.length === 1 ? '' : `Trecho ${indice + 1} de ${trechos.length}`,
+    url: linkGoogleMaps(paradas.slice(inicio, fim + 1)),
+  }));
 }

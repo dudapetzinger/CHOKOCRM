@@ -415,6 +415,24 @@ describe('AgendaPage — roteiro do dia (spec 7.9)', () => {
     expect(roteiro.getByText('+2 clientes da agenda fora do roteiro')).toBeInTheDocument();
   });
 
+  it('com mais de 5 paradas, o roteiro vira trechos: um botão do Google Maps por trecho e a parada de emenda marcada', async () => {
+    const atrasadas = Array.from({ length: 10 }, (_, i) => ({ ...ATRASADA, id: `a${i}`, nomeFantasia: `Cliente ${i}` }));
+    renderizarComo('REPRESENTANTE', { atrasadas });
+
+    const roteiro = within(await screen.findByRole('region', { name: 'Roteiro do dia' }));
+    const links = roteiro.getAllByRole('link', { name: /Abrir no Google Maps/ });
+    expect(links.map((link) => link.textContent)).toEqual([
+      'Abrir no Google Maps — Trecho 1 de 3 (abre em nova aba)',
+      'Abrir no Google Maps — Trecho 2 de 3 (abre em nova aba)',
+      'Abrir no Google Maps — Trecho 3 de 3 (abre em nova aba)',
+    ]);
+    links.forEach((link) => expect(link).toHaveAttribute('target', '_blank'));
+    const paradas = roteiro.getAllByRole('listitem');
+    expect(paradas[4]).toHaveTextContent('fim do trecho 1 · início do trecho 2');
+    expect(paradas[8]).toHaveTextContent('fim do trecho 2 · início do trecho 3');
+    expect(paradas[3]).not.toHaveTextContent('fim do trecho');
+  });
+
   it('o gestor só vê o roteiro depois de escolher um representante', async () => {
     const usuario = userEvent.setup();
     renderizarComo('GESTOR', { atrasadas: [ATRASADA], hoje: [] });

@@ -805,7 +805,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 1. Na "Agenda do dia", o sistema mostra o cartão "Roteiro do dia" acima das seções.
 2. O sistema monta as paradas com os 10 primeiros clientes da agenda, na ordem de urgência (atrasados, depois hoje): a parada 1 é a mais urgente e, dali em diante, a cidade mais próxima.
 3. O sistema mostra os chips "1 Nome · Cidade" ligados pela distância ("→ 12 km →" ou "mesma cidade") e o resumo "N paradas · cerca de X km".
-4. O ator escolhe "Abrir no Google Maps" e o sistema abre, em nova aba (no celular, o app do Google Maps), o trajeto com origem na parada 1, destino na última e as demais como paradas, pelos endereços completos.
+4. O ator escolhe "Abrir no Google Maps" e o sistema abre, em nova aba (no celular, o app do Google Maps), o trajeto pelos endereços completos. Como o Google Maps do celular aceita só 3 paradas intermediárias por link, o roteiro vira trechos de até 5 paradas, com um botão por trecho ("Trecho 1 de 3"): a origem de cada trecho é o destino do anterior.
 
 **Fluxos alternativos:**
 - **A1** (passo 2): a agenda tem mais de 10 clientes — o cartão avisa "+N clientes da agenda fora do roteiro".

@@ -86,7 +86,12 @@ describe('nomeDoArquivoRelatorio', () => {
 });
 
 describe('baixarCsv', () => {
-  it('baixa um Blob de CSV por um link com download e libera a URL', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('baixa um Blob de CSV por um link com download e libera a URL logo depois (adiado, por causa do Safari)', () => {
+    vi.useFakeTimers();
     const criarUrl = vi.fn((_blob: Blob) => 'blob:relatorio');
     const liberarUrl = vi.fn();
     Object.assign(URL, { createObjectURL: criarUrl, revokeObjectURL: liberarUrl });
@@ -100,6 +105,8 @@ describe('baixarCsv', () => {
     expect(clique).toHaveBeenCalledTimes(1);
     const blob = criarUrl.mock.calls[0]![0];
     expect(blob.type).toBe('text/csv;charset=utf-8');
+    expect(liberarUrl).not.toHaveBeenCalled();
+    vi.runAllTimers();
     expect(liberarUrl).toHaveBeenCalledWith('blob:relatorio');
     expect(document.querySelector('a[download]')).toBeNull();
     clique.mockRestore();
