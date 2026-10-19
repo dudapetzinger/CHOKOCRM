@@ -5,12 +5,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthContext, type Role } from '../auth/auth-context';
 import { RepresentanteProvider } from '../representante/RepresentanteContext';
 import { ApiError } from '../services/api';
-import { buscarAgendaDoDia, type Agenda, type AgendaItem } from '../services/agenda';
+import { buscarAgendaDoDia, buscarCalendario, type Agenda, type AgendaItem } from '../services/agenda';
 import { listarCampanhas, type Campanha } from '../services/campaigns';
 import { removerSimulacaoDeLargura, simularLargura } from '../test/simularLargura';
 import { AgendaPage } from './AgendaPage';
 
-vi.mock('../services/agenda', () => ({ buscarAgendaDoDia: vi.fn() }));
+vi.mock('../services/agenda', () => ({ buscarAgendaDoDia: vi.fn(), buscarCalendario: vi.fn() }));
 vi.mock('../services/campaigns', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/campaigns')>()),
   listarCampanhas: vi.fn(),
@@ -109,6 +109,11 @@ function renderizarComo(role: Role, resposta: Resposta) {
   return { queryClient };
 }
 
+/** Nome de um título de seção: o `aria-label` com a contagem ou, sem ele, o texto ("Roteiro do dia"). */
+function nomeDoTitulo(titulo: HTMLElement): string | null {
+  return titulo.getAttribute('aria-label') ?? titulo.textContent;
+}
+
 /** A seção pelo nome da região, que é o título com a contagem ("Atrasadas · 1"). */
 function secao(nome: string) {
   return screen.getByRole('region', { name: nome });
@@ -117,6 +122,9 @@ function secao(nome: string) {
 beforeEach(() => {
   simularLargura(false);
   vi.mocked(listarCampanhas).mockReset().mockResolvedValue([]);
+  vi.mocked(buscarCalendario)
+    .mockReset()
+    .mockImplementation(async (mes) => ({ mes, itens: [] }));
 });
 
 afterEach(() => {
@@ -190,9 +198,9 @@ describe('AgendaPage (celular)', () => {
     expect(proximos.getByText('Armazém São Bento')).toBeInTheDocument();
     expect(proximos.getByText('Pomerode · Prevista para 20/10 · Levar amostras de Natal')).toBeInTheDocument();
     expect(proximos.getByRole('link', { name: 'Check-in' })).toHaveAttribute('href', '/clientes/c3/check-in');
-    // Depois de Atrasadas
+    // Depois do roteiro e de Atrasadas
     const titulos = screen.getAllByRole('heading', { level: 2 });
-    expect(titulos.map((titulo) => titulo.getAttribute('aria-label'))).toEqual(['Atrasadas · 1', 'Próximos 7 dias · 1']);
+    expect(titulos.map(nomeDoTitulo)).toEqual(['Roteiro do dia', 'Atrasadas · 1', 'Próximos 7 dias · 1']);
   });
 
   it('sem visitas nos próximos 7 dias, a seção não aparece', async () => {
@@ -235,7 +243,7 @@ describe('AgendaPage (celular)', () => {
     await screen.findByRole('option', { name: 'Eduarda Fischer' });
     await usuario.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por representante' }), 'u1');
 
-    expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Atrasadas · 1' })).toHaveTextContent('Doces da Vovó');
     expect(buscarAgendaDoDia).toHaveBeenLastCalledWith('u1');
     expect(screen.queryByText(/Rep\.:/)).not.toBeInTheDocument();
   });
@@ -256,13 +264,13 @@ describe('AgendaPage (celular)', () => {
 
   it('com a agenda já carregada, um refetch que falha por rede mantém as visitas e mostra o aviso acima', async () => {
     const { queryClient } = renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [] });
-    expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Atrasadas · 1' })).toHaveTextContent('Doces da Vovó');
 
     vi.mocked(buscarAgendaDoDia).mockRejectedValue(new ApiError('NETWORK', 'Você está sem internet.'));
     await act(() => queryClient.refetchQueries({ queryKey: ['agenda'] }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Você está sem internet.');
-    expect(screen.getByText('Doces da Vovó')).toBeInTheDocument();
+    expect(within(secao('Atrasadas · 1')).getByText('Doces da Vovó')).toBeInTheDocument();
   });
 });
 
@@ -341,7 +349,7 @@ describe('AgendaPage (desktop, a partir de 1024 px)', () => {
     renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE] });
 
     const titulos = await screen.findAllByRole('heading', { level: 2 });
-    expect(titulos.map((titulo) => titulo.getAttribute('aria-label'))).toEqual(['Atrasadas · 1', 'Hoje · 1']);
+    expect(titulos.map(nomeDoTitulo)).toEqual(['Roteiro do dia', 'Atrasadas · 1', 'Hoje · 1']);
     expect(within(secao('Atrasadas · 1')).getByText('Doces da Vovó')).toBeInTheDocument();
     expect(within(secao('Hoje · 1')).getByText('Empório Central')).toBeInTheDocument();
   });
@@ -365,5 +373,84 @@ describe('AgendaPage (desktop, a partir de 1024 px)', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 0' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 2, name: /^Próximos 7 dias/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('AgendaPage — roteiro do dia (spec 7.9)', () => {
+  it('o representante vê o roteiro com as atrasadas e as de hoje, a distância e o link do Google Maps', async () => {
+    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE], proximos7Dias: [PROXIMA] });
+
+    const roteiro = within(await screen.findByRole('region', { name: 'Roteiro do dia' }));
+    expect(roteiro.getByText(/^2 paradas · cerca de [0-9]+ km$/)).toBeInTheDocument();
+    const paradas = roteiro.getAllByRole('listitem');
+    expect(paradas).toHaveLength(2);
+    expect(paradas[0]).toHaveTextContent('1Doces da Vovó · Joinville');
+    expect(paradas[1]).toHaveTextContent(/→ [0-9]+ km →2Empório Central · Blumenau/);
+    const link = roteiro.getByRole('link', { name: /Abrir no Google Maps/ });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/dir/?api=1' +
+        `&origin=${encodeURIComponent('Rua das Palmeiras, 50 — Joinville/SC')}` +
+        `&destination=${encodeURIComponent('Rua XV de Novembro, 100 — Blumenau/SC')}&travelmode=driving`,
+    );
+  });
+
+  it('sem atrasadas nem de hoje, não há roteiro', async () => {
+    renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA] });
+
+    expect(await screen.findByRole('region', { name: 'Próximos 7 dias · 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Roteiro do dia' })).not.toBeInTheDocument();
+  });
+
+  it('com mais de 10 clientes na agenda, avisa quantos ficaram fora do roteiro', async () => {
+    const atrasadas = Array.from({ length: 12 }, (_, i) => ({ ...ATRASADA, id: `a${i}`, nomeFantasia: `Cliente ${i}` }));
+    renderizarComo('REPRESENTANTE', { atrasadas });
+
+    const roteiro = within(await screen.findByRole('region', { name: 'Roteiro do dia' }));
+    const paradas = roteiro.getAllByRole('listitem');
+    expect(paradas).toHaveLength(10);
+    expect(paradas[1]).toHaveTextContent('→ mesma cidade →2Cliente 1 · Joinville');
+    expect(roteiro.getByText('+2 clientes da agenda fora do roteiro')).toBeInTheDocument();
+  });
+
+  it('o gestor só vê o roteiro depois de escolher um representante', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('GESTOR', { atrasadas: [ATRASADA], hoje: [] });
+    expect(await screen.findByRole('region', { name: 'Atrasadas · 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Roteiro do dia' })).not.toBeInTheDocument();
+
+    await screen.findByRole('option', { name: 'Eduarda Fischer' });
+    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por representante' }), 'u1');
+
+    expect(await screen.findByRole('region', { name: 'Roteiro do dia' })).toBeInTheDocument();
+  });
+});
+
+describe('AgendaPage — calendário (spec 7.6)', () => {
+  it('o segmentado troca a agenda do dia pelo calendário do mês, sem o roteiro', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE] });
+    expect(await screen.findByRole('region', { name: 'Roteiro do dia' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Agenda do dia' })).toBeChecked();
+
+    await usuario.click(screen.getByRole('radio', { name: 'Calendário' }));
+
+    expect(screen.getByRole('radio', { name: 'Calendário' })).toBeChecked();
+    expect(screen.getByRole('region', { name: 'Calendário do mês' })).toBeInTheDocument();
+    expect(buscarCalendario).toHaveBeenCalledWith(expect.stringMatching(/^[0-9]{4}-[0-9]{2}$/), undefined);
+    expect(screen.queryByRole('region', { name: 'Roteiro do dia' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Atrasadas · 1' })).not.toBeInTheDocument();
+  });
+
+  it('o gestor com um representante escolhido busca o calendário dele', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('GESTOR', { atrasadas: [ATRASADA] });
+    await screen.findByRole('option', { name: 'Eduarda Fischer' });
+    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por representante' }), 'u1');
+
+    await usuario.click(screen.getByRole('radio', { name: 'Calendário' }));
+
+    expect(buscarCalendario).toHaveBeenLastCalledWith(expect.stringMatching(/^[0-9]{4}-[0-9]{2}$/), 'u1');
   });
 });

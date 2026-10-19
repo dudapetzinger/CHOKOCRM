@@ -15,14 +15,23 @@
  * agenda vazia vira uma única mensagem. "Próximos 7 dias" vem depois, na
  * largura toda, e só aparece quando tem visitas (como "Próximas agendadas" no
  * protótipo).
+ *
+ * No topo, o segmentado "Agenda do dia | Calendário" (spec 7.6; a escolha
+ * fica na URL, `?visao=calendario`, para voltar da ficha no mesmo lugar). Na
+ * agenda do dia, o "Roteiro do dia" (spec 7.9) vem acima das seções, com as
+ * atrasadas e as de hoje na ordem de urgência; para o gestor, só com um
+ * representante escolhido.
  */
 import { useId } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Megaphone } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { AgendaItemRow } from '../components/AgendaItemRow';
+import { Calendario } from '../components/crm/Calendario';
+import { Roteiro } from '../components/crm/Roteiro';
 import { Aviso } from '../components/crm/ui';
 import { EstadoVazio } from '../components/EstadoVazio';
+import { Segmentado } from '../components/Segmentado';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { useAgenda } from '../hooks/useAgenda';
 import { useCampanhas } from '../hooks/useCampanhas';
@@ -115,28 +124,64 @@ function CampanhasEmAndamento() {
   );
 }
 
+type Visao = 'dia' | 'calendario';
+
+const OPCOES_VISAO = [
+  { valor: 'dia', rotulo: 'Agenda do dia' },
+  { valor: 'calendario', rotulo: 'Calendário' },
+] as const;
+
 export function AgendaPage() {
   const representanteId = useRepresentanteSelecionado();
+  const { user } = useAuth();
+  const [busca, setBusca] = useSearchParams();
+  const visao: Visao = busca.get('visao') === 'calendario' ? 'calendario' : 'dia';
+
+  function trocarVisao(nova: Visao) {
+    setBusca(nova === 'calendario' ? { visao: 'calendario' } : {}, { replace: true });
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Área de topo, acima das seções: a troca entre agenda do dia e
+          calendário, a barra do gestor (o select some para o representante)
+          e os chips das campanhas em andamento — os controles que valem para
+          a agenda inteira. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Segmentado ariaLabel="Visão da agenda" opcoes={OPCOES_VISAO} valor={visao} onChange={trocarVisao} />
+        <SeletorRepresentante className="w-full md:w-auto" />
+        <CampanhasEmAndamento />
+      </div>
+
+      {visao === 'calendario' ? (
+        <>
+          <p className="text-sm text-muted-foreground">
+            A data prevista da próxima visita de cada cliente no mês — as já vencidas aparecem no dia de hoje — e as
+            datas sazonais{user?.role === 'GESTOR' ? ', com as campanhas e eventos' : ''}.
+          </p>
+          <Calendario representanteId={representanteId} />
+        </>
+      ) : (
+        <AgendaDoDia
+          representanteId={representanteId}
+          mostrarRoteiro={user?.role === 'REPRESENTANTE' || representanteId !== undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+function AgendaDoDia({ representanteId, mostrarRoteiro }: { representanteId?: string; mostrarRoteiro: boolean }) {
   const { data, isLoading, isError, error } = useAgenda(representanteId);
   const duasColunas = useLarguraDuasColunas();
 
   const semVisitas = data && data.atrasadas.length === 0 && data.hoje.length === 0;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Área de topo, acima das seções: a barra do gestor (o select some
-          para o representante) e os chips das campanhas em andamento; sem
-          nenhum dos dois, a área some. É o lugar dos controles que valem para
-          a agenda inteira — também a troca entre agenda do dia e calendário e
-          o roteiro do dia (spec 7.6 e 7.9). */}
-      <div className="flex flex-wrap items-center gap-3 empty:hidden">
-        <SeletorRepresentante className="w-full md:w-auto" />
-        <CampanhasEmAndamento />
-      </div>
-
+    <>
       <p className="text-sm text-muted-foreground">
         Clientes com visita atrasada ou prevista para hoje, priorizados pela cor de classificação — vermelho e
-        laranja antes de amarelo e verde.
+        laranja antes de amarelo e verde —, e os previstos para os próximos 7 dias.
       </p>
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando agenda...</p>}
@@ -147,6 +192,17 @@ export function AgendaPage() {
         <Aviso tom="erro" role="alert">
           {mensagemErroApi(error, 'Não foi possível carregar a agenda.')}
         </Aviso>
+      )}
+
+      {data && mostrarRoteiro && (
+        <Roteiro
+          paradas={[...data.atrasadas, ...data.hoje].map((item) => ({
+            id: item.id,
+            nome: item.nomeFantasia,
+            cidade: item.cidade,
+            endereco: item.endereco,
+          }))}
+        />
       )}
 
       {data && duasColunas && (
@@ -167,7 +223,7 @@ export function AgendaPage() {
       )}
 
       {data && data.proximos7Dias.length > 0 && <SecaoAgenda titulo="Próximos 7 dias" itens={data.proximos7Dias} />}
-    </div>
+    </>
   );
 }
 

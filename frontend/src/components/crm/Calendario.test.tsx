@@ -1,0 +1,214 @@
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
+import { AuthContext, type Role } from '../../auth/auth-context';
+import { buscarCalendario, type ItemCalendario } from '../../services/agenda';
+import { Calendario } from './Calendario';
+
+vi.mock('../../services/agenda', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/agenda')>()),
+  buscarCalendario: vi.fn(),
+}));
+
+const VISITA_MARCADA: ItemCalendario = {
+  data: '2026-10-22',
+  tipo: 'VISITA',
+  titulo: 'Empório Central',
+  clienteId: 'c1',
+  origem: 'CHECK_IN',
+  recorrenciaDias: 15,
+  lembrete: 'Levar amostras de Natal',
+  representante: { id: 'u1', nome: 'Eduarda Fischer' },
+  campanha: { id: 'cp1', nome: 'Natal Chokolaten' },
+};
+
+const VISITA_PREVISTA: ItemCalendario = {
+  data: '2026-10-19',
+  tipo: 'VISITA',
+  titulo: 'Doces da Vovó',
+  clienteId: 'c2',
+  origem: 'RECORRENCIA',
+  recorrenciaDias: 21,
+  lembrete: null,
+  representante: { id: 'u1', nome: 'Eduarda Fischer' },
+  campanha: null,
+  detalhe: 'Visita prevista venceu há 2 dias (17/10)',
+};
+
+const SAZONAL: ItemCalendario = {
+  data: '2026-10-12',
+  tipo: 'DATA_SAZONAL',
+  titulo: 'Dia das Crianças',
+  detalhe: 'Data sazonal',
+};
+
+const CAMPANHA: ItemCalendario = {
+  data: '2026-10-22',
+  tipo: 'CAMPANHA',
+  titulo: 'Natal Chokolaten',
+  campanha: { id: 'cp1', nome: 'Natal Chokolaten' },
+  detalhe: 'Campanha · 20/10/2026 a 24/12/2026',
+};
+
+function FichaFalsa() {
+  const { id } = useParams();
+  return <p>Ficha do cliente {id}</p>;
+}
+
+function renderizar(role: Role = 'REPRESENTANTE', itens: ItemCalendario[] = [VISITA_MARCADA, VISITA_PREVISTA, SAZONAL]) {
+  vi.mocked(buscarCalendario).mockImplementation(async (mes) => ({ mes, itens: mes === '2026-10' ? itens : [] }));
+  const auth = {
+    user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role },
+    login: vi.fn(),
+    logout: vi.fn(),
+  };
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={auth}>
+        <MemoryRouter initialEntries={['/agenda']}>
+          <Routes>
+            <Route path="/agenda" element={<Calendario />} />
+            <Route path="/clientes/:id" element={<FichaFalsa />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
+  );
+}
+
+/** O painel do dia: a região com o nome do dia selecionado. */
+function painelDoDia(nome: string | RegExp) {
+  return screen.getByRole('region', { name: nome });
+}
+
+let usuario: ReturnType<typeof userEvent.setup>;
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-19T15:00:00Z'));
+  usuario = userEvent.setup({ delay: null });
+  vi.mocked(buscarCalendario).mockReset();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('Calendario', () => {
+  it('abre no mês de hoje, com hoje selecionado e marcado como a data atual', async () => {
+    renderizar();
+
+    expect(screen.getByRole('heading', { name: 'Outubro de 2026' })).toBeInTheDocument();
+    const hoje = await screen.findByRole('button', { name: 'segunda-feira, 19 de outubro, 1 item' });
+    expect(hoje).toHaveAttribute('aria-current', 'date');
+    expect(hoje).toHaveAttribute('aria-pressed', 'true');
+    expect(buscarCalendario).toHaveBeenCalledWith('2026-10', undefined);
+    expect(within(painelDoDia('segunda-feira, 19 de outubro')).getByText('Doces da Vovó')).toBeInTheDocument();
+  });
+
+  it('a grade tem 42 dias, de domingo 27/09 a sábado 07/11', async () => {
+    renderizar();
+
+    await screen.findByRole('button', { name: /^quinta-feira, 22 de outubro/ });
+    const dias = screen.getAllByRole('button', { name: /-feira|sábado|domingo/ });
+    expect(dias).toHaveLength(42);
+    expect(dias[0]).toHaveAccessibleName(/^domingo, 27 de setembro/);
+    expect(dias[41]).toHaveAccessibleName(/^sábado, 7 de novembro/);
+  });
+
+  it('clicar num dia mostra a lista do dia, com a origem da visita, o lembrete e a campanha', async () => {
+    renderizar();
+
+    await usuario.click(await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' }));
+
+    const painel = painelDoDia('quinta-feira, 22 de outubro');
+    expect(within(painel).getByText('Empório Central')).toBeInTheDocument();
+    expect(within(painel).getByText('Marcada no check-in · Levar amostras de Natal')).toBeInTheDocument();
+    expect(within(painel).getByText('Natal Chokolaten')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('a visita prevista pela recorrência diz de quantos dias e quando venceu', async () => {
+    renderizar();
+
+    const painel = painelDoDia('segunda-feira, 19 de outubro');
+    expect(
+      await within(painel).findByText('Prevista pela recorrência de 21 dias · Visita prevista venceu há 2 dias (17/10)'),
+    ).toBeInTheDocument();
+  });
+
+  it('dia sem itens diz que não há nada', async () => {
+    renderizar();
+
+    await usuario.click(await screen.findByRole('button', { name: 'terça-feira, 20 de outubro, nenhum item' }));
+
+    expect(within(painelDoDia('terça-feira, 20 de outubro')).getByText('Nada neste dia.')).toBeInTheDocument();
+  });
+
+  it('item de cliente leva à ficha do cliente', async () => {
+    renderizar();
+
+    await usuario.click(await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' }));
+    await usuario.click(within(painelDoDia('quinta-feira, 22 de outubro')).getByRole('link', { name: /Empório Central/ }));
+
+    expect(screen.getByText('Ficha do cliente c1')).toBeInTheDocument();
+  });
+
+  it('data sazonal aparece no dia, sem link', async () => {
+    renderizar();
+
+    await usuario.click(await screen.findByRole('button', { name: 'segunda-feira, 12 de outubro, 1 item' }));
+
+    const painel = painelDoDia('segunda-feira, 12 de outubro');
+    expect(within(painel).getByText('Dia das Crianças')).toBeInTheDocument();
+    expect(within(painel).queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('com mais de 3 itens no dia, a célula mostra os 3 primeiros e "+N"', async () => {
+    const muitos = Array.from({ length: 5 }, (_, i) => ({ ...VISITA_MARCADA, clienteId: `c${i}`, titulo: `Cliente ${i}` }));
+    renderizar('REPRESENTANTE', muitos);
+
+    const dia = await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 5 itens' });
+    expect(within(dia).getByText('+2')).toBeInTheDocument();
+    expect(within(dia).getByText('Cliente 2')).toBeInTheDocument();
+    expect(within(dia).queryByText('Cliente 3')).not.toBeInTheDocument();
+  });
+
+  it('as setas trocam o mês e buscam o novo; "Hoje" volta ao mês e ao dia de hoje', async () => {
+    renderizar();
+
+    await usuario.click(screen.getByRole('button', { name: 'Próximo mês' }));
+    expect(screen.getByRole('heading', { name: 'Novembro de 2026' })).toBeInTheDocument();
+    expect(buscarCalendario).toHaveBeenCalledWith('2026-11', undefined);
+
+    await usuario.click(screen.getByRole('button', { name: 'Mês anterior' }));
+    await usuario.click(screen.getByRole('button', { name: 'Mês anterior' }));
+    expect(screen.getByRole('heading', { name: 'Setembro de 2026' })).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: 'Hoje' }));
+    expect(screen.getByRole('heading', { name: 'Outubro de 2026' })).toBeInTheDocument();
+    expect(painelDoDia('segunda-feira, 19 de outubro')).toBeInTheDocument();
+  });
+
+  it('o representante não vê "Campanha/evento" na legenda', async () => {
+    renderizar('REPRESENTANTE');
+    const legenda = screen.getByRole('list', { name: 'Legenda' });
+    expect(within(legenda).queryByText('Campanha/evento')).not.toBeInTheDocument();
+    expect(within(legenda).getByText('Data sazonal')).toBeInTheDocument();
+  });
+
+  it('o gestor vê a campanha no dia e de quem é cada visita', async () => {
+    renderizar('GESTOR', [VISITA_MARCADA, CAMPANHA]);
+
+    expect(within(screen.getByRole('list', { name: 'Legenda' })).getByText('Campanha/evento')).toBeInTheDocument();
+    await usuario.click(await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 2 itens' }));
+    const painel = painelDoDia('quinta-feira, 22 de outubro');
+    expect(within(painel).getByText('Campanha · 20/10/2026 a 24/12/2026')).toBeInTheDocument();
+    expect(within(painel).getByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
+  });
+});

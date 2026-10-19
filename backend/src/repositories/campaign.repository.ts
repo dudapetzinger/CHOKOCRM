@@ -1,6 +1,7 @@
 import type { Campaign, TipoCampanha } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import type { VisitaVinculada } from '../services/campaign.regras';
+import { colunaDateDaData, type DataCalendario } from '../services/classificacao.service';
 
 /** Campanha como a tabela a grava: `inicio` e `fim` já como valor de coluna `@db.Date`. */
 export type CampanhaData = {
@@ -16,6 +17,18 @@ export type CampanhaData = {
 /** Todas, em ordem de início (e de nome, no mesmo dia). */
 export async function listar(): Promise<Campaign[]> {
   return prisma.campaign.findMany({ orderBy: [{ inicio: 'asc' }, { nome: 'asc' }] });
+}
+
+/**
+ * As que têm algum dia em `[de, ate]` (inclusivos): `inicio <= ate` e
+ * `fim >= de`, comparando as colunas `@db.Date` com meia-noite UTC. Base do
+ * calendário da Agenda.
+ */
+export async function listarNoIntervalo(de: DataCalendario, ate: DataCalendario): Promise<Campaign[]> {
+  return prisma.campaign.findMany({
+    where: { inicio: { lte: colunaDateDaData(ate) }, fim: { gte: colunaDateDaData(de) } },
+    orderBy: [{ inicio: 'asc' }, { nome: 'asc' }],
+  });
 }
 
 export async function findById(id: string): Promise<Campaign | null> {

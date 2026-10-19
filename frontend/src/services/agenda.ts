@@ -1,6 +1,7 @@
 /**
- * Acesso tipado à API da agenda do dia (UC10, Etapa 4). Espelha o shape de
- * `backend`'s `GET /agenda/today`: o representante vê só a própria carteira,
+ * Acesso tipado à API da agenda do dia (UC10, Etapa 4) e do calendário do
+ * mês (spec 7.6, Etapa 8). Espelha o shape de `GET /agenda/today` e `GET
+ * /agenda/calendario` do backend: o representante vê só a própria carteira,
  * o gestor vê todos os clientes ou só os de um representante
  * (`representanteId`, Etapa 7).
  */
@@ -41,4 +42,41 @@ type AgendaResponse = { data: Agenda };
 export function buscarAgendaDoDia(representanteId?: string): Promise<Agenda> {
   const qs = representanteId ? `?${new URLSearchParams({ representanteId })}` : '';
   return api.get<AgendaResponse>(`/agenda/today${qs}`).then((resposta) => resposta.data);
+}
+
+/**
+ * Um item num dia do calendário (spec 7.6), como `ItemCalendario` de
+ * `backend/src/services/agenda.calendario.ts`: a visita prevista de um
+ * cliente (as vencidas vêm no dia de hoje), um dia de campanha (só para o
+ * gestor) ou uma data sazonal.
+ */
+export type ItemCalendario = {
+  /** `AAAA-MM-DD`. */
+  data: string;
+  tipo: 'VISITA' | 'CAMPANHA' | 'DATA_SAZONAL';
+  /** Nome do cliente, da campanha ou do evento. */
+  titulo: string;
+  clienteId?: string;
+  /** A data da visita foi marcada no check-in ou vem da recorrência. */
+  origem?: 'CHECK_IN' | 'RECORRENCIA';
+  recorrenciaDias?: number;
+  lembrete?: string | null;
+  representante?: { id: string; nome: string };
+  /** Na visita, a campanha da próxima visita; na campanha, ela mesma. */
+  campanha?: { id: string; nome: string } | null;
+  /** Texto pronto do backend: vencimento da visita, tipo e período da campanha, "Data sazonal". */
+  detalhe?: string;
+};
+
+export type Calendario = {
+  /** `AAAA-MM`. */
+  mes: string;
+  /** Por dia; no mesmo dia, data sazonal, campanha e visitas da mais urgente para a menos. */
+  itens: ItemCalendario[];
+};
+
+/** `mes` no formato `AAAA-MM`; `representanteId` como em `buscarAgendaDoDia`. */
+export function buscarCalendario(mes: string, representanteId?: string): Promise<Calendario> {
+  const qs = new URLSearchParams({ mes, ...(representanteId ? { representanteId } : {}) });
+  return api.get<{ data: Calendario }>(`/agenda/calendario?${qs}`).then((resposta) => resposta.data);
 }

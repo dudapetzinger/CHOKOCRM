@@ -300,3 +300,111 @@ describe('GET /agenda/today com representanteId', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
+
+describe('GET /agenda/calendario', () => {
+  const hojeCal = (): string => dataCalendario(new Date());
+  const mesAtual = (): string => hojeCal().slice(0, 7);
+
+  type Item = { data: string; tipo: string; clienteId?: string; titulo: string };
+
+  function visitas(res: request.Response): Item[] {
+    return res.body.data.itens.filter((item: Item) => item.tipo === 'VISITA');
+  }
+
+  async function criarCampanhaDeHoje(): Promise<void> {
+    const dia = new Date(`${hojeCal()}T00:00:00.000Z`);
+    await prisma.campaign.create({
+      data: { nome: 'Campanha do mês', tipo: 'CAMPANHA', inicio: dia, fim: dia, produtos: [] },
+    });
+  }
+
+  it('sem token responde 401', async () => {
+    const res = await request(app).get('/agenda/calendario').query({ mes: mesAtual() });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('representante vê a própria carteira, com as vencidas no dia de hoje', async () => {
+    const res = await request(app)
+      .get('/agenda/calendario')
+      .query({ mes: mesAtual() })
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.mes).toBe(mesAtual());
+    const doDia = visitas(res).filter((item) => item.data === hojeCal());
+    expect(doDia.map((item) => item.clienteId)).toEqual(expect.arrayContaining([clienteAtrasadoId, clienteHojeId]));
+    expect(visitas(res).map((item) => item.clienteId)).not.toContain(clienteBId);
+  });
+
+  it('representante com representanteId de outro recebe a própria carteira', async () => {
+    const res = await request(app)
+      .get('/agenda/calendario')
+      .query({ mes: mesAtual(), representanteId: representanteBId })
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    const ids = visitas(res).map((item) => item.clienteId);
+    expect(ids).toEqual(expect.arrayContaining([clienteAtrasadoId, clienteHojeId]));
+    expect(ids).not.toContain(clienteBId);
+  });
+
+  it('gestor com representanteId vê só a carteira daquele representante', async () => {
+    const res = await request(app)
+      .get('/agenda/calendario')
+      .query({ mes: mesAtual(), representanteId: representanteBId })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(visitas(res).map((item) => item.clienteId)).toEqual([clienteBId]);
+  });
+
+  it('campanhas aparecem para o gestor e não para o representante', async () => {
+    await criarCampanhaDeHoje();
+
+    const resGestor = await request(app)
+      .get('/agenda/calendario')
+      .query({ mes: mesAtual() })
+      .set('Authorization', `Bearer ${tokenGestor}`);
+    const resA = await request(app)
+      .get('/agenda/calendario')
+      .query({ mes: mesAtual() })
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(resGestor.body.data.itens).toContainEqual(
+      expect.objectContaining({ data: hojeCal(), tipo: 'CAMPANHA', titulo: 'Campanha do mês' }),
+    );
+    expect(resA.status).toBe(200);
+    expect(resA.body.data.itens.filter((item: Item) => item.tipo === 'CAMPANHA')).toEqual([]);
+  });
+
+  it('traz as datas sazonais do mês no dia do evento', async () => {
+    const dia = new Date(`${hojeCal()}T00:00:00.000Z`);
+    await prisma.seasonalEvent.create({
+      data: { nome: 'Dia de teste', chave: 'NATAL', dataInicio: dia, dataFim: dia, produtosSugeridos: [] },
+    });
+
+    const res = await request(app)
+      .get('/agenda/calendario')
+      .query({ mes: mesAtual() })
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.body.data.itens).toContainEqual({
+      data: hojeCal(),
+      tipo: 'DATA_SAZONAL',
+      titulo: 'Dia de teste',
+      detalhe: 'Data sazonal',
+    });
+  });
+
+  it.each(['2026-13', '2026-1', 'outubro', undefined])('mes=%s responde 400 com a mensagem do formato', async (mes) => {
+    const res = await request(app)
+      .get('/agenda/calendario')
+      .query(mes === undefined ? {} : { mes })
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details).toEqual([{ path: 'mes', message: 'Mês deve estar no formato AAAA-MM.' }]);
+  });
+});
