@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { api, clearToken, setToken, setUnauthorizedHandler } from '../services/api';
+import { api, clearToken, getToken, setToken, setUnauthorizedHandler } from '../services/api';
 import { AuthContext, type UsuarioAutenticado, type AuthContextValue } from './auth-context';
 
 type LoginResposta = {
@@ -47,6 +47,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, [queryClient]);
 
+  // Só grava se a sessão que pediu ainda é a mesma: quem saiu (ou entrou com
+  // outra conta) enquanto a resposta chegava não ganha o usuário anterior.
+  const recarregarUsuario = useCallback(async (): Promise<void> => {
+    const token = getToken();
+    if (!token) return;
+    const atual = await api.get<UsuarioAutenticado>('/auth/me');
+    if (getToken() !== token) return;
+    localStorage.setItem(USER_KEY, JSON.stringify(atual));
+    setUser(atual);
+  }, []);
+
   // Token expirado/inválido em qualquer chamada autenticada (ver api.ts):
   // encerra a sessão local e manda de volta para /login.
   useEffect(() => {
@@ -59,7 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(null);
   }, [navigate, logout]);
 
-  const value = useMemo<AuthContextValue>(() => ({ user, login, logout }), [user, login, logout]);
+  const value = useMemo<AuthContextValue>(
+    () => ({ user, login, logout, recarregarUsuario }),
+    [user, login, logout, recarregarUsuario],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -2,3 +2,8 @@
 export function descreverClientesAtivos(total: number): string {
   return `${total} ${total === 1 ? 'cliente ativo' : 'clientes ativos'}`;
 }
+
+/** "0 clientes", "1 cliente", "5 clientes": a carteira na tela de Usuários e os avisos de transferência. */
+export function descreverClientes(total: number): string {
+  return `${total} ${total === 1 ? 'cliente' : 'clientes'}`;
+}

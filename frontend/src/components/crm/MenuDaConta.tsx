@@ -1,8 +1,7 @@
 import { startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
-import type { Role } from '@/auth/auth-context';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,13 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ROTULO_PAPEL } from '@/lib/papel';
 import { Avatar } from './ui';
-
-const ROTULO_PAPEL: Record<Role, string> = { GESTOR: 'Gestor', REPRESENTANTE: 'Representante' };
 
 /**
  * Menu da conta, à direita da barra superior (spec 6.5): as iniciais num
- * círculo de 36 px (alvo de 44 px no celular) abrem nome, papel e "Sair".
+ * círculo de 36 px (alvo de 44 px no celular) abrem nome, papel, "Alterar
+ * senha" e "Sair".
  */
 export function MenuDaConta() {
   const { user, logout } = useAuth();
@@ -50,6 +49,10 @@ export function MenuDaConta() {
           <div className="text-xs font-normal text-muted-foreground">{ROTULO_PAPEL[user.role]}</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => navigate('/conta/senha')}>
+          <KeyRound aria-hidden="true" />
+          Alterar senha
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={sair}>
           <LogOut aria-hidden="true" />
           Sair

@@ -210,13 +210,13 @@ SVG próprio como o do protótipo: uma bolha por cidade (raio 7 + 3 × N), cor d
   - **Inativar / Reativar** (não para si mesmo): confirmação "Fulano tem N clientes na carteira; eles continuam com ele até você transferi-los. Inativar?" com "Manter carteira / Transferir para …".
 - **Novo usuário** (`/usuarios/novo`): nome, e-mail, telefone, papel, senha inicial + confirmação (mínimo 6); aviso "Usuário criado".
 - **Redefinição por link**:
-  - Página pública `/redefinir-senha/:token` (fora do `RequireAuth`, sem menu): nova senha + confirmar (mínimo 6) → "Senha redefinida. Entre com a nova senha." e vai para o login. Link inválido, usado ou vencido: "Este link não vale mais. Peça um novo ao gestor."
+  - Página pública `/redefinir-senha`, aberta pelo link `{APP_URL}/redefinir-senha#<token>` (o token vai no fragmento, que o navegador não envia ao servidor; a página o lê de `location.hash` e o tira da barra de endereço; fora do `RequireAuth`, sem menu): nova senha + confirmar (mínimo 6) → "Senha redefinida. Entre com a nova senha." e vai para o login. Link inválido, usado ou vencido: "Este link não vale mais. Peça um novo ao gestor."
   - Token aleatório de 32 bytes; o banco guarda só o hash (SHA-256); vale **24 h** e uma vez; pedir outro invalida os anteriores; redefinir não desloga ninguém à força (o JWT vigente expira sozinho) (minhas escolhas: 24 h porque a representante pode ver o e-mail só no fim do dia em campo).
   - Gestor não envia para conta inativa (400 "Reative a conta antes de redefinir a senha.").
   - E-mail em pt-BR, texto simples + HTML mínimo: "Olá, Nome. O gestor do ChokoCRM pediu a redefinição da sua senha. Para criar uma senha nova, abra o link (vale por 24 horas): …".
 - **Envio de e-mail**: interface `EmailProvider` no backend, no mesmo padrão do `ErpProvider`: `ConsoleEmailProvider` (desenvolvimento e testes: registra a mensagem e o link no log e guarda em memória para os testes) e `SmtpEmailProvider` (produção, `nodemailer`, variáveis `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`). `APP_URL` (endereço público do app) monta o link. Em produção sem SMTP configurado, a ação responde 503 "Envio de e-mail não configurado." e o front mostra a mensagem (minha escolha: SMTP genérico serve para Gmail com senha de app, Outlook, Brevo ou Azure Communication Services; a **conta remetente** é escolhida pela parceira no deploy, seção 11).
 - **Regras no backend**: só o gestor lista, cria, edita, transfere, inativa e dispara redefinição; ninguém inativa a si mesmo nem muda o próprio papel (400); representante **com clientes na carteira** não vira gestor (400 "Transfira a carteira antes de mudar o papel.") (minha escolha); transferência só para representante ativo; `GET /users?role=REPRESENTANTE` lista só ativos; clientes de representante inativo continuam aparecendo em "Todos" para o gestor; o job diário ignora inativos.
-- **API**: `GET /users` (gestor, todos com `{ id, nome, email, telefone, role, ativo, criadoEm, clientesNaCarteira }`; com `?role=REPRESENTANTE` mantém o contrato atual, só ativos), `POST /users`, `PATCH /users/:id` (`nome`, `email`, `telefone`, `role`, `ativo`), `POST /users/:id/transferir-carteira { destinoId }`, `POST /users/:id/redefinicao-de-senha` (gestor; envia o e-mail; 204), `POST /auth/redefinir-senha { token, novaSenha }` (público; 204), `PUT /auth/password { senhaAtual, novaSenha }` (204), `GET /auth/me` com `ativo` e `telefone`.
+- **API**: `GET /users` (gestor, todos com `{ id, nome, email, telefone, role, ativo, criadoEm, clientesNaCarteira }`; com `?role=REPRESENTANTE` mantém o contrato atual, só ativos), `POST /users`, `PATCH /users/:id` (`nome`, `email`, `telefone`, `role`, `ativo`), `POST /users/:id/transferir-carteira { destinoId }`, `POST /users/:id/redefinicao-de-senha` (gestor; envia o e-mail; 204), `POST /auth/redefinir-senha { token, novaSenha }` (público; 204), `PUT /auth/password { senhaAtual, novaSenha }` (204; senha atual errada → 400 "Senha atual incorreta.", para não derrubar a sessão), `GET /auth/me` com `ativo` e `telefone`.
 
 ### 7.14 Novo cliente, check-in e login
 
@@ -226,7 +226,7 @@ SVG próprio como o do protótipo: uma bolha por cidade (raio 7 + 3 × N), cor d
 
 ### 7.15 Service worker
 
-A lista de caminhos da API em `vite.config.ts` (`CAMINHO_API` e a cópia dentro de `runtimeCaching`) ganha os prefixos novos (`campaigns`, `goals`, `erp`), senão o PWA trataria essas chamadas como telas. `/redefinir-senha/...` é tela do app; `/auth/redefinir-senha` é API (já coberto por `auth`).
+A lista de caminhos da API em `vite.config.ts` (`CAMINHO_API` e a cópia dentro de `runtimeCaching`) ganha os prefixos novos (`campaigns`, `goals`, `erp`), senão o PWA trataria essas chamadas como telas. `/redefinir-senha` é tela do app; `/auth/redefinir-senha` é API (já coberto por `auth`).
 
 ## 8. Responsividade
 

@@ -12,6 +12,10 @@ import { NovoClientePage } from './pages/NovoClientePage';
 import { ClienteDetalhePage } from './pages/ClienteDetalhePage';
 import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
+import { UsuariosPage } from './pages/UsuariosPage';
+import { NovoUsuarioPage } from './pages/NovoUsuarioPage';
+import { AlterarSenhaPage } from './pages/AlterarSenhaPage';
+import { RedefinirSenhaPage } from './pages/RedefinirSenhaPage';
 import { LimiteDeErroDeCarregamento } from './components/LimiteDeErroDeCarregamento';
 import { rotaInicialDoPapel } from './lib/rotaInicial';
 import { useLarguraDuasColunas } from './lib/useLarguraDesktop';
@@ -54,6 +58,9 @@ export function App() {
           <BannerInstalar />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            {/* Pública e sem moldura: aberta pelo link do e-mail, com o token
+                no fragmento (#…), que a página lê e tira do endereço */}
+            <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
             {/* Telas autenticadas dentro da moldura (menu, barra superior e navegação) */}
             <Route
               element={
@@ -77,6 +84,9 @@ export function App() {
                   </LimiteDeErroDeCarregamento>
                 }
               />
+              <Route path="/usuarios" element={<UsuariosPage />} />
+              <Route path="/usuarios/novo" element={<NovoUsuarioPage />} />
+              <Route path="/conta/senha" element={<AlterarSenhaPage />} />
               <Route path="*" element={<TelaInicial />} />
             </Route>
           </Routes>

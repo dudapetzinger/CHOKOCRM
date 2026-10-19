@@ -13,6 +13,7 @@ function renderizar(role: Role, nome: string) {
         <Routes>
           <Route path="/clientes" element={<MenuDaConta />} />
           <Route path="/login" element={<p>tela de login</p>} />
+          <Route path="/conta/senha" element={<p>tela de alterar senha</p>} />
         </Routes>
       </MemoryRouter>
     </AuthContext.Provider>,
@@ -37,6 +38,17 @@ describe('MenuDaConta', () => {
 
     expect(logout).toHaveBeenCalledTimes(1);
     expect(await screen.findByText('tela de login')).toBeInTheDocument();
+  });
+
+  it('"Alterar senha" leva à tela de alterar senha, sem sair', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    const { logout } = renderizar('REPRESENTANTE', 'Eduarda Fischer');
+
+    await usuario.click(screen.getByRole('button', { name: 'Conta de Eduarda Fischer' }));
+    await usuario.click(await screen.findByRole('menuitem', { name: 'Alterar senha' }));
+
+    expect(await screen.findByText('tela de alterar senha')).toBeInTheDocument();
+    expect(logout).not.toHaveBeenCalled();
   });
 
   it('mostra "Gestor" para o gestor', async () => {

@@ -8,7 +8,7 @@
  * leitor de tela não achar dois menus iguais.
  */
 import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3, CalendarDays, Users, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, BarChart3, CalendarDays, UserCog, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
 import type { Role } from '@/auth/auth-context';
 import { Button } from '@/components/ui/button';
@@ -22,14 +22,15 @@ type ItemNavegacao = { para: string; rotulo: string; icone: LucideIcon; papeis: 
 /**
  * Atalhos da navegação e quem vê cada um. Cada papel vê os seus nesta
  * ordem, com a tela inicial dele (`rotaInicialDoPapel`) puxada para a
- * frente: gestor — Painel, Clientes, Agenda; representante — Agenda,
- * Clientes. Item novo entra na posição em que deve aparecer depois da tela
- * inicial.
+ * frente: gestor — Painel, Clientes, Agenda, Usuários; representante —
+ * Agenda, Clientes. Item novo entra na posição em que deve aparecer depois da
+ * tela inicial (as ordens estão fixadas em Moldura.test.tsx).
  */
 export const ITENS_NAVEGACAO: ItemNavegacao[] = [
   { para: '/clientes', rotulo: 'Clientes', icone: Users, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/painel', rotulo: 'Painel', icone: BarChart3, papeis: ['GESTOR'] },
   { para: '/agenda', rotulo: 'Agenda', icone: CalendarDays, papeis: ['GESTOR', 'REPRESENTANTE'] },
+  { para: '/usuarios', rotulo: 'Usuários', icone: UserCog, papeis: ['GESTOR'] },
 ];
 
 function itensDoPapel(role: Role): ItemNavegacao[] {
@@ -41,7 +42,7 @@ function itensDoPapel(role: Role): ItemNavegacao[] {
 /**
  * Título da barra superior por rota, do caminho mais específico para o mais
  * geral. `interna`: tela aberta a partir de outra (ficha, novo cliente,
- * check-in), que no celular ganha "Voltar".
+ * check-in, novo usuário, alterar senha), que no celular ganha "Voltar".
  */
 const TITULOS_DAS_ROTAS: { padrao: string; titulo: string; interna: boolean }[] = [
   { padrao: '/painel', titulo: 'Painel de indicadores', interna: false },
@@ -50,6 +51,9 @@ const TITULOS_DAS_ROTAS: { padrao: string; titulo: string; interna: boolean }[] 
   { padrao: '/clientes/:id/check-in', titulo: 'Novo check-in', interna: true },
   { padrao: '/clientes/:id', titulo: 'Clientes', interna: true },
   { padrao: '/clientes', titulo: 'Clientes', interna: false },
+  { padrao: '/usuarios/novo', titulo: 'Novo usuário', interna: true },
+  { padrao: '/usuarios', titulo: 'Usuários', interna: false },
+  { padrao: '/conta/senha', titulo: 'Alterar senha', interna: true },
 ];
 
 export function tituloDaRota(pathname: string): { titulo: string; interna: boolean } {

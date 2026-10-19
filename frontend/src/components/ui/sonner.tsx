@@ -6,13 +6,15 @@ type ToasterProps = ComponentProps<typeof Sonner>;
 /**
  * Avisos do app (`toast` do sonner), como no protótipo; montado uma vez em
  * App.tsx. No alto e no centro, para não ficar atrás da navegação inferior
- * do celular nem do botão flutuante.
+ * do celular nem do botão flutuante. A área é anunciada como "Avisos" (o
+ * sonner acrescenta o atalho, "alt+T"), não "Notifications".
  */
 const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       className="toaster group"
       position="top-center"
+      containerAriaLabel="Avisos"
       toastOptions={{
         classNames: {
           toast:

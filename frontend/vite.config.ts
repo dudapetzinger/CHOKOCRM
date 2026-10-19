@@ -7,7 +7,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 /**
  * Caminhos da API (backend/src/app.ts). Em produção a API e o app estão no
  * mesmo host (ADR-007), então o service worker precisa saber o que é API.
- * `/agenda` sozinho é tela do app (a API só tem `/agenda/...`).
+ * `/agenda` sozinho é tela do app (a API só tem `/agenda/...`), assim como
+ * `/usuarios`, `/conta/senha` e `/redefinir-senha` (a página do link do
+ * e-mail); `/auth/redefinir-senha` e `/users/...` são API.
  */
 const CAMINHO_API = /^\/(auth|clients|dashboard|insights|visits|stock-messages|contacts|users|campaigns|goals|erp|health)(\/|$)|^\/agenda\//
 

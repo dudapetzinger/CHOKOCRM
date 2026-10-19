@@ -5,6 +5,7 @@ import { ApiError } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Campo } from '../components/crm/ui';
+import { TelaPublica } from '../components/crm/TelaPublica';
 import { rotaInicialDoPapel } from '../lib/rotaInicial';
 
 const MENSAGEM_ERRO_PADRAO = 'Não foi possível entrar. Tente novamente.';
@@ -42,10 +43,7 @@ export function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-foreground">
-      <img src="/logo.svg" alt="ChokoCRM" width={96} height={96} className="size-24" />
-      <p className="mt-4 text-center text-sm text-muted-foreground">Gestão de visitas para representantes comerciais</p>
-
+    <TelaPublica>
       <section aria-labelledby="titulo-login" className="mt-6 w-full max-w-sm rounded-xl border bg-card p-6">
         <h1 id="titulo-login" className="sr-only">
           Entrar
@@ -88,7 +86,7 @@ export function LoginPage() {
           </Button>
         </form>
       </section>
-    </main>
+    </TelaPublica>
   );
 }
 

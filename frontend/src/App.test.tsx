@@ -81,12 +81,29 @@ vi.mock('./services/stockMessages', () => ({
   gerarMensagem: vi.fn(),
 }));
 vi.mock('./services/agenda', () => ({ buscarAgendaDoDia: vi.fn(async () => ({ atrasadas: [], hoje: [] })) }));
+// O Painel tem testes próprios; aqui só importa a rota em que se chega.
+vi.mock('./pages/PainelPage', () => ({ default: () => <p>conteúdo do painel</p> }));
+vi.mock('./services/users', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./services/users')>()),
+  listarUsuarios: vi.fn(async () => []),
+  listRepresentantes: vi.fn(async () => []),
+}));
 
-function abrirApp(caminho: string) {
-  localStorage.setItem(
-    'chokocrm:user',
-    JSON.stringify({ id: 'r1', nome: 'Eduarda Fischer', email: 'eduarda@exemplo.com', role: 'REPRESENTANTE' }),
-  );
+const REPRESENTANTE = {
+  id: 'r1',
+  nome: 'Eduarda Fischer',
+  email: 'eduarda@exemplo.com',
+  telefone: null,
+  role: 'REPRESENTANTE',
+  ativo: true,
+};
+const GESTOR = { id: 'g1', nome: 'Marina Gestora', email: 'gestor@exemplo.com', telefone: null, role: 'GESTOR', ativo: true };
+
+/** Abre o app no caminho, com a sessão de quem for passado salva (`null` = ninguém logado). */
+function abrirApp(caminho: string, sessao: typeof REPRESENTANTE | typeof GESTOR | null = REPRESENTANTE) {
+  if (sessao) {
+    localStorage.setItem('chokocrm:user', JSON.stringify(sessao));
+  }
   window.history.pushState({}, '', caminho);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -244,5 +261,54 @@ describe('troca de usuário no mesmo navegador', () => {
     entregarListaDoRafael(LISTA_RAFAEL);
     expect(await screen.findByText('Padaria Estrela')).toBeInTheDocument();
     expect(screen.queryByText('Doces da Vovó')).not.toBeInTheDocument();
+  });
+});
+
+describe('tela inicial por papel', () => {
+  it.each([
+    ['/', 'GESTOR', '/painel', 'Painel de indicadores'],
+    ['/nao-existe', 'GESTOR', '/painel', 'Painel de indicadores'],
+    ['/', 'REPRESENTANTE', '/agenda', 'Agenda'],
+    ['/nao-existe/de-jeito-nenhum', 'REPRESENTANTE', '/agenda', 'Agenda'],
+  ] as const)('%s com %s vai para %s', async (caminho, papel, destino, titulo) => {
+    abrirApp(caminho, papel === 'GESTOR' ? GESTOR : REPRESENTANTE);
+
+    expect(await screen.findByRole('heading', { level: 1, name: titulo })).toBeInTheDocument();
+    expect(window.location.pathname).toBe(destino);
+  });
+});
+
+describe('rotas da gestão de usuários', () => {
+  it('gestor abre Usuários pela navegação', async () => {
+    simularLargura(true);
+    const usuario = userEvent.setup({ delay: null });
+    abrirApp('/painel', GESTOR);
+
+    await usuario.click(await screen.findByRole('link', { name: 'Usuários' }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Usuários' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/usuarios');
+  });
+
+  it('o menu da conta leva a "Alterar senha"', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    abrirApp('/agenda');
+
+    await usuario.click(await screen.findByRole('button', { name: 'Conta de Eduarda Fischer' }));
+    await usuario.click(await screen.findByRole('menuitem', { name: 'Alterar senha' }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alterar senha' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Senha atual')).toBeInTheDocument();
+  });
+
+  it('/redefinir-senha é pública: abre sem sessão, sem moldura e sem ir para o login', async () => {
+    abrirApp('/redefinir-senha#token-do-email', null);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Redefinir senha' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Nova senha')).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    // O token sai da barra de endereço assim que é lido
+    expect(window.location.pathname).toBe('/redefinir-senha');
+    expect(window.location.hash).toBe('');
   });
 });

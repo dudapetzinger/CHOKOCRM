@@ -25,6 +25,9 @@ function renderizar({ papel = 'REPRESENTANTE', entradas = ['/clientes'] }: { pap
             <Route path="/clientes/:id/check-in" element={<p>tela de check-in</p>} />
             <Route path="/agenda" element={<p>tela da agenda</p>} />
             <Route path="/painel" element={<p>tela do painel</p>} />
+            <Route path="/usuarios" element={<p>tela de usuários</p>} />
+            <Route path="/usuarios/novo" element={<p>tela de novo usuário</p>} />
+            <Route path="/conta/senha" element={<p>tela de alterar senha</p>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -45,17 +48,38 @@ afterEach(() => {
 });
 
 describe('Moldura', () => {
-  it('gestor vê Painel, Clientes e Agenda nessa ordem', () => {
+  // Ordens fixadas (spec 6.5). Campanhas entra na Task 11 e o Painel do
+  // representante na Task 14: quem acrescentar estende estas listas.
+  it('gestor vê Painel, Clientes, Agenda e Usuários nessa ordem', () => {
     renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
 
-    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda']);
+    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Usuários']);
   });
 
-  it('representante vê Agenda e Clientes, sem Painel', () => {
+  it('representante vê Agenda e Clientes, sem Painel nem Usuários', () => {
     renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
 
     expect(atalhos()).toEqual(['Agenda', 'Clientes']);
     expect(screen.queryByRole('link', { name: 'Painel' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument();
+  });
+
+  it('desktop: as mesmas ordens no menu lateral', () => {
+    simularLargura(true);
+    const { unmount } = renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
+    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Usuários']);
+    unmount();
+
+    renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
+    expect(atalhos()).toEqual(['Agenda', 'Clientes']);
+  });
+
+  it('em "Novo usuário" o atalho Usuários fica marcado e o celular mostra "Voltar"', () => {
+    renderizar({ papel: 'GESTOR', entradas: ['/usuarios', '/usuarios/novo'] });
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Novo usuário' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Usuários' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument();
   });
 
   it('mostra o título da rota na barra superior', () => {
@@ -125,6 +149,9 @@ describe('tituloDaRota', () => {
     ['/clientes/novo', 'Novo cliente', true],
     ['/clientes/c1', 'Clientes', true],
     ['/clientes/c1/check-in', 'Novo check-in', true],
+    ['/usuarios', 'Usuários', false],
+    ['/usuarios/novo', 'Novo usuário', true],
+    ['/conta/senha', 'Alterar senha', true],
   ])('%s → "%s" (interna: %s)', (caminho, titulo, interna) => {
     expect(tituloDaRota(caminho)).toEqual({ titulo, interna });
   });

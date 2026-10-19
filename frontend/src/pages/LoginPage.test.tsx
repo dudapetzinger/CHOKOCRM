@@ -12,12 +12,21 @@ beforeEach(() => {
   usuario = userEvent.setup({ delay: null });
 });
 
-const GESTOR: UsuarioAutenticado = { id: 'g1', nome: 'Marina Gestora', email: 'gestor@chokolaten.com.br', role: 'GESTOR' };
+const GESTOR: UsuarioAutenticado = {
+  id: 'g1',
+  nome: 'Marina Gestora',
+  email: 'gestor@chokolaten.com.br',
+  telefone: null,
+  role: 'GESTOR',
+  ativo: true,
+};
 const REPRESENTANTE: UsuarioAutenticado = {
   id: 'r1',
   nome: 'Ana Representante',
   email: 'ana@chokolaten.com.br',
+  telefone: '(47) 99900-0000',
   role: 'REPRESENTANTE',
+  ativo: true,
 };
 
 function renderizar(
@@ -56,6 +65,16 @@ describe('LoginPage', () => {
     expect(screen.queryByText('painel')).not.toBeInTheDocument();
     expect(screen.queryByText('agenda')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entrar' })).toBeEnabled();
+  });
+
+  it('conta inativa (403 da API) mostra "Conta inativa. Fale com o gestor." e fica na tela de login', async () => {
+    const login = vi.fn().mockRejectedValue(new ApiError('FORBIDDEN', 'Conta inativa. Fale com o gestor.'));
+    renderizar(login);
+
+    await preencherEEnviar();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Conta inativa. Fale com o gestor.');
+    expect(screen.queryByText('agenda')).not.toBeInTheDocument();
   });
 
   it('erro que não vem da API mostra a mensagem padrão', async () => {
