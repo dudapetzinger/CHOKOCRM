@@ -23,13 +23,13 @@ type ItemNavegacao = { para: string; rotulo: string; icone: LucideIcon; papeis: 
  * Atalhos da navegação e quem vê cada um. Cada papel vê os seus nesta
  * ordem, com a tela inicial dele (`rotaInicialDoPapel`) puxada para a
  * frente: gestor — Painel, Clientes, Agenda, Campanhas, Usuários;
- * representante — Agenda, Clientes, Campanhas. Item novo entra na posição em
+ * representante — Agenda, Clientes, Painel, Campanhas. Item novo entra na posição em
  * que deve aparecer depois da tela inicial (as ordens estão fixadas em
  * Moldura.test.tsx).
  */
 export const ITENS_NAVEGACAO: ItemNavegacao[] = [
   { para: '/clientes', rotulo: 'Clientes', icone: Users, papeis: ['GESTOR', 'REPRESENTANTE'] },
-  { para: '/painel', rotulo: 'Painel', icone: BarChart3, papeis: ['GESTOR'] },
+  { para: '/painel', rotulo: 'Painel', icone: BarChart3, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/agenda', rotulo: 'Agenda', icone: CalendarDays, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/campanhas', rotulo: 'Campanhas', icone: Megaphone, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/usuarios', rotulo: 'Usuários', icone: UserCog, papeis: ['GESTOR'] },

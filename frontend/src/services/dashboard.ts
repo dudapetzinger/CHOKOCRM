@@ -1,11 +1,13 @@
 /**
- * Acesso tipado aos números dos gráficos do Painel do gestor (Etapa 7;
- * contagens por resultado e ritmo semanal na Etapa 8): o comparativo por
- * representante, o ritmo de visitas das 8 últimas semanas e as vendas
- * mensais da carteira. Espelha `KpisPorRepresentanteDTO` de
- * `backend/src/services/kpis.service.ts`, `KpiRepresentante` e
- * `SemanaDoRitmo` de `kpis.regras.ts` e `VendasMensaisDTO` de
- * `vendas-mensais.service.ts`. Os dois endpoints são só do gestor.
+ * Acesso tipado aos números dos gráficos do Painel (Etapa 7; contagens por
+ * resultado, ritmo semanal e relatório da planilha na Etapa 8): o
+ * comparativo por representante, o ritmo de visitas das 8 últimas semanas,
+ * as vendas mensais da carteira e as linhas do CSV. Espelha
+ * `KpisPorRepresentanteDTO` de `backend/src/services/kpis.service.ts`,
+ * `KpiRepresentante` e `SemanaDoRitmo` de `kpis.regras.ts`,
+ * `VendasMensaisDTO` de `vendas-mensais.service.ts` e `LinhaDoRelatorioDTO`
+ * de `relatorio.service.ts`. Gestor e representante leem; para o
+ * representante, o backend ignora o `representanteId` e usa a carteira dele.
  */
 import { api } from './api';
 import type { Kpis, Proporcao } from './kpis';
@@ -84,4 +86,24 @@ export function buscarKpisPorRepresentante(
 export function buscarVendasMensais(representanteId?: string): Promise<VendasMensais> {
   const query = comRepresentante(new URLSearchParams(), representanteId).toString();
   return api.get<VendasMensais>(`/dashboard/vendas-mensais${query ? `?${query}` : ''}`);
+}
+
+/** Uma linha da planilha do Painel (spec 7.12), já em ordem de urgência. */
+export type LinhaDoRelatorio = {
+  cliente: string;
+  cidade: string;
+  representante: string;
+  /** Rótulo da cor do cliente: "Verde", "Amarelo", "Laranja" ou "Vermelho". */
+  situacao: string;
+  /** `null`: nunca visitado. */
+  diasSemVisita: number | null;
+  visitasNoPeriodo: number;
+  /** R$ dos pedidos das visitas com venda no período. */
+  vendasNoPeriodo: number;
+};
+
+export async function buscarRelatorio(periodoDias: number, representanteId?: string): Promise<LinhaDoRelatorio[]> {
+  const query = comRepresentante(new URLSearchParams({ periodoDias: String(periodoDias) }), representanteId);
+  const resposta = await api.get<{ data: LinhaDoRelatorio[] }>(`/dashboard/relatorio?${query}`);
+  return resposta.data;
 }

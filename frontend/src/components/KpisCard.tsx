@@ -1,6 +1,7 @@
 /**
- * "Quem está visitando pouco?" — os números de visitas do Painel (UC14, Etapa
- * 6C; cartões do protótipo na Etapa 8): o título com o período e os clientes
+ * "Quem está visitando pouco?" (gestor) ou "Como está a minha carteira?"
+ * (representante) — os números de visitas do Painel (UC14, Etapa 6C; cartões
+ * do protótipo na Etapa 8): o título com o período e os clientes
  * ativos e, embaixo, visitas, taxa de registro, conversão em vendas e
  * clientes inativos no período escolhido, cada um num cartão (quatro em linha
  * a partir de 1024 px, dois por linha abaixo). O período e o representante
@@ -72,8 +73,19 @@ function Indicadores({ kpis }: { kpis: Kpis }) {
   );
 }
 
-/** `representanteId`: o escolhido no seletor do gestor; `undefined` = carteira toda. */
-export function KpisCard({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) {
+/**
+ * `representanteId`: o escolhido no seletor do gestor; `undefined` = carteira toda.
+ * `titulo`: o do gestor por padrão; o Painel do representante passa "Como está a minha carteira?".
+ */
+export function KpisCard({
+  periodoDias,
+  representanteId,
+  titulo = 'Quem está visitando pouco?',
+}: {
+  periodoDias: number;
+  representanteId?: string;
+  titulo?: string;
+}) {
   const idTitulo = useId();
   const { data: kpis, isLoading, isError, error, isPlaceholderData } = useKpis(periodoDias, representanteId);
 
@@ -81,7 +93,7 @@ export function KpisCard({ periodoDias, representanteId }: { periodoDias: number
     <section aria-labelledby={idTitulo} className="space-y-3">
       <div>
         <h2 id={idTitulo} className="text-xl font-semibold">
-          Quem está visitando pouco?
+          {titulo}
         </h2>
         {kpis && <p className="text-sm text-muted-foreground">{descreverPeriodo(kpis)}</p>}
       </div>

@@ -24,7 +24,7 @@ import { AvisoNovaVersao } from './pwa/AvisoNovaVersao';
 import { AvisoSemRede } from './pwa/AvisoSemRede';
 import { BannerInstalar } from './pwa/BannerInstalar';
 
-// O Painel (só do gestor) fica num pedaço à parte, baixado só quando aberto.
+// O Painel (gestor e representante) fica num pedaço à parte, baixado só quando aberto.
 const PainelPage = lazy(() => import('./pages/PainelPage'));
 
 /**

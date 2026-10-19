@@ -1,28 +1,38 @@
 /**
- * Painel do gestor (UC14 e UC15; gráficos na Etapa 7; visual de
- * `routes/painel.tsx` do protótipo, com os gráficos dele desenhados à mão, na
- * Etapa 8). No topo, a barra com o seletor de representante e o período e a
- * faixa de dados simulados; depois "Quem está visitando pouco?" com os quatro
- * indicadores, as "Metas de visitas e vendas" (spec 7.8) e, em duas colunas
- * a partir de 1024 px (empilhadas abaixo):
- *   - à esquerda, o resultado das visitas por representante (barra
- *     empilhada), o ritmo de visitas das 8 últimas semanas e "Quais clientes
- *     estão esfriando?" (distribuição por cor e os cinco mais urgentes);
+ * Painel (UC14 e UC15; gráficos na Etapa 7; visual de `routes/painel.tsx` do
+ * protótipo, com os gráficos dele desenhados à mão, na Etapa 8). Gestor e
+ * representante (spec 7.10): o gestor vê a empresa toda ou o representante
+ * do seletor; o representante, sem seletor, só a própria carteira (o backend
+ * ignora o `representanteId` dele). No topo, a barra com o seletor (gestor),
+ * o período e, à direita (linha própria no celular), "Planilha" e "PDF"
+ * (spec 7.12), e a faixa de dados simulados; depois "Quem está visitando
+ * pouco?" (gestor) ou "Como está a minha carteira?" (representante) com os
+ * quatro indicadores, as "Metas de visitas e vendas" (spec 7.8; só leitura
+ * para o representante) e, em duas colunas a partir de 1024 px (empilhadas
+ * abaixo):
+ *   - à esquerda, o resultado das visitas por representante ("das minhas
+ *     visitas" para o representante), o ritmo de visitas das 8 últimas
+ *     semanas e "Quais clientes estão esfriando?" (distribuição por cor e os
+ *     cinco mais urgentes);
  *   - à direita, "O próximo evento está chegando e o estoque acompanha?"
  *     (vendas mensais com os eventos e "Hoje", e os alertas de produção do
- *     horizonte escolhido) e a "Época do ano" com os eventos do horizonte.
- * Tudo filtrado pelo representante do seletor; os números vêm da API. Com um
- * bloco já carregado, o erro de um refetch (rede caída) aparece como aviso
- * acima do conteúdo, que continua visível (spec 5.7). Só o gestor vê o
- * conteúdo; para o representante a rota existe, mas mostra apenas um aviso
- * (a aba também não aparece na navegação).
+ *     horizonte escolhido), o mapa de clientes por cidade (spec 7.11) e a
+ *     "Época do ano" com os eventos do horizonte.
+ * Os números vêm da API. Com um bloco já carregado, o erro de um refetch
+ * (rede caída) aparece como aviso acima do conteúdo, que continua visível
+ * (spec 5.7). "Planilha" baixa o CSV do relatório do backend (mesmo período
+ * e mesma carteira); "PDF" abre a impressão do navegador, que esconde a
+ * moldura e os controles (`print:hidden`) e mantém cartões e gráficos.
  */
 import { useState, type ReactNode } from 'react';
+import { Download, Printer } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../auth/useAuth';
 import { AvisoSimulado } from '../components/AvisoSimulado';
 import { AlertasProducao } from '../components/crm/graficos/AlertasProducao';
 import { DistribuicaoPorCor } from '../components/crm/graficos/DistribuicaoPorCor';
+import { MapaPorCidade } from '../components/crm/graficos/MapaPorCidade';
 import { ResultadoPorRepresentante } from '../components/crm/graficos/ResultadoPorRepresentante';
 import { RitmoSemanal } from '../components/crm/graficos/RitmoSemanal';
 import { VendasMensais } from '../components/crm/graficos/VendasMensais';
@@ -34,9 +44,11 @@ import { FiltroPeriodo, PERIODO_PADRAO_DIAS } from '../components/FiltroPeriodo'
 import { KpisCard } from '../components/KpisCard';
 import { ListaClientesEsfriando } from '../components/ListaClientesEsfriando';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
-import { useClientesDaCarteira, useKpisPorRepresentante, useVendasMensais } from '../hooks/useDashboard';
+import { Button } from '../components/ui/button';
+import { useClientesDaCarteira, useKpisPorRepresentante, useRelatorio, useVendasMensais } from '../hooks/useDashboard';
 import { useAlertasDeProducao } from '../hooks/useInsights';
 import { useKpis } from '../hooks/useKpis';
+import { baixarCsv, gerarCsvRelatorio, nomeDoArquivoRelatorio } from '../lib/csv';
 import { descreverPrazo } from '../lib/descreverPrazo';
 import { formatarDataCalendario } from '../lib/formatarData';
 import { listarComE } from '../lib/listarComE';
@@ -46,6 +58,7 @@ import type { Alertas } from '../services/insights';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar o painel.';
 const MENSAGEM_ERRO_VISITAS = 'Não foi possível carregar o gráfico de visitas.';
+const MENSAGEM_ERRO_PLANILHA = 'Não foi possível gerar a planilha.';
 
 function descreverClientes(quantidade: number): string {
   return `${quantidade} ${quantidade === 1 ? 'cliente' : 'clientes'}`;
@@ -70,13 +83,21 @@ function Atualizavel({ atualizando, children }: { atualizando: boolean; children
  * últimas semanas (independe do período). Uma consulta só; o erro é
  * anunciado uma vez, no primeiro cartão.
  */
-function CartoesDeVisitas({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) {
+function CartoesDeVisitas({
+  periodoDias,
+  representanteId,
+  tituloDoResultado,
+}: {
+  periodoDias: number;
+  representanteId?: string;
+  tituloDoResultado: string;
+}) {
   const { data, isLoading, isError, error, isPlaceholderData } = useKpisPorRepresentante(periodoDias, representanteId);
   const mensagemDeErro = isError ? mensagemErroApi(error, MENSAGEM_ERRO_VISITAS) : null;
 
   return (
     <>
-      <Cartao titulo="Resultado das visitas por representante">
+      <Cartao titulo={tituloDoResultado}>
         <div className="space-y-3">
           {isLoading && <Carregando>Carregando gráfico de visitas...</Carregando>}
           {mensagemDeErro && (
@@ -107,7 +128,14 @@ function CartoesDeVisitas({ periodoDias, representanteId }: { periodoDias: numbe
   );
 }
 
-function CartaoClientesEsfriando({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) {
+type CartaoClientesEsfriandoProps = {
+  periodoDias: number;
+  representanteId?: string;
+  /** Com a empresa toda (gestor em "Todos"), cada linha diz de quem é o cliente. */
+  mostrarRepresentante: boolean;
+};
+
+function CartaoClientesEsfriando({ periodoDias, representanteId, mostrarRepresentante }: CartaoClientesEsfriandoProps) {
   // Mesma chave dos indicadores: o TanStack Query reaproveita a resposta.
   const { data: kpis } = useKpis(periodoDias, representanteId);
   const { data: clientes, isLoading, isError, error } = useClientesDaCarteira(representanteId);
@@ -133,7 +161,7 @@ function CartaoClientesEsfriando({ periodoDias, representanteId }: { periodoDias
         )}
 
         {clientes && (
-          <ListaClientesEsfriando clientes={clientes} mostrarRepresentante={representanteId === undefined} />
+          <ListaClientesEsfriando clientes={clientes} mostrarRepresentante={mostrarRepresentante} />
         )}
       </div>
     </Cartao>
@@ -195,6 +223,22 @@ function CartaoEstoque({ representanteId, horizonteDias, onHorizonteChange, cons
   );
 }
 
+/** A mesma carteira (e a mesma consulta, em cache) de "Quais clientes estão esfriando?". */
+function CartaoMapa({ representanteId }: { representanteId?: string }) {
+  const { data: clientes, isLoading, isError, error } = useClientesDaCarteira(representanteId);
+
+  return (
+    <Cartao titulo="Mapa de clientes por cidade">
+      {isLoading && <Carregando>Carregando clientes...</Carregando>}
+      {/* O erro já é anunciado no cartão dos clientes esfriando; aqui, só sem dados para mostrar. */}
+      {isError && !clientes && (
+        <Aviso tom="erro">{mensagemErroApi(error, 'Não foi possível carregar os clientes.')}</Aviso>
+      )}
+      {clientes && <MapaPorCidade clientes={clientes} />}
+    </Cartao>
+  );
+}
+
 function CartaoEpocaDoAno({ alertas }: { alertas: Alertas }) {
   return (
     <Cartao titulo="Época do ano">
@@ -223,9 +267,51 @@ function CartaoEpocaDoAno({ alertas }: { alertas: Alertas }) {
   );
 }
 
-function PainelGestor() {
+/** "Planilha" e "PDF", à direita da barra; no celular, numa linha só deles. Fora da impressão. */
+function BotoesDeExportar({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) {
+  const relatorio = useRelatorio();
+
+  function gerarPlanilha(): void {
+    relatorio.mutate(
+      { periodoDias, representanteId },
+      {
+        onSuccess: (linhas) => {
+          baixarCsv(gerarCsvRelatorio(linhas), nomeDoArquivoRelatorio());
+          toast.success('Planilha gerada');
+        },
+        onError: (erro) => {
+          toast.error(mensagemErroApi(erro, MENSAGEM_ERRO_PLANILHA));
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="flex w-full gap-2 md:ml-auto md:w-auto print:hidden">
+      <Button
+        variant="outline"
+        size="sm"
+        className="max-md:flex-1"
+        disabled={relatorio.isPending}
+        onClick={gerarPlanilha}
+      >
+        <Download aria-hidden="true" />
+        Planilha
+      </Button>
+      <Button variant="outline" size="sm" className="max-md:flex-1" onClick={() => window.print()}>
+        <Printer aria-hidden="true" />
+        PDF
+      </Button>
+    </div>
+  );
+}
+
+export function PainelPage() {
+  const { user } = useAuth();
+  const gestor = user?.role === 'GESTOR';
   const [periodoDias, setPeriodoDias] = useState(PERIODO_PADRAO_DIAS);
   const [horizonteDias, setHorizonteDias] = useState(HORIZONTE_PADRAO_DIAS);
+  // `undefined` para o representante: o backend usa a carteira dele.
   const representanteId = useRepresentanteSelecionado();
   const consultaDeAlertas = useAlertasDeProducao(horizonteDias, representanteId);
   // As mesmas chaves dos cartões (o TanStack Query não repete a busca), só para uma faixa única de dados simulados.
@@ -237,20 +323,33 @@ function PainelGestor() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
-        <SeletorRepresentante className="w-full md:w-auto" />
-        <FiltroPeriodo valor={periodoDias} onChange={setPeriodoDias} className="" />
+        <SeletorRepresentante className="w-full md:w-auto print:hidden" />
+        <FiltroPeriodo valor={periodoDias} onChange={setPeriodoDias} className="print:hidden" />
+        <BotoesDeExportar periodoDias={periodoDias} representanteId={representanteId} />
       </div>
 
       {simulado && <AvisoSimulado className="" />}
 
-      <KpisCard periodoDias={periodoDias} representanteId={representanteId} />
+      <KpisCard
+        periodoDias={periodoDias}
+        representanteId={representanteId}
+        titulo={gestor ? 'Quem está visitando pouco?' : 'Como está a minha carteira?'}
+      />
 
       <MetasPanel representanteId={representanteId} />
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <div className="min-w-0 space-y-4">
-          <CartoesDeVisitas periodoDias={periodoDias} representanteId={representanteId} />
-          <CartaoClientesEsfriando periodoDias={periodoDias} representanteId={representanteId} />
+          <CartoesDeVisitas
+            periodoDias={periodoDias}
+            representanteId={representanteId}
+            tituloDoResultado={gestor ? 'Resultado das visitas por representante' : 'Resultado das minhas visitas'}
+          />
+          <CartaoClientesEsfriando
+            periodoDias={periodoDias}
+            representanteId={representanteId}
+            mostrarRepresentante={gestor && representanteId === undefined}
+          />
         </div>
 
         <div className="min-w-0 space-y-4">
@@ -260,25 +359,12 @@ function PainelGestor() {
             onHorizonteChange={setHorizonteDias}
             consulta={consultaDeAlertas}
           />
+          <CartaoMapa representanteId={representanteId} />
           {alertas && <CartaoEpocaDoAno alertas={alertas} />}
         </div>
       </div>
     </div>
   );
-}
-
-export function PainelPage() {
-  const { user } = useAuth();
-
-  if (user?.role !== 'GESTOR') {
-    return (
-      <Aviso tom="atencao" role="alert">
-        Painel disponível apenas para o gestor.
-      </Aviso>
-    );
-  }
-
-  return <PainelGestor />;
 }
 
 export default PainelPage;

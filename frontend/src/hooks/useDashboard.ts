@@ -1,12 +1,12 @@
 /**
- * Estado de servidor dos gráficos do Painel do gestor (Etapa 7), como manda a
+ * Estado de servidor dos gráficos do Painel (Etapa 7), como manda a
  * arquitetura do projeto: os componentes não chamam a API diretamente (ver
  * docs/arquitetura.md). Sem retry, como `useKpis`: erro de
  * rede/indisponibilidade deve aparecer de imediato.
  */
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import { listClients } from '../services/clients';
-import { buscarKpisPorRepresentante, buscarVendasMensais } from '../services/dashboard';
+import { buscarKpisPorRepresentante, buscarRelatorio, buscarVendasMensais } from '../services/dashboard';
 
 /**
  * `keepPreviousData`, como `useKpis`: trocar o período ou o representante
@@ -41,5 +41,18 @@ export function useClientesDaCarteira(representanteId?: string) {
   return useQuery({
     queryKey: ['clients', '', representanteId ?? 'todos'],
     queryFn: () => listClients({ representanteId }),
+  });
+}
+
+/**
+ * Relatório da planilha (spec 7.12), buscado só ao clicar em "Planilha":
+ * uma mutação, não uma consulta, porque cada clique quer os números do
+ * momento e nada fica em cache. Sem retry, como o resto do Painel.
+ */
+export function useRelatorio() {
+  return useMutation({
+    mutationFn: ({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) =>
+      buscarRelatorio(periodoDias, representanteId),
+    retry: false,
   });
 }

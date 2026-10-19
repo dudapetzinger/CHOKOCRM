@@ -3,13 +3,20 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthContext } from '../auth/auth-context';
+import { Toaster } from '../components/ui/sonner';
 import { useClientesDaCarteira, useKpisPorRepresentante, useVendasMensais } from '../hooks/useDashboard';
 import { useAlertasDeProducao } from '../hooks/useInsights';
 import { useKpis } from '../hooks/useKpis';
+import { baixarCsv } from '../lib/csv';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { ApiError } from '../services/api';
 import type { ClienteListItem } from '../services/clients';
-import type { KpisPorRepresentante, VendasMensais } from '../services/dashboard';
+import {
+  buscarRelatorio,
+  type KpisPorRepresentante,
+  type LinhaDoRelatorio,
+  type VendasMensais,
+} from '../services/dashboard';
 import { listarMetas, type Meta } from '../services/goals';
 import type { Alertas } from '../services/insights';
 import type { Kpis } from '../services/kpis';
@@ -26,10 +33,21 @@ vi.mock('../hooks/useRepresentantes', () => ({
 
 vi.mock('../hooks/useKpis', () => ({ useKpis: vi.fn() }));
 
-vi.mock('../hooks/useDashboard', () => ({
+vi.mock('../hooks/useDashboard', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../hooks/useDashboard')>()),
   useKpisPorRepresentante: vi.fn(),
   useVendasMensais: vi.fn(),
   useClientesDaCarteira: vi.fn(),
+}));
+
+vi.mock('../services/dashboard', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/dashboard')>()),
+  buscarRelatorio: vi.fn(),
+}));
+
+vi.mock('../lib/csv', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/csv')>()),
+  baixarCsv: vi.fn(),
 }));
 
 vi.mock('../hooks/useInsights', () => ({ useAlertasDeProducao: vi.fn() }));
@@ -135,9 +153,21 @@ const CLIENTE_ESFRIANDO: ClienteListItem = {
   rebaixadoPorVenda: false,
 };
 
+const LINHA_DO_RELATORIO: LinhaDoRelatorio = {
+  cliente: 'Doces da Vovó',
+  cidade: 'Joinville',
+  representante: 'Eduarda Fischer',
+  situacao: 'Vermelho',
+  diasSemVisita: 40,
+  visitasNoPeriodo: 0,
+  vendasNoPeriodo: 0,
+};
+
 type Retorno<F extends (...args: never[]) => unknown> = ReturnType<F>;
 
 beforeEach(() => {
+  vi.mocked(buscarRelatorio).mockReset().mockResolvedValue([LINHA_DO_RELATORIO]);
+  vi.mocked(baixarCsv).mockReset();
   vi.mocked(listarMetas).mockReset().mockResolvedValue([META_DA_EDUARDA]);
   vi.mocked(useRepresentanteSelecionado).mockReturnValue(undefined);
   vi.mocked(useKpis).mockReturnValue(consulta(KPIS) as unknown as Retorno<typeof useKpis>);
@@ -153,7 +183,10 @@ beforeEach(() => {
 
 function renderizarComo(role: 'GESTOR' | 'REPRESENTANTE') {
   const auth = {
-    user: { id: 'g1', nome: 'Maicon', email: 'gestor@exemplo.com', role },
+    user:
+      role === 'GESTOR'
+        ? { id: 'g1', nome: 'Maicon', email: 'gestor@exemplo.com', role }
+        : { id: 'u1', nome: 'Eduarda Fischer', email: 'eduarda@exemplo.com', role },
     login: vi.fn(),
     logout: vi.fn(),
   };
@@ -163,6 +196,7 @@ function renderizarComo(role: 'GESTOR' | 'REPRESENTANTE') {
       <AuthContext.Provider value={auth}>
         <MemoryRouter>
           <PainelPage />
+          <Toaster />
         </MemoryRouter>
       </AuthContext.Provider>
     </QueryClientProvider>,
@@ -207,7 +241,7 @@ describe('PainelPage (gestor)', () => {
     ]);
   });
 
-  it('os blocos na ordem do protótipo (metas logo abaixo dos KPIs), sem mapa nem exportação', () => {
+  it('os blocos na ordem do protótipo (metas logo abaixo dos KPIs, mapa entre o estoque e a época do ano)', () => {
     renderizarComo('GESTOR');
 
     const titulos = screen.getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent);
@@ -218,10 +252,66 @@ describe('PainelPage (gestor)', () => {
       'Ritmo de visitas — últimas 8 semanas',
       'Quais clientes estão esfriando?',
       'O próximo evento está chegando e o estoque acompanha?',
+      'Mapa de clientes por cidade',
       'Época do ano',
     ]);
-    expect(screen.queryByText(/Mapa/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Planilha|PDF/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Planilha' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PDF' })).toBeInTheDocument();
+  });
+
+  it('mapa de clientes por cidade com a carteira carregada no Painel', () => {
+    renderizarComo('GESTOR');
+
+    const mapa = screen.getByRole('region', { name: 'Mapa de clientes por cidade' });
+    expect(
+      within(mapa).getByRole('button', { name: 'Joinville: 1 cliente, situação mais urgente vermelho' }),
+    ).toBeInTheDocument();
+  });
+
+  it('"Planilha" busca o relatório do período e do representante e baixa o CSV', async () => {
+    vi.mocked(useRepresentanteSelecionado).mockReturnValue('u1');
+    renderizarComo('GESTOR');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
+
+    expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
+    expect(buscarRelatorio).toHaveBeenCalledWith(30, 'u1');
+    expect(baixarCsv).toHaveBeenCalledTimes(1);
+    const [conteudo, nome] = vi.mocked(baixarCsv).mock.calls[0]!;
+    expect(conteudo.startsWith('\uFEFF"Cliente";"Cidade";')).toBe(true);
+    expect(conteudo).toContain('"Doces da Vovó";"Joinville";"Eduarda Fischer";"Vermelho";"40";"0";"0,00"');
+    expect(nome).toMatch(/^chokocrm-relatorio-\d{4}-\d{2}-\d{2}\.csv$/);
+  });
+
+  it('"Planilha" com o período de 90 dias pede o relatório de 90', async () => {
+    renderizarComo('GESTOR');
+    const periodo = screen.getByRole('radiogroup', { name: 'Período de análise dos indicadores' });
+
+    await userEvent.click(within(periodo).getByRole('radio', { name: '90 dias' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
+
+    expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
+    expect(buscarRelatorio).toHaveBeenCalledWith(90, undefined);
+  });
+
+  it('se o relatório falha, avisa e não baixa nada', async () => {
+    vi.mocked(buscarRelatorio).mockRejectedValue(new ApiError('NETWORK', 'Você está sem internet.'));
+    renderizarComo('GESTOR');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
+
+    expect(await screen.findByText('Você está sem internet.')).toBeInTheDocument();
+    expect(baixarCsv).not.toHaveBeenCalled();
+  });
+
+  it('"PDF" abre a impressão do navegador', async () => {
+    const imprimir = vi.spyOn(window, 'print').mockImplementation(() => {});
+    renderizarComo('GESTOR');
+
+    await userEvent.click(screen.getByRole('button', { name: 'PDF' }));
+
+    expect(imprimir).toHaveBeenCalledTimes(1);
+    imprimir.mockRestore();
   });
 
   it('resultado por representante em barra empilhada e ritmo das 8 semanas com a nota', () => {
@@ -330,7 +420,8 @@ describe('PainelPage (gestor)', () => {
     renderizarComo('GESTOR');
 
     expect(screen.getByRole('alert')).toHaveTextContent('Você está sem internet.');
-    expect(screen.getByText('Doces da Vovó')).toBeInTheDocument();
+    const esfriando = screen.getByRole('region', { name: 'Quais clientes estão esfriando?' });
+    expect(within(esfriando).getByText('Doces da Vovó')).toBeInTheDocument();
   });
 
   it('sem os números por representante ainda, avisa que está carregando', () => {
@@ -345,11 +436,69 @@ describe('PainelPage (gestor)', () => {
 });
 
 describe('PainelPage (representante)', () => {
-  it('mostra só o aviso de que o painel é do gestor', () => {
+  it('"Como está a minha carteira?" sem o select de representante, com o período e os blocos da própria carteira', () => {
     renderizarComo('REPRESENTANTE');
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Painel disponível apenas para o gestor.');
-    expect(screen.queryByRole('heading', { name: 'Quem está visitando pouco?' })).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Período de análise dos indicadores' })).toBeInTheDocument();
+    const bloco = screen.getByRole('region', { name: 'Como está a minha carteira?' });
+    expect(within(bloco).getByText('15/09/2026 a 14/10/2026 · 3 clientes ativos')).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent)).toEqual([
+      'Como está a minha carteira?',
+      'Metas de visitas e vendas',
+      'Resultado das minhas visitas',
+      'Ritmo de visitas — últimas 8 semanas',
+      'Quais clientes estão esfriando?',
+      'O próximo evento está chegando e o estoque acompanha?',
+      'Mapa de clientes por cidade',
+      'Época do ano',
+    ]);
+    expect(screen.queryByText('Quem está visitando pouco?')).not.toBeInTheDocument();
+    expect(screen.queryByText('Painel disponível apenas para o gestor.')).not.toBeInTheDocument();
+  });
+
+  it('os blocos buscam sem representanteId (o backend prende à carteira dele)', () => {
+    renderizarComo('REPRESENTANTE');
+
+    expect(useKpis).toHaveBeenCalledWith(30, undefined);
+    expect(useKpisPorRepresentante).toHaveBeenCalledWith(30, undefined);
+    expect(useVendasMensais).toHaveBeenCalledWith(undefined);
+    expect(useClientesDaCarteira).toHaveBeenCalledWith(undefined);
+    expect(useAlertasDeProducao).toHaveBeenCalledWith(90, undefined);
+  });
+
+  it('resultado das minhas visitas e os mais urgentes sem o nome do representante', () => {
+    renderizarComo('REPRESENTANTE');
+
+    const resultado = screen.getByRole('region', { name: 'Resultado das minhas visitas' });
+    expect(
+      within(resultado).getByRole('img', { name: 'Eduarda: 12 visitas, 5 com venda, 4 em negociação, 3 sem venda' }),
+    ).toBeInTheDocument();
+    const esfriando = screen.getByRole('region', { name: 'Quais clientes estão esfriando?' });
+    expect(within(esfriando).getByRole('link', { name: /Doces da Vovó/ })).not.toHaveTextContent('Eduarda');
+  });
+
+  it('metas só de leitura: as dele, sem "Nova meta"', async () => {
+    renderizarComo('REPRESENTANTE');
+
+    const metas = screen.getByRole('region', { name: 'Metas de visitas e vendas' });
+    expect(await within(metas).findByText('7 de 10 · 70 %')).toBeInTheDocument();
+    expect(within(metas).queryByRole('button', { name: 'Nova meta' })).not.toBeInTheDocument();
+    expect(within(metas).queryByRole('button', { name: /Editar|Excluir/ })).not.toBeInTheDocument();
+    expect(listarMetas).toHaveBeenCalledWith({ campanhaId: undefined, representanteId: undefined });
+  });
+
+  it('"Planilha" gera o CSV da própria carteira e "PDF" imprime', async () => {
+    const imprimir = vi.spyOn(window, 'print').mockImplementation(() => {});
+    renderizarComo('REPRESENTANTE');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
+    expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
+    expect(buscarRelatorio).toHaveBeenCalledWith(30, undefined);
+    expect(baixarCsv).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole('button', { name: 'PDF' }));
+    expect(imprimir).toHaveBeenCalledTimes(1);
+    imprimir.mockRestore();
   });
 });

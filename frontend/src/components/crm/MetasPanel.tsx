@@ -354,7 +354,7 @@ function CartaoMeta({ meta, gestor, aoEditar }: { meta: Meta; gestor: boolean; a
         <span className="min-w-0 font-medium break-words">{meta.representante.nome}</span>
         <Etiqueta>{ROTULO_PERIODO[meta.periodo]}</Etiqueta>
         {gestor && (
-          <div className="ml-auto flex">
+          <div className="ml-auto flex print:hidden">
             <Button
               size="icon"
               variant="ghost"
@@ -432,7 +432,7 @@ export function MetasPanel({ campanha, representanteId }: { campanha?: CampanhaD
           {titulo}
         </Titulo>
         {gestor && emEdicao === undefined && (
-          <Button ref={botaoNova} size="sm" variant="outline" onClick={() => abrir(null)}>
+          <Button ref={botaoNova} size="sm" variant="outline" className="print:hidden" onClick={() => abrir(null)}>
             <Plus aria-hidden="true" />
             Nova meta
           </Button>

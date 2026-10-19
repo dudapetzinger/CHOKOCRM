@@ -99,11 +99,19 @@ describe('GET /dashboard/vendas-mensais', () => {
     expect(res.status).toBe(401);
   });
 
-  it('representante responde 403', async () => {
-    const res = await getVendasMensais({}, tokenRepresentante);
+  it('representante recebe 200 só com a própria carteira, mesmo mandando o representanteId de outro', async () => {
+    const [semFiltro, comOutro, deA] = await Promise.all([
+      getVendasMensais({}, tokenRepresentante),
+      getVendasMensais({ representanteId: representanteBId }, tokenRepresentante),
+      getVendasMensais({ representanteId: representanteAId }),
+    ]);
 
-    expect(res.status).toBe(403);
-    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(semFiltro.status).toBe(200);
+    expect(comOutro.status).toBe(200);
+    // Só ERP-1001 e ERP-1002, os ativos da carteira dela.
+    expect(semFiltro.body.clientesConsultados).toBe(2);
+    expect(comOutro.body.clientesConsultados).toBe(2);
+    expect(comOutro.body.meses).toEqual(deA.body.meses);
   });
 
   it('representanteId que não é uuid responde 400 VALIDATION_ERROR', async () => {

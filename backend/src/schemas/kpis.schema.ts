@@ -5,8 +5,9 @@ import { representanteIdFiltroSchema } from './client.schema';
 const MENSAGEM_PERIODO = 'Período deve ser 30, 90 ou 365 dias.';
 
 /**
- * Query dos indicadores do painel do gestor (UC14): `?periodoDias=` é a janela
- * de análise, em dias, e só aceita os valores de `PERIODOS_DIAS`. Ausente, vale
+ * Query dos indicadores do Painel (UC14) e do relatório da planilha (spec
+ * 7.12): `?periodoDias=` é a janela de análise, em dias, e só aceita os
+ * valores de `PERIODOS_DIAS`. Ausente, vale
  * o padrão; `?representanteId=` restringe à carteira daquele representante.
  * Parâmetros desconhecidos são ignorados.
  */

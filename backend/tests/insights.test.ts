@@ -194,11 +194,14 @@ describe('GET /insights/manager-alerts', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
 
-  it('representante responde 403', async () => {
+  it('representante recebe 200 com os alertas da própria carteira', async () => {
+    await criarNatalEmDias(40);
+
     const res = await request(app).get('/insights/manager-alerts').set('Authorization', `Bearer ${token}`);
 
-    expect(res.status).toBe(403);
-    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.status).toBe(200);
+    expect(res.body.eventos).toHaveLength(1);
+    expect(res.body.clientesConsultados).toBe(2);
   });
 
   it('gestor recebe 200 com o evento do horizonte, 2 clientes consultados e alertas só de SKUs do evento com estoque baixo', async () => {
@@ -337,14 +340,23 @@ describe('GET /insights/manager-alerts com representanteId', () => {
     expect(res.body.alertas).toEqual([]);
   });
 
-  it('representante continua recebendo 403, mesmo com representanteId', async () => {
+  it('representante que manda o representanteId de outro recebe só os alertas da própria carteira', async () => {
+    await criarNatalEmDias(40);
+    const { representanteBId, clienteDeBId } = await criarCarteiraB();
+
     const res = await request(app)
       .get('/insights/manager-alerts')
-      .query({ representanteId })
+      .query({ representanteId: representanteBId })
       .set('Authorization', `Bearer ${token}`);
 
-    expect(res.status).toBe(403);
-    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.status).toBe(200);
+    // ERP-1001 e ERP-1000-0 dela; o cliente de B (ERP-1003) fica de fora.
+    expect(res.body.clientesConsultados).toBe(2);
+    for (const alerta of res.body.alertas) {
+      for (const cliente of alerta.clientes) {
+        expect(cliente.id).not.toBe(clienteDeBId);
+      }
+    }
   });
 
   it('representanteId que não é uuid responde 400 VALIDATION_ERROR', async () => {

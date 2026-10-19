@@ -128,11 +128,12 @@ describe('GET /dashboard/kpis', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
 
-  it('representante responde 403', async () => {
+  it('representante recebe 200 com os indicadores da própria carteira', async () => {
     const res = await request(app).get('/dashboard/kpis').set('Authorization', `Bearer ${token}`);
 
-    expect(res.status).toBe(403);
-    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.status).toBe(200);
+    expect(res.body.clientesAtivos).toBe(3);
+    expect(res.body.visitas.total).toBe(3);
   });
 
   it.each(['60', 'abc'])('periodoDias=%s responde 400 VALIDATION_ERROR', async (periodoDias) => {
@@ -299,14 +300,20 @@ describe('GET /dashboard/kpis com representanteId', () => {
     expect(res.body.semDados).toBe(true);
   });
 
-  it('representante continua recebendo 403, mesmo com representanteId', async () => {
+  it('representante que manda o representanteId de outro recebe só a própria carteira', async () => {
+    const representanteBId = await criarCarteiraB();
+
     const res = await request(app)
       .get('/dashboard/kpis')
-      .query({ representanteId: representanteId })
+      .query({ representanteId: representanteBId })
       .set('Authorization', `Bearer ${token}`);
 
-    expect(res.status).toBe(403);
-    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.status).toBe(200);
+    // A, B e C (D é inativo); o cliente de B e as duas visitas a ele ficam de fora.
+    expect(res.body.clientesAtivos).toBe(3);
+    expect(res.body.visitas.total).toBe(3);
+    expect(res.body.conversaoEmVendas).toEqual({ numerador: 2, denominador: 3, percentual: 67 });
+    expect(res.body.taxaDeRegistro).toEqual({ numerador: 2, denominador: 3, percentual: 67 });
   });
 
   it('representanteId que não é uuid responde 400 VALIDATION_ERROR', async () => {
@@ -329,14 +336,24 @@ describe('GET /dashboard/kpis/por-representante', () => {
     expect(res.status).toBe(401);
   });
 
-  it('representante responde 403, mesmo com representanteId', async () => {
+  it('representante recebe só a própria linha e o próprio ritmo, mesmo mandando o representanteId de outro', async () => {
+    const representanteBId = await criarCarteiraB();
+
     const res = await request(app)
       .get('/dashboard/kpis/por-representante')
-      .query({ representanteId })
+      .query({ representanteId: representanteBId })
       .set('Authorization', `Bearer ${token}`);
 
-    expect(res.status).toBe(403);
-    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.status).toBe(200);
+    expect(res.body.representantes).toEqual([
+      expect.objectContaining({ id: representanteId, clientesAtivos: 3, visitas: 3, vendas: 2, semVenda: 1 }),
+    ]);
+    // Nas 8 semanas, só a carteira dela: −2, −3, −10 e −40 (a visita dela ao cliente de B conta para B).
+    const visitasNoRitmo = res.body.ritmoSemanal.reduce(
+      (soma: number, semana: { visitas: number }) => soma + semana.visitas,
+      0,
+    );
+    expect(visitasNoRitmo).toBe(4);
   });
 
   it('periodoDias inválido responde 400 VALIDATION_ERROR', async () => {

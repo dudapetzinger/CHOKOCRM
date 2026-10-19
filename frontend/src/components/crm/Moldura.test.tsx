@@ -49,19 +49,17 @@ afterEach(() => {
 });
 
 describe('Moldura', () => {
-  // Ordens fixadas (spec 6.5). O Painel do representante entra depois
-  // (entre Clientes e Campanhas): quem acrescentar estende estas listas.
+  // Ordens finais (spec 6.5).
   it('gestor vê Painel, Clientes, Agenda, Campanhas e Usuários nessa ordem', () => {
     renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
 
     expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas', 'Usuários']);
   });
 
-  it('representante vê Agenda, Clientes e Campanhas, sem Painel nem Usuários', () => {
+  it('representante vê Agenda, Clientes, Painel e Campanhas, sem Usuários', () => {
     renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
 
-    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Campanhas']);
-    expect(screen.queryByRole('link', { name: 'Painel' })).not.toBeInTheDocument();
+    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Painel', 'Campanhas']);
     expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument();
   });
 
@@ -72,7 +70,17 @@ describe('Moldura', () => {
     unmount();
 
     renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
-    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Campanhas']);
+    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Painel', 'Campanhas']);
+  });
+
+  it('representante abre o Painel pela navegação, com o atalho marcado', async () => {
+    renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
+
+    await userEvent.click(screen.getByRole('link', { name: 'Painel' }));
+
+    expect(screen.getByText('tela do painel')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Painel de indicadores' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Painel' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('em "Novo usuário" o atalho Usuários fica marcado e o celular mostra "Voltar"', () => {
@@ -148,7 +156,7 @@ describe('Moldura', () => {
     expect(screen.getByRole('img', { name: 'ChokoCRM' })).toHaveAttribute('src', '/logo.svg');
     expect(screen.getByText('Chokolaten')).toBeInTheDocument();
     expect(screen.getAllByRole('navigation')).toHaveLength(1);
-    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Campanhas']);
+    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Painel', 'Campanhas']);
     expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument();
   });
 });

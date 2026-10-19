@@ -120,3 +120,21 @@ export async function listNoPeriodo(
 
   return visitas.map(({ client, ...visita }) => ({ ...visita, representanteId: client.representanteId }));
 }
+
+/**
+ * Visitas do período com o pedido, para o relatório do Painel (spec 7.12):
+ * `dataHora` entre `inicio` e `fim`, inclusive; com `representanteId`, só
+ * visitas a clientes da carteira dele (a carteira do cliente, não o autor).
+ */
+export async function listNoPeriodoComPedido(
+  inicio: Date,
+  fim: Date,
+  representanteId?: string,
+): Promise<
+  { clientId: string; resultado: ResultadoVisita; itens: { quantidade: number; precoUnitario: Prisma.Decimal }[] }[]
+> {
+  return prisma.visit.findMany({
+    where: { dataHora: { gte: inicio, lte: fim }, ...(representanteId ? { client: { representanteId } } : {}) },
+    select: { clientId: true, resultado: true, itens: { select: { quantidade: true, precoUnitario: true } } },
+  });
+}

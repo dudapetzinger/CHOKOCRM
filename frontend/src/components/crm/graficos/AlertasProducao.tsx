@@ -104,7 +104,7 @@ export function AlertasProducao({ horizonteDias, onHorizonteChange, alertas, car
     <>
       <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold">Alertas de produção</h3>
-        <FiltroHorizonte valor={horizonteDias} onChange={onHorizonteChange} className="" />
+        <FiltroHorizonte valor={horizonteDias} onChange={onHorizonteChange} className="print:hidden" />
       </div>
 
       <div

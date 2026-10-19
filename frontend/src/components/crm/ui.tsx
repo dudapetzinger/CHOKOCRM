@@ -99,7 +99,10 @@ export function Cartao({
 }) {
   const idTitulo = useId();
   return (
-    <section className={cn('rounded-xl border bg-card p-5', className)} aria-labelledby={titulo ? idTitulo : undefined}>
+    <section
+      className={cn('rounded-xl border bg-card p-5 print:break-inside-avoid', className)}
+      aria-labelledby={titulo ? idTitulo : undefined}
+    >
       {(titulo || acao) && (
         <div className="mb-4 flex items-center justify-between gap-3">
           {titulo && (
