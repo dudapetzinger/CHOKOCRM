@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
+import { dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -254,6 +255,21 @@ describe('GET /dashboard/relatorio', () => {
     expect(doces(padrao)).toMatchObject({ visitasNoPeriodo: 2, vendasNoPeriodo: 84 });
     expect(anual.status).toBe(200);
     expect(doces(anual)).toMatchObject({ visitasNoPeriodo: 3, vendasNoPeriodo: 184 });
+  });
+
+  it('aceita 400 dias (a Planilha não tem o teto de 365 do Painel) e período por datas', async () => {
+    const hoje = dataCalendario(new Date());
+
+    const longo = await getRelatorio({ inicio: somarDias(hoje, -399), fim: hoje });
+    const porDatas = await getRelatorio({ inicio: somarDias(hoje, -3), fim: somarDias(hoje, -1) });
+    const dosDois = await getRelatorio({ periodoDias: 30, inicio: somarDias(hoje, -3), fim: hoje });
+
+    const doces = (res: request.Response) => (res.body.data as Linha[]).find((l) => l.cliente === 'Doces da Vovó')!;
+    expect(longo.status).toBe(200);
+    expect(doces(longo)).toMatchObject({ visitasNoPeriodo: 3, vendasNoPeriodo: 184 });
+    expect(porDatas.status).toBe(200);
+    expect(doces(porDatas)).toMatchObject({ visitasNoPeriodo: 1, vendasNoPeriodo: 84 }); // só a de −2 dias
+    expect(dosDois.status).toBe(400);
   });
 
   it('gestor com ?representanteId= recebe só a carteira daquele representante', async () => {

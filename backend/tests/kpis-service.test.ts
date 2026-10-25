@@ -5,6 +5,7 @@ import * as stockMessageRepository from '../src/repositories/stock-message.repos
 import * as visitRepository from '../src/repositories/visit.repository';
 import { fimDoDia, inicioDoDia } from '../src/services/classificacao.service';
 import * as erpService from '../src/services/erp.service';
+import type { Janela } from '../src/services/kpis.regras';
 import { obterKpis } from '../src/services/kpis.service';
 
 /**
@@ -15,6 +16,7 @@ import { obterKpis } from '../src/services/kpis.service';
  */
 
 const HOJE = new Date('2026-10-07T12:00:00Z');
+const JANELA_30_DIAS: Janela = { dias: 30, inicio: '2026-09-08', fim: '2026-10-07' };
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
 function diasAtras(dias: number): Date {
@@ -73,7 +75,7 @@ describe('obterKpis', () => {
     listAtivosParaAgenda.mockResolvedValue([]);
     consultarUltimasVendas.mockResolvedValue(new Map());
 
-    await obterKpis(30, HOJE, 'rep-b');
+    await obterKpis(JANELA_30_DIAS, HOJE, 'rep-b');
 
     expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), 'rep-b');
     expect(listaMensagens).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), 'rep-b');
@@ -86,7 +88,7 @@ describe('obterKpis', () => {
     listAtivosParaAgenda.mockResolvedValue([clienteAtivo('a', 'ERP-A', null)]);
     consultarUltimasVendas.mockResolvedValue(new Map());
 
-    await obterKpis(30, HOJE);
+    await obterKpis(JANELA_30_DIAS, HOJE);
 
     expect(listaVisitas).toHaveBeenCalledTimes(1);
     expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), undefined);
@@ -112,7 +114,7 @@ describe('obterKpis', () => {
     ]);
     listaMensagens.mockResolvedValue([{ clientId: 'c' }]);
 
-    await expect(obterKpis(30, HOJE)).resolves.toEqual({
+    await expect(obterKpis(JANELA_30_DIAS, HOJE)).resolves.toEqual({
       periodo: { dias: 30, inicio: '2026-09-08', fim: '2026-10-07' },
       clientesAtivos: 3,
       visitas: { total: 2, mediaPorCliente: 0.7 }, // 2 / 3 = 0,666… → 0,7
@@ -134,7 +136,7 @@ describe('obterKpis', () => {
     listaVisitas.mockResolvedValue([{ clientId: 'a', resultado: 'VENDA', dataHora: diasAtras(3), representanteId: 'rep-1' }]);
     listaMensagens.mockResolvedValue([]);
 
-    const kpis = await obterKpis(30, HOJE);
+    const kpis = await obterKpis(JANELA_30_DIAS, HOJE);
 
     expect(consultarUltimasVendas).toHaveBeenCalledWith(['ERP-A']);
     expect(kpis.inativos).toEqual({ total: 1, distribuicao: { VERDE: 0, AMARELO: 0, LARANJA: 1, VERMELHO: 0 } });
@@ -149,14 +151,14 @@ describe('obterKpis', () => {
     listaMensagens.mockResolvedValue([]);
 
     erpSimulado.mockReturnValue(false);
-    const real = await obterKpis(30, HOJE);
+    const real = await obterKpis(JANELA_30_DIAS, HOJE);
 
     expect(real.inativos).toEqual({ total: 0, distribuicao: { VERDE: 1, AMARELO: 0, LARANJA: 0, VERMELHO: 0 } });
     expect(real.simulado).toBe(false);
 
     erpSimulado.mockReturnValue(true);
 
-    await expect(obterKpis(30, HOJE)).resolves.toMatchObject({ simulado: true });
+    await expect(obterKpis(JANELA_30_DIAS, HOJE)).resolves.toMatchObject({ simulado: true });
   });
 
   it('visita de clientId que não está entre os ativos conta em visitas.total e na conversão, não na taxa', async () => {
@@ -171,7 +173,7 @@ describe('obterKpis', () => {
     ]);
     listaMensagens.mockResolvedValue([]);
 
-    const kpis = await obterKpis(30, HOJE);
+    const kpis = await obterKpis(JANELA_30_DIAS, HOJE);
 
     expect(kpis.visitas).toEqual({ total: 2, mediaPorCliente: 1 }); // 2 visitas / 2 ativos
     expect(kpis.conversaoEmVendas).toEqual({ numerador: 1, denominador: 2, percentual: 50 });
@@ -188,7 +190,7 @@ describe('obterKpis', () => {
     listaVisitas.mockResolvedValue([]);
     listaMensagens.mockResolvedValue([]);
 
-    const comAtivos = await obterKpis(30, HOJE);
+    const comAtivos = await obterKpis(JANELA_30_DIAS, HOJE);
 
     expect(comAtivos).toMatchObject({
       clientesAtivos: 2,
@@ -202,7 +204,7 @@ describe('obterKpis', () => {
 
     listAtivosParaAgenda.mockResolvedValue([]);
 
-    const semAtivos = await obterKpis(30, HOJE);
+    const semAtivos = await obterKpis(JANELA_30_DIAS, HOJE);
 
     expect(semAtivos).toMatchObject({
       clientesAtivos: 0,

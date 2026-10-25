@@ -18,18 +18,22 @@ const COM_REPRESENTANTE = { representante: { select: { id: true, nome: true } } 
 export type MetaComRepresentante = Goal & { representante: { id: string; nome: string } };
 
 /**
- * Metas com campanha `campanhaId` (`null` = só as sem campanha) e, com
- * `representanteId`, só as dele. Do período mais recente para o mais
- * antigo; no mesmo início, por nome do representante.
+ * Metas com campanha `campanhaId` (`null` = só as sem campanha), com
+ * `representanteId`, só as dele e, com `janela`, só as que cruzam a janela
+ * (`inicio <= janela.fim && fim >= janela.inicio`; `Date` de coluna
+ * `@db.Date`). Do período mais recente para o mais antigo; no mesmo início,
+ * por nome do representante.
  */
 export async function listar(filtro: {
   campanhaId: string | null;
   representanteId?: string;
+  janela?: { inicio: Date; fim: Date };
 }): Promise<MetaComRepresentante[]> {
   return prisma.goal.findMany({
     where: {
       campanhaId: filtro.campanhaId,
       ...(filtro.representanteId ? { representanteId: filtro.representanteId } : {}),
+      ...(filtro.janela ? { inicio: { lte: filtro.janela.fim }, fim: { gte: filtro.janela.inicio } } : {}),
     },
     include: COM_REPRESENTANTE,
     orderBy: [{ inicio: 'desc' }, { fim: 'desc' }, { representante: { nome: 'asc' } }],

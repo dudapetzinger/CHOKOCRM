@@ -1,5 +1,5 @@
 import type { ResultadoVisita } from '@prisma/client';
-import { CORES_INATIVAS, SEMANAS_DO_RITMO } from '../config/kpis';
+import { CORES_INATIVAS, PERIODO_PADRAO_DIAS, SEMANAS_DO_RITMO } from '../config/kpis';
 import { CORES, dataCalendario, diasEntre, somarDias, type Cor, type DataCalendario } from './classificacao.service';
 
 /**
@@ -30,6 +30,26 @@ export function periodoDeAnalise(
   periodoDias: number,
 ): { inicio: DataCalendario; fim: DataCalendario } {
   return { inicio: somarDias(hoje, -(periodoDias - 1)), fim: hoje };
+}
+
+/** Janela de análise já resolvida: `dias` conta as duas pontas; `inicio` e `fim` em 'AAAA-MM-DD', inclusivos. */
+export type Janela = { dias: number; inicio: DataCalendario; fim: DataCalendario };
+
+/**
+ * A janela pedida: com `inicio` e `fim`, as datas (e `dias` = `diasEntre` + 1);
+ * com `periodoDias`, os últimos dias terminando hoje; sem nada, 30 dias. Pura:
+ * não valida — quem confere as datas é `resolverPeriodo` (periodo.ts).
+ */
+export function janelaDoPeriodo(
+  pedido: { periodoDias?: number | undefined; inicio?: DataCalendario | undefined; fim?: DataCalendario | undefined },
+  hoje: DataCalendario,
+): Janela {
+  if (pedido.inicio !== undefined && pedido.fim !== undefined) {
+    return { dias: diasEntre(pedido.inicio, pedido.fim) + 1, inicio: pedido.inicio, fim: pedido.fim };
+  }
+
+  const dias = pedido.periodoDias ?? PERIODO_PADRAO_DIAS;
+  return { dias, ...periodoDeAnalise(hoje, dias) };
 }
 
 export function contarVisitas(visitas: VisitaDoPeriodo[]): number {

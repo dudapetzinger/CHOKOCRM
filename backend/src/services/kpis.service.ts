@@ -12,10 +12,10 @@ import {
   distribuicaoPorCor,
   inicioDoRitmoSemanal,
   mediaDeVisitasPorCliente,
-  periodoDeAnalise,
   ritmoSemanal,
   taxaDeRegistro,
   type DistribuicaoPorCor,
+  type Janela,
   type KpiRepresentante,
   type Proporcao,
   type SemanaDoRitmo,
@@ -58,11 +58,11 @@ export type KpisPorRepresentanteDTO = {
  * (a carteira do cliente decide, não o autor). Sem ele, a empresa toda.
  */
 export async function obterKpis(
-  periodoDias: number,
+  janela: Janela,
   hoje: Date = new Date(),
   representanteId?: string,
 ): Promise<KpisDTO> {
-  const { inicio, fim } = periodoDeAnalise(dataCalendario(hoje), periodoDias);
+  const { inicio, fim } = janela;
 
   const [visitas, mensagens, ativos] = await Promise.all([
     visitRepository.listNoPeriodo(inicioDoDia(inicio), fimDoDia(fim), representanteId),
@@ -81,7 +81,7 @@ export async function obterKpis(
   const total = contarVisitas(visitas);
 
   return {
-    periodo: { dias: periodoDias, inicio, fim },
+    periodo: janela,
     clientesAtivos: ativos.length,
     visitas: { total, mediaPorCliente: mediaDeVisitasPorCliente(total, ativos.length) },
     taxaDeRegistro: taxaDeRegistro(
@@ -101,34 +101,39 @@ export async function obterKpis(
  * `representanteId`, todos os usuários REPRESENTANTE (mesmo sem cliente nem
  * visita); com ele, só aquele (lista vazia se o id não for de um
  * representante). Junto, o ritmo semanal de visitas da mesma carteira nas 8
- * últimas semanas, que não depende do período: uma consulta só cobre as
- * duas janelas, e o comparativo usa as visitas a partir do início do período.
+ * últimas semanas, que não depende do período (vai até hoje, mesmo que o
+ * período termine antes): uma consulta só cobre as duas janelas, e o
+ * comparativo usa só as visitas de dentro do período.
  */
 export async function obterKpisPorRepresentante(
-  periodoDias: number,
+  janela: Janela,
   hoje: Date = new Date(),
   representanteId?: string,
 ): Promise<KpisPorRepresentanteDTO> {
   const hojeCalendario = dataCalendario(hoje);
-  const { inicio, fim } = periodoDeAnalise(hojeCalendario, periodoDias);
+  const { inicio, fim } = janela;
   const inicioDoRitmo = inicioDoRitmoSemanal(hojeCalendario);
   const desde = inicioDoRitmo < inicio ? inicioDoRitmo : inicio;
+  const ate = fim > hojeCalendario ? fim : hojeCalendario;
 
   const [visitas, ativos, todosOsRepresentantes] = await Promise.all([
-    visitRepository.listNoPeriodo(inicioDoDia(desde), fimDoDia(fim), representanteId),
+    visitRepository.listNoPeriodo(inicioDoDia(desde), fimDoDia(ate), representanteId),
     clientRepository.listAtivosParaAgenda(representanteId),
     // Inclui inativos: inativar a conta não apaga o histórico do comparativo.
     userRepository.listByRole('REPRESENTANTE', { incluirInativos: true }),
   ]);
 
   const inicioDoPeriodo = inicioDoDia(inicio);
-  const visitasDoPeriodo = visitas.filter((visita) => visita.dataHora >= inicioDoPeriodo);
+  const fimDoPeriodo = fimDoDia(fim);
+  const visitasDoPeriodo = visitas.filter(
+    (visita) => visita.dataHora >= inicioDoPeriodo && visita.dataHora <= fimDoPeriodo,
+  );
   const representantes = representanteId
     ? todosOsRepresentantes.filter((representante) => representante.id === representanteId)
     : todosOsRepresentantes;
 
   return {
-    periodo: { dias: periodoDias, inicio, fim },
+    periodo: janela,
     representantes: agruparPorRepresentante(
       visitasDoPeriodo,
       ativos.map((cliente) => ({ representanteId: cliente.representante.id })),

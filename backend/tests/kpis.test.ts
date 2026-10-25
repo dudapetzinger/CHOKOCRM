@@ -196,6 +196,113 @@ describe('GET /dashboard/kpis', () => {
     expect(anual.body.visitas.total).toBe(5);
   });
 
+  describe('período por datas', () => {
+    const hojeEmSaoPaulo = (): string => dataCalendario(new Date());
+
+    async function getKpis(query: Record<string, string | number>): Promise<request.Response> {
+      return request(app).get('/dashboard/kpis').query(query).set('Authorization', `Bearer ${tokenGestor}`);
+    }
+
+    it('?inicio&fim responde periodo { dias: 25, inicio, fim } e conta a visita das 23:30 do último dia, não a das 00:10 do seguinte', async () => {
+      const fim = somarDias(hojeEmSaoPaulo(), -5);
+      const inicio = somarDias(fim, -24);
+      const visita = (dataHora: string) =>
+        prisma.visit.create({
+          data: {
+            clientId: clienteAId,
+            userId: representanteId,
+            dataHora: new Date(dataHora),
+            descricao: 'Visita de teste.',
+            resultado: 'VENDA',
+          },
+        });
+      await visita(`${fim}T23:30:00.000-03:00`);
+      await visita(`${somarDias(fim, 1)}T00:10:00.000-03:00`);
+
+      const res = await getKpis({ inicio, fim });
+
+      expect(res.status).toBe(200);
+      expect(res.body.periodo).toEqual({ dias: 25, inicio, fim });
+      // A visita de −10 dias do cenário base e a das 23:30 do último dia; a das 00:10 do dia seguinte, não.
+      expect(res.body.visitas.total).toBe(2);
+    });
+
+    it('?periodoDias junto com ?inicio&fim responde 400 "Informe o período em dias ou por datas, não os dois."', async () => {
+      const hoje = hojeEmSaoPaulo();
+
+      const res = await getKpis({ periodoDias: 30, inicio: somarDias(hoje, -10), fim: hoje });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.details.map((d: { message: string }) => d.message)).toContain(
+        'Informe o período em dias ou por datas, não os dois.',
+      );
+    });
+
+    it('só uma das datas responde 400 "Informe o início e o fim do período."', async () => {
+      const res = await getKpis({ inicio: somarDias(hojeEmSaoPaulo(), -10) });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.details.map((d: { message: string }) => d.message)).toContain(
+        'Informe o início e o fim do período.',
+      );
+    });
+
+    it('fim antes do início responde 400 "A data de fim deve ser depois do início."', async () => {
+      const hoje = hojeEmSaoPaulo();
+
+      const res = await getKpis({ inicio: hoje, fim: somarDias(hoje, -1) });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.details.map((d: { message: string }) => d.message)).toContain(
+        'A data de fim deve ser depois do início.',
+      );
+    });
+
+    it('fim depois de hoje responde 400 "A data de fim não pode ser depois de hoje."', async () => {
+      const hoje = hojeEmSaoPaulo();
+
+      const res = await getKpis({ inicio: hoje, fim: somarDias(hoje, 2) });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.message).toBe('A data de fim não pode ser depois de hoje.');
+    });
+
+    it('366 dias responde 400 com a mensagem do limite; 365 dias passa', async () => {
+      const hoje = hojeEmSaoPaulo();
+
+      const longo = await getKpis({ inicio: somarDias(hoje, -365), fim: hoje });
+      const limite = await getKpis({ inicio: somarDias(hoje, -364), fim: hoje });
+
+      expect(longo.status).toBe(400);
+      expect(longo.body.error.message).toBe(
+        'O período de visualização é de até 365 dias; para mais, use a Planilha.',
+      );
+      expect(limite.status).toBe(200);
+      expect(limite.body.periodo.dias).toBe(365);
+    });
+
+    it('o comparativo por representante também aceita datas e respeita o limite', async () => {
+      const hoje = hojeEmSaoPaulo();
+      const comparativo = (query: Record<string, string>) =>
+        request(app)
+          .get('/dashboard/kpis/por-representante')
+          .query(query)
+          .set('Authorization', `Bearer ${tokenGestor}`);
+
+      const ok = await comparativo({ inicio: somarDias(hoje, -11), fim: somarDias(hoje, -9) });
+      const longo = await comparativo({ inicio: somarDias(hoje, -365), fim: hoje });
+
+      expect(ok.status).toBe(200);
+      expect(ok.body.periodo.dias).toBe(3);
+      expect(ok.body.representantes[0].visitas).toBe(1); // a de −10 dias
+      // O ritmo semanal não depende do período: segue até hoje mesmo com o período terminando há 9 dias.
+      const visitasNoRitmo = (ok.body.ritmoSemanal as { visitas: number }[]).reduce((soma, s) => soma + s.visitas, 0);
+      expect(visitasNoRitmo).toBe(4);
+      expect(longo.status).toBe(400);
+    });
+  });
+
   it('semDados é true quando o período não tem visita nem mensagem', async () => {
     await truncateAllTables();
     const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);

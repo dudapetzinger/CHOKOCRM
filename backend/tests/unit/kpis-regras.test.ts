@@ -5,6 +5,7 @@ import {
   contarVisitas,
   conversaoEmVendas,
   distribuicaoPorCor,
+  janelaDoPeriodo,
   mediaDeVisitasPorCliente,
   periodoDeAnalise,
   taxaDeRegistro,
@@ -18,6 +19,34 @@ function visitas(resultado: ResultadoVisita, quantidade: number, clientId = 'c')
 function ids(quantidade: number): string[] {
   return Array.from({ length: quantidade }, (_, i) => `c${i + 1}`);
 }
+
+describe('janelaDoPeriodo', () => {
+  it('sem nada: 30 dias terminando hoje', () => {
+    expect(janelaDoPeriodo({}, '2026-10-07')).toEqual({ dias: 30, inicio: '2026-09-08', fim: '2026-10-07' });
+  });
+
+  it('com periodoDias: o mesmo de periodoDeAnalise, com os dias', () => {
+    expect(janelaDoPeriodo({ periodoDias: 365 }, '2026-10-07')).toEqual({
+      dias: 365,
+      inicio: '2025-10-08',
+      fim: '2026-10-07',
+    });
+  });
+
+  it('com datas: usa as datas e dias conta as duas pontas', () => {
+    expect(janelaDoPeriodo({ inicio: '2026-10-01', fim: '2026-10-07' }, '2026-10-07')).toEqual({
+      dias: 7,
+      inicio: '2026-10-01',
+      fim: '2026-10-07',
+    });
+    expect(janelaDoPeriodo({ inicio: '2026-10-07', fim: '2026-10-07' }, '2026-10-07').dias).toBe(1);
+  });
+
+  it('atravessa a virada de ano e o fevereiro bissexto', () => {
+    expect(janelaDoPeriodo({ inicio: '2026-12-30', fim: '2027-01-02' }, '2027-01-10').dias).toBe(4);
+    expect(janelaDoPeriodo({ inicio: '2028-02-28', fim: '2028-03-01' }, '2028-03-10').dias).toBe(3);
+  });
+});
 
 describe('periodoDeAnalise', () => {
   it("30 dias a partir de 2026-10-07 → ['2026-09-08', '2026-10-07']; 365 → ['2025-10-08', '2026-10-07']", () => {

@@ -3,14 +3,13 @@ import * as clientRepository from '../repositories/client.repository';
 import * as visitRepository from '../repositories/visit.repository';
 import {
   classificacaoDoCliente,
-  dataCalendario,
   fimDoDia,
   inicioDoDia,
   ordemDeCor,
   type Cor,
 } from './classificacao.service';
 import { consultarUltimasVendas } from './erp.service';
-import { periodoDeAnalise } from './kpis.regras';
+import type { Janela } from './kpis.regras';
 
 /**
  * Relatório da planilha do Painel (spec 7.12): uma linha por cliente ativo
@@ -61,11 +60,11 @@ export function compararPorUrgencia(a: Ordenavel, b: Ordenavel): number {
 
 /** Com `representanteId`, só a carteira daquele representante; sem ele, a empresa toda. */
 export async function obterRelatorio(
-  periodoDias: number,
+  janela: Janela,
   hoje: Date = new Date(),
   representanteId?: string,
 ): Promise<LinhaDoRelatorioDTO[]> {
-  const { inicio, fim } = periodoDeAnalise(dataCalendario(hoje), periodoDias);
+  const { inicio, fim } = janela;
 
   const [ativos, visitas] = await Promise.all([
     clientRepository.listAtivosParaAgenda(representanteId),

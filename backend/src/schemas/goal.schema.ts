@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { representanteIdFiltroSchema } from './client.schema';
+import { camposDoPeriodo, validarPeriodo } from './kpis.schema';
 
 /**
  * Validação das metas de visitas e vendas (spec 7.8), na criação e na
@@ -67,13 +68,18 @@ export const metaSchema = z
 export type MetaInput = z.infer<typeof metaSchema>;
 
 /**
- * Query da lista: `?campanhaId=` (sem ele, só as metas sem campanha) e
- * `?representanteId=` (o representante sempre recebe só as próprias).
- * Parâmetros desconhecidos são ignorados.
+ * Query da lista: `?campanhaId=` (sem ele, só as metas sem campanha),
+ * `?representanteId=` (o representante sempre recebe só as próprias) e,
+ * opcionalmente, um período (`?periodoDias=` ou `?inicio=&fim=`, as mesmas
+ * regras do Painel) para listar só as metas que cruzam a janela. Parâmetros
+ * desconhecidos são ignorados.
  */
-export const listarMetasQuerySchema = z.object({
-  campanhaId: z.string().uuid('Identificador da campanha inválido.').optional(),
-  representanteId: representanteIdFiltroSchema,
-});
+export const listarMetasQuerySchema = z
+  .object({
+    campanhaId: z.string().uuid('Identificador da campanha inválido.').optional(),
+    representanteId: representanteIdFiltroSchema,
+    ...camposDoPeriodo,
+  })
+  .superRefine(validarPeriodo);
 
 export type ListarMetasQuery = z.infer<typeof listarMetasQuerySchema>;

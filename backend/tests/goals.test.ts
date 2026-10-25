@@ -448,6 +448,46 @@ describe('GET /goals', () => {
     expect(natal.body.data.map((meta: { id: string }) => meta.id)).toEqual([doNatal.id]);
   });
 
+  it('com ?inicio&fim lista só as metas que cruzam a janela (pontas inclusivas); sem período, todas', async () => {
+    const setembro = (await criarMeta({ periodo: 'MENSAL', inicio: '2025-09-01', fim: '2025-09-30' })).body;
+    const outubro = (await criarMeta({ periodo: 'MENSAL', inicio: '2025-10-01', fim: '2025-10-31' })).body;
+    const novembro = (await criarMeta({ periodo: 'MENSAL', inicio: '2025-11-01', fim: '2025-11-30' })).body;
+    const ids = (res: request.Response) => res.body.data.map((meta: { id: string }) => meta.id);
+    // Tudo em 2025: no passado, para o fim nunca passar de hoje.
+    const listar = (query: string) => autenticado(request(app).get(`/goals${query}`), tokenGestor);
+
+    const cruzaSoOutubro = await listar('?inicio=2025-10-10&fim=2025-10-20');
+    const tocaNaPontaDeSetembro = await listar('?inicio=2025-09-30&fim=2025-10-01');
+    const entreSetembroENovembro = await listar('?inicio=2025-10-31&fim=2025-11-01');
+    const foraDeTodas = await listar('?inicio=2025-01-01&fim=2025-01-31');
+    const semPeriodo = await listar('');
+
+    expect(cruzaSoOutubro.status).toBe(200);
+    expect(ids(cruzaSoOutubro)).toEqual([outubro.id]);
+    expect(ids(tocaNaPontaDeSetembro)).toEqual([outubro.id, setembro.id]);
+    expect(ids(entreSetembroENovembro)).toEqual([novembro.id, outubro.id]);
+    expect(ids(foraDeTodas)).toEqual([]);
+    expect(ids(semPeriodo)).toEqual([novembro.id, outubro.id, setembro.id]);
+  });
+
+  it('o período da lista segue as regras do Painel (dias ou datas, não os dois; as duas datas; sem teto)', async () => {
+    const listar = (query: string) => autenticado(request(app).get(`/goals${query}`), tokenGestor);
+
+    const osDois = await listar('?periodoDias=30&inicio=2025-10-01&fim=2025-10-10');
+    const umaData = await listar('?inicio=2025-10-01');
+    const fimAntes = await listar('?inicio=2025-10-10&fim=2025-10-01');
+    const noFuturo = await listar('?inicio=2025-10-01&fim=2099-01-01');
+    const porDias = await listar('?periodoDias=90');
+    const muitoLonga = await listar('?inicio=2020-01-01&fim=2025-01-01');
+
+    expect(osDois.status).toBe(400);
+    expect(umaData.status).toBe(400);
+    expect(fimAntes.status).toBe(400);
+    expect(noFuturo.status).toBe(400);
+    expect(porDias.status).toBe(200);
+    expect(muitoLonga.status).toBe(200);
+  });
+
   it('o gestor vê todas ou filtra pelo representante', async () => {
     const daEduarda = (await criarMeta()).body;
     const doRafael = (await criarMeta({ representanteId: rafaelId })).body;

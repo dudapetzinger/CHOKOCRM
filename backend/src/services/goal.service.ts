@@ -9,6 +9,7 @@ import type { ListarMetasQuery, MetaInput } from '../schemas/goal.schema';
 import { representanteEfetivo, type UsuarioAutenticado } from './carteira';
 import { colunaDateDaData, dataDaColunaDate, fimDoDia, inicioDoDia } from './classificacao.service';
 import { metaDentroDaCampanha, periodoDaMeta, realizadoDaMeta, type Realizado } from './goal.regras';
+import { resolverPeriodo } from './periodo';
 
 /**
  * Metas de visitas e vendas (spec 7.8). O gestor cria, altera e exclui
@@ -135,12 +136,18 @@ async function exigirMeta(id: string): Promise<Goal> {
 /**
  * Sem `campanhaId`, só as metas sem campanha; com ele, só as daquela
  * campanha. O representante recebe só as próprias (o `representanteId`
- * pedido é ignorado); o gestor, as do representante pedido ou todas.
+ * pedido é ignorado); o gestor, as do representante pedido ou todas. Com
+ * período na query (dias ou datas, sem teto), só as metas que cruzam a
+ * janela; sem período, todas.
  */
 export async function listarMetas(usuario: UsuarioAutenticado, filtro: ListarMetasQuery): Promise<MetaDTO[]> {
+  const pediuPeriodo = filtro.periodoDias !== undefined || filtro.inicio !== undefined || filtro.fim !== undefined;
+  const janela = pediuPeriodo ? resolverPeriodo(filtro, new Date()) : undefined;
+
   const metas = await goalRepository.listar({
     campanhaId: filtro.campanhaId ?? null,
     representanteId: representanteEfetivo(usuario, filtro.representanteId),
+    ...(janela ? { janela: { inicio: colunaDateDaData(janela.inicio), fim: colunaDateDaData(janela.fim) } } : {}),
   });
   return montarDTOs(metas);
 }
