@@ -10,7 +10,13 @@ import { dataCalendario, type DataCalendario } from './classificacao.service';
  */
 export type TotalDoMes = { mes: string; total: number };
 
-export type PontoMensal = TotalDoMes & { clientesComDados: number };
+/** Um cliente que comprou no mês, com o quanto comprou. */
+export type ClienteNoMes = { id: string; nomeFantasia: string; total: number };
+
+export type PontoMensal = TotalDoMes & { clientesComDados: number; clientes: ClienteNoMes[] };
+
+/** As vendas de um cliente da carteira, já ligado ao cadastro. */
+export type VendasDeUmCliente = { cliente: { id: string; nomeFantasia: string }; vendas: Sale[] };
 
 export type MarcadorDeEvento = { chave: EventoSazonal; nome: string; data: DataCalendario };
 
@@ -54,16 +60,31 @@ export function somarPorMes(vendas: Sale[], meses: string[]): TotalDoMes[] {
 /**
  * Série do gráfico: total de todas as vendas por mês (`somarPorMes`) e,
  * em `clientesComDados`, quantos clientes tiveram ao menos uma venda no mês.
- * Cada item de `vendasPorCliente` são as vendas de um cliente.
+ * Em `clientes`, só quem comprou no mês, do maior total ao menor e, no
+ * empate, por nome; mês sem venda fica com a lista vazia.
  */
-export function serieMensal(vendasPorCliente: Sale[][], meses: string[]): PontoMensal[] {
-  const mesesComVendaPorCliente = vendasPorCliente.map((vendas) => new Set(vendas.map(mesDaVenda)));
-
-  return somarPorMes(vendasPorCliente.flat(), meses).map(({ mes, total }) => ({
-    mes,
-    total,
-    clientesComDados: mesesComVendaPorCliente.filter((mesesComVenda) => mesesComVenda.has(mes)).length,
+export function serieMensal(vendasPorCliente: VendasDeUmCliente[], meses: string[]): PontoMensal[] {
+  const dosClientes = vendasPorCliente.map(({ cliente, vendas }) => ({
+    cliente,
+    mesesComVenda: new Set(vendas.map(mesDaVenda)),
+    totais: somarPorMes(vendas, meses),
   }));
+
+  return somarPorMes(
+    vendasPorCliente.flatMap(({ vendas }) => vendas),
+    meses,
+  ).map(({ mes, total }, indice) => {
+    const clientes = dosClientes
+      .filter(({ mesesComVenda }) => mesesComVenda.has(mes))
+      .map(({ cliente, totais }) => ({
+        id: cliente.id,
+        nomeFantasia: cliente.nomeFantasia,
+        total: totais[indice]!.total,
+      }))
+      .sort((a, b) => b.total - a.total || a.nomeFantasia.localeCompare(b.nomeFantasia, 'pt-BR'));
+
+    return { mes, total, clientesComDados: clientes.length, clientes };
+  });
 }
 
 /** Último dia (`'AAAA-MM-DD'`) do mês `'AAAA-MM'`. */

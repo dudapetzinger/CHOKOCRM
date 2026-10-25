@@ -7,6 +7,7 @@ import {
   serieMensal,
   type MarcadorDeEvento,
   type PontoMensal,
+  type VendasDeUmCliente,
 } from './vendas-mensais.regras';
 
 /**
@@ -45,9 +46,10 @@ export async function obterVendasMensais(hoje: Date = new Date(), representanteI
     fim: fimDoDia(hojeCal),
   });
 
-  const vendasPorCliente = erpIds.flatMap((erpId) => {
-    const vendas = vendasPorErpId.get(erpId);
-    return vendas ? [vendas] : [];
+  // Liga as vendas de cada erpId ao cliente; quem o ERP não respondeu fica fora.
+  const vendasPorCliente: VendasDeUmCliente[] = ativos.flatMap(({ id, nomeFantasia, erpId }) => {
+    const vendas = erpId ? vendasPorErpId.get(erpId) : undefined;
+    return vendas ? [{ cliente: { id, nomeFantasia }, vendas }] : [];
   });
 
   return {

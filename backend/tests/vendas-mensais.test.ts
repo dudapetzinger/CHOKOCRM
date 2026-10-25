@@ -8,7 +8,8 @@ import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
 
-type PontoMensal = { mes: string; total: number; clientesComDados: number };
+type ClienteNoMes = { id: string; nomeFantasia: string; total: number };
+type PontoMensal = { mes: string; total: number; clientesComDados: number; clientes: ClienteNoMes[] };
 
 let tokenRepresentante: string;
 let tokenGestor: string;
@@ -143,6 +144,48 @@ describe('GET /dashboard/vendas-mensais', () => {
     }
   });
 
+  it('cada mês traz os clientes que compraram, do maior total ao menor, e a soma fecha com o total do mês', async () => {
+    const res = await getVendasMensais();
+
+    expect(res.status).toBe(200);
+    const meses: PontoMensal[] = res.body.meses;
+    for (const ponto of meses) {
+      expect(ponto.clientes).toHaveLength(ponto.clientesComDados);
+      expect(ponto.clientes.map(({ total }) => total)).toEqual(
+        [...ponto.clientes.map(({ total }) => total)].sort((a, b) => b - a),
+      );
+      expect(ponto.clientes.reduce((soma, { total }) => soma + total, 0)).toBeCloseTo(ponto.total, 2);
+      for (const cliente of ponto.clientes) {
+        expect(cliente).toEqual({
+          id: expect.any(String),
+          nomeFantasia: expect.stringMatching(/^Cliente /),
+          total: expect.any(Number),
+        });
+        expect(cliente.total).toBeGreaterThan(0);
+      }
+    }
+    expect(meses.some((ponto) => ponto.clientes.length > 0)).toBe(true);
+  });
+
+  it('liga a venda ao cliente pelo erpId; o cliente que o ERP não respondeu fica fora de clientes', async () => {
+    const mes = mesAtual();
+    jest.spyOn(erpProvider, 'getSales').mockImplementation(async (erpId) => {
+      if (erpId === 'ERP-1001') return [{ data: new Date(`${mes}-01T12:00:00.000-03:00`), valor: 40, produtos: [] }];
+      if (erpId === 'ERP-1002') throw new ErpIndisponivelError();
+      return [];
+    });
+
+    const res = await getVendasMensais({ representanteId: representanteAId });
+
+    expect(res.status).toBe(200);
+    expect(res.body.clientesIndisponiveis).toBe(1);
+    const doMesAtual: PontoMensal = res.body.meses[11];
+    expect(doMesAtual.clientes).toEqual([
+      { id: expect.any(String), nomeFantasia: 'Cliente 11222333000181', total: 40 },
+    ]);
+    expect(res.body.meses[10].clientes).toEqual([]);
+  });
+
   it('?representanteId= filtra: A + B somam a empresa, mês a mês', async () => {
     const [todos, deA, deB] = await Promise.all([
       getVendasMensais(),
@@ -170,7 +213,11 @@ describe('GET /dashboard/vendas-mensais', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.meses).toHaveLength(12);
-    expect(res.body.meses.every((ponto: PontoMensal) => ponto.total === 0 && ponto.clientesComDados === 0)).toBe(true);
+    expect(
+      res.body.meses.every(
+        (ponto: PontoMensal) => ponto.total === 0 && ponto.clientesComDados === 0 && ponto.clientes.length === 0,
+      ),
+    ).toBe(true);
     expect(res.body.clientesConsultados).toBe(0);
     expect(res.body.clientesIndisponiveis).toBe(0);
     expect(res.body.eventos.length).toBeGreaterThan(0);
@@ -186,7 +233,11 @@ describe('GET /dashboard/vendas-mensais', () => {
     expect(res.body.clientesConsultados).toBe(3);
     expect(res.body.clientesIndisponiveis).toBe(res.body.clientesConsultados);
     expect(res.body.meses).toHaveLength(12);
-    expect(res.body.meses.every((ponto: PontoMensal) => ponto.total === 0 && ponto.clientesComDados === 0)).toBe(true);
+    expect(
+      res.body.meses.every(
+        (ponto: PontoMensal) => ponto.total === 0 && ponto.clientesComDados === 0 && ponto.clientes.length === 0,
+      ),
+    ).toBe(true);
   });
 
   it('consulta o ERP do primeiro dia do mês mais antigo ao fim de hoje', async () => {

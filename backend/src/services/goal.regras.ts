@@ -37,6 +37,8 @@ export function periodoDaMeta(
 export type VisitaParaMeta = {
   dataHora: Date;
   userId: string;
+  clientId: string;
+  clienteNome: string;
   resultado: ResultadoVisita;
   campanhaId: string | null;
   totalPedido: Prisma.Decimal.Value;
@@ -49,7 +51,10 @@ export type MetaParaRealizado = {
   campanhaId: string | null;
 };
 
-export type Realizado = { visitas: number; vendas: number };
+/** Um cliente no realizado: quantas visitas da meta ele teve e quanto vendeu nelas, em reais. */
+export type ClienteNoRealizado = { id: string; nomeFantasia: string; visitas: number; vendas: number };
+
+export type Realizado = { visitas: number; vendas: number; clientes: ClienteNoRealizado[] };
 
 /**
  * Realizado de uma meta: as visitas feitas pelo representante da meta
@@ -57,11 +62,13 @@ export type Realizado = { visitas: number; vendas: number };
  * o fim, inclusivos — 23:30 do último dia conta, 00:10 do dia seguinte não.
  * Numa meta de campanha, só as visitas vinculadas àquela campanha. `vendas`
  * soma o pedido só das visitas com VENDA, em `Decimal` (como o total do
- * pedido); sai em reais com 2 casas.
+ * pedido); sai em reais com 2 casas. `clientes` reparte as mesmas visitas e
+ * vendas por cliente: vendas desc, depois visitas desc, depois nome.
  */
 export function realizadoDaMeta(visitas: VisitaParaMeta[], meta: MetaParaRealizado): Realizado {
   let total = 0;
   let vendas = new Prisma.Decimal(0);
+  const porCliente = new Map<string, { nomeFantasia: string; visitas: number; vendas: Prisma.Decimal }>();
 
   for (const visita of visitas) {
     if (visita.userId !== meta.representanteId) continue;
@@ -69,11 +76,34 @@ export function realizadoDaMeta(visitas: VisitaParaMeta[], meta: MetaParaRealiza
     const dia = dataCalendario(visita.dataHora);
     if (dia < meta.inicio || dia > meta.fim) continue;
 
+    const doCliente = porCliente.get(visita.clientId) ?? {
+      nomeFantasia: visita.clienteNome,
+      visitas: 0,
+      vendas: new Prisma.Decimal(0),
+    };
+    doCliente.visitas += 1;
     total += 1;
-    if (visita.resultado === 'VENDA') vendas = vendas.plus(visita.totalPedido);
+    if (visita.resultado === 'VENDA') {
+      doCliente.vendas = doCliente.vendas.plus(visita.totalPedido);
+      vendas = vendas.plus(visita.totalPedido);
+    }
+    porCliente.set(visita.clientId, doCliente);
   }
 
-  return { visitas: total, vendas: vendas.toDecimalPlaces(2).toNumber() };
+  const clientes = [...porCliente.entries()]
+    .map(([id, { nomeFantasia, visitas: visitasDoCliente, vendas: vendasDoCliente }]) => ({
+      id,
+      nomeFantasia,
+      visitas: visitasDoCliente,
+      vendas: vendasDoCliente.toDecimalPlaces(2),
+    }))
+    .sort(
+      (a, b) =>
+        b.vendas.comparedTo(a.vendas) || b.visitas - a.visitas || a.nomeFantasia.localeCompare(b.nomeFantasia, 'pt-BR'),
+    )
+    .map(({ vendas: vendasDoCliente, ...cliente }) => ({ ...cliente, vendas: vendasDoCliente.toNumber() }));
+
+  return { visitas: total, vendas: vendas.toDecimalPlaces(2).toNumber(), clientes };
 }
 
 /** A meta de campanha cabe no período da campanha (as duas pontas inclusive). */

@@ -1,11 +1,6 @@
 import { dataDoEvento } from '../../src/config/sazonalidade';
 import type { Sale } from '../../src/providers/erp/ErpProvider';
-import {
-  marcadoresDeEventos,
-  mesesDaJanela,
-  serieMensal,
-  somarPorMes,
-} from '../../src/services/vendas-mensais.regras';
+import { marcadoresDeEventos, mesesDaJanela, serieMensal, somarPorMes } from '../../src/services/vendas-mensais.regras';
 
 /** Venda ao meio-dia em -03:00 do dia informado. */
 function venda(dia: string, valor: number): Sale {
@@ -69,17 +64,62 @@ describe('somarPorMes', () => {
 });
 
 describe('serieMensal', () => {
+  const doCliente = (id: string, nomeFantasia: string, vendas: Sale[]) => ({ cliente: { id, nomeFantasia }, vendas });
+
   it('soma todas as vendas e conta, por mês, os clientes com ao menos uma venda', () => {
     const resultado = serieMensal(
-      [[venda('2026-08-03', 10), venda('2026-08-10', 5), venda('2026-10-02', 1)], [venda('2026-08-15', 20)], []],
+      [
+        doCliente('c1', 'Doce Mel', [venda('2026-08-03', 10), venda('2026-08-10', 5), venda('2026-10-02', 1)]),
+        doCliente('c2', 'Café Central', [venda('2026-08-15', 20)]),
+        doCliente('c3', 'Mercado Sul', []),
+      ],
       ['2026-08', '2026-09', '2026-10'],
     );
 
-    expect(resultado).toEqual([
+    expect(resultado.map(({ mes, total, clientesComDados }) => ({ mes, total, clientesComDados }))).toEqual([
       { mes: '2026-08', total: 35, clientesComDados: 2 },
       { mes: '2026-09', total: 0, clientesComDados: 0 },
       { mes: '2026-10', total: 1, clientesComDados: 1 },
     ]);
+  });
+
+  it('lista os clientes que compraram no mês, do maior total ao menor; mês sem venda fica com lista vazia', () => {
+    const resultado = serieMensal(
+      [
+        doCliente('c1', 'Doce Mel', [venda('2026-08-03', 10), venda('2026-08-10', 5), venda('2026-10-02', 1)]),
+        doCliente('c2', 'Café Central', [venda('2026-08-15', 20)]),
+        doCliente('c3', 'Mercado Sul', []),
+      ],
+      ['2026-08', '2026-09', '2026-10'],
+    );
+
+    expect(resultado[0]!.clientes).toEqual([
+      { id: 'c2', nomeFantasia: 'Café Central', total: 20 },
+      { id: 'c1', nomeFantasia: 'Doce Mel', total: 15 },
+    ]);
+    expect(resultado[1]!.clientes).toEqual([]);
+    expect(resultado[2]!.clientes).toEqual([{ id: 'c1', nomeFantasia: 'Doce Mel', total: 1 }]);
+  });
+
+  it('no empate de total, ordena pelo nome; soma do cliente em centavos', () => {
+    const resultado = serieMensal(
+      [
+        doCliente('c1', 'Zeca Doces', [venda('2026-08-03', 0.1), venda('2026-08-04', 0.2)]),
+        doCliente('c2', 'Açaí Bom', [venda('2026-08-05', 0.3)]),
+      ],
+      ['2026-08'],
+    );
+
+    expect(resultado[0]!.clientes).toEqual([
+      { id: 'c2', nomeFantasia: 'Açaí Bom', total: 0.3 },
+      { id: 'c1', nomeFantasia: 'Zeca Doces', total: 0.3 },
+    ]);
+  });
+
+  it('venda fora dos meses pedidos não cria cliente em nenhum mês', () => {
+    const resultado = serieMensal([doCliente('c1', 'Doce Mel', [venda('2025-01-10', 50)])], ['2026-08']);
+
+    expect(resultado).toEqual([{ mes: '2026-08', total: 0, clientesComDados: 0, clientes: [] }]);
   });
 });
 

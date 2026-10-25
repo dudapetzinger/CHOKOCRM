@@ -164,7 +164,7 @@ describe('POST /goals', () => {
       metaVisitas: 12,
       metaVendas: 6000,
       campanhaId: null,
-      realizado: { visitas: 0, vendas: 0 },
+      realizado: { visitas: 0, vendas: 0, clientes: [] },
     });
     const gravada = await prisma.goal.findUniqueOrThrow({ where: { id: res.body.id } });
     // `@db.Date` sem deslocar um dia
@@ -404,7 +404,39 @@ describe('GET /goals', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0]).toMatchObject({ id: meta.id, realizado: { visitas: 3, vendas: 600 } });
+    expect(res.body.data[0]).toMatchObject({
+      id: meta.id,
+      realizado: {
+        visitas: 3,
+        vendas: 600,
+        clientes: [{ id: clienteDaEduardaId, nomeFantasia: 'Emporio Pomerode', visitas: 3, vendas: 600 }],
+      },
+    });
+  });
+
+  it('realizado.clientes: um item por cliente visitado, com vendas desc, visitas desc e nome', async () => {
+    await criarMeta({ inicio: '2026-10-05', fim: '2026-10-20' });
+    const zeca = await criarCliente(eduardaId, 'Zeca Doces');
+    const acai = await criarCliente(eduardaId, 'Acai Bom');
+    const visitas = [
+      { clientId: zeca, dia: '2026-10-06', itens: [{ quantidade: 1, precoUnitario: 30 }] },
+      { clientId: clienteDaEduardaId, dia: '2026-10-07', itens: [{ quantidade: 1, precoUnitario: 80 }] },
+      { clientId: acai, dia: '2026-10-08', resultado: 'NEGOCIACAO' as const },
+      { clientId: acai, dia: '2026-10-09', resultado: 'SEM_VENDA' as const },
+      { clientId: zeca, dia: '2026-10-10', resultado: 'SEM_VENDA' as const },
+    ];
+    for (const { dia, ...visita } of visitas) {
+      await criarVisita({ ...visita, userId: eduardaId, dataHora: `${dia}T10:00:00.000-03:00` });
+    }
+
+    const res = await autenticado(request(app).get('/goals'), tokenGestor);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].realizado.clientes).toEqual([
+      { id: clienteDaEduardaId, nomeFantasia: 'Emporio Pomerode', visitas: 1, vendas: 80 },
+      { id: zeca, nomeFantasia: 'Zeca Doces', visitas: 2, vendas: 30 },
+      { id: acai, nomeFantasia: 'Acai Bom', visitas: 2, vendas: 0 },
+    ]);
   });
 
   it('meta de campanha: só as visitas vinculadas à campanha contam', async () => {
@@ -429,7 +461,16 @@ describe('GET /goals', () => {
     const res = await autenticado(request(app).get(`/goals?campanhaId=${natalId}`), tokenGestor);
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual([expect.objectContaining({ id: meta.id, realizado: { visitas: 1, vendas: 420 } })]);
+    expect(res.body.data).toEqual([
+      expect.objectContaining({
+        id: meta.id,
+        realizado: {
+          visitas: 1,
+          vendas: 420,
+          clientes: [{ id: clienteDaEduardaId, nomeFantasia: 'Emporio Pomerode', visitas: 1, vendas: 420 }],
+        },
+      }),
+    ]);
   });
 
   it('sem campanhaId, só as metas sem campanha; com ele, só as daquela campanha', async () => {
@@ -568,7 +609,11 @@ describe('PUT /goals/:id', () => {
       metaVisitas: 5,
       metaVendas: 900,
       campanhaId: null,
-      realizado: { visitas: 1, vendas: 96 },
+      realizado: {
+        visitas: 1,
+        vendas: 96,
+        clientes: [{ id: expect.any(String), nomeFantasia: expect.any(String), visitas: 1, vendas: 96 }],
+      },
     });
   });
 

@@ -70,14 +70,17 @@ export async function listarVisitasParaMetas(filtro: {
     select: {
       dataHora: true,
       userId: true,
+      clientId: true,
+      client: { select: { nomeFantasia: true } },
       resultado: true,
       campanhaId: true,
       itens: { select: { quantidade: true, precoUnitario: true } },
     },
   });
 
-  return visitas.map(({ itens, ...visita }) => ({
+  return visitas.map(({ itens, client, ...visita }) => ({
     ...visita,
+    clienteNome: client.nomeFantasia,
     totalPedido: itens.reduce(
       (soma, item) => soma.plus(item.precoUnitario.times(item.quantidade)),
       new Prisma.Decimal(0),
