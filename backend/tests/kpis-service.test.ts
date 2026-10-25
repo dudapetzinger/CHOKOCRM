@@ -1,12 +1,14 @@
+import { Prisma } from '@prisma/client';
 import { LIMIAR_SEM_COMPRA_DIAS } from '../src/config/classificacao';
 import * as clientRepository from '../src/repositories/client.repository';
 import type { ClienteParaAgenda } from '../src/repositories/client.repository';
 import * as stockMessageRepository from '../src/repositories/stock-message.repository';
+import * as userRepository from '../src/repositories/user.repository';
 import * as visitRepository from '../src/repositories/visit.repository';
 import { fimDoDia, inicioDoDia } from '../src/services/classificacao.service';
 import * as erpService from '../src/services/erp.service';
 import type { Janela } from '../src/services/kpis.regras';
-import { obterKpis } from '../src/services/kpis.service';
+import { obterKpis, obterKpisPorRepresentante } from '../src/services/kpis.service';
 
 /**
  * Testes do orquestrador dos indicadores do painel sem banco: repositórios e
@@ -42,10 +44,29 @@ function clienteAtivo(id: string, erpId: string | null, ultimaVisita: UltimaVisi
   };
 }
 
+type VisitaDoPeriodoData = Awaited<ReturnType<typeof visitRepository.listNoPeriodo>>[number];
+
+function visitaDoPeriodo(
+  clientId: string,
+  resultado: VisitaDoPeriodoData['resultado'],
+  dataHora: Date,
+  totalPedido = '0',
+): VisitaDoPeriodoData {
+  return {
+    clientId,
+    clienteNome: `Loja ${clientId}`,
+    resultado,
+    dataHora,
+    representanteId: 'rep-1',
+    totalPedido: new Prisma.Decimal(totalPedido),
+  };
+}
+
 let listaVisitas: jest.SpiedFunction<typeof visitRepository.listNoPeriodo>;
 let listaMensagens: jest.SpiedFunction<typeof stockMessageRepository.listNoPeriodo>;
 let listAtivosParaAgenda: jest.SpiedFunction<typeof clientRepository.listAtivosParaAgenda>;
 let consultarUltimasVendas: jest.SpiedFunction<typeof erpService.consultarUltimasVendas>;
+let listaRepresentantes: jest.SpiedFunction<typeof userRepository.listByRole>;
 let erpSimulado: jest.SpiedFunction<typeof erpService.erpSimulado>;
 
 beforeEach(() => {
@@ -61,6 +82,7 @@ beforeEach(() => {
   consultarUltimasVendas = jest
     .spyOn(erpService, 'consultarUltimasVendas')
     .mockRejectedValue(naoStubado('consultarUltimasVendas'));
+  listaRepresentantes = jest.spyOn(userRepository, 'listByRole').mockRejectedValue(naoStubado('user.listByRole'));
   erpSimulado = jest.spyOn(erpService, 'erpSimulado').mockReturnValue(true);
 });
 
@@ -109,8 +131,8 @@ describe('obterKpis', () => {
     consultarUltimasVendas.mockResolvedValue(new Map());
     // Visitas de a (VENDA) e b (SEM_VENDA); mensagem só do cliente c.
     listaVisitas.mockResolvedValue([
-      { clientId: 'a', resultado: 'VENDA', dataHora: diasAtras(2), representanteId: 'rep-1' },
-      { clientId: 'b', resultado: 'SEM_VENDA', dataHora: diasAtras(20), representanteId: 'rep-1' },
+      visitaDoPeriodo('a', 'VENDA', diasAtras(2)),
+      visitaDoPeriodo('b', 'SEM_VENDA', diasAtras(20)),
     ]);
     listaMensagens.mockResolvedValue([{ clientId: 'c' }]);
 
@@ -133,7 +155,7 @@ describe('obterKpis', () => {
       clienteAtivo('a', 'ERP-A', { dataHora: diasAtras(3), resultado: 'VENDA' }),
     ]);
     consultarUltimasVendas.mockResolvedValue(new Map([['ERP-A', diasAtras(70)]]));
-    listaVisitas.mockResolvedValue([{ clientId: 'a', resultado: 'VENDA', dataHora: diasAtras(3), representanteId: 'rep-1' }]);
+    listaVisitas.mockResolvedValue([visitaDoPeriodo('a', 'VENDA', diasAtras(3))]);
     listaMensagens.mockResolvedValue([]);
 
     const kpis = await obterKpis(JANELA_30_DIAS, HOJE);
@@ -147,7 +169,7 @@ describe('obterKpis', () => {
       clienteAtivo('a', 'ERP-A', { dataHora: diasAtras(3), resultado: 'VENDA' }),
     ]);
     consultarUltimasVendas.mockResolvedValue(new Map([['ERP-A', null]]));
-    listaVisitas.mockResolvedValue([{ clientId: 'a', resultado: 'VENDA', dataHora: diasAtras(3), representanteId: 'rep-1' }]);
+    listaVisitas.mockResolvedValue([visitaDoPeriodo('a', 'VENDA', diasAtras(3))]);
     listaMensagens.mockResolvedValue([]);
 
     erpSimulado.mockReturnValue(false);
@@ -168,8 +190,8 @@ describe('obterKpis', () => {
     ]);
     consultarUltimasVendas.mockResolvedValue(new Map());
     listaVisitas.mockResolvedValue([
-      { clientId: 'a', resultado: 'SEM_VENDA', dataHora: diasAtras(5), representanteId: 'rep-1' },
-      { clientId: 'inativado', resultado: 'VENDA', dataHora: diasAtras(6), representanteId: 'rep-1' },
+      visitaDoPeriodo('a', 'SEM_VENDA', diasAtras(5)),
+      visitaDoPeriodo('inativado', 'VENDA', diasAtras(6)),
     ]);
     listaMensagens.mockResolvedValue([]);
 
@@ -214,5 +236,57 @@ describe('obterKpis', () => {
       inativos: { total: 0 },
       semDados: true,
     });
+  });
+});
+
+describe('obterKpisPorRepresentante', () => {
+  // 08/09 (terça) a 14/09 (segunda): fim no passado em relação a HOJE (07/10).
+  const JANELA_NO_PASSADO: Janela = { dias: 7, inicio: '2026-09-08', fim: '2026-09-14' };
+
+  it('uma consulta de visitas só, exatamente a janela (sem estender até hoje), e o ritmo segue a janela', async () => {
+    listaVisitas.mockResolvedValue([
+      visitaDoPeriodo('a', 'VENDA', new Date('2026-09-10T15:00:00Z'), '12.50'),
+      visitaDoPeriodo('a', 'VENDA', new Date('2026-09-10T16:00:00Z'), '12.60'),
+      visitaDoPeriodo('b', 'SEM_VENDA', new Date('2026-09-14T15:00:00Z')),
+    ]);
+    listAtivosParaAgenda.mockResolvedValue([clienteAtivo('a', 'ERP-A', null), clienteAtivo('b', 'ERP-B', null)]);
+    listaRepresentantes.mockResolvedValue([{ id: 'rep-1', nome: 'Representante' }]);
+
+    const dto = await obterKpisPorRepresentante(JANELA_NO_PASSADO);
+
+    expect(listaVisitas).toHaveBeenCalledTimes(1);
+    expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-09-14'), undefined);
+    expect(dto.periodo).toEqual(JANELA_NO_PASSADO);
+    expect(dto.representantes).toEqual([
+      expect.objectContaining({
+        id: 'rep-1',
+        visitas: 3,
+        receita: 25.1,
+        clientes: [
+          { id: 'a', nomeFantasia: 'Loja a', vendas: 2, negociacoes: 0, semVenda: 0 },
+          { id: 'b', nomeFantasia: 'Loja b', vendas: 0, negociacoes: 0, semVenda: 1 },
+        ],
+      }),
+    ]);
+    expect(dto.ritmo.granularidade).toBe('SEMANA');
+    expect(dto.ritmo.faixas).toEqual([
+      expect.objectContaining({ inicio: '2026-09-07', fim: '2026-09-13', parcial: true, visitas: 2, vendas: 2 }),
+      expect.objectContaining({ inicio: '2026-09-14', fim: '2026-09-20', parcial: true, visitas: 1, vendas: 0 }),
+    ]);
+  });
+
+  it('com representanteId restringe visitas, ativos e a lista de representantes àquele representante', async () => {
+    listaVisitas.mockResolvedValue([]);
+    listAtivosParaAgenda.mockResolvedValue([]);
+    listaRepresentantes.mockResolvedValue([
+      { id: 'rep-1', nome: 'Representante' },
+      { id: 'rep-b', nome: 'Bruno' },
+    ]);
+
+    const dto = await obterKpisPorRepresentante(JANELA_NO_PASSADO, 'rep-b');
+
+    expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-09-14'), 'rep-b');
+    expect(listAtivosParaAgenda).toHaveBeenCalledWith('rep-b');
+    expect(dto.representantes.map((r) => r.id)).toEqual(['rep-b']);
   });
 });

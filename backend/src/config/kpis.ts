@@ -13,5 +13,5 @@ export const PERIODOS_DIAS = [30, 90, 365] as const;
 export const LIMITE_DIAS_DO_PAINEL = 365;
 export const CORES_INATIVAS: readonly Cor[] = ['LARANJA', 'VERMELHO'];
 
-/** Semanas do ritmo de visitas do Painel (spec da Etapa 8, 7.10): as 8 últimas, a última contendo hoje. */
-export const SEMANAS_DO_RITMO = 8;
+/** Maior período, em dias, em que o ritmo de visitas do Painel é por semana; acima disso é por mês (13 semanas = 91 dias). */
+export const DIAS_MAXIMOS_DO_RITMO_SEMANAL = 91;

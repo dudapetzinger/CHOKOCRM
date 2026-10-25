@@ -296,9 +296,10 @@ describe('GET /dashboard/kpis', () => {
       expect(ok.status).toBe(200);
       expect(ok.body.periodo.dias).toBe(3);
       expect(ok.body.representantes[0].visitas).toBe(1); // a de −10 dias
-      // O ritmo semanal não depende do período: segue até hoje mesmo com o período terminando há 9 dias.
-      const visitasNoRitmo = (ok.body.ritmoSemanal as { visitas: number }[]).reduce((soma, s) => soma + s.visitas, 0);
-      expect(visitasNoRitmo).toBe(4);
+      // O ritmo segue o período: 3 dias é por semana e só conta a visita de −10 dias, não as de depois do período.
+      expect(ok.body.ritmo.granularidade).toBe('SEMANA');
+      const visitasNoRitmo = (ok.body.ritmo.faixas as { visitas: number }[]).reduce((soma, f) => soma + f.visitas, 0);
+      expect(visitasNoRitmo).toBe(1);
       expect(longo.status).toBe(400);
     });
   });
@@ -455,12 +456,12 @@ describe('GET /dashboard/kpis/por-representante', () => {
     expect(res.body.representantes).toEqual([
       expect.objectContaining({ id: representanteId, clientesAtivos: 3, visitas: 3, vendas: 2, semVenda: 1 }),
     ]);
-    // Nas 8 semanas, só a carteira dela: −2, −3, −10 e −40 (a visita dela ao cliente de B conta para B).
-    const visitasNoRitmo = res.body.ritmoSemanal.reduce(
-      (soma: number, semana: { visitas: number }) => soma + semana.visitas,
+    // No ritmo dos 30 dias, só a carteira dela: −2, −3 e −10 (a visita dela ao cliente de B conta para B).
+    const visitasNoRitmo = res.body.ritmo.faixas.reduce(
+      (soma: number, faixa: { visitas: number }) => soma + faixa.visitas,
       0,
     );
-    expect(visitasNoRitmo).toBe(4);
+    expect(visitasNoRitmo).toBe(3);
   });
 
   it('periodoDias inválido responde 400 VALIDATION_ERROR', async () => {
@@ -502,6 +503,11 @@ describe('GET /dashboard/kpis/por-representante', () => {
         negociacoes: 0,
         semVenda: 1,
         conversaoEmVendas: { numerador: 2, denominador: 3, percentual: 67 },
+        receita: 0,
+        clientes: [
+          { id: clienteAId, nomeFantasia: 'Emporio Pomerode', vendas: 1, negociacoes: 0, semVenda: 1 },
+          { id: clienteDId, nomeFantasia: 'Armazem Sao Bento', vendas: 1, negociacoes: 0, semVenda: 0 },
+        ],
       },
       {
         id: representanteBId,
@@ -512,6 +518,8 @@ describe('GET /dashboard/kpis/por-representante', () => {
         negociacoes: 0,
         semVenda: 1,
         conversaoEmVendas: { numerador: 1, denominador: 2, percentual: 50 },
+        receita: 0,
+        clientes: [{ id: expect.any(String), nomeFantasia: 'Bombons Indaial', vendas: 1, negociacoes: 0, semVenda: 1 }],
       },
       {
         id: semCarteira.id,
@@ -522,7 +530,49 @@ describe('GET /dashboard/kpis/por-representante', () => {
         negociacoes: 0,
         semVenda: 0,
         conversaoEmVendas: { numerador: 0, denominador: 0, percentual: null },
+        receita: 0,
+        clientes: [],
       },
+    ]);
+  });
+
+  it('receita soma o pedido das visitas com VENDA (quantidade × preço), em 2 casas, e ignora as sem venda', async () => {
+    const pedido = [
+      { sku: 'CHK-001', produtoNome: 'Barra ao leite', quantidade: 2, precoUnitario: '12.50' },
+      { sku: 'CHK-002', produtoNome: 'Bombom de cereja', quantidade: 1, precoUnitario: '0.10' },
+    ];
+    await prisma.visit.create({
+      data: {
+        clientId: clienteBId,
+        userId: representanteId,
+        dataHora: haDias(1),
+        descricao: 'Pedido.',
+        resultado: 'VENDA',
+        itens: { create: pedido },
+      },
+    });
+    await prisma.visit.create({
+      data: {
+        clientId: clienteBId,
+        userId: representanteId,
+        dataHora: haDias(1),
+        descricao: 'Negociação.',
+        resultado: 'NEGOCIACAO',
+        itens: { create: [{ sku: 'CHK-003', produtoNome: 'Trufa', quantidade: 10, precoUnitario: '9.99' }] },
+      },
+    });
+
+    const res = await request(app)
+      .get('/dashboard/kpis/por-representante')
+      .set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.representantes[0].receita).toBe(25.1); // 2 × 12,50 + 1 × 0,10
+    // Emporio Pomerode e Padaria Vale Europeu têm 2 visitas cada (desempate por nome); Armazem Sao Bento, 1.
+    expect(res.body.representantes[0].clientes.map((c: { nomeFantasia: string }) => c.nomeFantasia)).toEqual([
+      'Emporio Pomerode',
+      'Padaria Vale Europeu',
+      'Armazem Sao Bento',
     ]);
   });
 
@@ -550,65 +600,96 @@ describe('GET /dashboard/kpis/por-representante', () => {
     expect(res.body.representantes[0]).toMatchObject({ vendas: 3, negociacoes: 1, semVenda: 1 });
   });
 
-  describe('ritmoSemanal', () => {
-    type Semana = { inicio: string; visitas: number; vendas: number };
+  describe('ritmo', () => {
+    type Faixa = {
+      inicio: string;
+      fim: string;
+      parcial: boolean;
+      visitas: number;
+      vendas: number;
+      clientes: { id: string; nomeFantasia: string; visitas: number; vendas: number }[];
+    };
 
-    function somar(semanas: Semana[], campo: 'visitas' | 'vendas'): number {
-      return semanas.reduce((soma, semana) => soma + semana[campo], 0);
+    function somar(faixas: Faixa[], campo: 'visitas' | 'vendas'): number {
+      return faixas.reduce((soma, faixa) => soma + faixa[campo], 0);
     }
 
-    it('tem 8 semanas de segunda a domingo, a última contendo hoje, e vendas conta só VENDA', async () => {
-      const res = await request(app)
+    function ritmo(query: Record<string, string | number>) {
+      return request(app)
         .get('/dashboard/kpis/por-representante')
+        .query(query)
         .set('Authorization', `Bearer ${tokenGestor}`);
+    }
+
+    it('30 dias: semanas de segunda a domingo cobrindo o período, parciais nas pontas, vendas conta só VENDA', async () => {
+      const res = await ritmo({});
 
       expect(res.status).toBe(200);
-      const semanas: Semana[] = res.body.ritmoSemanal;
-      expect(semanas).toHaveLength(8);
-      expect(semanas.every((semana) => new Date(`${semana.inicio}T00:00:00Z`).getUTCDay() === 1)).toBe(true);
-      semanas.slice(1).forEach((semana, indice) => expect(semana.inicio).toBe(somarDias(semanas[indice]!.inicio, 7)));
+      expect(res.body.ritmo.granularidade).toBe('SEMANA');
+      const faixas: Faixa[] = res.body.ritmo.faixas;
+      expect(faixas.every((faixa) => new Date(`${faixa.inicio}T00:00:00Z`).getUTCDay() === 1)).toBe(true);
+      faixas.forEach((faixa) => expect(faixa.fim).toBe(somarDias(faixa.inicio, 6)));
+      faixas.slice(1).forEach((faixa, indice) => expect(faixa.inicio).toBe(somarDias(faixas[indice]!.fim, 1)));
 
-      const hoje = dataCalendario(new Date());
-      const ultima = semanas[7]!;
-      expect(ultima.inicio <= hoje && hoje <= somarDias(ultima.inicio, 6)).toBe(true);
+      const { inicio, fim } = res.body.periodo;
+      expect(faixas[0]!.inicio <= inicio && inicio <= faixas[0]!.fim).toBe(true);
+      expect(faixas.at(-1)!.inicio <= fim && fim <= faixas.at(-1)!.fim).toBe(true);
+      expect(faixas.map((faixa) => faixa.parcial)).toEqual(faixas.map((faixa) => faixa.inicio < inicio || faixa.fim > fim));
 
-      // Nas 8 semanas: −2 VENDA, −3 VENDA (cliente inativo, mesma carteira), −10 SEM_VENDA e −40 NEGOCIACAO;
-      // −100 fica fora.
-      expect(somar(semanas, 'visitas')).toBe(4);
-      expect(somar(semanas, 'vendas')).toBe(2);
+      // Nos 30 dias: −2 VENDA, −3 VENDA (cliente inativo, mesma carteira) e −10 SEM_VENDA; −40 e −100 ficam fora.
+      expect(somar(faixas, 'visitas')).toBe(3);
+      expect(somar(faixas, 'vendas')).toBe(2);
     });
 
-    it('não depende do período escolhido', async () => {
-      const [trinta, anual] = await Promise.all(
-        [30, 365].map((periodoDias) =>
-          request(app)
-            .get('/dashboard/kpis/por-representante')
-            .query({ periodoDias })
-            .set('Authorization', `Bearer ${tokenGestor}`),
-        ),
-      );
+    it('cada faixa traz os clientes visitados nela, com visitas e vendas', async () => {
+      const res = await ritmo({});
 
-      expect(trinta!.body.ritmoSemanal).toEqual(anual!.body.ritmoSemanal);
+      const faixas: Faixa[] = res.body.ritmo.faixas;
+      const clientes = faixas.flatMap((faixa) => faixa.clientes);
+      // O Emporio Pomerode (−2 e −10 dias) pode cair na mesma semana ou em duas.
+      expect(clientes.reduce((soma, cliente) => soma + cliente.visitas, 0)).toBe(3);
+      expect(clientes.reduce((soma, cliente) => soma + cliente.vendas, 0)).toBe(2);
+      expect([...new Set(clientes.map((cliente) => cliente.nomeFantasia))].sort()).toEqual([
+        'Armazem Sao Bento',
+        'Emporio Pomerode',
+      ]);
+      for (const faixa of faixas) {
+        expect(faixa.clientes.reduce((soma, cliente) => soma + cliente.visitas, 0)).toBe(faixa.visitas);
+      }
+    });
+
+    it('até 91 dias é por semana, acima é por mês; o ritmo segue o período escolhido', async () => {
+      const [noventa, anual] = await Promise.all([ritmo({ periodoDias: 90 }), ritmo({ periodoDias: 365 })]);
+
+      expect(noventa.body.ritmo.granularidade).toBe('SEMANA');
+      expect(somar(noventa.body.ritmo.faixas, 'visitas')).toBe(4); // −2, −3, −10 e −40
+
+      expect(anual.body.ritmo.granularidade).toBe('MES');
+      const meses: Faixa[] = anual.body.ritmo.faixas;
+      expect(meses.length).toBeGreaterThanOrEqual(12);
+      expect(meses.length).toBeLessThanOrEqual(13);
+      expect(meses.every((mes) => /^\d{4}-\d{2}-01$/.test(mes.inicio))).toBe(true);
+      expect(meses.filter((mes) => mes.parcial).length).toBeLessThanOrEqual(2);
+      expect(somar(meses, 'visitas')).toBe(5);
+      expect(somar(meses, 'vendas')).toBe(3);
     });
 
     it('com representanteId cobre só a carteira dele', async () => {
       const representanteBId = await criarCarteiraB();
 
-      const res = await request(app)
-        .get('/dashboard/kpis/por-representante')
-        .query({ representanteId: representanteBId })
-        .set('Authorization', `Bearer ${tokenGestor}`);
+      const res = await ritmo({ representanteId: representanteBId });
 
       expect(res.status).toBe(200);
       expect(res.body.representantes.map((r: LinhaRepresentante) => r.id)).toEqual([representanteBId]);
       expect(res.body.representantes[0].visitas).toBe(2);
       expect(res.body).not.toHaveProperty('porSemana');
+      expect(res.body).not.toHaveProperty('ritmoSemanal');
 
-      const semanas: Semana[] = res.body.ritmoSemanal;
-      expect(semanas).toHaveLength(8);
+      const faixas: Faixa[] = res.body.ritmo.faixas;
       // Carteira de B: −4 VENDA e −6 SEM_VENDA (esta feita pela Eduarda, mas o cliente é de B).
-      expect(somar(semanas, 'visitas')).toBe(2);
-      expect(somar(semanas, 'vendas')).toBe(1);
+      expect(somar(faixas, 'visitas')).toBe(2);
+      expect(somar(faixas, 'vendas')).toBe(1);
+      expect(faixas.flatMap((faixa) => faixa.clientes.map((cliente) => cliente.nomeFantasia))).toContain('Bombons Indaial');
     });
   });
 });

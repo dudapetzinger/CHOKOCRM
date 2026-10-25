@@ -1,4 +1,4 @@
-import type { Prisma, ResultadoVisita } from '@prisma/client';
+import { Prisma, type ResultadoVisita } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 /**
@@ -101,24 +101,50 @@ export async function contatoPertenceAoCliente(contactId: string, clientId: stri
   return contato !== null;
 }
 
+/** Visita do período para os indicadores do painel; `representanteId` é o dono da carteira do cliente. */
+export type VisitaDoPeriodoData = {
+  clientId: string;
+  clienteNome: string;
+  resultado: ResultadoVisita;
+  dataHora: Date;
+  representanteId: string;
+  totalPedido: Prisma.Decimal;
+};
+
 /**
  * Visitas do período para os indicadores do painel (UC14): só o que as regras
  * usam; `dataHora` entre `inicio` e `fim`, inclusive. Com `representanteId`,
  * só visitas a clientes da carteira dele (a carteira do cliente, não o autor
  * da visita). `representanteId` de cada item é o dono da carteira do cliente,
- * para o comparativo por representante.
+ * para o comparativo por representante; `clienteNome` é o nome fantasia dele e
+ * `totalPedido` a soma `quantidade × precoUnitario` dos itens do pedido (zero
+ * sem itens), como em `listarVisitasParaMetas`.
  */
 export async function listNoPeriodo(
   inicio: Date,
   fim: Date,
   representanteId?: string,
-): Promise<{ clientId: string; resultado: ResultadoVisita; dataHora: Date; representanteId: string }[]> {
+): Promise<VisitaDoPeriodoData[]> {
   const visitas = await prisma.visit.findMany({
     where: { dataHora: { gte: inicio, lte: fim }, ...(representanteId ? { client: { representanteId } } : {}) },
-    select: { clientId: true, resultado: true, dataHora: true, client: { select: { representanteId: true } } },
+    select: {
+      clientId: true,
+      resultado: true,
+      dataHora: true,
+      client: { select: { nomeFantasia: true, representanteId: true } },
+      itens: { select: { quantidade: true, precoUnitario: true } },
+    },
   });
 
-  return visitas.map(({ client, ...visita }) => ({ ...visita, representanteId: client.representanteId }));
+  return visitas.map(({ client, itens, ...visita }) => ({
+    ...visita,
+    clienteNome: client.nomeFantasia,
+    representanteId: client.representanteId,
+    totalPedido: itens.reduce(
+      (soma, item) => soma.plus(item.precoUnitario.times(item.quantidade)),
+      new Prisma.Decimal(0),
+    ),
+  }));
 }
 
 /**

@@ -2,7 +2,7 @@ import * as clientRepository from '../repositories/client.repository';
 import * as stockMessageRepository from '../repositories/stock-message.repository';
 import * as userRepository from '../repositories/user.repository';
 import * as visitRepository from '../repositories/visit.repository';
-import { classificacaoDoCliente, dataCalendario, fimDoDia, inicioDoDia } from './classificacao.service';
+import { classificacaoDoCliente, fimDoDia, inicioDoDia } from './classificacao.service';
 import { consultarUltimasVendas, erpSimulado } from './erp.service';
 import {
   agruparPorRepresentante,
@@ -10,15 +10,14 @@ import {
   contarVisitas,
   conversaoEmVendas,
   distribuicaoPorCor,
-  inicioDoRitmoSemanal,
   mediaDeVisitasPorCliente,
-  ritmoSemanal,
+  ritmoNoPeriodo,
   taxaDeRegistro,
   type DistribuicaoPorCor,
   type Janela,
   type KpiRepresentante,
   type Proporcao,
-  type SemanaDoRitmo,
+  type Ritmo,
 } from './kpis.regras';
 
 /**
@@ -47,8 +46,8 @@ export type KpisPorRepresentanteDTO = {
   /** Mesmo objeto de `KpisDTO.periodo`. */
   periodo: KpisDTO['periodo'];
   representantes: KpiRepresentante[];
-  /** Visitas e vendas das 8 últimas semanas (segunda a domingo), a última contendo hoje; independe do período. */
-  ritmoSemanal: SemanaDoRitmo[];
+  /** Visitas e vendas por semana (período de até 91 dias) ou por mês, nas faixas que cruzam o período. */
+  ritmo: Ritmo;
   simulado: boolean;
 };
 
@@ -100,34 +99,23 @@ export async function obterKpis(
  * Comparativo por representante no período, pela carteira do cliente: sem
  * `representanteId`, todos os usuários REPRESENTANTE (mesmo sem cliente nem
  * visita); com ele, só aquele (lista vazia se o id não for de um
- * representante). Junto, o ritmo semanal de visitas da mesma carteira nas 8
- * últimas semanas, que não depende do período (vai até hoje, mesmo que o
- * período termine antes): uma consulta só cobre as duas janelas, e o
- * comparativo usa só as visitas de dentro do período.
+ * representante). Junto, o ritmo de visitas da mesma carteira no período
+ * (por semana ou por mês, ver `ritmoNoPeriodo`): uma consulta só, a da
+ * janela, alimenta o comparativo e o ritmo.
  */
 export async function obterKpisPorRepresentante(
   janela: Janela,
-  hoje: Date = new Date(),
   representanteId?: string,
 ): Promise<KpisPorRepresentanteDTO> {
-  const hojeCalendario = dataCalendario(hoje);
   const { inicio, fim } = janela;
-  const inicioDoRitmo = inicioDoRitmoSemanal(hojeCalendario);
-  const desde = inicioDoRitmo < inicio ? inicioDoRitmo : inicio;
-  const ate = fim > hojeCalendario ? fim : hojeCalendario;
 
   const [visitas, ativos, todosOsRepresentantes] = await Promise.all([
-    visitRepository.listNoPeriodo(inicioDoDia(desde), fimDoDia(ate), representanteId),
+    visitRepository.listNoPeriodo(inicioDoDia(inicio), fimDoDia(fim), representanteId),
     clientRepository.listAtivosParaAgenda(representanteId),
     // Inclui inativos: inativar a conta não apaga o histórico do comparativo.
     userRepository.listByRole('REPRESENTANTE', { incluirInativos: true }),
   ]);
 
-  const inicioDoPeriodo = inicioDoDia(inicio);
-  const fimDoPeriodo = fimDoDia(fim);
-  const visitasDoPeriodo = visitas.filter(
-    (visita) => visita.dataHora >= inicioDoPeriodo && visita.dataHora <= fimDoPeriodo,
-  );
   const representantes = representanteId
     ? todosOsRepresentantes.filter((representante) => representante.id === representanteId)
     : todosOsRepresentantes;
@@ -135,11 +123,11 @@ export async function obterKpisPorRepresentante(
   return {
     periodo: janela,
     representantes: agruparPorRepresentante(
-      visitasDoPeriodo,
+      visitas,
       ativos.map((cliente) => ({ representanteId: cliente.representante.id })),
       representantes,
     ),
-    ritmoSemanal: ritmoSemanal(visitas, hojeCalendario),
+    ritmo: ritmoNoPeriodo(visitas, janela),
     simulado: erpSimulado(),
   };
 }
