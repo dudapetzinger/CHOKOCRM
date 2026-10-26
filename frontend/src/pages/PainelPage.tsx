@@ -1,40 +1,51 @@
 /**
  * Painel (UC14 e UC15; gráficos na Etapa 7; visual de `routes/painel.tsx` do
- * protótipo, com os gráficos dele desenhados à mão, na Etapa 8). Gestor e
- * representante (spec 7.10): o gestor vê a empresa toda ou o representante
- * do seletor; o representante, sem seletor, só a própria carteira (o backend
- * ignora o `representanteId` dele). No topo, a barra com o seletor (gestor),
- * o período (30, 90, 365 dias ou personalizado, Etapa 9) e, à direita (linha própria no celular), "Planilha" e "PDF"
- * (spec 7.12), e a faixa de dados simulados; depois "Quem está visitando
- * pouco?" (gestor) ou "Como está a minha carteira?" (representante) com os
- * quatro indicadores, as "Metas de visitas e vendas" (spec 7.8; só leitura
- * para o representante) e, em duas colunas a partir de 1024 px (empilhadas
- * abaixo):
- *   - à esquerda, o resultado das visitas por representante ("das minhas
- *     visitas" para o representante), o ritmo de visitas das 8 últimas
- *     semanas e "Quais clientes estão esfriando?" (distribuição por cor e os
- *     cinco mais urgentes);
- *   - à direita, "O próximo evento está chegando e o estoque acompanha?"
- *     (vendas mensais com os eventos e "Hoje", e os alertas de produção do
- *     horizonte escolhido), o mapa de clientes por cidade (spec 7.11) e a
- *     "Época do ano" com os eventos do horizonte.
+ * protótipo, com os gráficos dele desenhados à mão, na Etapa 8; duas abas na
+ * Etapa 9, spec 6.2). Gestor e representante (spec 7.10): o gestor vê a
+ * empresa toda ou o representante do seletor; o representante, sem seletor,
+ * só a própria carteira (o backend ignora o `representanteId` dele).
+ *
+ * Fora das abas, no topo: a barra com o seletor (gestor), o período (30, 90,
+ * 365 dias ou personalizado) e, à direita (linha própria no celular),
+ * "Planilha" e "PDF" (spec 7.12); a faixa de dados simulados; e as abas
+ * "Metas e resultados" e "Produção e sazonalidade", com a aba na URL
+ * (`?aba=producao`; sem o parâmetro, a primeira). Só o painel da aba aberta
+ * fica montado.
+ *
+ * "Metas e resultados", nesta ordem: "Quem está visitando pouco?" (gestor) ou
+ * "Como está a minha carteira?" (representante) com os quatro indicadores; as
+ * "Metas de visitas e vendas" do período (spec 7.8; só leitura para o
+ * representante); e, a partir de 1024 px (empilhados abaixo, nessa ordem):
+ *   - gestor: à esquerda, o resultado das visitas por representante e o ritmo
+ *     de visitas; à direita, o ranking dos representantes (só com "Todos");
+ *   - representante: o resultado das minhas visitas e o ritmo lado a lado.
+ *
+ * "Produção e sazonalidade", nesta ordem: "O próximo evento está chegando e o
+ * estoque acompanha?" na largura toda (vendas mensais com os eventos e
+ * "Hoje", e os alertas de produção do horizonte escolhido); e, a partir de
+ * 1024 px, à esquerda "Quais clientes estão esfriando?" (distribuição por cor
+ * e os cinco mais urgentes) e, à direita, a "Época do ano" com os eventos do
+ * horizonte e o mapa de clientes por cidade (spec 7.11).
+ *
  * Os números vêm da API. Com um bloco já carregado, o erro de um refetch
  * (rede caída) aparece como aviso acima do conteúdo, que continua visível
  * (spec 5.7). "Planilha" baixa o CSV do relatório do backend (mesmo período
  * e mesma carteira; a faixa personalizada acima de 365 dias só vale para
  * ela, o Painel segue no período anterior); "PDF" abre a impressão do
- * navegador, que esconde a moldura e os controles (`print:hidden`) e mantém
- * cartões e gráficos.
+ * navegador, que imprime a aba aberta, esconde a moldura e os controles
+ * (`print:hidden`) e mantém cartões e gráficos.
  */
 import { useState, type ReactNode } from 'react';
 import { Download, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../auth/useAuth';
+import { Abas, PainelDaAba, type Aba } from '../components/Abas';
 import { AvisoSimulado } from '../components/AvisoSimulado';
 import { AlertasProducao } from '../components/crm/graficos/AlertasProducao';
 import { DistribuicaoPorCor } from '../components/crm/graficos/DistribuicaoPorCor';
 import { MapaPorCidade } from '../components/crm/graficos/MapaPorCidade';
+import { Ranking } from '../components/crm/graficos/Ranking';
 import { ResultadoPorRepresentante } from '../components/crm/graficos/ResultadoPorRepresentante';
 import { RitmoSemanal } from '../components/crm/graficos/RitmoSemanal';
 import { VendasMensais } from '../components/crm/graficos/VendasMensais';
@@ -55,6 +66,7 @@ import { descreverPrazo } from '../lib/descreverPrazo';
 import { formatarDataCalendario } from '../lib/formatarData';
 import { listarComE } from '../lib/listarComE';
 import { PERIODO_PADRAO, type Periodo } from '../lib/periodo';
+import { useAbaNaUrl } from '../lib/useAbaNaUrl';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
 import type { Alertas } from '../services/insights';
@@ -62,6 +74,14 @@ import type { Alertas } from '../services/insights';
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar o painel.';
 const MENSAGEM_ERRO_VISITAS = 'Não foi possível carregar o gráfico de visitas.';
 const MENSAGEM_ERRO_PLANILHA = 'Não foi possível gerar a planilha.';
+
+const ID_DAS_ABAS = 'painel';
+const VALORES_DAS_ABAS = ['resultados', 'producao'] as const;
+type AbaDoPainel = (typeof VALORES_DAS_ABAS)[number];
+const ABAS: Aba<AbaDoPainel>[] = [
+  { valor: 'resultados', rotulo: 'Metas e resultados' },
+  { valor: 'producao', rotulo: 'Produção e sazonalidade' },
+];
 
 function descreverClientes(quantidade: number): string {
   return `${quantidade} ${quantidade === 1 ? 'cliente' : 'clientes'}`;
@@ -128,6 +148,35 @@ function CartoesDeVisitas({
         </div>
       </Cartao>
     </>
+  );
+}
+
+/**
+ * "Ranking dos representantes" (gestor), da mesma consulta (e da mesma chave)
+ * dos cartões de visitas: o TanStack Query não repete a busca. Só faz sentido
+ * com a empresa toda; com um representante escolhido, o cartão diz como ver.
+ */
+function CartaoRanking({ periodo, representanteId }: { periodo: Periodo; representanteId?: string }) {
+  const { data, isLoading, isError, error, isPlaceholderData } = useKpisPorRepresentante(periodo, representanteId);
+  const todos = representanteId === undefined;
+
+  return (
+    <Cartao titulo="Ranking dos representantes" className="min-w-0">
+      {todos ? (
+        <div className="space-y-3">
+          {isLoading && <Carregando>Carregando ranking...</Carregando>}
+          {/* O erro já é anunciado no resultado das visitas; aqui, só sem dados para mostrar. */}
+          {isError && !data && <Aviso tom="erro">{mensagemErroApi(error, MENSAGEM_ERRO_VISITAS)}</Aviso>}
+          {data && (
+            <Atualizavel atualizando={isPlaceholderData}>
+              <Ranking representantes={data.representantes} />
+            </Atualizavel>
+          )}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Escolha 'Todos os representantes' para ver o ranking.</p>
+      )}
+    </Cartao>
   );
 }
 
@@ -301,7 +350,14 @@ function BotoesDeExportar({ periodo, representanteId }: { periodo: Periodo; repr
         <Download aria-hidden="true" />
         Planilha
       </Button>
-      <Button variant="outline" size="sm" className="max-md:flex-1" onClick={() => window.print()}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="max-md:flex-1"
+        aria-label="PDF da aba aberta"
+        title="PDF da aba aberta"
+        onClick={() => window.print()}
+      >
         <Printer aria-hidden="true" />
         PDF
       </Button>
@@ -309,12 +365,103 @@ function BotoesDeExportar({ periodo, representanteId }: { periodo: Periodo; repr
   );
 }
 
+type AbaResultadosProps = {
+  gestor: boolean;
+  periodo: Periodo;
+  representanteId?: string;
+};
+
+/** "Metas e resultados": indicadores, metas e, em duas colunas a partir de 1024 px, visitas, ritmo e ranking. */
+function AbaResultados({ gestor, periodo, representanteId }: AbaResultadosProps) {
+  return (
+    <>
+      <KpisCard
+        periodo={periodo}
+        representanteId={representanteId}
+        titulo={gestor ? 'Quem está visitando pouco?' : 'Como está a minha carteira?'}
+      />
+
+      <MetasPanel representanteId={representanteId} periodo={periodo} />
+
+      {gestor ? (
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <div className="min-w-0 space-y-4">
+            <CartoesDeVisitas
+              periodo={periodo}
+              representanteId={representanteId}
+              tituloDoResultado="Resultado das visitas por representante"
+            />
+          </div>
+          <CartaoRanking periodo={periodo} representanteId={representanteId} />
+        </div>
+      ) : (
+        <div className="grid items-start gap-4 lg:grid-cols-2 *:min-w-0">
+          <CartoesDeVisitas
+            periodo={periodo}
+            representanteId={representanteId}
+            tituloDoResultado="Resultado das minhas visitas"
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+type AbaProducaoProps = {
+  periodo: Periodo;
+  representanteId?: string;
+  mostrarRepresentante: boolean;
+  horizonteDias: number;
+  onHorizonteChange: (dias: number) => void;
+  consultaDeAlertas: ReturnType<typeof useAlertasDeProducao>;
+};
+
+/** "Produção e sazonalidade": o próximo evento na largura toda e, embaixo, clientes esfriando, época do ano e mapa. */
+function AbaProducao({
+  periodo,
+  representanteId,
+  mostrarRepresentante,
+  horizonteDias,
+  onHorizonteChange,
+  consultaDeAlertas,
+}: AbaProducaoProps) {
+  const alertas = consultaDeAlertas.data;
+
+  return (
+    <>
+      <CartaoEstoque
+        representanteId={representanteId}
+        horizonteDias={horizonteDias}
+        onHorizonteChange={onHorizonteChange}
+        consulta={consultaDeAlertas}
+      />
+
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="min-w-0">
+          <CartaoClientesEsfriando
+            periodo={periodo}
+            representanteId={representanteId}
+            mostrarRepresentante={mostrarRepresentante}
+          />
+        </div>
+
+        <div className="min-w-0 space-y-4">
+          {alertas && <CartaoEpocaDoAno alertas={alertas} />}
+          <CartaoMapa representanteId={representanteId} />
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function PainelPage() {
   const { user } = useAuth();
   const gestor = user?.role === 'GESTOR';
+  const [aba, trocarAba] = useAbaNaUrl('aba', VALORES_DAS_ABAS, 'resultados');
   const [periodo, setPeriodo] = useState<Periodo>(PERIODO_PADRAO);
   // A Planilha não tem o limite de 365 dias do Painel: guarda a última faixa pedida, mesmo a que o Painel não mostra.
   const [periodoDaPlanilha, setPeriodoDaPlanilha] = useState<Periodo>(PERIODO_PADRAO);
+  // Na página, e não na aba: o horizonte escolhido sobrevive à troca de aba.
   const [horizonteDias, setHorizonteDias] = useState(HORIZONTE_PADRAO_DIAS);
   // `undefined` para o representante: o backend usa a carteira dele.
   const representanteId = useRepresentanteSelecionado();
@@ -322,8 +469,7 @@ export function PainelPage() {
   // As mesmas chaves dos cartões (o TanStack Query não repete a busca), só para uma faixa única de dados simulados.
   const { data: kpis } = useKpis(periodo, representanteId);
   const { data: vendas } = useVendasMensais(representanteId);
-  const alertas = consultaDeAlertas.data;
-  const simulado = Boolean(kpis?.simulado || vendas?.simulado || alertas?.simulado);
+  const simulado = Boolean(kpis?.simulado || vendas?.simulado || consultaDeAlertas.data?.simulado);
 
   return (
     <div className="space-y-5">
@@ -343,39 +489,24 @@ export function PainelPage() {
 
       {simulado && <AvisoSimulado className="" />}
 
-      <KpisCard
-        periodo={periodo}
-        representanteId={representanteId}
-        titulo={gestor ? 'Quem está visitando pouco?' : 'Como está a minha carteira?'}
-      />
+      <div className="print:hidden">
+        <Abas idBase={ID_DAS_ABAS} ariaLabel="Seções do Painel" abas={ABAS} valor={aba} onChange={trocarAba} />
+      </div>
 
-      <MetasPanel representanteId={representanteId} periodo={periodo} />
-
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <div className="min-w-0 space-y-4">
-          <CartoesDeVisitas
-            periodo={periodo}
-            representanteId={representanteId}
-            tituloDoResultado={gestor ? 'Resultado das visitas por representante' : 'Resultado das minhas visitas'}
-          />
-          <CartaoClientesEsfriando
+      <PainelDaAba idBase={ID_DAS_ABAS} valor={aba} className="space-y-5">
+        {aba === 'resultados' ? (
+          <AbaResultados gestor={gestor} periodo={periodo} representanteId={representanteId} />
+        ) : (
+          <AbaProducao
             periodo={periodo}
             representanteId={representanteId}
             mostrarRepresentante={gestor && representanteId === undefined}
-          />
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          <CartaoEstoque
-            representanteId={representanteId}
             horizonteDias={horizonteDias}
             onHorizonteChange={setHorizonteDias}
-            consulta={consultaDeAlertas}
+            consultaDeAlertas={consultaDeAlertas}
           />
-          <CartaoMapa representanteId={representanteId} />
-          {alertas && <CartaoEpocaDoAno alertas={alertas} />}
-        </div>
-      </div>
+        )}
+      </PainelDaAba>
     </div>
   );
 }

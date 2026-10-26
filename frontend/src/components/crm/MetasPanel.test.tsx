@@ -151,11 +151,11 @@ describe('MetasPanel — lista', () => {
     });
   });
 
-  it('sem metas: "Nenhuma meta definida para este período."', async () => {
+  it('sem metas: "Nenhuma meta no período escolhido."', async () => {
     vi.mocked(listarMetas).mockResolvedValue([]);
     renderizar();
 
-    expect(await screen.findByText('Nenhuma meta definida para este período.')).toBeInTheDocument();
+    expect(await screen.findByText('Nenhuma meta no período escolhido.')).toBeInTheDocument();
   });
 
   it('erro ao carregar: aviso com a mensagem da API', async () => {
@@ -173,6 +173,24 @@ describe('MetasPanel — lista', () => {
     expect(screen.queryByRole('button', { name: 'Nova meta' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Editar meta/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Excluir meta/ })).not.toBeInTheDocument();
+  });
+
+  it('representante: o bloco tem a largura das metas, em colunas de 20 rem', async () => {
+    renderizar({}, 'REPRESENTANTE');
+
+    const lista = await screen.findByRole('list', { name: /Metas/ });
+    const bloco = screen.getByRole('region', { name: 'Metas de visitas e vendas' });
+    expect(bloco).toHaveClass('md:w-fit');
+    expect(lista).toHaveClass('md:max-w-[40.75rem]', 'md:grid-cols-[repeat(auto-fit,20rem)]');
+  });
+
+  it('gestor: o bloco ocupa a largura toda, em duas colunas', async () => {
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: /Metas/ });
+    const bloco = screen.getByRole('region', { name: 'Metas de visitas e vendas' });
+    expect(bloco).not.toHaveClass('md:w-fit');
+    expect(lista).toHaveClass('md:grid-cols-2');
   });
 });
 
@@ -382,5 +400,13 @@ describe('MetasPanel — campanha', () => {
         campanhaId: 'cp1',
       }),
     );
+  });
+
+  it('representante na campanha: a área segue a largura do cartão da campanha', async () => {
+    renderizar({ campanha: NATAL }, 'REPRESENTANTE');
+
+    const lista = await screen.findByRole('list', { name: /Metas/ });
+    expect(screen.getByRole('region', { name: 'Metas da campanha' })).not.toHaveClass('md:w-fit');
+    expect(lista).toHaveClass('md:grid-cols-2');
   });
 });
