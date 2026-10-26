@@ -92,7 +92,7 @@ const META_DO_NATAL: Meta = {
   metaVisitas: 4,
   metaVendas: 1000,
   campanhaId: 'cp2',
-  realizado: { visitas: 2, vendas: 503.7 },
+  realizado: { visitas: 2, vendas: 503.7, clientes: [] },
 };
 
 let usuario: ReturnType<typeof userEvent.setup>;

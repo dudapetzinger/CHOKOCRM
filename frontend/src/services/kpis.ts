@@ -3,7 +3,10 @@
  * `KpisDTO` de `backend/src/services/kpis.service.ts` e `Proporcao` /
  * `DistribuicaoPorCor` de `backend/src/services/kpis.regras.ts`. Datas de
  * calendário chegam como 'AAAA-MM-DD' (formatar com `formatarDataCalendario`).
+ * O período é um `Periodo` (30, 90 ou 365 dias, ou uma faixa personalizada de
+ * até 365 dias), traduzido por `queryDoPeriodo`.
  */
+import { queryDoPeriodo, type Periodo } from '../lib/periodo';
 import { api } from './api';
 import type { Cor } from './clients';
 
@@ -27,8 +30,8 @@ export type Kpis = {
 };
 
 /** `representanteId` só faz efeito para o gestor; vai na query só quando definido. */
-export function buscarKpis(periodoDias: number, representanteId?: string): Promise<Kpis> {
-  const query = new URLSearchParams({ periodoDias: String(periodoDias) });
+export function buscarKpis(periodo: Periodo, representanteId?: string): Promise<Kpis> {
+  const query = queryDoPeriodo(periodo);
   if (representanteId) {
     query.set('representanteId', representanteId);
   }

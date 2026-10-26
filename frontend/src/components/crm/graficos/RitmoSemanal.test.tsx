@@ -1,16 +1,16 @@
 import { render, screen, within } from '@testing-library/react';
-import type { SemanaDoRitmo } from '@/services/dashboard';
+import type { FaixaDoRitmo } from '@/services/dashboard';
 import { RitmoSemanal } from './RitmoSemanal';
 
-const SEMANAS: SemanaDoRitmo[] = [
-  { inicio: '2026-08-24', visitas: 2, vendas: 1 },
-  { inicio: '2026-08-31', visitas: 0, vendas: 0 },
-  { inicio: '2026-09-07', visitas: 4, vendas: 2 },
-  { inicio: '2026-09-14', visitas: 8, vendas: 3 },
-  { inicio: '2026-09-21', visitas: 3, vendas: 0 },
-  { inicio: '2026-09-28', visitas: 5, vendas: 5 },
-  { inicio: '2026-10-05', visitas: 6, vendas: 2 },
-  { inicio: '2026-10-12', visitas: 1, vendas: 1 },
+const SEMANAS: FaixaDoRitmo[] = [
+  { inicio: '2026-08-24', fim: '2026-08-30', parcial: false, visitas: 2, vendas: 1, clientes: [] },
+  { inicio: '2026-08-31', fim: '2026-09-06', parcial: false, visitas: 0, vendas: 0, clientes: [] },
+  { inicio: '2026-09-07', fim: '2026-09-13', parcial: false, visitas: 4, vendas: 2, clientes: [] },
+  { inicio: '2026-09-14', fim: '2026-09-20', parcial: false, visitas: 8, vendas: 3, clientes: [] },
+  { inicio: '2026-09-21', fim: '2026-09-27', parcial: false, visitas: 3, vendas: 0, clientes: [] },
+  { inicio: '2026-09-28', fim: '2026-10-04', parcial: false, visitas: 5, vendas: 5, clientes: [] },
+  { inicio: '2026-10-05', fim: '2026-10-11', parcial: false, visitas: 6, vendas: 2, clientes: [] },
+  { inicio: '2026-10-12', fim: '2026-10-18', parcial: false, visitas: 1, vendas: 1, clientes: [] },
 ];
 
 describe('RitmoSemanal', () => {

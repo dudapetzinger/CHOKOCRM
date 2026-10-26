@@ -4,8 +4,10 @@
  * calculado do backend (o front não recalcula regra). Todos leem (o
  * representante, só as próprias); criar, alterar e excluir é só do gestor no
  * backend. `periodoDaMeta` repete a regra do backend só para preencher o fim
- * no formulário — o backend recalcula.
+ * no formulário — o backend recalcula. Com `periodo` (Etapa 9), a listagem
+ * traz só as metas que cruzam a janela; sem ele, todas.
  */
+import { queryDoPeriodo, type Periodo } from '../lib/periodo';
 import { api } from './api';
 
 export type PeriodoMeta = 'SEMANAL' | 'MENSAL' | 'PERSONALIZADO' | 'CAMPANHA';
@@ -30,7 +32,12 @@ export type Meta = {
   metaVendas: number;
   campanhaId: string | null;
   /** Visitas do representante no período (na campanha, se for de campanha) e vendas (R$) das com VENDA. */
-  realizado: { visitas: number; vendas: number };
+  realizado: {
+    visitas: number;
+    vendas: number;
+    /** O que cada cliente contribuiu: visitas e vendas (R$). */
+    clientes: { id: string; nomeFantasia: string; visitas: number; vendas: number }[];
+  };
 };
 
 /** Corpo de criar e de alterar (o `PUT` troca a meta inteira). */
@@ -44,13 +51,16 @@ export type MetaInput = {
   campanhaId: string | null;
 };
 
-export type FiltroMetas = { campanhaId?: string; representanteId?: string };
+export type FiltroMetas = { campanhaId?: string; representanteId?: string; periodo?: Periodo };
 
 /** Sem `campanhaId`, só as metas sem campanha; com ele, só as daquela campanha. */
 export async function listarMetas(filtro: FiltroMetas = {}): Promise<Meta[]> {
   const parametros = new URLSearchParams();
   if (filtro.campanhaId) parametros.set('campanhaId', filtro.campanhaId);
   if (filtro.representanteId) parametros.set('representanteId', filtro.representanteId);
+  if (filtro.periodo) {
+    queryDoPeriodo(filtro.periodo).forEach((valor, chave) => parametros.set(chave, valor));
+  }
   const consulta = parametros.toString();
   const resposta = await api.get<{ data: Meta[] }>(`/goals${consulta ? `?${consulta}` : ''}`);
   return resposta.data;

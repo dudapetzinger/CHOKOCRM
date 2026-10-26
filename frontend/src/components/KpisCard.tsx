@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { useKpis } from '../hooks/useKpis';
 import { descreverClientesAtivos } from '../lib/descreverClientesAtivos';
 import { formatarDataCalendario } from '../lib/formatarData';
+import type { Periodo } from '../lib/periodo';
 import { mensagemErroApi } from '../services/clients';
 import type { Kpis, Proporcao } from '../services/kpis';
 import { Aviso } from './crm/ui';
@@ -78,16 +79,16 @@ function Indicadores({ kpis }: { kpis: Kpis }) {
  * `titulo`: o do gestor por padrão; o Painel do representante passa "Como está a minha carteira?".
  */
 export function KpisCard({
-  periodoDias,
+  periodo,
   representanteId,
   titulo = 'Quem está visitando pouco?',
 }: {
-  periodoDias: number;
+  periodo: Periodo;
   representanteId?: string;
   titulo?: string;
 }) {
   const idTitulo = useId();
-  const { data: kpis, isLoading, isError, error, isPlaceholderData } = useKpis(periodoDias, representanteId);
+  const { data: kpis, isLoading, isError, error, isPlaceholderData } = useKpis(periodo, representanteId);
 
   return (
     <section aria-labelledby={idTitulo} className="space-y-3">

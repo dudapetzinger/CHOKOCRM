@@ -1,14 +1,17 @@
 /**
  * Acesso tipado aos números dos gráficos do Painel (Etapa 7; contagens por
- * resultado, ritmo semanal e relatório da planilha na Etapa 8): o
- * comparativo por representante, o ritmo de visitas das 8 últimas semanas,
- * as vendas mensais da carteira e as linhas do CSV. Espelha
- * `KpisPorRepresentanteDTO` de `backend/src/services/kpis.service.ts`,
- * `KpiRepresentante` e `SemanaDoRitmo` de `kpis.regras.ts`,
- * `VendasMensaisDTO` de `vendas-mensais.service.ts` e `LinhaDoRelatorioDTO`
- * de `relatorio.service.ts`. Gestor e representante leem; para o
- * representante, o backend ignora o `representanteId` e usa a carteira dele.
+ * resultado, ritmo e relatório da planilha na Etapa 8; período personalizado
+ * e detalhe por cliente na Etapa 9): o comparativo por representante, o ritmo
+ * de visitas (por semana ou por mês, conforme o período), as vendas mensais da
+ * carteira e as linhas do CSV. Espelha `KpisPorRepresentanteDTO` de
+ * `backend/src/services/kpis.service.ts`, `KpiRepresentante`, `Ritmo` e
+ * `FaixaDoRitmo` de `kpis.regras.ts`, `VendasMensaisDTO` de
+ * `vendas-mensais.service.ts` e `LinhaDoRelatorioDTO` de
+ * `relatorio.service.ts`. Gestor e representante leem; para o representante,
+ * o backend ignora o `representanteId` e usa a carteira dele. O período é um
+ * `Periodo` (`lib/periodo`).
  */
+import { queryDoPeriodo, type Periodo } from '../lib/periodo';
 import { api } from './api';
 import type { Kpis, Proporcao } from './kpis';
 
@@ -22,22 +25,37 @@ export type KpiRepresentante = {
   negociacoes: number;
   semVenda: number;
   conversaoEmVendas: Proporcao;
+  /** R$ vendidos no período (pedidos das visitas com venda). */
+  receita: number;
+  /** Os clientes do representante, com o resultado das visitas de cada um no período. */
+  clientes: { id: string; nomeFantasia: string; vendas: number; negociacoes: number; semVenda: number }[];
 };
 
-export type SemanaDoRitmo = {
-  /** Segunda-feira da semana, 'AAAA-MM-DD'. */
+/** Uma coluna do ritmo: a semana (segunda a domingo) ou o mês, conforme a `granularidade`. */
+export type FaixaDoRitmo = {
+  /** 'AAAA-MM-DD'. */
   inicio: string;
+  /** 'AAAA-MM-DD'. */
+  fim: string;
+  /** A faixa que o período cortou (a primeira ou a última): tem menos dias que a semana ou o mês. */
+  parcial: boolean;
   visitas: number;
-  /** Das visitas da semana, as com resultado VENDA. */
+  /** Das visitas da faixa, as com resultado VENDA. */
   vendas: number;
+  clientes: { id: string; nomeFantasia: string; visitas: number; vendas: number }[];
+};
+
+export type Ritmo = {
+  granularidade: 'SEMANA' | 'MES';
+  faixas: FaixaDoRitmo[];
 };
 
 export type KpisPorRepresentante = {
   periodo: Kpis['periodo'];
   /** Ordenados por visitas (desc) e nome; todos aparecem, mesmo zerados. */
   representantes: KpiRepresentante[];
-  /** Sempre 8 semanas (segunda a domingo), a última contendo hoje; não depende do período. */
-  ritmoSemanal: SemanaDoRitmo[];
+  /** Cobre o período escolhido: por semana ou por mês, conforme o tamanho dele. */
+  ritmo: Ritmo;
   simulado: boolean;
 };
 
@@ -47,6 +65,8 @@ export type VendaDoMes = {
   /** R$ vendidos no mês. */
   total: number;
   clientesComDados: number;
+  /** Quanto cada cliente comprou no mês. */
+  clientes: { id: string; nomeFantasia: string; total: number }[];
 };
 
 export type EventoNoGrafico = {
@@ -76,10 +96,10 @@ function comRepresentante(query: URLSearchParams, representanteId?: string): URL
 }
 
 export function buscarKpisPorRepresentante(
-  periodoDias: number,
+  periodo: Periodo,
   representanteId?: string,
 ): Promise<KpisPorRepresentante> {
-  const query = comRepresentante(new URLSearchParams({ periodoDias: String(periodoDias) }), representanteId);
+  const query = comRepresentante(queryDoPeriodo(periodo), representanteId);
   return api.get<KpisPorRepresentante>(`/dashboard/kpis/por-representante?${query}`);
 }
 
@@ -102,8 +122,8 @@ export type LinhaDoRelatorio = {
   vendasNoPeriodo: number;
 };
 
-export async function buscarRelatorio(periodoDias: number, representanteId?: string): Promise<LinhaDoRelatorio[]> {
-  const query = comRepresentante(new URLSearchParams({ periodoDias: String(periodoDias) }), representanteId);
+export async function buscarRelatorio(periodo: Periodo, representanteId?: string): Promise<LinhaDoRelatorio[]> {
+  const query = comRepresentante(queryDoPeriodo(periodo), representanteId);
   const resposta = await api.get<{ data: LinhaDoRelatorio[] }>(`/dashboard/relatorio?${query}`);
   return resposta.data;
 }

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -66,7 +66,7 @@ const META_DA_EDUARDA: Meta = {
   metaVisitas: 10,
   metaVendas: 6000,
   campanhaId: null,
-  realizado: { visitas: 7, vendas: 4200 },
+  realizado: { visitas: 7, vendas: 4200, clientes: [] },
 };
 
 function consulta<T>(data: T) {
@@ -96,25 +96,30 @@ const POR_REPRESENTANTE: KpisPorRepresentante = {
       negociacoes: 4,
       semVenda: 3,
       conversaoEmVendas: { numerador: 5, denominador: 12, percentual: 42 },
+      receita: 4200,
+      clientes: [],
     },
   ],
-  ritmoSemanal: [
-    { inicio: '2026-08-24', visitas: 1, vendas: 0 },
-    { inicio: '2026-08-31', visitas: 2, vendas: 1 },
-    { inicio: '2026-09-07', visitas: 0, vendas: 0 },
-    { inicio: '2026-09-14', visitas: 3, vendas: 1 },
-    { inicio: '2026-09-21', visitas: 4, vendas: 2 },
-    { inicio: '2026-09-28', visitas: 2, vendas: 1 },
-    { inicio: '2026-10-05', visitas: 1, vendas: 0 },
-    { inicio: '2026-10-12', visitas: 2, vendas: 1 },
-  ],
+  ritmo: {
+    granularidade: 'SEMANA',
+    faixas: [
+      { inicio: '2026-08-24', fim: '2026-08-30', parcial: false, visitas: 1, vendas: 0, clientes: [] },
+      { inicio: '2026-08-31', fim: '2026-09-06', parcial: false, visitas: 2, vendas: 1, clientes: [] },
+      { inicio: '2026-09-07', fim: '2026-09-13', parcial: false, visitas: 0, vendas: 0, clientes: [] },
+      { inicio: '2026-09-14', fim: '2026-09-20', parcial: false, visitas: 3, vendas: 1, clientes: [] },
+      { inicio: '2026-09-21', fim: '2026-09-27', parcial: false, visitas: 4, vendas: 2, clientes: [] },
+      { inicio: '2026-09-28', fim: '2026-10-04', parcial: false, visitas: 2, vendas: 1, clientes: [] },
+      { inicio: '2026-10-05', fim: '2026-10-11', parcial: false, visitas: 1, vendas: 0, clientes: [] },
+      { inicio: '2026-10-12', fim: '2026-10-18', parcial: false, visitas: 2, vendas: 1, clientes: [] },
+    ],
+  },
   simulado: false,
 };
 
 const VENDAS: VendasMensais = {
   meses: [
-    { mes: '2026-09', total: 1000, clientesComDados: 3 },
-    { mes: '2026-10', total: 1500, clientesComDados: 3 },
+    { mes: '2026-09', total: 1000, clientesComDados: 3, clientes: [] },
+    { mes: '2026-10', total: 1500, clientesComDados: 3, clientes: [] },
   ],
   eventos: [],
   simulado: false,
@@ -214,6 +219,7 @@ describe('PainelPage (gestor)', () => {
       '30 dias',
       '90 dias',
       '365 dias',
+      'Personalizado',
     ]);
     expect(screen.getByText('Dados simulados — integração com o ERP ainda não está disponível')).toBeInTheDocument();
   });
@@ -276,7 +282,7 @@ describe('PainelPage (gestor)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
 
     expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
-    expect(buscarRelatorio).toHaveBeenCalledWith(30, 'u1');
+    expect(buscarRelatorio).toHaveBeenCalledWith({ dias: 30 }, 'u1');
     expect(baixarCsv).toHaveBeenCalledTimes(1);
     const [conteudo, nome] = vi.mocked(baixarCsv).mock.calls[0]!;
     expect(conteudo.startsWith('\uFEFF"Cliente";"Cidade";')).toBe(true);
@@ -292,7 +298,7 @@ describe('PainelPage (gestor)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
 
     expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
-    expect(buscarRelatorio).toHaveBeenCalledWith(90, undefined);
+    expect(buscarRelatorio).toHaveBeenCalledWith({ dias: 90 }, undefined);
   });
 
   it('se o relatório falha, avisa e não baixa nada', async () => {
@@ -332,11 +338,55 @@ describe('PainelPage (gestor)', () => {
     vi.mocked(useRepresentanteSelecionado).mockReturnValue('u1');
     renderizarComo('GESTOR');
 
-    expect(useKpis).toHaveBeenCalledWith(30, 'u1');
-    expect(useKpisPorRepresentante).toHaveBeenCalledWith(30, 'u1');
+    expect(useKpis).toHaveBeenCalledWith({ dias: 30 }, 'u1');
+    expect(useKpisPorRepresentante).toHaveBeenCalledWith({ dias: 30 }, 'u1');
     expect(useVendasMensais).toHaveBeenCalledWith('u1');
     expect(useClientesDaCarteira).toHaveBeenCalledWith('u1');
     expect(useAlertasDeProducao).toHaveBeenCalledWith(90, 'u1');
+  });
+
+  describe('período personalizado', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-25T15:00:00Z') });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function mudarData(rotulo: 'De' | 'Até', valor: string): void {
+      fireEvent.change(screen.getByLabelText(rotulo), { target: { value: valor } });
+    }
+
+    it('uma faixa de até 365 dias refaz os indicadores, o resultado por representante, as metas e a Planilha', async () => {
+      renderizarComo('GESTOR');
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Personalizado' }));
+      mudarData('De', '2026-01-01');
+      await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
+
+      const faixa = { inicio: '2026-01-01', fim: '2026-10-25' };
+      expect(useKpis).toHaveBeenLastCalledWith(faixa, undefined);
+      expect(useKpisPorRepresentante).toHaveBeenLastCalledWith(faixa, undefined);
+      await waitFor(() => expect(listarMetas).toHaveBeenLastCalledWith(expect.objectContaining({ periodo: faixa })));
+      expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
+      expect(buscarRelatorio).toHaveBeenCalledWith(faixa, undefined);
+    });
+
+    it('acima de 365 dias o Painel segue no período anterior e só a Planilha usa a faixa', async () => {
+      renderizarComo('GESTOR');
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Personalizado' }));
+      mudarData('De', '2025-01-01');
+      await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
+
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'O Painel mostra até 365 dias por vez. Para um período maior, use a Planilha.',
+      );
+      expect(useKpis).toHaveBeenLastCalledWith({ dias: 30 }, undefined);
+      expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
+      expect(buscarRelatorio).toHaveBeenCalledWith({ inicio: '2025-01-01', fim: '2026-10-25' }, undefined);
+    });
   });
 
   it('metas de visitas e vendas: as sem campanha, com o progresso e "Nova meta" para o gestor', async () => {
@@ -346,7 +396,11 @@ describe('PainelPage (gestor)', () => {
     expect(await within(metas).findByText('R$ 4.200,00 de R$ 6.000,00 · 70 %')).toBeInTheDocument();
     expect(within(metas).getByText('7 de 10 · 70 %')).toBeInTheDocument();
     expect(within(metas).getByRole('button', { name: 'Nova meta' })).toBeInTheDocument();
-    expect(listarMetas).toHaveBeenCalledWith({ campanhaId: undefined, representanteId: undefined });
+    expect(listarMetas).toHaveBeenCalledWith({
+      campanhaId: undefined,
+      representanteId: undefined,
+      periodo: { dias: 30 },
+    });
   });
 
   it('as metas seguem o representante escolhido', async () => {
@@ -354,7 +408,11 @@ describe('PainelPage (gestor)', () => {
     renderizarComo('GESTOR');
 
     await screen.findByText('7 de 10 · 70 %');
-    expect(listarMetas).toHaveBeenCalledWith({ campanhaId: undefined, representanteId: 'u1' });
+    expect(listarMetas).toHaveBeenCalledWith({
+      campanhaId: undefined,
+      representanteId: 'u1',
+      periodo: { dias: 30 },
+    });
   });
 
   it('trocar o período para 90 dias refaz os indicadores e o resultado por representante com 90', async () => {
@@ -363,8 +421,8 @@ describe('PainelPage (gestor)', () => {
 
     await userEvent.click(within(periodo).getByRole('radio', { name: '90 dias' }));
 
-    expect(useKpis).toHaveBeenLastCalledWith(90, undefined);
-    expect(useKpisPorRepresentante).toHaveBeenLastCalledWith(90, undefined);
+    expect(useKpis).toHaveBeenLastCalledWith({ dias: 90 }, undefined);
+    expect(useKpisPorRepresentante).toHaveBeenLastCalledWith({ dias: 90 }, undefined);
     expect(within(periodo).getByRole('radio', { name: '90 dias' })).toHaveAttribute('aria-checked', 'true');
   });
 
@@ -461,8 +519,8 @@ describe('PainelPage (representante)', () => {
   it('os blocos buscam sem representanteId (o backend prende à carteira dele)', () => {
     renderizarComo('REPRESENTANTE');
 
-    expect(useKpis).toHaveBeenCalledWith(30, undefined);
-    expect(useKpisPorRepresentante).toHaveBeenCalledWith(30, undefined);
+    expect(useKpis).toHaveBeenCalledWith({ dias: 30 }, undefined);
+    expect(useKpisPorRepresentante).toHaveBeenCalledWith({ dias: 30 }, undefined);
     expect(useVendasMensais).toHaveBeenCalledWith(undefined);
     expect(useClientesDaCarteira).toHaveBeenCalledWith(undefined);
     expect(useAlertasDeProducao).toHaveBeenCalledWith(90, undefined);
@@ -486,7 +544,11 @@ describe('PainelPage (representante)', () => {
     expect(await within(metas).findByText('7 de 10 · 70 %')).toBeInTheDocument();
     expect(within(metas).queryByRole('button', { name: 'Nova meta' })).not.toBeInTheDocument();
     expect(within(metas).queryByRole('button', { name: /Editar|Excluir/ })).not.toBeInTheDocument();
-    expect(listarMetas).toHaveBeenCalledWith({ campanhaId: undefined, representanteId: undefined });
+    expect(listarMetas).toHaveBeenCalledWith({
+      campanhaId: undefined,
+      representanteId: undefined,
+      periodo: { dias: 30 },
+    });
   });
 
   it('"Planilha" gera o CSV da própria carteira e "PDF" imprime', async () => {
@@ -495,7 +557,7 @@ describe('PainelPage (representante)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
     expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
-    expect(buscarRelatorio).toHaveBeenCalledWith(30, undefined);
+    expect(buscarRelatorio).toHaveBeenCalledWith({ dias: 30 }, undefined);
     expect(baixarCsv).toHaveBeenCalledTimes(1);
 
     await userEvent.click(screen.getByRole('button', { name: 'PDF' }));

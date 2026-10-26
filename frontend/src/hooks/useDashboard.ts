@@ -2,9 +2,11 @@
  * Estado de servidor dos gráficos do Painel (Etapa 7), como manda a
  * arquitetura do projeto: os componentes não chamam a API diretamente (ver
  * docs/arquitetura.md). Sem retry, como `useKpis`: erro de
- * rede/indisponibilidade deve aparecer de imediato.
+ * rede/indisponibilidade deve aparecer de imediato. O período (`Periodo`) entra
+ * nas chaves por `chaveDoPeriodo`.
  */
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
+import { chaveDoPeriodo, type Periodo } from '../lib/periodo';
 import { listClients } from '../services/clients';
 import { buscarKpisPorRepresentante, buscarRelatorio, buscarVendasMensais } from '../services/dashboard';
 
@@ -13,10 +15,10 @@ import { buscarKpisPorRepresentante, buscarRelatorio, buscarVendasMensais } from
  * mantém os gráficos anteriores esmaecidos até os novos chegarem (o formato
  * da resposta é o mesmo nos dois casos).
  */
-export function useKpisPorRepresentante(periodoDias: number, representanteId?: string) {
+export function useKpisPorRepresentante(periodo: Periodo, representanteId?: string) {
   return useQuery({
-    queryKey: ['dashboard', 'por-representante', periodoDias, representanteId ?? 'todos'],
-    queryFn: () => buscarKpisPorRepresentante(periodoDias, representanteId),
+    queryKey: ['dashboard', 'por-representante', chaveDoPeriodo(periodo), representanteId ?? 'todos'],
+    queryFn: () => buscarKpisPorRepresentante(periodo, representanteId),
     retry: false,
     placeholderData: keepPreviousData,
   });
@@ -51,8 +53,8 @@ export function useClientesDaCarteira(representanteId?: string) {
  */
 export function useRelatorio() {
   return useMutation({
-    mutationFn: ({ periodoDias, representanteId }: { periodoDias: number; representanteId?: string }) =>
-      buscarRelatorio(periodoDias, representanteId),
+    mutationFn: ({ periodo, representanteId }: { periodo: Periodo; representanteId?: string }) =>
+      buscarRelatorio(periodo, representanteId),
     retry: false,
   });
 }

@@ -29,7 +29,7 @@ const OUTUBRO_EDUARDA: Meta = {
   metaVisitas: 10,
   metaVendas: 6000,
   campanhaId: null,
-  realizado: { visitas: 7, vendas: 4200 },
+  realizado: { visitas: 7, vendas: 4200, clientes: [] },
 };
 
 const SEMANA_RAFAEL: Meta = {
@@ -41,7 +41,7 @@ const SEMANA_RAFAEL: Meta = {
   metaVisitas: 5,
   metaVendas: 0,
   campanhaId: null,
-  realizado: { visitas: 5, vendas: 320 },
+  realizado: { visitas: 5, vendas: 320, clientes: [] },
 };
 
 const NATAL = { id: 'cp1', inicio: '2026-11-01', fim: '2026-12-24' };
@@ -61,7 +61,7 @@ beforeEach(() => {
       ...OUTUBRO_EDUARDA,
       ...input,
       id: 'nova',
-      realizado: { visitas: 0, vendas: 0 },
+      realizado: { visitas: 0, vendas: 0, clientes: [] },
     }));
   vi.mocked(atualizarMeta)
     .mockReset()
@@ -138,6 +138,17 @@ describe('MetasPanel — lista', () => {
 
     await cartaoDe('Eduarda Fischer');
     expect(listarMetas).toHaveBeenCalledWith({ campanhaId: undefined, representanteId: 'r2' });
+  });
+
+  it('com o período do Painel, busca só as metas que cruzam a janela', async () => {
+    renderizar({ periodo: { inicio: '2026-10-01', fim: '2026-10-25' } });
+
+    await cartaoDe('Eduarda Fischer');
+    expect(listarMetas).toHaveBeenCalledWith({
+      campanhaId: undefined,
+      representanteId: undefined,
+      periodo: { inicio: '2026-10-01', fim: '2026-10-25' },
+    });
   });
 
   it('sem metas: "Nenhuma meta definida para este período."', async () => {

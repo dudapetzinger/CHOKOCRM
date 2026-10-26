@@ -4,22 +4,23 @@
  * número de visitas no topo e a segunda-feira (dd/mm) embaixo. A barra clara
  * é o total de visitas (a semana com mais visitas ocupa a altura toda); a
  * parte escura, de baixo para cima, as visitas com venda. As semanas vêm
- * prontas do backend (`ritmoSemanal`). O desenho é só visual: a tabela
- * escondida tem os mesmos números para leitores de tela.
+ * prontas do backend (`ritmo.faixas`; a Etapa 9 troca este componente pelo
+ * ritmo por semana ou por mês). O desenho é só visual: a tabela escondida tem
+ * os mesmos números para leitores de tela.
  */
 import { formatarDiaMes } from '@/lib/formatarData';
-import type { SemanaDoRitmo } from '@/services/dashboard';
+import type { FaixaDoRitmo } from '@/services/dashboard';
 import { TabelaAcessivel } from './TabelaAcessivel';
 
 function porcentagem(parte: number, todo: number): string {
   return `${todo === 0 ? 0 : (parte / todo) * 100}%`;
 }
 
-function descrever({ inicio, visitas, vendas }: SemanaDoRitmo): string {
+function descrever({ inicio, visitas, vendas }: FaixaDoRitmo): string {
   return `Semana de ${formatarDiaMes(inicio)}: ${visitas} ${visitas === 1 ? 'visita' : 'visitas'}, ${vendas} com venda`;
 }
 
-export function RitmoSemanal({ semanas }: { semanas: SemanaDoRitmo[] }) {
+export function RitmoSemanal({ semanas }: { semanas: FaixaDoRitmo[] }) {
   const maior = Math.max(1, ...semanas.map(({ visitas }) => visitas));
 
   return (

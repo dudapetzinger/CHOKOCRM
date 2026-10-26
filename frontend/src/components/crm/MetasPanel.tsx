@@ -6,6 +6,8 @@
  * é a área "Metas da campanha" dentro do cartão da campanha (título de nível
  * 3), com as metas daquela campanha. O representante recebe do backend só
  * as próprias e não vê criar, editar nem excluir (o backend também barra).
+ * No Painel, o `periodo` escolhido limita a lista às metas que cruzam a janela
+ * (Etapa 9); sem `periodo`, todas.
  *
  * Cada meta é um cartão (uma coluna no celular, duas a partir de 768 px)
  * com o representante, a periodicidade, o período e as barras de visitas e
@@ -27,6 +29,7 @@ import { useAuth } from '../../auth/useAuth';
 import { useMetas } from '../../hooks/useMetas';
 import { useRepresentantes } from '../../hooks/useRepresentantes';
 import { formatarDataCalendario } from '../../lib/formatarData';
+import type { Periodo } from '../../lib/periodo';
 import { useFocoNoPrimeiroErro } from '../../lib/useFoco';
 import { mensagemErroApi } from '../../services/clients';
 import {
@@ -384,13 +387,23 @@ function CartaoMeta({ meta, gestor, aoEditar }: { meta: Meta; gestor: boolean; a
   );
 }
 
-export function MetasPanel({ campanha, representanteId }: { campanha?: CampanhaDaMeta; representanteId?: string }) {
+export function MetasPanel({
+  campanha,
+  representanteId,
+  periodo,
+}: {
+  campanha?: CampanhaDaMeta;
+  representanteId?: string;
+  /** O período do Painel: só as metas que cruzam a janela. Sem ele, todas. */
+  periodo?: Periodo;
+}) {
   const { user } = useAuth();
   const gestor = user?.role === 'GESTOR';
   // O representante recebe só as próprias do backend; o filtro é do gestor
   const { data: metas, isLoading, isError, error } = useMetas({
     campanhaId: campanha?.id,
     representanteId: gestor ? representanteId : undefined,
+    periodo,
   });
   // `undefined`: fechado; `null`: meta nova; uma meta: editando
   const [emEdicao, setEmEdicao] = useState<Meta | null | undefined>(undefined);
