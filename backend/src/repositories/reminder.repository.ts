@@ -49,14 +49,16 @@ export async function findById(id: string): Promise<(Reminder & { client: { repr
 /**
  * Lembretes abertos (`concluidoEm` nulo): com `clientId`, só os do cliente;
  * com `representanteId`, só os da carteira dele (o dono atual do cliente, não
- * quem criou); com `ate` (coluna `@db.Date`), só os com `data` até esse dia;
- * com `apenasClientesAtivos`, só os de cliente ativo (a agenda do dia e o
- * calendário, que já deixam o cliente inativo de fora; a ficha mostra todos).
- * Por data, depois pelo nome do cliente e, no empate, pelo mais antigo.
+ * quem criou); com `de` e `ate` (valores de coluna `@db.Date`, os dois
+ * inclusivos), só os com `data` nesse intervalo; com `apenasClientesAtivos`,
+ * só os de cliente ativo (a agenda do dia e o calendário, que já deixam o
+ * cliente inativo de fora; a ficha mostra todos). Por data, depois pelo nome
+ * do cliente e, no empate, pelo mais antigo.
  */
 export async function listarAbertos(filtro: {
   clientId?: string;
   representanteId?: string;
+  de?: Date;
   ate?: Date;
   apenasClientesAtivos?: boolean;
 }): Promise<LembreteComCliente[]> {
@@ -69,13 +71,24 @@ export async function listarAbertos(filtro: {
       concluidoEm: null,
       ...(filtro.clientId ? { clientId: filtro.clientId } : {}),
       ...(Object.keys(doCliente).length > 0 ? { client: doCliente } : {}),
-      ...(filtro.ate ? { data: { lte: filtro.ate } } : {}),
+      ...(filtro.de || filtro.ate
+        ? { data: { ...(filtro.de ? { gte: filtro.de } : {}), ...(filtro.ate ? { lte: filtro.ate } : {}) } }
+        : {}),
     },
     select: SELECT_COM_CLIENTE,
     orderBy: [{ data: 'asc' }, { client: { nomeFantasia: 'asc' } }, { criadoEm: 'asc' }],
   });
 }
 
-export async function concluir(id: string, agora: Date): Promise<void> {
-  await prisma.reminder.update({ where: { id }, data: { concluidoEm: agora } });
+/**
+ * Conclui o lembrete só se ainda está aberto, numa instrução só: devolve
+ * `false` quando ele já tinha `concluidoEm` (ou não existe), e então a data
+ * da primeira conclusão fica como está mesmo com dois toques ao mesmo tempo.
+ */
+export async function concluir(id: string, agora: Date): Promise<boolean> {
+  const { count } = await prisma.reminder.updateMany({
+    where: { id, concluidoEm: null },
+    data: { concluidoEm: agora },
+  });
+  return count === 1;
 }

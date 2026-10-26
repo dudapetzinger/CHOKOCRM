@@ -1,7 +1,8 @@
-import { Prisma, type ResultadoVisita } from '@prisma/client';
+import type { ResultadoVisita } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import { detectarImagem } from '../lib/imageType';
+import { somarItens } from '../lib/somarItens';
 import { fileStorage } from '../storage';
 import * as clientRepository from '../repositories/client.repository';
 import * as visitRepository from '../repositories/visit.repository';
@@ -58,15 +59,9 @@ export type VisitaDTO = {
  * armazenamento não é assunto do cliente HTTP — a foto é lida pela rota
  * `GET /visits/:id/foto`, autenticada como as demais.
  *
- * O total é somado em `Decimal` (o tipo da coluna) e só no fim vira
- * `number`: em ponto flutuante, 3 × 27,90 daria 83,69999….
+ * O total é somado em `Decimal` (`somarItens`) e só no fim vira `number`.
  */
 export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
-  const totalPedido = visit.itens.reduce(
-    (soma, item) => soma.plus(item.precoUnitario.times(item.quantidade)),
-    new Prisma.Decimal(0),
-  );
-
   return {
     id: visit.id,
     dataHora: visit.dataHora.toISOString(),
@@ -83,7 +78,7 @@ export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
       quantidade: item.quantidade,
       precoUnitario: item.precoUnitario.toDecimalPlaces(2).toNumber(),
     })),
-    totalPedido: totalPedido.toDecimalPlaces(2).toNumber(),
+    totalPedido: somarItens(visit.itens).toDecimalPlaces(2).toNumber(),
     campanha: visit.campanha ? { id: visit.campanha.id, nome: visit.campanha.nome } : null,
   };
 }

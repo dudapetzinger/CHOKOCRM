@@ -82,7 +82,7 @@ const MENSAGEM_TEXTO_DO_LEMBRETE = 'Informe o texto do lembrete.';
  * depois em São Paulo), mas é independente dela. Sem lembrete, o campo fica
  * ausente. O formato antigo é tratado em `lembreteDoCheckInSchema`, abaixo.
  */
-export const lembreteSchema = z
+const lembreteSchema = z
   .object({
     texto: z
       .string({ error: MENSAGEM_TEXTO_DO_LEMBRETE })

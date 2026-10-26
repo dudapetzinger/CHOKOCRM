@@ -1,4 +1,5 @@
 import { Prisma, type ResultadoVisita } from '@prisma/client';
+import { somarItens } from '../lib/somarItens';
 import type { DataCalendario } from './classificacao.service';
 import { proporcao, type Proporcao } from './kpis.regras';
 
@@ -85,10 +86,7 @@ export function resultadosDaCampanha(visitas: VisitaVinculada[], base: Pessoa[])
     linha.clientes.add(visita.clientId);
     if (visita.resultado === 'VENDA') {
       linha.vendasFechadas += 1;
-      linha.vendas = visita.itens.reduce(
-        (soma, item) => soma.plus(item.precoUnitario.times(item.quantidade)),
-        linha.vendas,
-      );
+      linha.vendas = somarItens(visita.itens, linha.vendas);
     }
     linhas.set(visita.autor.id, linha);
   }
@@ -110,7 +108,8 @@ export type ProdutoVendido = { sku: string; nome: string; quantidade: number; to
  * Os produtos mais vendidos nos pedidos das visitas com VENDA (o pedido de
  * visita que não é venda não conta). O mesmo SKU soma quantidade e total
  * entre as visitas; o nome é o gravado no item. Por quantidade, depois
- * total (decrescentes) e, no empate, por nome; no máximo `limite`.
+ * total (decrescentes) e, no empate, por nome e por fim pelo SKU (dois SKUs
+ * com o mesmo nome saem sempre na mesma ordem); no máximo `limite`.
  */
 export function produtosMaisVendidos(visitas: VisitaVinculada[], limite = 5): ProdutoVendido[] {
   const produtos = new Map<string, { sku: string; nome: string; quantidade: number; total: Prisma.Decimal }>();
@@ -127,7 +126,7 @@ export function produtosMaisVendidos(visitas: VisitaVinculada[], limite = 5): Pr
       };
 
       produto.quantidade += item.quantidade;
-      produto.total = produto.total.plus(item.precoUnitario.times(item.quantidade));
+      produto.total = somarItens([item], produto.total);
       produtos.set(item.sku, produto);
     }
   }
@@ -135,7 +134,10 @@ export function produtosMaisVendidos(visitas: VisitaVinculada[], limite = 5): Pr
   return [...produtos.values()]
     .sort(
       (a, b) =>
-        b.quantidade - a.quantidade || b.total.comparedTo(a.total) || a.nome.localeCompare(b.nome, 'pt-BR'),
+        b.quantidade - a.quantidade ||
+        b.total.comparedTo(a.total) ||
+        a.nome.localeCompare(b.nome, 'pt-BR') ||
+        a.sku.localeCompare(b.sku, 'pt-BR'),
     )
     .slice(0, limite)
     .map(({ sku, nome, quantidade, total }) => ({

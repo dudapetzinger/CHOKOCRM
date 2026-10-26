@@ -1,5 +1,6 @@
-import { Prisma, type Goal, type PeriodoMeta } from '@prisma/client';
+import type { Goal, PeriodoMeta, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { somarItens } from '../lib/somarItens';
 import type { VisitaParaMeta } from '../services/goal.regras';
 
 /** Meta como a tabela a grava: `inicio` e `fim` já como valor de coluna `@db.Date`. */
@@ -81,9 +82,6 @@ export async function listarVisitasParaMetas(filtro: {
   return visitas.map(({ itens, client, ...visita }) => ({
     ...visita,
     clienteNome: client.nomeFantasia,
-    totalPedido: itens.reduce(
-      (soma, item) => soma.plus(item.precoUnitario.times(item.quantidade)),
-      new Prisma.Decimal(0),
-    ),
+    totalPedido: somarItens(itens),
   }));
 }

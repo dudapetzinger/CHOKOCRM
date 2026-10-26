@@ -78,10 +78,7 @@ export async function obterRelatorio(
     const soma = doPeriodo.get(visita.clientId) ?? { visitas: 0, vendas: new Prisma.Decimal(0) };
     soma.visitas += 1;
     if (visita.resultado === 'VENDA') {
-      soma.vendas = visita.itens.reduce(
-        (total, item) => total.plus(item.precoUnitario.times(item.quantidade)),
-        soma.vendas,
-      );
+      soma.vendas = soma.vendas.plus(visita.totalPedido);
     }
     doPeriodo.set(visita.clientId, soma);
   }

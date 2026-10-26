@@ -5,7 +5,7 @@ import * as seasonalEventRepository from '../repositories/seasonal-event.reposit
 import { representanteEfetivo, type UsuarioAutenticado } from './carteira';
 import { limitesDoMes, montarCalendario, type CalendarioDTO, type MesCalendario } from './agenda.calendario';
 import { montarAgenda, type Agenda } from './agenda.montagem';
-import { dataCalendario, fimDoDia } from './classificacao.service';
+import { colunaDateDaData, dataCalendario } from './classificacao.service';
 import { consultarUltimasVendas } from './erp.service';
 
 export type { AgendaItem, Agenda } from './agenda.montagem';
@@ -32,7 +32,7 @@ export async function getAgendaDoDia(
     clientRepository.listAtivosParaAgenda(efetivo),
     reminderRepository.listarAbertos({
       representanteId: efetivo,
-      ate: fimDoDia(dataCalendario(hoje)),
+      ate: colunaDateDaData(dataCalendario(hoje)),
       apenasClientesAtivos: true,
     }),
   ]);
@@ -45,8 +45,8 @@ export async function getAgendaDoDia(
 /**
  * Calendário de um mês da Agenda (spec 7.6), no mesmo escopo da agenda do
  * dia (`representanteEfetivo`). Só entra o que foi marcado: as visitas com
- * data marcada no check-in e os lembretes abertos (todos os da carteira de
- * cliente ativo; a montagem separa os do mês). As campanhas só vão para o gestor (para o
+ * data marcada no check-in e os lembretes abertos da carteira, de cliente
+ * ativo, com data no mês. As campanhas só vão para o gestor (para o
  * representante, `null`); as datas sazonais, para todos. A montagem
  * (`montarCalendario`) é pura, como `montarAgenda`.
  */
@@ -60,7 +60,12 @@ export async function getCalendario(
   const efetivo = representanteEfetivo(usuario, representanteId);
   const [clientes, lembretes, campanhas, eventos] = await Promise.all([
     clientRepository.listAtivosParaAgenda(efetivo),
-    reminderRepository.listarAbertos({ representanteId: efetivo, apenasClientesAtivos: true }),
+    reminderRepository.listarAbertos({
+      representanteId: efetivo,
+      de: colunaDateDaData(primeiro),
+      ate: colunaDateDaData(ultimo),
+      apenasClientesAtivos: true,
+    }),
     usuario.role === 'GESTOR' ? campaignRepository.listarNoIntervalo(primeiro, ultimo) : Promise.resolve(null),
     seasonalEventRepository.findNoIntervalo(primeiro, ultimo),
   ]);

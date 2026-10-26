@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
-import { dataCalendario, somarDias } from '../src/services/classificacao.service';
+import * as reminderRepository from '../src/repositories/reminder.repository';
+import { colunaDateDaData, dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 /**
@@ -316,6 +317,14 @@ describe('GET /clients/:id/lembretes', () => {
     expect(ficha.body.data.map((lembrete: { id: string }) => lembrete.id)).toEqual([doInativo]);
   });
 
+  it(':id que não é uuid → 400 VALIDATION_ERROR "Identificador inválido."', async () => {
+    const res = await autenticado(request(app).get('/clients/abc/lembretes'), tokenGestor);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mensagensDoErro(res)).toEqual(['Identificador inválido.']);
+  });
+
   it('cliente inexistente → 404; sem lembretes → lista vazia', async () => {
     const inexistente = await autenticado(request(app).get(`/clients/${ID_INEXISTENTE}/lembretes`), tokenGestor);
     expect(inexistente.status).toBe(404);
@@ -372,6 +381,14 @@ describe('PATCH /lembretes/:id/concluir', () => {
     );
   });
 
+  it(':id que não é uuid → 400 VALIDATION_ERROR "Identificador inválido."', async () => {
+    const res = await concluir('abc', tokenGestor);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mensagensDoErro(res)).toEqual(['Identificador inválido.']);
+  });
+
   it('lembrete inexistente ou de outra carteira → 404 "Lembrete não encontrado."', async () => {
     const id = await criarLembrete({ clientId: clienteId, criadoPorId: eduardaId, texto: 'Levar amostras', data: daquiA(1) });
 
@@ -400,5 +417,23 @@ describe('PATCH /lembretes/:id/concluir', () => {
     // A lista do cliente segue o dono atual
     const listaDoAntigo = await autenticado(request(app).get(`/clients/${clienteId}/lembretes`), tokenEduarda);
     expect(listaDoAntigo.status).toBe(404);
+  });
+});
+
+describe('reminderRepository.listarAbertos com de/ate', () => {
+  it('de e ate são inclusivos, como valor de coluna @db.Date: só os lembretes com data no intervalo', async () => {
+    const antes = await criarLembrete({ clientId: clienteId, criadoPorId: eduardaId, texto: 'Antes', data: '2026-10-31' });
+    const primeiro = await criarLembrete({ clientId: clienteId, criadoPorId: eduardaId, texto: 'Primeiro', data: '2026-11-01' });
+    const ultimo = await criarLembrete({ clientId: clienteId, criadoPorId: eduardaId, texto: 'Último', data: '2026-11-30' });
+    await criarLembrete({ clientId: clienteId, criadoPorId: eduardaId, texto: 'Depois', data: '2026-12-01' });
+
+    const doMes = await reminderRepository.listarAbertos({
+      de: colunaDateDaData('2026-11-01'),
+      ate: colunaDateDaData('2026-11-30'),
+    });
+    const ateODia = await reminderRepository.listarAbertos({ ate: colunaDateDaData('2026-11-01') });
+
+    expect(doMes.map((lembrete) => lembrete.id)).toEqual([primeiro, ultimo]);
+    expect(ateODia.map((lembrete) => lembrete.id)).toEqual([antes, primeiro]);
   });
 });

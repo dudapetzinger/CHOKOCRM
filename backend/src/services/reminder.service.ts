@@ -16,8 +16,6 @@ import { toLembreteDTO, type LembreteDTO } from './lembrete.dto';
 const MENSAGEM_LEMBRETE_NAO_ENCONTRADO = 'Lembrete não encontrado.';
 const MENSAGEM_LEMBRETE_JA_CONCLUIDO = 'Lembrete já concluído.';
 
-export { toLembreteDTO, type LembreteDTO };
-
 /** Cliente inexistente ou de outra carteira (para o representante): 404. */
 export async function listarAbertosDoCliente(
   clientId: string,
@@ -47,10 +45,11 @@ export async function concluir(
     throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_LEMBRETE_NAO_ENCONTRADO, 404);
   }
 
-  if (lembrete.concluidoEm !== null) {
+  // A conclusão é condicional no banco (`concluidoEm` ainda nulo): dois
+  // toques ao mesmo tempo não gravam duas datas — o segundo recebe o 409.
+  if (!(await reminderRepository.concluir(id, agora))) {
     throw new AppError(ErrorCode.CONFLICT, MENSAGEM_LEMBRETE_JA_CONCLUIDO, 409);
   }
 
-  await reminderRepository.concluir(id, agora);
   return { id, concluidoEm: agora.toISOString() };
 }

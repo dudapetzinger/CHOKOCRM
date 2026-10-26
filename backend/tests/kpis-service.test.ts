@@ -49,19 +49,22 @@ function visitaDoPeriodo(
   clientId: string,
   resultado: VisitaDoPeriodoData['resultado'],
   dataHora: Date,
-  totalPedido = '0',
 ): VisitaDoPeriodoData {
-  return {
-    clientId,
-    clienteNome: `Loja ${clientId}`,
-    resultado,
-    dataHora,
-    representanteId: 'rep-1',
-    totalPedido: new Prisma.Decimal(totalPedido),
-  };
+  return { clientId, clienteNome: `Loja ${clientId}`, resultado, dataHora, representanteId: 'rep-1' };
+}
+
+/** A visita do comparativo: a mesma, com o total do pedido já somado. */
+function visitaComPedido(
+  clientId: string,
+  resultado: VisitaDoPeriodoData['resultado'],
+  dataHora: Date,
+  totalPedido = '0',
+) {
+  return { ...visitaDoPeriodo(clientId, resultado, dataHora), totalPedido: new Prisma.Decimal(totalPedido) };
 }
 
 let listaVisitas: jest.SpiedFunction<typeof visitRepository.listNoPeriodo>;
+let listaVisitasComPedido: jest.SpiedFunction<typeof visitRepository.listNoPeriodoComPedido>;
 let listaMensagens: jest.SpiedFunction<typeof stockMessageRepository.listNoPeriodo>;
 let listAtivosParaAgenda: jest.SpiedFunction<typeof clientRepository.listAtivosParaAgenda>;
 let consultarUltimasVendas: jest.SpiedFunction<typeof erpService.consultarUltimasVendas>;
@@ -72,6 +75,9 @@ beforeEach(() => {
   const naoStubado = (nome: string) => new Error(`${nome} chamado sem stub neste teste`);
 
   listaVisitas = jest.spyOn(visitRepository, 'listNoPeriodo').mockRejectedValue(naoStubado('visit.listNoPeriodo'));
+  listaVisitasComPedido = jest
+    .spyOn(visitRepository, 'listNoPeriodoComPedido')
+    .mockRejectedValue(naoStubado('visit.listNoPeriodoComPedido'));
   listaMensagens = jest
     .spyOn(stockMessageRepository, 'listNoPeriodo')
     .mockRejectedValue(naoStubado('stockMessage.listNoPeriodo'));
@@ -113,6 +119,8 @@ describe('obterKpis', () => {
 
     expect(listaVisitas).toHaveBeenCalledTimes(1);
     expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), undefined);
+    // Os indicadores não somam vendas: a variante com o pedido fica para o comparativo
+    expect(listaVisitasComPedido).not.toHaveBeenCalled();
     expect(listaMensagens).toHaveBeenCalledTimes(1);
     expect(listaMensagens).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), undefined);
     expect(listAtivosParaAgenda).toHaveBeenCalledTimes(1);
@@ -242,19 +250,20 @@ describe('obterKpisPorRepresentante', () => {
   // 08/09 (terça) a 14/09 (segunda): fim no passado em relação a HOJE (07/10).
   const JANELA_NO_PASSADO: Janela = { dias: 7, inicio: '2026-09-08', fim: '2026-09-14' };
 
-  it('uma consulta de visitas só, exatamente a janela (sem estender até hoje), e o ritmo segue a janela', async () => {
-    listaVisitas.mockResolvedValue([
-      visitaDoPeriodo('a', 'VENDA', new Date('2026-09-10T15:00:00Z'), '12.50'),
-      visitaDoPeriodo('a', 'VENDA', new Date('2026-09-10T16:00:00Z'), '12.60'),
-      visitaDoPeriodo('b', 'SEM_VENDA', new Date('2026-09-14T15:00:00Z')),
+  it('uma consulta de visitas só (a com o pedido), exatamente a janela (sem estender até hoje), e o ritmo segue a janela', async () => {
+    listaVisitasComPedido.mockResolvedValue([
+      visitaComPedido('a', 'VENDA', new Date('2026-09-10T15:00:00Z'), '12.50'),
+      visitaComPedido('a', 'VENDA', new Date('2026-09-10T16:00:00Z'), '12.60'),
+      visitaComPedido('b', 'SEM_VENDA', new Date('2026-09-14T15:00:00Z')),
     ]);
     listAtivosParaAgenda.mockResolvedValue([clienteAtivo('a', 'ERP-A', null), clienteAtivo('b', 'ERP-B', null)]);
     listaRepresentantes.mockResolvedValue([{ id: 'rep-1', nome: 'Representante' }]);
 
     const dto = await obterKpisPorRepresentante(JANELA_NO_PASSADO);
 
-    expect(listaVisitas).toHaveBeenCalledTimes(1);
-    expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-09-14'), undefined);
+    expect(listaVisitasComPedido).toHaveBeenCalledTimes(1);
+    expect(listaVisitasComPedido).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-09-14'), undefined);
+    expect(listaVisitas).not.toHaveBeenCalled();
     expect(dto.periodo).toEqual(JANELA_NO_PASSADO);
     expect(dto.representantes).toEqual([
       expect.objectContaining({
@@ -275,7 +284,7 @@ describe('obterKpisPorRepresentante', () => {
   });
 
   it('com representanteId restringe visitas, ativos e a lista de representantes àquele representante', async () => {
-    listaVisitas.mockResolvedValue([]);
+    listaVisitasComPedido.mockResolvedValue([]);
     listAtivosParaAgenda.mockResolvedValue([]);
     listaRepresentantes.mockResolvedValue([
       { id: 'rep-1', nome: 'Representante' },
@@ -284,7 +293,7 @@ describe('obterKpisPorRepresentante', () => {
 
     const dto = await obterKpisPorRepresentante(JANELA_NO_PASSADO, 'rep-b');
 
-    expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-09-14'), 'rep-b');
+    expect(listaVisitasComPedido).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-09-14'), 'rep-b');
     expect(listAtivosParaAgenda).toHaveBeenCalledWith('rep-b');
     expect(dto.representantes.map((r) => r.id)).toEqual(['rep-b']);
   });

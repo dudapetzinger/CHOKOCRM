@@ -220,6 +220,14 @@ describe('produtosMaisVendidos (só visitas com VENDA)', () => {
     expect(produtos.map((p) => p.nome)).toEqual(['Maior quantidade', 'Beta', 'Alfa', 'Zeta']);
   });
 
+  it('dois SKUs com o mesmo nome, quantidade e total: desempate pelo SKU, na mesma ordem em qualquer entrada', () => {
+    const direto = produtosMaisVendidos([venda(['TRUF-70-B', 'Trufas', 2, '36'], ['TRUF-70-A', 'Trufas', 2, '36'])]);
+    const invertido = produtosMaisVendidos([venda(['TRUF-70-A', 'Trufas', 2, '36'], ['TRUF-70-B', 'Trufas', 2, '36'])]);
+
+    expect(direto.map((p) => p.sku)).toEqual(['TRUF-70-A', 'TRUF-70-B']);
+    expect(invertido.map((p) => p.sku)).toEqual(['TRUF-70-A', 'TRUF-70-B']);
+  });
+
   it('corta em 5 por padrão e aceita outro limite', () => {
     const visitas = [
       venda(
