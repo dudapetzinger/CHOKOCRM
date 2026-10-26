@@ -185,6 +185,7 @@ describe('CheckInPage', () => {
       screen.getByLabelText('Foto (opcional)'),
       screen.getByLabelText('Próxima visita'),
       screen.getByLabelText('Lembrete (opcional)'),
+      screen.getByLabelText('Para quando'),
       screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' }),
       screen.getByRole('button', { name: 'Salvar check-in' }),
     ];
@@ -253,7 +254,6 @@ describe('CheckInPage', () => {
       dataHora: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/),
       contactId: 'ct1',
       proximaVisita: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-      lembrete: null,
     });
     // O aviso aparece antes de a navegação terminar: espera a ficha, depois confere o aviso
     expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
@@ -474,7 +474,10 @@ describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
 
     expect(registrarCheckIn).toHaveBeenCalledWith(
       'c1',
-      expect.objectContaining({ proximaVisita: '2026-10-31', lembrete: 'Levar amostras de Natal' }),
+      expect.objectContaining({
+        proximaVisita: '2026-10-31',
+        lembrete: { texto: 'Levar amostras de Natal', data: '2026-10-31' },
+      }),
     );
   });
 
@@ -491,23 +494,109 @@ describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
 
     expect(registrarCheckIn).toHaveBeenCalledWith(
       'c1',
-      expect.objectContaining({ proximaVisita: '2026-11-10', lembrete: null }),
+      expect.objectContaining({ proximaVisita: '2026-11-10' }),
     );
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ lembrete: expect.anything() }));
   });
 
-  it('apagar a data envia proximaVisita: null', async () => {
+  it('apagar a data envia proximaVisita: null e, sem texto de lembrete, nenhum lembrete', async () => {
     renderizar();
     await esperarCliente();
-    preencher(screen.getByLabelText('Lembrete (opcional)'), 'Levar amostras');
 
     preencher(screen.getByLabelText('Próxima visita'), '');
-
-    // Sem data, o lembrete não é salvo: o campo fica desabilitado
-    expect(screen.getByLabelText('Lembrete (opcional)')).toBeDisabled();
     await salvarComDescricao();
 
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ proximaVisita: null }));
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ lembrete: expect.anything() }));
+  });
+
+  it('o lembrete é independente da próxima visita: sem data marcada, vai com a data própria e proximaVisita: null', async () => {
+    renderizar();
+    await esperarCliente();
+
+    preencher(screen.getByLabelText('Próxima visita'), '');
+    const lembrete = screen.getByLabelText('Lembrete (opcional)');
+    expect(lembrete).toBeEnabled();
+    expect(screen.getByLabelText('Para quando')).toHaveValue('');
+    preencher(lembrete, 'Levar amostras');
+    preencher(screen.getByLabelText('Para quando'), '2026-11-20');
+    await salvarComDescricao();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ proximaVisita: null, lembrete: { texto: 'Levar amostras', data: '2026-11-20' } }),
+    );
+  });
+
+  it('"Para quando" vem com a data da próxima visita e acompanha a sugestão até a representante mudá-la', async () => {
+    renderizar();
+    await esperarCliente();
+    const paraQuando = screen.getByLabelText('Para quando');
+
+    expect(paraQuando).toHaveValue('2026-11-02');
+    expect(paraQuando).toHaveAttribute('type', 'date');
+    expect(paraQuando).toHaveAttribute('min', '2026-10-18');
+    expect(screen.getByLabelText('Lembrete (opcional)')).toHaveAttribute('maxlength', '200');
+
+    preencher(screen.getByLabelText('Próxima visita'), '2026-11-05');
+    expect(paraQuando).toHaveValue('2026-11-05');
+
+    preencher(paraQuando, '2026-11-20');
+    preencher(screen.getByLabelText('Próxima visita'), '2026-11-08');
+    expect(paraQuando).toHaveValue('2026-11-20');
+  });
+
+  it('lembrete com texto e sem data mostra o erro no campo da data e não envia', async () => {
+    renderizar();
+    await esperarCliente();
+
+    preencher(screen.getByLabelText('Próxima visita'), '');
+    preencher(screen.getByLabelText('Lembrete (opcional)'), 'Levar amostras');
+    await salvarComDescricao();
+
+    const paraQuando = screen.getByLabelText('Para quando');
+    expect(paraQuando).toHaveAttribute('aria-invalid', 'true');
+    expect(paraQuando).toHaveAccessibleDescription(/Informe a data do lembrete\./);
+    expect(paraQuando).toHaveFocus();
+    expect(registrarCheckIn).not.toHaveBeenCalled();
+  });
+
+  it('lembrete com data antes de hoje mostra o erro e não envia', async () => {
+    renderizar();
+    await esperarCliente();
+
+    preencher(screen.getByLabelText('Lembrete (opcional)'), 'Levar amostras');
+    preencher(screen.getByLabelText('Para quando'), '2026-10-17');
+    await salvarComDescricao();
+
+    expect(screen.getByLabelText('Para quando')).toHaveAccessibleDescription(
+      /A data do lembrete não pode ser antes de hoje\./,
+    );
+    expect(registrarCheckIn).not.toHaveBeenCalled();
+  });
+
+  it('texto do lembrete vazio não envia lembrete, mesmo com data', async () => {
+    renderizar();
+    await esperarCliente();
+
+    preencher(screen.getByLabelText('Lembrete (opcional)'), '   ');
+    preencher(screen.getByLabelText('Para quando'), '2026-11-20');
+    await salvarComDescricao();
+
+    expect(registrarCheckIn).toHaveBeenCalledTimes(1);
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ lembrete: expect.anything() }));
+  });
+
+  it('as ajudas não prometem mais "sem lembrete" nem "salvar sem foto"', async () => {
+    renderizar();
+    await esperarCliente();
+
+    expect(
+      screen.getByText(/Sugestão: data da visita \+ recorrência de 15 dias\. Sem data, a agenda segue a recorrência\./),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/e não há lembrete/)).not.toBeInTheDocument();
+    expect(screen.getByText('Registra que você esteve no cliente.')).toBeInTheDocument();
+    expect(screen.queryByText(/Pode salvar sem foto/)).not.toBeInTheDocument();
   });
 
   it('data antes de hoje mostra o erro junto do campo, com o foco nele, e não envia', async () => {

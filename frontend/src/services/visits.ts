@@ -55,11 +55,16 @@ export type CheckInInput = {
   /**
    * Próxima visita prevista (`AAAA-MM-DD`, hoje ou depois), gravada no
    * cliente: a visita nova substitui a data marcada antes. `null` (ou
-   * ausente) apaga a data e o lembrete e a agenda volta à recorrência.
+   * ausente) apaga a data (e a campanha da próxima visita) e a agenda volta
+   * à recorrência; os lembretes não dependem dela.
    */
   proximaVisita?: string | null;
-  /** Até 200 caracteres; só vale com data. `null` (ou ausente) apaga o lembrete. */
-  lembrete?: string | null;
+  /**
+   * Lembrete com data própria: texto de 1 a 200 caracteres e `data`
+   * (`AAAA-MM-DD`, hoje ou depois), independente da próxima visita. Ausente,
+   * não cria lembrete; os já abertos ficam como estão.
+   */
+  lembrete?: { texto: string; data: string };
   /** Campanha da visita, não encerrada (spec 7.7). */
   campanhaId?: string;
   /** Campanha da próxima visita: só vale com data; ausente apaga a anterior, como o lembrete. */
