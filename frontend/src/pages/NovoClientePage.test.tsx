@@ -44,7 +44,6 @@ const CRIADO: ClienteCompleto = {
   rebaixadoPorVenda: false,
   diasSemCompra: null,
   proximaVisita: null,
-  lembrete: null,
   proximaCampanha: null,
 };
 

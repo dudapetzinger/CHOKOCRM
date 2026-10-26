@@ -13,7 +13,6 @@ const item: AgendaItem = {
   proximaVisita: '2026-10-01',
   diasAtraso: 13,
   marcadaNoCheckIn: false,
-  lembrete: null,
   proximaCampanha: null,
   rebaixadoPorVenda: false,
   representante: { id: 'u2', nome: 'Rafael Schmitt' },
@@ -66,10 +65,12 @@ describe('AgendaItemRow', () => {
     expect(screen.getByText('Blumenau · Visita prevista venceu há 1 dia')).toBeInTheDocument();
   });
 
-  it('acrescenta " · levar amostras" quando há lembrete', () => {
-    renderizar({ diasAtraso: -2, proximaVisita: '2026-10-20', lembrete: 'levar amostras' });
+  it('não mostra lembrete na linha da visita (o lembrete tem a própria seção)', () => {
+    // Um item vindo de um backend antigo, ainda com o campo, não muda a linha.
+    renderizar({ diasAtraso: -2, proximaVisita: '2026-10-20', ...{ lembrete: 'levar amostras' } });
 
-    expect(screen.getByText('Blumenau · Prevista para 20/10 · levar amostras')).toBeInTheDocument();
+    expect(screen.getByText('Blumenau · Prevista para 20/10')).toBeInTheDocument();
+    expect(screen.queryByText(/levar amostras/)).not.toBeInTheDocument();
   });
 
   it('o avatar (decorativo) e o nome levam para a ficha do cliente no mesmo link', () => {

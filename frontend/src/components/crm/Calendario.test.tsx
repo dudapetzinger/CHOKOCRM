@@ -16,9 +16,6 @@ const VISITA_MARCADA: ItemCalendario = {
   tipo: 'VISITA',
   titulo: 'Empório Central',
   clienteId: 'c1',
-  origem: 'CHECK_IN',
-  recorrenciaDias: 15,
-  lembrete: 'Levar amostras de Natal',
   representante: { id: 'u1', nome: 'Eduarda Fischer' },
   campanha: { id: 'cp1', nome: 'Natal Chokolaten' },
 };
@@ -28,12 +25,9 @@ const VISITA_PREVISTA: ItemCalendario = {
   tipo: 'VISITA',
   titulo: 'Doces da Vovó',
   clienteId: 'c2',
-  origem: 'RECORRENCIA',
-  recorrenciaDias: 21,
-  lembrete: null,
   representante: { id: 'u1', nome: 'Eduarda Fischer' },
   campanha: null,
-  detalhe: 'Visita prevista venceu há 2 dias (17/10)',
+  detalhe: 'Visita marcada venceu há 2 dias',
 };
 
 const SAZONAL: ItemCalendario = {
@@ -119,14 +113,14 @@ describe('Calendario', () => {
     expect(dias[41]).toHaveAccessibleName(/^sábado, 7 de novembro/);
   });
 
-  it('clicar num dia mostra a lista do dia, com a origem da visita, o lembrete e a campanha', async () => {
+  it('clicar num dia mostra a lista do dia, com a visita marcada e a campanha', async () => {
     renderizar();
 
     await usuario.click(await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' }));
 
     const painel = painelDoDia('quinta-feira, 22 de outubro');
     expect(within(painel).getByText('Empório Central')).toBeInTheDocument();
-    expect(within(painel).getByText('Marcada no check-in · Levar amostras de Natal')).toBeInTheDocument();
+    expect(within(painel).getByText('Marcada no check-in')).toBeInTheDocument();
     expect(within(painel).getByText('Natal Chokolaten')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' })).toHaveAttribute(
       'aria-pressed',
@@ -134,12 +128,12 @@ describe('Calendario', () => {
     );
   });
 
-  it('a visita prevista pela recorrência diz de quantos dias e quando venceu', async () => {
+  it('a visita marcada que já passou diz quando venceu', async () => {
     renderizar();
 
     const painel = painelDoDia('segunda-feira, 19 de outubro');
     expect(
-      await within(painel).findByText('Prevista pela recorrência de 21 dias · Visita prevista venceu há 2 dias (17/10)'),
+      await within(painel).findByText('Marcada no check-in · Visita marcada venceu há 2 dias'),
     ).toBeInTheDocument();
   });
 

@@ -67,6 +67,7 @@ const CLASSES_AMOSTRA: Record<Estilo, string> = {
 /** Ponto do celular, um por tipo: marcas sem texto, nas cores cheias. */
 const CLASSES_PONTO: Record<ItemCalendario['tipo'], string> = {
   VISITA: 'bg-primary',
+  LEMBRETE: 'bg-primary',
   CAMPANHA: 'bg-chart',
   DATA_SAZONAL: 'bg-st-green',
 };
@@ -92,14 +93,14 @@ const ROTULO_LEGENDA: Record<Estilo, string> = {
 function estiloDoItem(item: ItemCalendario): Estilo {
   if (item.tipo === 'CAMPANHA') return 'campanha';
   if (item.tipo === 'DATA_SAZONAL') return 'sazonal';
-  return item.origem === 'CHECK_IN' ? 'marcada' : 'prevista';
+  // O backend manda só a visita marcada no check-in; o lembrete fica, por
+  // ora, no estilo suave (o visual próprio dele vem depois).
+  return item.tipo === 'VISITA' ? 'marcada' : 'prevista';
 }
 
-/** "Marcada no check-in" ou "Prevista pela recorrência de N dias", mais o lembrete e o vencimento. */
+/** "Marcada no check-in", mais o vencimento. */
 function descreverVisita(item: ItemCalendario): string {
-  const origem =
-    item.origem === 'CHECK_IN' ? 'Marcada no check-in' : `Prevista pela recorrência de ${item.recorrenciaDias} dias`;
-  return [origem, item.lembrete, item.detalhe].filter(Boolean).join(' · ');
+  return ['Marcada no check-in', item.detalhe].filter(Boolean).join(' · ');
 }
 
 function contarItens(quantidade: number): string {

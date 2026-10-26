@@ -77,8 +77,6 @@ export type ClienteCompleto = {
   diasSemCompra: number | null;
   /** Próxima visita marcada no check-in (`AAAA-MM-DD`); `null` quando a agenda segue a recorrência. */
   proximaVisita: string | null;
-  /** Anotação que acompanha a próxima visita. */
-  lembrete: string | null;
   /** Campanha da próxima visita (spec 7.7). */
   proximaCampanha: { id: string; nome: string } | null;
 };

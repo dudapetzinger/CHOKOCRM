@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -7,10 +7,12 @@ import { RepresentanteProvider } from '../representante/RepresentanteContext';
 import { ApiError } from '../services/api';
 import { buscarAgendaDoDia, buscarCalendario, type Agenda, type AgendaItem } from '../services/agenda';
 import { listarCampanhas, type Campanha } from '../services/campaigns';
+import { concluirLembrete, type LembreteItem } from '../services/lembretes';
 import { removerSimulacaoDeLargura, simularLargura } from '../test/simularLargura';
 import { AgendaPage } from './AgendaPage';
 
 vi.mock('../services/agenda', () => ({ buscarAgendaDoDia: vi.fn(), buscarCalendario: vi.fn() }));
+vi.mock('../services/lembretes', () => ({ concluirLembrete: vi.fn(), listarLembretesDoCliente: vi.fn() }));
 vi.mock('../services/campaigns', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/campaigns')>()),
   listarCampanhas: vi.fn(),
@@ -33,7 +35,6 @@ const ATRASADA: AgendaItem = {
   proximaVisita: '2026-10-10',
   diasAtraso: 5,
   marcadaNoCheckIn: false,
-  lembrete: null,
   proximaCampanha: null,
   rebaixadoPorVenda: false,
   representante: { id: 'u1', nome: 'Eduarda Fischer' },
@@ -49,7 +50,6 @@ const HOJE: AgendaItem = {
   proximaVisita: '2026-10-15',
   diasAtraso: 0,
   marcadaNoCheckIn: false,
-  lembrete: null,
   proximaCampanha: null,
   rebaixadoPorVenda: false,
   representante: { id: 'u2', nome: 'Rafael Schmitt' },
@@ -65,10 +65,31 @@ const PROXIMA: AgendaItem = {
   proximaVisita: '2026-10-20',
   diasAtraso: -2,
   marcadaNoCheckIn: true,
-  lembrete: 'Levar amostras de Natal',
   proximaCampanha: { id: 'cp2', nome: 'Natal Chokolaten' },
   rebaixadoPorVenda: false,
   representante: { id: 'u1', nome: 'Eduarda Fischer' },
+};
+
+const LEMBRETE_VENCIDO: LembreteItem = {
+  id: 'l1',
+  clienteId: 'c4',
+  nomeFantasia: 'Bombons & Cia',
+  cidade: 'Gaspar',
+  texto: 'Levar amostras de Natal',
+  data: '2026-10-24',
+  diasAtraso: 2,
+  representante: { id: 'u1', nome: 'Eduarda Fischer' },
+};
+
+const LEMBRETE_DE_HOJE: LembreteItem = {
+  id: 'l2',
+  clienteId: 'c2',
+  nomeFantasia: 'Empório Central',
+  cidade: 'Blumenau',
+  texto: 'Confirmar o pedido de Natal',
+  data: '2026-10-26',
+  diasAtraso: 0,
+  representante: { id: 'u2', nome: 'Rafael Schmitt' },
 };
 
 /**
@@ -83,7 +104,7 @@ function prepararResposta(resposta: Resposta) {
   } else if (resposta instanceof Error) {
     vi.mocked(buscarAgendaDoDia).mockRejectedValue(resposta);
   } else {
-    vi.mocked(buscarAgendaDoDia).mockResolvedValue({ atrasadas: [], hoje: [], proximos7Dias: [], ...resposta });
+    vi.mocked(buscarAgendaDoDia).mockResolvedValue({ atrasadas: [], hoje: [], proximos7Dias: [], lembretes: [], ...resposta });
   }
 }
 
@@ -197,11 +218,11 @@ describe('AgendaPage (celular)', () => {
 
     const proximos = within(await screen.findByRole('region', { name: 'Próximos 7 dias · 1' }));
     expect(proximos.getByText('Armazém São Bento')).toBeInTheDocument();
-    expect(proximos.getByText('Pomerode · Prevista para 20/10 · Levar amostras de Natal')).toBeInTheDocument();
+    expect(proximos.getByText('Pomerode · Prevista para 20/10')).toBeInTheDocument();
     expect(proximos.getByRole('link', { name: 'Check-in' })).toHaveAttribute('href', '/clientes/c3/check-in');
-    // Depois do roteiro e de Atrasadas
+    // Depois de Atrasadas (sem visitas de hoje, não há roteiro)
     const titulos = screen.getAllByRole('heading', { level: 2 });
-    expect(titulos.map(nomeDoTitulo)).toEqual(['Roteiro do dia', 'Atrasadas · 1', 'Próximos 7 dias · 1']);
+    expect(titulos.map(nomeDoTitulo)).toEqual(['Atrasadas · 1', 'Próximos 7 dias · 1']);
   });
 
   it('sem visitas nos próximos 7 dias, a seção não aparece', async () => {
@@ -272,6 +293,76 @@ describe('AgendaPage (celular)', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Você está sem internet.');
     expect(within(secao('Atrasadas · 1')).getByText('Doces da Vovó')).toBeInTheDocument();
+  });
+});
+
+describe('AgendaPage — lembretes', () => {
+  it('a seção "Lembretes" traz o vencido e o de hoje, entre "Hoje" e "Próximos 7 dias"', async () => {
+    renderizarComo('REPRESENTANTE', {
+      atrasadas: [ATRASADA],
+      hoje: [HOJE],
+      proximos7Dias: [PROXIMA],
+      lembretes: [LEMBRETE_VENCIDO, LEMBRETE_DE_HOJE],
+    });
+
+    const lembretes = within(await screen.findByRole('region', { name: 'Lembretes · 2' }));
+    const linhas = lembretes.getAllByRole('listitem');
+    expect(linhas).toHaveLength(2);
+    expect(linhas[0]).toHaveTextContent('Bombons & Cia');
+    expect(linhas[0]).toHaveTextContent('Levar amostras de Natal');
+    expect(lembretes.getByText('Gaspar · Lembrete venceu há 2 dias (24/10)')).toBeInTheDocument();
+    expect(linhas[1]).toHaveTextContent('Confirmar o pedido de Natal');
+    expect(lembretes.getByText('Blumenau · Lembrete para hoje')).toBeInTheDocument();
+    expect(lembretes.getByRole('link', { name: /Bombons & Cia/ })).toHaveAttribute('href', '/clientes/c4');
+    expect(lembretes.queryByText(/Rep\.:/)).not.toBeInTheDocument();
+
+    const titulos = screen.getAllByRole('heading', { level: 2 });
+    expect(titulos.map(nomeDoTitulo)).toEqual([
+      'Roteiro do dia',
+      'Atrasadas · 1',
+      'Hoje · 1',
+      'Lembretes · 2',
+      'Próximos 7 dias · 1',
+    ]);
+  });
+
+  it('"Concluir" conclui o lembrete e a linha some da agenda', async () => {
+    const usuario = userEvent.setup();
+    vi.mocked(concluirLembrete).mockReset().mockResolvedValue({ id: 'l1', concluidoEm: '2026-10-26T12:00:00.000Z' });
+    renderizarComo('REPRESENTANTE', { hoje: [HOJE], lembretes: [LEMBRETE_VENCIDO, LEMBRETE_DE_HOJE] });
+    await screen.findByRole('region', { name: 'Lembretes · 2' });
+
+    prepararResposta({ hoje: [HOJE], lembretes: [LEMBRETE_DE_HOJE] });
+    await usuario.click(screen.getByRole('button', { name: 'Concluir lembrete de Bombons & Cia' }));
+
+    expect(concluirLembrete).toHaveBeenCalledWith('l1');
+    const lembretes = await screen.findByRole('region', { name: 'Lembretes · 1' });
+    expect(lembretes).not.toHaveTextContent('Bombons & Cia');
+    expect(lembretes).toHaveTextContent('Empório Central');
+  });
+
+  it('sem lembretes, a seção não existe', async () => {
+    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE], lembretes: [] });
+
+    expect(await screen.findByRole('region', { name: 'Hoje · 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: /^Lembretes/ })).not.toBeInTheDocument();
+  });
+
+  it('o gestor também conclui e, em "Todos", vê de qual representante é o lembrete', async () => {
+    renderizarComo('GESTOR', { lembretes: [LEMBRETE_VENCIDO] });
+
+    const lembretes = within(await screen.findByRole('region', { name: 'Lembretes · 1' }));
+    expect(lembretes.getByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
+    expect(lembretes.getByRole('button', { name: 'Concluir lembrete de Bombons & Cia' })).toBeInTheDocument();
+  });
+
+  it('no desktop, "Lembretes" vem na largura toda, depois das duas colunas e antes de "Próximos 7 dias"', async () => {
+    simularLargura(true);
+    renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA], lembretes: [LEMBRETE_VENCIDO] });
+
+    const titulos = await screen.findAllByRole('heading', { level: 2 });
+    expect(titulos.map(nomeDoTitulo)).toEqual(['Atrasadas · 0', 'Hoje · 0', 'Lembretes · 1', 'Próximos 7 dias · 1']);
+    await waitFor(() => expect(secao('Lembretes · 1')).toHaveTextContent('Bombons & Cia'));
   });
 });
 
@@ -378,26 +469,35 @@ describe('AgendaPage (desktop, a partir de 1024 px)', () => {
 });
 
 describe('AgendaPage — roteiro do dia (spec 7.9)', () => {
-  it('o representante vê o roteiro com as atrasadas e as de hoje, a distância e o link do Google Maps', async () => {
-    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE], proximos7Dias: [PROXIMA] });
+  it('o representante vê o roteiro só com as visitas de hoje (a atrasada fica fora), a distância e o link do Google Maps', async () => {
+    const outraDeHoje: AgendaItem = { ...ATRASADA, id: 'c5', nomeFantasia: 'Bombons & Cia', diasAtraso: 0 };
+    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE, outraDeHoje], proximos7Dias: [PROXIMA] });
 
     const roteiro = within(await screen.findByRole('region', { name: 'Roteiro do dia' }));
     expect(roteiro.getByText(/^2 paradas · cerca de [0-9]+ km$/)).toBeInTheDocument();
     const paradas = roteiro.getAllByRole('listitem');
     expect(paradas).toHaveLength(2);
-    expect(paradas[0]).toHaveTextContent('1Doces da Vovó · Joinville');
-    expect(paradas[1]).toHaveTextContent(/→ [0-9]+ km →2Empório Central · Blumenau/);
+    expect(paradas[0]).toHaveTextContent('1Empório Central · Blumenau');
+    expect(paradas[1]).toHaveTextContent(/→ [0-9]+ km →2Bombons & Cia · Joinville/);
+    expect(roteiro.queryByText(/Doces da Vovó/)).not.toBeInTheDocument();
     const link = roteiro.getByRole('link', { name: /Abrir no Google Maps/ });
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute(
       'href',
       'https://www.google.com/maps/dir/?api=1' +
-        `&origin=${encodeURIComponent('Rua das Palmeiras, 50 — Joinville/SC')}` +
-        `&destination=${encodeURIComponent('Rua XV de Novembro, 100 — Blumenau/SC')}&travelmode=driving`,
+        `&origin=${encodeURIComponent('Rua XV de Novembro, 100 — Blumenau/SC')}` +
+        `&destination=${encodeURIComponent('Rua das Palmeiras, 50 — Joinville/SC')}&travelmode=driving`,
     );
   });
 
-  it('sem atrasadas nem de hoje, não há roteiro', async () => {
+  it('só com atrasadas, não há roteiro', async () => {
+    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA] });
+
+    expect(await screen.findByRole('region', { name: 'Atrasadas · 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Roteiro do dia' })).not.toBeInTheDocument();
+  });
+
+  it('sem visitas de hoje, não há roteiro', async () => {
     renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA] });
 
     expect(await screen.findByRole('region', { name: 'Próximos 7 dias · 1' })).toBeInTheDocument();
@@ -405,8 +505,8 @@ describe('AgendaPage — roteiro do dia (spec 7.9)', () => {
   });
 
   it('com mais de 10 clientes na agenda, avisa quantos ficaram fora do roteiro', async () => {
-    const atrasadas = Array.from({ length: 12 }, (_, i) => ({ ...ATRASADA, id: `a${i}`, nomeFantasia: `Cliente ${i}` }));
-    renderizarComo('REPRESENTANTE', { atrasadas });
+    const hoje = Array.from({ length: 12 }, (_, i) => ({ ...ATRASADA, id: `a${i}`, nomeFantasia: `Cliente ${i}` }));
+    renderizarComo('REPRESENTANTE', { hoje });
 
     const roteiro = within(await screen.findByRole('region', { name: 'Roteiro do dia' }));
     const paradas = roteiro.getAllByRole('listitem');
@@ -416,8 +516,8 @@ describe('AgendaPage — roteiro do dia (spec 7.9)', () => {
   });
 
   it('com mais de 5 paradas, o roteiro vira trechos: um botão do Google Maps por trecho e a parada de emenda marcada', async () => {
-    const atrasadas = Array.from({ length: 10 }, (_, i) => ({ ...ATRASADA, id: `a${i}`, nomeFantasia: `Cliente ${i}` }));
-    renderizarComo('REPRESENTANTE', { atrasadas });
+    const hoje = Array.from({ length: 10 }, (_, i) => ({ ...ATRASADA, id: `a${i}`, nomeFantasia: `Cliente ${i}` }));
+    renderizarComo('REPRESENTANTE', { hoje });
 
     const roteiro = within(await screen.findByRole('region', { name: 'Roteiro do dia' }));
     const links = roteiro.getAllByRole('link', { name: /Abrir no Google Maps/ });
@@ -435,8 +535,8 @@ describe('AgendaPage — roteiro do dia (spec 7.9)', () => {
 
   it('o gestor só vê o roteiro depois de escolher um representante', async () => {
     const usuario = userEvent.setup();
-    renderizarComo('GESTOR', { atrasadas: [ATRASADA], hoje: [] });
-    expect(await screen.findByRole('region', { name: 'Atrasadas · 1' })).toBeInTheDocument();
+    renderizarComo('GESTOR', { hoje: [HOJE] });
+    expect(await screen.findByRole('region', { name: 'Hoje · 1' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Roteiro do dia' })).not.toBeInTheDocument();
 
     await screen.findByRole('option', { name: 'Eduarda Fischer' });

@@ -13,6 +13,7 @@ import { MensagemEstoqueCard } from '../components/MensagemEstoqueCard';
 import { Aviso, Cartao } from '../components/crm/ui';
 import { AvisoProximaVisita } from '../components/crm/AvisoProximaVisita';
 import { useAuth } from '../auth/useAuth';
+import { useLembretesDoCliente } from '../hooks/useLembretes';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
 import { useLarguraDesktop } from '../lib/useLarguraDesktop';
@@ -24,7 +25,8 @@ const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do cliente.
  * campo; na Etapa 8 (spec 7.2) tem o visual do protótipo (`crm/ficha.tsx`) e
  * esta ordem: cabeçalho (com Ligar, WhatsApp, "Novo check-in", "Adicionar
  * contato" e, para o gestor, a transferência) → aviso da próxima visita
- * marcada no check-in, da campanha dela e do lembrete (quando há algum) → mensagem de
+ * marcada no check-in, da campanha dela e dos lembretes abertos do cliente
+ * (quando há algum; concluir cabe ao representante e ao gestor) → mensagem de
  * estoque → insights → dados do ERP → histórico de visitas → recorrência → dados
  * cadastrais (recolhidos em `DadosCadastrais`). Os avisos de sucesso são
  * `toast`; os erros ficam na própria ficha.
@@ -51,6 +53,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
   const fotoNaoEnviada = (location.state as { avisoFoto?: string } | null)?.avisoFoto === 'nao-enviada';
 
   const { data: visitas } = useVisitas(id);
+  const { data: lembretes } = useLembretesDoCliente(id);
   const mutationEditarDescricao = useEditarDescricaoVisita(id);
   const mutationAnexarFoto = useAnexarFotoVisita(id);
 
@@ -124,8 +127,9 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
       {/* Some sozinho sem data, lembrete nem campanha */}
       <AvisoProximaVisita
         data={cliente.proximaVisita}
-        lembrete={cliente.lembrete}
         campanha={cliente.proximaCampanha?.nome ?? null}
+        lembretes={lembretes ?? []}
+        podeConcluir={ehRepresentante || ehGestor}
       />
 
       <MensagemEstoqueCard clienteId={id!} podeGerar={ehRepresentante && cliente.ativo} />

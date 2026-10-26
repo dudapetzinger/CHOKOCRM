@@ -11,7 +11,7 @@ import { VitePWA } from 'vite-plugin-pwa'
  * `/usuarios`, `/conta/senha` e `/redefinir-senha` (a página do link do
  * e-mail); `/auth/redefinir-senha` e `/users/...` são API.
  */
-const CAMINHO_API = /^\/(auth|clients|dashboard|insights|visits|stock-messages|contacts|users|campaigns|goals|erp|health)(\/|$)|^\/agenda\//
+const CAMINHO_API = /^\/(auth|clients|dashboard|insights|visits|stock-messages|contacts|users|campaigns|goals|erp|lembretes|health)(\/|$)|^\/agenda\//
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -57,7 +57,7 @@ export default defineConfig({
             // Esta função é copiada como texto para o sw.js: não pode usar
             // CAMINHO_API daqui (não existe lá), por isso a expressão repetida.
             urlPattern: ({ url }) =>
-              /^\/(auth|clients|dashboard|insights|visits|stock-messages|contacts|users|campaigns|goals|erp|health)(\/|$)|^\/agenda\//.test(
+              /^\/(auth|clients|dashboard|insights|visits|stock-messages|contacts|users|campaigns|goals|erp|lembretes|health)(\/|$)|^\/agenda\//.test(
                 url.pathname,
               ),
             handler: 'NetworkOnly',

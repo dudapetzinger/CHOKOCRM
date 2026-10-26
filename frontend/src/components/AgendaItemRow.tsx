@@ -2,9 +2,10 @@
  * Uma linha da agenda do dia (UC10, Etapa 4; situação em texto na Etapa 7;
  * visual da `Secao` de `routes/agenda.tsx` do protótipo na Etapa 8): avatar,
  * nome, etiqueta de situação e a da campanha da próxima visita (spec 7.7),
- * "cidade · prazo da visita prevista · lembrete"
- * (`descreverPrazoDaVisita`, spec 7.4) e, para o gestor com o seletor em
- * "Todos", "Rep.: Nome". Só o representante dono da carteira tem
+ * "cidade · prazo da visita prevista" (`descreverPrazoDaVisita`, spec 7.4)
+ * e, para o gestor com o seletor em "Todos", "Rep.: Nome". O lembrete não
+ * aparece aqui: tem data própria e a sua linha na seção "Lembretes"
+ * (`LembreteRow`, Etapa 9). Só o representante dono da carteira tem
  * o atalho "Check-in" (UC07). É um `<li>`: quem usa a põe dentro de uma
  * lista (`SecaoAgenda`).
  *

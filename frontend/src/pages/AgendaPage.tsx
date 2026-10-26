@@ -12,21 +12,23 @@
  * A partir de 1024 px (spec 8), Atrasadas e Hoje ficam lado a lado e aparecem
  * mesmo vazias. Abaixo disso (celular e tablet, com o menu lateral de 240 px
  * as duas colunas não cabem) ficam empilhadas, só as que têm visitas, e a
- * agenda vazia vira uma única mensagem. "Próximos 7 dias" vem depois, na
- * largura toda, e só aparece quando tem visitas (como "Próximas agendadas" no
- * protótipo).
+ * agenda vazia vira uma única mensagem. Depois, na largura toda e só quando
+ * têm itens, "Lembretes" (Etapa 9: os lembretes abertos vencidos e os de
+ * hoje, cada um com "Concluir") e "Próximos 7 dias" (como "Próximas
+ * agendadas" no protótipo).
  *
  * No topo, o segmentado "Agenda do dia | Calendário" (spec 7.6; a escolha
  * fica na URL, `?visao=calendario`, para voltar da ficha no mesmo lugar). Na
- * agenda do dia, o "Roteiro do dia" (spec 7.9) vem acima das seções, com as
- * atrasadas e as de hoje na ordem de urgência; para o gestor, só com um
- * representante escolhido.
+ * agenda do dia, o "Roteiro do dia" (spec 7.9) vem acima das seções, só com
+ * as visitas de hoje, na ordem de urgência (as atrasadas ficam na seção
+ * delas, fora do roteiro); para o gestor, só com um representante escolhido.
  */
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Megaphone } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { AgendaItemRow } from '../components/AgendaItemRow';
+import { LembreteRow } from '../components/LembreteRow';
 import { Calendario } from '../components/crm/Calendario';
 import { Roteiro } from '../components/crm/Roteiro';
 import { Aviso } from '../components/crm/ui';
@@ -40,6 +42,32 @@ import { useLarguraDuasColunas } from '../lib/useLarguraDesktop';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { mensagemErroApi } from '../services/clients';
 import type { AgendaItem } from '../services/agenda';
+import type { LembreteItem } from '../services/lembretes';
+
+/**
+ * Moldura de uma seção da agenda (`Secao` do protótipo): cartão com o título
+ * e a contagem numa pílula. É uma região com o nome "Título · N"; a pílula é
+ * só visual (o nome já diz a contagem, como nas abas de Clientes).
+ */
+function CartaoSecao({ titulo, quantidade, children }: { titulo: string; quantidade: number; children: ReactNode }) {
+  const idTitulo = useId();
+
+  return (
+    <section className="rounded-xl border bg-card" aria-labelledby={idTitulo}>
+      <h2
+        id={idTitulo}
+        aria-label={`${titulo} · ${quantidade}`}
+        className="flex items-center gap-2 border-b px-4 py-3 text-base font-semibold"
+      >
+        {titulo}
+        <span aria-hidden="true" className="rounded-full bg-primary-soft px-2 text-xs font-medium text-brown">
+          {quantidade}
+        </span>
+      </h2>
+      {children}
+    </section>
+  );
+}
 
 type SecaoAgendaProps = {
   titulo: string;
@@ -49,32 +77,19 @@ type SecaoAgendaProps = {
 };
 
 /**
- * Cartão de uma seção da agenda (`Secao` do protótipo): título com a
- * contagem numa pílula e uma linha por cliente. É uma região com o nome
- * "Título · N"; a pílula é só visual (o nome já diz a contagem, como nas abas
- * de Clientes). Quem pode fazer check-in e se a linha diz o representante
- * vêm do usuário e do seletor, então quem usa só passa o título e os itens;
- * cada linha descreve o próprio prazo (atrasada, hoje ou "Prevista para").
+ * Seção de visitas da agenda (`CartaoSecao` com uma linha por cliente). Quem
+ * pode fazer check-in e se a linha diz o representante vêm do usuário e do
+ * seletor, então quem usa só passa o título e os itens; cada linha descreve o
+ * próprio prazo (atrasada, hoje ou "Prevista para").
  */
 export function SecaoAgenda({ titulo, itens, textoVazio = 'Nenhuma visita.' }: SecaoAgendaProps) {
   const { user } = useAuth();
   const representanteId = useRepresentanteSelecionado();
-  const idTitulo = useId();
   const podeCheckIn = user?.role === 'REPRESENTANTE';
   const mostrarRepresentante = user?.role === 'GESTOR' && representanteId === undefined;
 
   return (
-    <section className="rounded-xl border bg-card" aria-labelledby={idTitulo}>
-      <h2
-        id={idTitulo}
-        aria-label={`${titulo} · ${itens.length}`}
-        className="flex items-center gap-2 border-b px-4 py-3 text-base font-semibold"
-      >
-        {titulo}
-        <span aria-hidden="true" className="rounded-full bg-primary-soft px-2 text-xs font-medium text-brown">
-          {itens.length}
-        </span>
-      </h2>
+    <CartaoSecao titulo={titulo} quantidade={itens.length}>
       {itens.length === 0 ? (
         <div className="p-4">
           <EstadoVazio icone="calendar-check">{textoVazio}</EstadoVazio>
@@ -91,7 +106,35 @@ export function SecaoAgenda({ titulo, itens, textoVazio = 'Nenhuma visita.' }: S
           ))}
         </ul>
       )}
-    </section>
+    </CartaoSecao>
+  );
+}
+
+/**
+ * Seção "Lembretes" (Etapa 9): os lembretes abertos vencidos e os de hoje,
+ * uma linha por lembrete (`LembreteRow`). Quem usa só a desenha com itens.
+ * Concluir cabe ao dono da carteira e ao gestor; com o seletor em "Todos", a
+ * linha diz o representante, como nas visitas.
+ */
+function SecaoLembretes({ lembretes }: { lembretes: LembreteItem[] }) {
+  const { user } = useAuth();
+  const representanteId = useRepresentanteSelecionado();
+  const podeConcluir = user?.role === 'REPRESENTANTE' || user?.role === 'GESTOR';
+  const mostrarRepresentante = user?.role === 'GESTOR' && representanteId === undefined;
+
+  return (
+    <CartaoSecao titulo="Lembretes" quantidade={lembretes.length}>
+      <ul className="divide-y">
+        {lembretes.map((lembrete) => (
+          <LembreteRow
+            key={lembrete.id}
+            lembrete={lembrete}
+            podeConcluir={podeConcluir}
+            mostrarRepresentante={mostrarRepresentante}
+          />
+        ))}
+      </ul>
+    </CartaoSecao>
   );
 }
 
@@ -181,7 +224,8 @@ function AgendaDoDia({ representanteId, mostrarRoteiro }: { representanteId?: st
     <>
       <p className="text-sm text-muted-foreground">
         Clientes com visita atrasada ou prevista para hoje, priorizados pela cor de classificação — vermelho e
-        laranja antes de amarelo e verde —, e os previstos para os próximos 7 dias.
+        laranja antes de amarelo e verde —, e os previstos para os próximos 7 dias. Os lembretes vencidos ou para
+        hoje vêm à parte, para concluir.
       </p>
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando agenda...</p>}
@@ -196,7 +240,7 @@ function AgendaDoDia({ representanteId, mostrarRoteiro }: { representanteId?: st
 
       {data && mostrarRoteiro && (
         <Roteiro
-          paradas={[...data.atrasadas, ...data.hoje].map((item) => ({
+          paradas={data.hoje.map((item) => ({
             id: item.id,
             nome: item.nomeFantasia,
             cidade: item.cidade,
@@ -221,6 +265,8 @@ function AgendaDoDia({ representanteId, mostrarRoteiro }: { representanteId?: st
           {data.hoje.length > 0 && <SecaoAgenda titulo="Hoje" itens={data.hoje} />}
         </>
       )}
+
+      {data && data.lembretes.length > 0 && <SecaoLembretes lembretes={data.lembretes} />}
 
       {data && data.proximos7Dias.length > 0 && <SecaoAgenda titulo="Próximos 7 dias" itens={data.proximos7Dias} />}
     </>

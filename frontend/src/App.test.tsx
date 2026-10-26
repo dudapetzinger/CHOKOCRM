@@ -63,7 +63,6 @@ const FICHA: ClienteCompleto = {
   rebaixadoPorVenda: false,
   diasSemCompra: null,
   proximaVisita: null,
-  lembrete: null,
   proximaCampanha: null,
 };
 
@@ -84,7 +83,7 @@ vi.mock('./services/stockMessages', () => ({
   gerarMensagem: vi.fn(),
 }));
 vi.mock('./services/agenda', () => ({
-  buscarAgendaDoDia: vi.fn(async () => ({ atrasadas: [], hoje: [], proximos7Dias: [] })),
+  buscarAgendaDoDia: vi.fn(async () => ({ atrasadas: [], hoje: [], proximos7Dias: [], lembretes: [] })),
 }));
 vi.mock('./services/campaigns', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./services/campaigns')>()),

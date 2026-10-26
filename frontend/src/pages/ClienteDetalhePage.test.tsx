@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthContext } from '../auth/auth-context';
 import { ApiError } from '../services/api';
 import { getCliente, type ClienteCompleto } from '../services/clients';
+import { listarLembretesDoCliente, type LembreteItem } from '../services/lembretes';
 import { ClienteDetalhePage } from './ClienteDetalhePage';
 
 const FICHA: ClienteCompleto = {
@@ -27,7 +28,6 @@ const FICHA: ClienteCompleto = {
   rebaixadoPorVenda: false,
   diasSemCompra: null,
   proximaVisita: null,
-  lembrete: null,
   proximaCampanha: null,
 };
 
@@ -39,6 +39,7 @@ vi.mock('../services/visits', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/visits')>()),
   listarVisitas: vi.fn(async () => []),
 }));
+vi.mock('../services/lembretes', () => ({ listarLembretesDoCliente: vi.fn(async () => []), concluirLembrete: vi.fn() }));
 vi.mock('../services/erp', () => ({ buscarDadosErp: vi.fn(async () => ({ status: 'SEM_ERP_ID' })) }));
 vi.mock('../services/insights', () => ({ buscarInsights: vi.fn(async () => ({ status: 'SEM_ERP_ID' })) }));
 vi.mock('../services/stockMessages', () => ({
@@ -46,6 +47,21 @@ vi.mock('../services/stockMessages', () => ({
   buscarProposta: vi.fn(),
   gerarMensagem: vi.fn(),
 }));
+
+const LEMBRETE: LembreteItem = {
+  id: 'l1',
+  clienteId: 'c1',
+  nomeFantasia: 'Doces da Vovó',
+  cidade: 'Joinville',
+  texto: 'Levar amostras de Natal',
+  data: '2026-10-24',
+  diasAtraso: 2,
+  representante: { id: 'r1', nome: 'Eduarda Fischer' },
+};
+
+beforeEach(() => {
+  vi.mocked(listarLembretesDoCliente).mockReset().mockResolvedValue([]);
+});
 
 function renderizar() {
   const auth = {
@@ -99,17 +115,12 @@ describe('ClienteDetalhePage', () => {
   });
 
   it('o aviso da próxima visita fica logo abaixo do cabeçalho, antes da mensagem de estoque', async () => {
-    vi.mocked(getCliente).mockResolvedValue({
-      ...FICHA,
-      proximaVisita: '2026-10-20',
-      lembrete: 'Levar amostras de Natal',
-    });
+    vi.mocked(getCliente).mockResolvedValue({ ...FICHA, proximaVisita: '2026-10-20' });
     renderizar();
 
     const cabecalho = await screen.findByRole('heading', { level: 2, name: 'Doces da Vovó' });
     const aviso = screen.getByRole('note');
     expect(aviso).toHaveTextContent('Próxima visita: 20/10/2026');
-    expect(aviso).toHaveTextContent('Lembrete: Levar amostras de Natal');
     expect(cabecalho.compareDocumentPosition(aviso)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     const mensagemEstoque = screen.getByRole('region', { name: 'Mensagem de estoque' });
     expect(aviso.compareDocumentPosition(mensagemEstoque)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
@@ -126,6 +137,19 @@ describe('ClienteDetalhePage', () => {
     const aviso = await screen.findByRole('note');
     expect(aviso).toHaveTextContent('Próxima visita: 20/10/2026');
     expect(aviso).toHaveTextContent('Campanha: Natal Chokolaten');
+  });
+
+  it('o aviso mostra os lembretes abertos do cliente, com "Concluir" para o representante', async () => {
+    vi.mocked(getCliente).mockResolvedValue(FICHA);
+    vi.mocked(listarLembretesDoCliente).mockResolvedValue([LEMBRETE]);
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'Lembretes' });
+    expect(listarLembretesDoCliente).toHaveBeenCalledWith('c1');
+    expect(lista).toHaveTextContent('Levar amostras de Natal');
+    expect(lista).toHaveTextContent('venceu há 2 dias (24/10)');
+    expect(screen.getByRole('note')).toContainElement(lista);
+    expect(screen.getByRole('button', { name: 'Concluir lembrete: Levar amostras de Natal' })).toBeInTheDocument();
   });
 
   it('sem data marcada nem lembrete, não há aviso', async () => {

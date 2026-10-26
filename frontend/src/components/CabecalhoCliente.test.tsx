@@ -60,7 +60,6 @@ function cliente(sobrescrever: Partial<ClienteCompleto> = {}): ClienteCompleto {
     rebaixadoPorVenda: false,
     diasSemCompra: 3,
     proximaVisita: null,
-    lembrete: null,
     proximaCampanha: null,
     ...sobrescrever,
   };
