@@ -12,6 +12,8 @@
  * por `TOQUE_NO_SEGMENTO`) abre o balão (Etapa 9, spec 6.7) "Eduarda ·
  * Venda: 5" com os clientes daquele resultado e quantas visitas de cada um. A tabela escondida repete os números e os clientes.
  */
+import { contar } from '@/lib/contar';
+import { formatarPercentual } from '@/lib/formatarPercentual';
 import { cn } from '@/lib/utils';
 import type { KpiRepresentante } from '@/services/dashboard';
 import { EstadoVazio } from '../../EstadoVazio';
@@ -28,27 +30,24 @@ const RESULTADOS: { campo: Resultado; rotulo: string; classe: string }[] = [
 ];
 
 /** A contagem de um resultado, no representante ou num cliente dele. */
-function contar(
+function contarResultado(
   { vendas, negociacoes, semVenda }: Pick<KpiRepresentante, 'vendas' | 'negociacoes' | 'semVenda'>,
   campo: Resultado,
 ): number {
   return { venda: vendas, negociacao: negociacoes, semVenda }[campo];
 }
 
+
 function primeiroNome(nome: string): string {
   return nome.trim().split(/\s+/)[0];
 }
 
-function descreverVisitas(visitas: number): string {
-  return `${visitas} ${visitas === 1 ? 'visita' : 'visitas'}`;
-}
-
-/** "12 visitas · 42% com venda"; sem visitas, a conversão não existe. */
+/** "12 visitas · 42 % com venda"; sem visitas, a conversão não existe. */
 function resumoVisivel({ visitas, conversaoEmVendas }: KpiRepresentante): string {
   if (visitas === 0 || conversaoEmVendas.percentual === null) {
     return 'sem visitas';
   }
-  return `${descreverVisitas(visitas)} · ${conversaoEmVendas.percentual}% com venda`;
+  return `${contar(visitas, 'visita')} · ${formatarPercentual(conversaoEmVendas.percentual)} com venda`;
 }
 
 /** "Eduarda: 12 visitas, 5 com venda, 4 em negociação, 3 sem venda". */
@@ -59,7 +58,7 @@ function nomeAcessivel(representante: KpiRepresentante): string {
     return `${nome}: sem visitas`;
   }
   const partes = [
-    descreverVisitas(visitas),
+    contar(visitas, 'visita'),
     `${vendas} com venda`,
     `${negociacoes} em negociação`,
     `${semVenda} sem venda`,
@@ -70,10 +69,10 @@ function nomeAcessivel(representante: KpiRepresentante): string {
 /** "Eduarda · Venda: 5" e os clientes com visitas desse resultado ("2 visitas"). */
 function balaoDoSegmento(representante: KpiRepresentante, campo: Resultado, rotulo: string): ConteudoDoBalao {
   return {
-    titulo: `${primeiroNome(representante.nome)} · ${rotulo}: ${contar(representante, campo)}`,
+    titulo: `${primeiroNome(representante.nome)} · ${rotulo}: ${contarResultado(representante, campo)}`,
     linhas: representante.clientes
-      .filter((cliente) => contar(cliente, campo) > 0)
-      .map((cliente) => ({ nome: cliente.nomeFantasia, detalhe: descreverVisitas(contar(cliente, campo)) })),
+      .filter((cliente) => contarResultado(cliente, campo) > 0)
+      .map((cliente) => ({ nome: cliente.nomeFantasia, detalhe: contar(contarResultado(cliente, campo), 'visita') })),
   };
 }
 
@@ -99,17 +98,16 @@ export function ResultadoPorRepresentante({ representantes }: { representantes: 
               className="flex h-3 gap-[2px] rounded-full bg-muted"
               style={{ width: `${Math.max(8, Math.round((representante.visitas / maior) * 100))}%` }}
             >
-              {RESULTADOS.filter(({ campo }) => contar(representante, campo) > 0).map(({ campo, rotulo, classe }) => {
+              {RESULTADOS.filter(({ campo }) => contarResultado(representante, campo) > 0).map(({ campo, rotulo, classe }) => {
                 const balao = balaoDoSegmento(representante, campo, rotulo);
                 return (
                   <GatilhoDoBalao
                     key={campo}
                     conteudo={balao}
-                    role="img"
                     aria-label={balao.titulo}
                     // O anel por dentro, para não encostar no segmento vizinho.
                     className={cn('min-w-2 focus-visible:ring-inset', TOQUE_NO_SEGMENTO, classe)}
-                    style={{ flexGrow: contar(representante, campo) }}
+                    style={{ flexGrow: contarResultado(representante, campo) }}
                   />
                 );
               })}

@@ -11,6 +11,7 @@
 import { useId } from 'react';
 import { cn } from '@/lib/utils';
 import { useKpis } from '../hooks/useKpis';
+import { formatarPercentual } from '../lib/formatarPercentual';
 import { descreverClientesAtivos } from '../lib/descreverClientesAtivos';
 import { formatarDataCalendario } from '../lib/formatarData';
 import type { Periodo } from '../lib/periodo';
@@ -27,8 +28,8 @@ function descreverPeriodo({ periodo, clientesAtivos }: Kpis): string {
   return `${formatarDataCalendario(inicio)} a ${formatarDataCalendario(fim)} · ${descreverClientesAtivos(clientesAtivos)}`;
 }
 
-function formatarPercentual(proporcao: Proporcao): string {
-  return proporcao.percentual === null ? '—' : `${proporcao.percentual}%`;
+function formatarProporcao(proporcao: Proporcao): string {
+  return proporcao.percentual === null ? '—' : formatarPercentual(proporcao.percentual);
 }
 
 function Indicador({ rotulo, valor, apoio }: { rotulo: string; valor: string; apoio: string }) {
@@ -57,12 +58,12 @@ function Indicadores({ kpis }: { kpis: Kpis }) {
       />
       <Indicador
         rotulo="Taxa de registro"
-        valor={formatarPercentual(taxaDeRegistro)}
+        valor={formatarProporcao(taxaDeRegistro)}
         apoio={`${taxaDeRegistro.numerador} de ${taxaDeRegistro.denominador} clientes com check-in ou mensagem`}
       />
       <Indicador
         rotulo="Conversão em vendas"
-        valor={formatarPercentual(conversaoEmVendas)}
+        valor={formatarProporcao(conversaoEmVendas)}
         apoio={
           conversaoEmVendas.percentual === null
             ? 'sem visitas no período'

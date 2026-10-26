@@ -50,7 +50,7 @@ describe('ResultadosDaCampanha', () => {
     const linhas = within(tabela).getAllByRole('row').slice(1);
     expect(linhas).toHaveLength(2);
     const eduarda = within(linhas[0]).getAllByRole('cell').map((celula) => celula.textContent?.replace(/\s/g, ' '));
-    expect(eduarda).toEqual(['Eduarda Fischer', '5', '3', expect.stringMatching(/^R\$ 1\.503,70$/), '40%']);
+    expect(eduarda).toEqual(['Eduarda Fischer', '5', '3', expect.stringMatching(/^R\$ 1\.503,70$/), '40 %']);
   });
 
   it('conversão sem visitas (percentual nulo) aparece como "—"', () => {

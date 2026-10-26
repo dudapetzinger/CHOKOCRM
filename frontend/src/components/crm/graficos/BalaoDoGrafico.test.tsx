@@ -339,3 +339,165 @@ describe('BalaoDoGrafico', () => {
     expect(botao).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-ring');
   });
 });
+
+describe('BalaoDoGrafico — uma parada do Tab por área, setas entre os gatilhos (Etapa 10)', () => {
+  function renderizarTres() {
+    return render(
+      <>
+        <button type="button">Antes</button>
+        <AreaComBalao>
+          <GatilhoDoBalao conteudo={clientes(1)} aria-label="Fatia 1">
+            1
+          </GatilhoDoBalao>
+          <GatilhoDoBalao conteudo={clientes(2)} aria-label="Fatia 2">
+            2
+          </GatilhoDoBalao>
+          <GatilhoDoBalao conteudo={clientes(3)} aria-label="Fatia 3">
+            3
+          </GatilhoDoBalao>
+        </AreaComBalao>
+        <button type="button">Depois</button>
+      </>,
+    );
+  }
+
+  it('só o primeiro gatilho tem tabindex 0; os outros, −1; o Tab pula a área inteira', async () => {
+    renderizarTres();
+    expect(screen.getByLabelText('Fatia 1')).toHaveAttribute('tabindex', '0');
+    expect(screen.getByLabelText('Fatia 2')).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByLabelText('Fatia 3')).toHaveAttribute('tabindex', '-1');
+
+    await userEvent.tab();
+    expect(screen.getByRole('button', { name: 'Antes' })).toHaveFocus();
+    await userEvent.tab();
+    expect(screen.getByLabelText('Fatia 1')).toHaveFocus();
+    await userEvent.tab();
+    expect(screen.getByRole('button', { name: 'Depois' })).toHaveFocus();
+  });
+
+  it('setas, Home e End passam o foco entre os gatilhos (com volta) e abrem o balão de cada um; o focado vira a parada do Tab', async () => {
+    renderizarTres();
+    act(() => screen.getByLabelText('Fatia 1').focus());
+
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getByLabelText('Fatia 2')).toHaveFocus();
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Vermelho · 2 clientes');
+    expect(screen.getByLabelText('Fatia 2')).toHaveAttribute('tabindex', '0');
+    expect(screen.getByLabelText('Fatia 1')).toHaveAttribute('tabindex', '-1');
+
+    await userEvent.keyboard('{ArrowDown}');
+    expect(screen.getByLabelText('Fatia 3')).toHaveFocus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getByLabelText('Fatia 1')).toHaveFocus();
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(screen.getByLabelText('Fatia 3')).toHaveFocus();
+    await userEvent.keyboard('{Home}');
+    expect(screen.getByLabelText('Fatia 1')).toHaveFocus();
+    await userEvent.keyboard('{End}');
+    expect(screen.getByLabelText('Fatia 3')).toHaveFocus();
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Vermelho · 3 clientes');
+
+    // Sair com o Tab e voltar com Shift+Tab cai no último focado, não no primeiro
+    await userEvent.tab();
+    expect(screen.getByRole('button', { name: 'Depois' })).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(screen.getByLabelText('Fatia 3')).toHaveFocus();
+  });
+
+  it('o gatilho aberto pelo hover vira a parada do Tab', () => {
+    renderizarTres();
+
+    fireEvent.mouseEnter(screen.getByLabelText('Fatia 2'));
+
+    expect(screen.getByLabelText('Fatia 2')).toHaveAttribute('tabindex', '0');
+    expect(screen.getByLabelText('Fatia 1')).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('desmontar o gatilho focável devolve a parada do Tab ao primeiro que sobrou', () => {
+    const { rerender } = render(
+      <AreaComBalao>
+        <GatilhoDoBalao conteudo={clientes(1)} aria-label="Fatia 1">
+          1
+        </GatilhoDoBalao>
+        <GatilhoDoBalao conteudo={clientes(2)} aria-label="Fatia 2">
+          2
+        </GatilhoDoBalao>
+      </AreaComBalao>,
+    );
+    act(() => screen.getByLabelText('Fatia 2').focus());
+    expect(screen.getByLabelText('Fatia 2')).toHaveAttribute('tabindex', '0');
+
+    rerender(
+      <AreaComBalao>
+        <GatilhoDoBalao conteudo={clientes(1)} aria-label="Fatia 1">
+          1
+        </GatilhoDoBalao>
+      </AreaComBalao>,
+    );
+
+    expect(screen.getByLabelText('Fatia 1')).toHaveAttribute('tabindex', '0');
+  });
+
+  it('a seta não rouba a tecla de quem tem um gatilho só nem a de outra tecla (Enter segue para o consumidor)', async () => {
+    const onKeyDown = vi.fn();
+    render(
+      <AreaComBalao>
+        <GatilhoDoBalao conteudo={conteudo} aria-label="Fatia verde" onKeyDown={onKeyDown}>
+          Verde
+        </GatilhoDoBalao>
+      </AreaComBalao>,
+    );
+    act(() => screen.getByLabelText('Fatia verde').focus());
+
+    await userEvent.keyboard('{ArrowRight}{Enter}');
+
+    expect(screen.getByLabelText('Fatia verde')).toHaveFocus();
+    expect(onKeyDown).toHaveBeenCalledWith(expect.objectContaining({ key: 'Enter' }));
+  });
+
+  describe('foco e mouse (relógio falso)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('o gatilho com o foco não fecha quando o mouse sai; fecha quando o foco sai', () => {
+      renderizar();
+      const gatilho = screen.getByLabelText('Fatia verde');
+
+      act(() => gatilho.focus());
+      fireEvent.mouseEnter(gatilho);
+      fireEvent.mouseLeave(gatilho);
+      act(() => vi.advanceTimersByTime(ATRASO_PARA_FECHAR_MS * 2));
+      expect(screen.getByRole('tooltip')).toBeInTheDocument();
+
+      act(() => gatilho.blur());
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+  });
+
+  it('sem role do consumidor, o gatilho é role="img" (div e SVG); como button, fica o papel nativo; o do consumidor vence', () => {
+    render(
+      <AreaComBalao>
+        <GatilhoDoBalao conteudo={conteudo} aria-label="Fatia">
+          Fatia
+        </GatilhoDoBalao>
+        <svg viewBox="0 0 10 10">
+          <GatilhoDoBalao as="rect" conteudo={conteudo} aria-label="Barra" width={2} height={2} />
+        </svg>
+        <GatilhoDoBalao as="button" conteudo={conteudo}>
+          Botão
+        </GatilhoDoBalao>
+        <GatilhoDoBalao conteudo={conteudo} role="progressbar" aria-label="Progresso" />
+      </AreaComBalao>,
+    );
+
+    expect(screen.getByRole('img', { name: 'Fatia' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Barra' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Botão' })).not.toHaveAttribute('role');
+    expect(screen.getByRole('progressbar', { name: 'Progresso' })).toBeInTheDocument();
+  });
+});

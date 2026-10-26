@@ -13,10 +13,8 @@
  */
 import { cn } from '@/lib/utils';
 import { formatarMoeda } from '../../lib/formatarMoeda';
+import { formatarPercentual } from '../../lib/formatarPercentual';
 import { AreaComBalao, GatilhoDoBalao, TOQUE_NA_BARRA, type ConteudoDoBalao } from './graficos/BalaoDoGrafico';
-
-/** Espaço sem quebra: "70 %" nunca separa o número do sinal. */
-const NBSP = ' ';
 
 export function BarraProgresso({
   rotulo,
@@ -41,7 +39,7 @@ export function BarraProgresso({
   const percentual = atingida ? Math.round(fracao) : Math.floor(fracao + 1e-9);
   const texto =
     alvo > 0
-      ? `${formatar(real)} de ${formatar(alvo)} · ${percentual}${NBSP}%`
+      ? `${formatar(real)} de ${formatar(alvo)} · ${formatarPercentual(percentual)}`
       : `${formatar(real)} · sem meta`;
 
   // O mesmo `progressbar`, com ou sem balão.

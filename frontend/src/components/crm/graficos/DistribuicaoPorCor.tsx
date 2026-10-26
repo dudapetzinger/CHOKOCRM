@@ -12,6 +12,7 @@
  * busca para os "Mais urgentes". A tabela escondida repete as contagens e os
  * clientes de cada cor.
  */
+import { contar } from '@/lib/contar';
 import { cn } from '@/lib/utils';
 import { descreverClientesAtivos } from '@/lib/descreverClientesAtivos';
 import { ordenarPorUrgencia } from '@/lib/ordenarPorUrgencia';
@@ -35,7 +36,7 @@ function descrever(distribuicao: Distribuicao, clientesAtivos: number): string {
 }
 
 function tituloDaCor(cor: Cor, quantidade: number): string {
-  return `${ROTULO_COR[cor]} · ${quantidade} ${quantidade === 1 ? 'cliente' : 'clientes'}`;
+  return `${ROTULO_COR[cor]} · ${contar(quantidade, 'cliente')}`;
 }
 
 export function DistribuicaoPorCor({ distribuicao, clientesAtivos, clientes }: Props) {
@@ -60,7 +61,6 @@ export function DistribuicaoPorCor({ distribuicao, clientesAtivos, clientes }: P
             <GatilhoDoBalao
               key={cor}
               conteudo={{ titulo, linhas: nomesDaCor(cor).map((nome) => ({ nome })) }}
-              role="img"
               aria-label={titulo}
               data-testid="segmento-cor"
               // O anel por dentro, para não encostar no segmento vizinho.

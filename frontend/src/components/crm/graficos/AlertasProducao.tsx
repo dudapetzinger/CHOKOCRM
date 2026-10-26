@@ -15,6 +15,7 @@
  * alertas, uma frase neutra (que não interrompe o leitor de tela) ou, se o
  * ERP não respondeu por nenhum cliente, o aviso de indisponibilidade.
  */
+import { contar } from '@/lib/contar';
 import { cn } from '@/lib/utils';
 import { descreverPrazo } from '@/lib/descreverPrazo';
 import type { AlertaProducao, Alertas } from '@/services/insights';
@@ -36,13 +37,9 @@ type Props = {
   atualizando: boolean;
 };
 
-function descreverClientes(quantidade: number): string {
-  return `${quantidade} ${quantidade === 1 ? 'cliente' : 'clientes'}`;
-}
-
 function balaoDoAlerta({ evento, produto, clientes }: AlertaProducao): ConteudoDoBalao {
   return {
-    titulo: `${produto.nome} — ${evento.nome} · ${descreverClientes(clientes.length)}`,
+    titulo: `${produto.nome} — ${evento.nome} · ${contar(clientes.length, 'cliente')}`,
     linhas: clientes.map((cliente) => ({ nome: cliente.nomeFantasia, detalhe: `(${cliente.quantidade})` })),
   };
 }
@@ -83,9 +80,9 @@ function ListaDeAlertas({ alertas }: { alertas: Alertas }) {
               <li key={`${evento.id}-${produto.sku}`}>
                 <p className="mb-1 text-sm">
                   <b className="font-medium">{produto.nome}</b> — {evento.nome} {descreverPrazo(evento.diasAteEvento)}{' '}
-                  — {descreverClientes(clientes.length)}
+                  — {contar(clientes.length, 'cliente')}
                 </p>
-                <GatilhoDoBalao conteudo={balao} role="img" aria-label={balao.titulo} className={TOQUE_NA_BARRA}>
+                <GatilhoDoBalao conteudo={balao} aria-label={balao.titulo} className={TOQUE_NA_BARRA}>
                   <div className="h-2 w-full rounded-full bg-muted">
                     <div
                       data-testid="barra-alerta"
@@ -135,7 +132,7 @@ export function AlertasProducao({ horizonteDias, onHorizonteChange, alertas, car
 
         {alertas && parcialmenteIndisponivel(alertas) && (
           <p className="text-sm text-muted-foreground">
-            ERP indisponível para {alertas.clientesIndisponiveis} de {descreverClientes(alertas.clientesConsultados)}.
+            ERP indisponível para {alertas.clientesIndisponiveis} de {contar(alertas.clientesConsultados, 'cliente')}.
           </p>
         )}
 

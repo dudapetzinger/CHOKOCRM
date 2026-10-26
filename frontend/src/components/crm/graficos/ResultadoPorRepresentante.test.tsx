@@ -55,8 +55,8 @@ describe('ResultadoPorRepresentante', () => {
     const linhas = within(screen.getByRole('list')).getAllByRole('listitem');
     expect(linhas).toHaveLength(3);
     expect(linhas[0]).toHaveTextContent('Eduarda');
-    expect(within(linhas[0]).getByText('12 visitas · 42% com venda')).toBeInTheDocument();
-    expect(within(linhas[1]).getByText('6 visitas · 17% com venda')).toBeInTheDocument();
+    expect(within(linhas[0]).getByText('12 visitas · 42 % com venda')).toBeInTheDocument();
+    expect(within(linhas[1]).getByText('6 visitas · 17 % com venda')).toBeInTheDocument();
     expect(within(linhas[2]).getByText('sem visitas')).toBeInTheDocument();
   });
 
@@ -74,7 +74,7 @@ describe('ResultadoPorRepresentante', () => {
     expect(
       screen.getByRole('group', { name: 'Eduarda: 1 visita, 1 com venda, 0 em negociação, 0 sem venda' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('1 visita · 100% com venda')).toBeInTheDocument();
+    expect(screen.getByText('1 visita · 100 % com venda')).toBeInTheDocument();
   });
 
   it('a legenda diz o que cada cor é', () => {

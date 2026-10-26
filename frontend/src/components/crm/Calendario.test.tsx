@@ -201,15 +201,15 @@ describe('Calendario', () => {
     erro.mockRestore();
   });
 
-  it('no celular, o lembrete vira um ponto amarelo e a visita marcada, um ponto da cor primária', async () => {
+  it('no celular, o lembrete vira um ponto amarelo (o tom forte, 3:1 sobre o cartão) e a visita marcada, um ponto da cor primária', async () => {
     renderizar();
 
     const comLembrete = await screen.findByRole('button', { name: 'quarta-feira, 21 de outubro, 1 item' });
-    expect(comLembrete.querySelector('.sm\\:hidden .bg-st-yellow')).not.toBeNull();
+    expect(comLembrete.querySelector('.sm\\:hidden .bg-st-yellow-forte')).not.toBeNull();
     expect(comLembrete.querySelector('.sm\\:hidden .bg-primary')).toBeNull();
     const comVisita = screen.getByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' });
     expect(comVisita.querySelector('.sm\\:hidden .bg-primary')).not.toBeNull();
-    expect(comVisita.querySelector('.sm\\:hidden .bg-st-yellow')).toBeNull();
+    expect(comVisita.querySelector('.sm\\:hidden .bg-st-yellow-forte')).toBeNull();
   });
 
   it('dia sem itens diz que não há nada', async () => {

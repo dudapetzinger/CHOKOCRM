@@ -9,6 +9,7 @@
  */
 import { useId } from 'react';
 import { formatarMoeda } from '../../lib/formatarMoeda';
+import { formatarPercentual } from '../../lib/formatarPercentual';
 import type { Campanha } from '../../services/campaigns';
 
 const CLASSES_CABECALHO = 'px-2 py-2 text-xs font-medium text-muted-foreground';
@@ -60,7 +61,7 @@ export function ResultadosDaCampanha({ campanha, gestor }: { campanha: Campanha;
                       {formatarMoeda(linha.vendas)}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">
-                      {linha.conversao.percentual === null ? '—' : `${linha.conversao.percentual}%`}
+                      {linha.conversao.percentual === null ? '—' : formatarPercentual(linha.conversao.percentual)}
                     </td>
                   </tr>
                 ))}
@@ -77,9 +78,9 @@ export function ResultadosDaCampanha({ campanha, gestor }: { campanha: Campanha;
         {campanha.produtosMaisVendidos.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum pedido vinculado ainda.</p>
         ) : (
-          <ol aria-labelledby={idProdutos} className="divide-y">
+          <ol aria-labelledby={idProdutos} className="list-decimal divide-y pl-5">
             {campanha.produtosMaisVendidos.map((produto) => (
-              <li key={produto.sku} className="py-2 text-sm break-words">
+              <li key={produto.sku} className="py-2 pl-1 text-sm break-words">
                 {produto.nome} — {produto.quantidade} un. · {formatarMoeda(produto.total)}
               </li>
             ))}

@@ -29,6 +29,7 @@
  * legível sobre o cartão branco.
  */
 import { useId } from 'react';
+import { contar } from '@/lib/contar';
 import { formatarDataCalendario, formatarMesCurto, mesAtual } from '@/lib/formatarData';
 import { formatarMoeda } from '@/lib/formatarMoeda';
 import { distribuirRotulos, encurtarRotulo } from '@/lib/rotulosDosEventos';
@@ -109,9 +110,8 @@ function rotuloDoMes(mes: string, hoje: string): string {
 
 /** Balão do mês: "out/26 · R$ 62.300,00 · 7 clientes" e quem comprou, com o valor de cada um. */
 function balaoDoMes({ mes, total, clientes }: VendaDoMes, hoje: string): ConteudoDoBalao {
-  const quantidade = `${clientes.length} ${clientes.length === 1 ? 'cliente' : 'clientes'}`;
   return {
-    titulo: `${rotuloDoMes(mes, hoje)} · ${formatarMoeda(total)} · ${quantidade}`,
+    titulo: `${rotuloDoMes(mes, hoje)} · ${formatarMoeda(total)} · ${contar(clientes.length, 'cliente')}`,
     linhas: clientes.map((cliente) => ({ nome: cliente.nomeFantasia, detalhe: formatarMoeda(cliente.total) })),
   };
 }
@@ -312,7 +312,6 @@ export function VendasMensais({ meses, eventos }: Props) {
                   key={venda.mes}
                   as="rect"
                   conteudo={balao}
-                  role="img"
                   aria-label={balao.titulo}
                   x={x(indice)}
                   y={MARGEM.topo}
@@ -329,7 +328,6 @@ export function VendasMensais({ meses, eventos }: Props) {
                   key={chave}
                   as="rect"
                   conteudo={{ titulo, linhas: [] }}
-                  role="img"
                   aria-label={titulo}
                   x={xDaLinha - larguraDaMarca / 2}
                   y={0}

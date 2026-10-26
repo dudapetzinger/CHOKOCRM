@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../../auth/useAuth';
+import { contar } from '../../lib/contar';
 import { useMetas } from '../../hooks/useMetas';
 import { useRepresentantes } from '../../hooks/useRepresentantes';
 import { formatarDataCalendario } from '../../lib/formatarData';
@@ -345,7 +346,7 @@ function balaoDeVisitas({ realizado, metaVisitas }: Meta): ConteudoDoBalao {
       .filter(({ visitas }) => visitas > 0)
       .map(({ nomeFantasia, visitas }) => ({
         nome: nomeFantasia,
-        detalhe: `${visitas} ${visitas === 1 ? 'visita' : 'visitas'}`,
+        detalhe: contar(visitas, 'visita'),
       })),
   };
 }
@@ -376,7 +377,9 @@ function CartaoMeta({ meta, gestor, aoEditar }: { meta: Meta; gestor: boolean; a
   });
 
   return (
-    <li className="min-w-0 space-y-2 rounded-lg border bg-card p-4">
+    // No celular as duas barras ficam a 44 px uma da outra (`space-y-3`): a área de toque de 44 px da barra
+    // de visitas (`TOQUE_NA_BARRA`) não entra embaixo da de vendas, que ficaria por cima.
+    <li className="min-w-0 space-y-2 rounded-lg border bg-card p-4 max-md:space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="min-w-0 font-medium break-words">{meta.representante.nome}</span>
         <Etiqueta>{ROTULO_PERIODO[meta.periodo]}</Etiqueta>

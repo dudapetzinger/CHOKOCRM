@@ -242,8 +242,8 @@ describe('PainelPage (gestor)', () => {
     ]);
     expect(indicadores).toEqual([
       ['Visitas no período', '12', 'média de 1,7 por cliente'],
-      ['Taxa de registro', '67%', '2 de 3 clientes com check-in ou mensagem'],
-      ['Conversão em vendas', '42%', '5 de 12 visitas com venda'],
+      ['Taxa de registro', '67 %', '2 de 3 clientes com check-in ou mensagem'],
+      ['Conversão em vendas', '42 %', '5 de 12 visitas com venda'],
       ['Clientes inativos', '1', 'laranja e vermelho, hoje'],
     ]);
   });

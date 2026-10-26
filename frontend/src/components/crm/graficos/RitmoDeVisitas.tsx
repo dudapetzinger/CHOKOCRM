@@ -12,6 +12,7 @@
  * período cortou) e os clientes visitados, com "(venda)" nos que compraram.
  * A tabela escondida repete os números e os clientes para leitores de tela.
  */
+import { contar } from '@/lib/contar';
 import { formatarDiaMes, formatarMesCurto } from '@/lib/formatarData';
 import type { FaixaDoRitmo, Ritmo } from '@/services/dashboard';
 import { AreaComBalao, GatilhoDoBalao, type ConteudoDoBalao } from './BalaoDoGrafico';
@@ -29,7 +30,7 @@ function balaoDaFaixa(granularidade: Ritmo['granularidade'], faixa: FaixaDoRitmo
   const { visitas, vendas, parcial, clientes } = faixa;
   const rotulo = rotuloDaFaixa(granularidade, faixa);
   const quando = granularidade === 'SEMANA' ? `Semana de ${rotulo}` : rotulo;
-  const resumo = `${visitas} ${visitas === 1 ? 'visita' : 'visitas'}, ${vendas} com venda`;
+  const resumo = `${contar(visitas, 'visita')}, ${vendas} com venda`;
   return {
     titulo: `${quando} · ${resumo}${parcial ? ' · parcial' : ''}`,
     linhas: clientes.map((cliente) => ({
@@ -52,7 +53,6 @@ export function RitmoDeVisitas({ ritmo }: { ritmo: Ritmo }) {
             <GatilhoDoBalao
               key={faixa.inicio}
               conteudo={balao}
-              role="img"
               aria-label={balao.titulo}
               className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-md"
             >

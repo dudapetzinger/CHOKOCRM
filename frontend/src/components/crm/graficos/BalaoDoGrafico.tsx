@@ -11,8 +11,18 @@
  * e só tem texto: título, até `LINHAS_NO_BALAO` linhas "nome · detalhe" e
  * "+N clientes". Ele aceita o ponteiro (WCAG 1.4.13): sair do gatilho só
  * fecha depois de `ATRASO_PARA_FECHAR_MS`, tempo de cruzar a margem até o
- * balão; entrar no balão mantém aberto. Escape e um toque fora fecham. O
- * balão nunca passa da largura da área (no celular de 320 px, 18rem passaria).
+ * balão; entrar no balão mantém aberto, e o gatilho que tem o foco não fecha
+ * quando o mouse sai (o balão é a descrição do que está focado). Escape e um
+ * toque fora fecham. O balão nunca passa da largura da área (no celular de
+ * 320 px, 18rem passaria).
+ *
+ * Teclado: a área inteira é uma parada só do Tab (Etapa 10; antes cada
+ * fatia era uma, dezenas na aba do gestor). Só um gatilho tem `tabIndex` 0 —
+ * o último focado ou, no início, o primeiro na ordem do documento —, os
+ * outros têm −1, e as setas (também Home e End) passam o foco de um gatilho
+ * ao outro, abrindo o balão de cada um. Sem `role` do consumidor, o gatilho
+ * é `role="img"` (a fatia, a barra, a coluna: uma figura com nome), menos o
+ * `button`, que já tem o papel nativo.
  *
  * Barras finas (8–12 px) como gatilho ficam pequenas demais para o dedo:
  * abaixo de `md` todo controle tocável tem ao menos 44 px de altura.
@@ -38,6 +48,8 @@ import {
   type SyntheticEvent,
 } from 'react';
 import { cn } from '@/lib/utils';
+import { contar } from '../../../lib/contar';
+import { proximoIndicePorSeta } from '../../../lib/navegacaoSetas';
 import { posicaoDoBalao } from '../../../lib/posicaoDoBalao';
 
 export type ConteudoDoBalao = { titulo: string; linhas: { nome: string; detalhe?: string }[] };
@@ -72,9 +84,15 @@ type Aberto = { chave: string; conteudo: ConteudoDoBalao; gatilho: Element };
 type ContextoDoBalao = {
   idDoBalao: string;
   chaveAberta: string | null;
+  /** O gatilho que o Tab alcança (`tabIndex` 0); os outros ficam em −1. */
+  chaveFocavel: string | null;
   abrir: (aberto: Aberto) => void;
   fechar: (chave: string) => void;
   fecharDepois: (chave: string) => void;
+  /** Entra na ordem das setas enquanto montado; devolve a saída. */
+  registrar: (chave: string, elemento: Element) => () => void;
+  /** Foca o gatilho vizinho conforme a tecla; devolve se a tecla era de navegação. */
+  navegar: (chave: string, tecla: string) => boolean;
 };
 
 const Contexto = createContext<ContextoDoBalao | null>(null);
@@ -87,11 +105,21 @@ function useContextoDoBalao(): ContextoDoBalao {
 
 type PropsDaArea = { children: ReactNode; className?: string };
 
+/** Os gatilhos montados, na ordem do documento (quem monta depois pode vir antes na tela). */
+function ordenarPeloDocumento(gatilhos: Map<string, Element>): string[] {
+  return [...gatilhos.entries()]
+    .sort(([, a], [, b]) => (a === b ? 0 : a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+    .map(([chave]) => chave);
+}
+
 export function AreaComBalao({ children, className }: PropsDaArea) {
   const idDoBalao = useId();
   const [aberto, setAberto] = useState<Aberto | null>(null);
   const area = useRef<HTMLDivElement>(null);
   const balao = useRef<HTMLDivElement>(null);
+  // Os gatilhos na ordem das setas e qual deles o Tab alcança (`null`: o primeiro).
+  const [gatilhos, setGatilhos] = useState<Map<string, Element>>(() => new Map());
+  const [chaveFocada, setChaveFocada] = useState<string | null>(null);
   // Fechamento agendado (mouse saiu do gatilho ou do balão), com o gatilho a que se refere.
   const agendado = useRef<{ chave: string; timer: ReturnType<typeof setTimeout> } | null>(null);
 
@@ -125,6 +153,33 @@ export function AreaComBalao({ children, className }: PropsDaArea) {
   );
 
   useEffect(() => cancelarAgendado, [cancelarAgendado]);
+
+  const registrar = useCallback((chave: string, elemento: Element) => {
+    setGatilhos((atuais) => new Map(atuais).set(chave, elemento));
+    return () => {
+      setGatilhos((atuais) => {
+        const proximos = new Map(atuais);
+        proximos.delete(chave);
+        return proximos;
+      });
+    };
+  }, []);
+
+  const ordem = useMemo(() => ordenarPeloDocumento(gatilhos), [gatilhos]);
+  // O gatilho desmontado deixa de ser a parada do Tab: volta ao primeiro.
+  const chaveFocavel = chaveFocada !== null && gatilhos.has(chaveFocada) ? chaveFocada : (ordem[0] ?? null);
+
+  const navegar = useCallback(
+    (chave: string, tecla: string): boolean => {
+      const atual = ordem.indexOf(chave);
+      const proximo = atual === -1 ? null : proximoIndicePorSeta(tecla, atual, ordem.length);
+      if (proximo === null) return false;
+      const alvo = gatilhos.get(ordem[proximo]!);
+      if (alvo instanceof HTMLElement || alvo instanceof SVGElement) alvo.focus();
+      return true;
+    },
+    [ordem, gatilhos],
+  );
 
   // Posiciona depois de montar o balão (precisa da altura dele), antes de pintar.
   useLayoutEffect(() => {
@@ -164,8 +219,20 @@ export function AreaComBalao({ children, className }: PropsDaArea) {
   }, [gatilhoAberto, cancelarAgendado]);
 
   const contexto = useMemo<ContextoDoBalao>(
-    () => ({ idDoBalao, chaveAberta: aberto?.chave ?? null, abrir, fechar, fecharDepois }),
-    [idDoBalao, aberto, abrir, fechar, fecharDepois],
+    () => ({
+      idDoBalao,
+      chaveAberta: aberto?.chave ?? null,
+      chaveFocavel,
+      abrir: (novo) => {
+        setChaveFocada(novo.chave);
+        abrir(novo);
+      },
+      fechar,
+      fecharDepois,
+      registrar,
+      navegar,
+    }),
+    [idDoBalao, aberto, chaveFocavel, abrir, fechar, fecharDepois, registrar, navegar],
   );
 
   return (
@@ -204,7 +271,7 @@ function ConteudoDesenhado({ conteudo }: { conteudo: ConteudoDoBalao }) {
           ))}
         </ul>
       )}
-      {restantes > 0 && <p className="mt-1">{`+${restantes} ${restantes === 1 ? 'cliente' : 'clientes'}`}</p>}
+      {restantes > 0 && <p className="mt-1">{`+${contar(restantes, 'cliente')}`}</p>}
     </>
   );
 }
@@ -260,17 +327,24 @@ export function GatilhoDoBalao({
   'aria-describedby': descricaoDoConsumidor,
   ...rest
 }: PropsDoGatilho) {
-  const { idDoBalao, chaveAberta, abrir, fechar, fecharDepois } = useContextoDoBalao();
+  const { idDoBalao, chaveAberta, chaveFocavel, abrir, fechar, fecharDepois, registrar, navegar } =
+    useContextoDoBalao();
   const chave = useId();
   const aberto = chaveAberta === chave;
   const ehSvg = as === 'g' || as === 'rect' || as === 'circle';
+  const elemento = useRef<Element | null>(null);
   // No toque, o navegador emula mouseenter e foco antes do click: o clique
   // alterna em relação ao estado de quando o dedo encostou, não ao de agora.
   // `null` quando não há toque em andamento.
   const abertoNoToque = useRef<boolean | null>(null);
+  // O balão aberto pelo foco fica até o foco sair, mesmo que o mouse saia antes.
+  const comFoco = useRef(false);
 
   // Gatilho desmontado (dados mudaram, troca de aba) não deixa balão órfão.
   useEffect(() => () => fechar(chave), [fechar, chave]);
+
+  // Entra na ordem das setas (e sai dela ao desmontar).
+  useEffect(() => (elemento.current ? registrar(chave, elemento.current) : undefined), [registrar, chave]);
 
   function abrirEste(gatilho: Element): void {
     abrir({ chave, conteudo, gatilho });
@@ -278,10 +352,21 @@ export function GatilhoDoBalao({
 
   const descricao = [descricaoDoConsumidor, aberto ? idDoBalao : undefined].filter(Boolean).join(' ');
 
-  const props: AtributosDoGatilho & { type?: 'button'; tabIndex: number; className: string; style?: CSSProperties } = {
+  const props: AtributosDoGatilho & {
+    ref: (nó: Element | null) => void;
+    type?: 'button';
+    tabIndex: number;
+    className: string;
+    style?: CSSProperties;
+  } = {
+    role: as === 'button' ? undefined : 'img',
     ...rest,
+    ref: (nó) => {
+      elemento.current = nó;
+    },
     type: as === 'button' ? 'button' : undefined,
-    tabIndex: 0,
+    // Uma parada do Tab por área: só o gatilho focável tem 0 (ver o topo do arquivo).
+    tabIndex: chaveFocavel === null || chaveFocavel === chave ? 0 : -1,
     className: cn('cursor-default', ehSvg ? FOCO_SVG : FOCO_HTML, className),
     style,
     'aria-describedby': descricao || undefined,
@@ -289,12 +374,14 @@ export function GatilhoDoBalao({
       if (abertoNoToque.current === null) abrirEste(event.currentTarget);
     }),
     onMouseLeave: encadear(onMouseLeave, () => {
-      if (aberto) fecharDepois(chave);
+      if (aberto && !comFoco.current) fecharDepois(chave);
     }),
     onFocus: encadear(onFocus, (event) => {
+      comFoco.current = true;
       if (abertoNoToque.current === null) abrirEste(event.currentTarget);
     }),
     onBlur: encadear(onBlur, () => {
+      comFoco.current = false;
       abertoNoToque.current = null;
       fechar(chave);
     }),
@@ -314,6 +401,7 @@ export function GatilhoDoBalao({
     }),
     onKeyDown: encadear(onKeyDown, (event) => {
       if (event.key === 'Escape') fechar(chave);
+      else if (navegar(chave, event.key)) event.preventDefault();
     }),
   };
 

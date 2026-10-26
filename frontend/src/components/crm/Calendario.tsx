@@ -20,7 +20,9 @@
  * Cores (spec 6.3 e 7.6): visita marcada em `bg-primary` com texto branco (o
  * `--primary` escuro, 4,6:1); lembrete em `bg-st-yellow-soft` com
  * `text-brown` (cerca de 9:1); campanha em `bg-chart-soft` com `--chart-text`;
- * data sazonal em `bg-st-green-soft` com `--st-green-text`.
+ * data sazonal em `bg-st-green-soft` com `--st-green-text`. O ponto do
+ * lembrete no celular e a borda da amostra na legenda usam `--st-yellow-forte`
+ * (3,4:1 sobre o cartão; o `--st-yellow` dá 1,9:1 e some num ponto de 6 px).
  */
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -62,7 +64,7 @@ const CLASSES_ESTILO: Record<Estilo, string> = {
 /** Quadradinho da legenda: o fundo do rótulo e, nos suaves, a borda na cor cheia do ponto do celular. */
 const CLASSES_AMOSTRA: Record<Estilo, string> = {
   marcada: 'bg-primary',
-  lembrete: 'bg-st-yellow-soft ring-1 ring-inset ring-st-yellow',
+  lembrete: 'bg-st-yellow-soft ring-1 ring-inset ring-st-yellow-forte',
   campanha: 'bg-chart-soft ring-1 ring-inset ring-chart',
   sazonal: 'bg-st-green-soft ring-1 ring-inset ring-st-green',
 };
@@ -70,7 +72,7 @@ const CLASSES_AMOSTRA: Record<Estilo, string> = {
 /** Ponto do celular, um por tipo: marcas sem texto, nas cores cheias. */
 const CLASSES_PONTO: Record<ItemCalendario['tipo'], string> = {
   VISITA: 'bg-primary',
-  LEMBRETE: 'bg-st-yellow',
+  LEMBRETE: 'bg-st-yellow-forte',
   CAMPANHA: 'bg-chart',
   DATA_SAZONAL: 'bg-st-green',
 };

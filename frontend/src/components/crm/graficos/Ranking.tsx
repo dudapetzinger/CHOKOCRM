@@ -8,7 +8,9 @@
  * o fim com "—". Todo representante aparece, mesmo zerado. Sem balão: os
  * números já estão no texto.
  */
+import { contar } from '@/lib/contar';
 import { formatarMoeda } from '@/lib/formatarMoeda';
+import { formatarPercentual } from '@/lib/formatarPercentual';
 import { primeiroNome } from '@/lib/primeiroNome';
 import type { KpiRepresentante } from '@/services/dashboard';
 import { EstadoVazio } from '../../EstadoVazio';
@@ -27,13 +29,13 @@ const LISTAS: Lista[] = [
     titulo: 'Visitas',
     ariaLabel: 'Ranking de visitas',
     valor: ({ visitas }) => visitas,
-    formatar: (visitas) => `${visitas} ${visitas === 1 ? 'visita' : 'visitas'}`,
+    formatar: (visitas) => contar(visitas, 'visita'),
   },
   {
     titulo: 'Conversão em vendas',
     ariaLabel: 'Ranking de conversão',
     valor: ({ conversaoEmVendas }) => conversaoEmVendas.percentual,
-    formatar: (percentual) => `${percentual}%`,
+    formatar: (percentual) => formatarPercentual(percentual),
   },
   {
     titulo: 'Receita',

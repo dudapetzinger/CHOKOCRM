@@ -62,6 +62,7 @@ import { useClientesDaCarteira, useKpisPorRepresentante, useRelatorio, useVendas
 import { useAlertasDeProducao } from '../hooks/useInsights';
 import { useKpis } from '../hooks/useKpis';
 import { baixarCsv, gerarCsvRelatorio, nomeDoArquivoRelatorio } from '../lib/csv';
+import { contar } from '../lib/contar';
 import { descreverPrazo } from '../lib/descreverPrazo';
 import { formatarDataCalendario } from '../lib/formatarData';
 import { listarComE } from '../lib/listarComE';
@@ -82,10 +83,6 @@ const ABAS: Aba<AbaDoPainel>[] = [
   { valor: 'resultados', rotulo: 'Metas e resultados' },
   { valor: 'producao', rotulo: 'Produção e sazonalidade' },
 ];
-
-function descreverClientes(quantidade: number): string {
-  return `${quantidade} ${quantidade === 1 ? 'cliente' : 'clientes'}`;
-}
 
 function Carregando({ children }: { children: ReactNode }) {
   return <p className="text-sm text-muted-foreground">{children}</p>;
@@ -120,7 +117,7 @@ function CartoesDeVisitas({
 
   return (
     <>
-      <Cartao titulo={tituloDoResultado}>
+      <Cartao titulo={tituloDoResultado} className="min-w-0">
         <div className="space-y-3">
           {isLoading && <Carregando>Carregando gráfico de visitas...</Carregando>}
           {mensagemDeErro && (
@@ -136,7 +133,7 @@ function CartoesDeVisitas({
         </div>
       </Cartao>
 
-      <Cartao titulo="Ritmo de visitas no período">
+      <Cartao titulo="Ritmo de visitas no período" className="min-w-0">
         <div className="space-y-3">
           {isLoading && <Carregando>Carregando gráfico de visitas...</Carregando>}
           {mensagemDeErro && !data && <Aviso tom="erro">{mensagemDeErro}</Aviso>}
@@ -246,7 +243,7 @@ function VendasMensaisDoCartao({ representanteId }: { representanteId?: string }
 
       {data && data.clientesIndisponiveis > 0 && (
         <p className="text-xs text-muted-foreground">
-          {descreverClientes(data.clientesIndisponiveis)} sem dados do ERP
+          {contar(data.clientesIndisponiveis, 'cliente')} sem dados do ERP
         </p>
       )}
     </div>
@@ -399,7 +396,7 @@ function AbaResultados({ gestor, periodo, representanteId }: AbaResultadosProps)
           <CartaoRanking periodo={periodo} representanteId={representanteId} />
         </div>
       ) : (
-        <div className="grid items-start gap-4 lg:grid-cols-2 *:min-w-0">
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           <CartoesDeVisitas
             periodo={periodo}
             representanteId={representanteId}

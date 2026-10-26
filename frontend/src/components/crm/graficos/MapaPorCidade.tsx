@@ -24,6 +24,7 @@
  */
 import { useMemo, useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { contar } from '@/lib/contar';
 import { agruparPorCidade, projetarCidades, type CidadeNoMapa } from '@/lib/mapa';
 import { useLarguraDoElemento } from '@/lib/useLarguraDoElemento';
 import { cn } from '@/lib/utils';
@@ -60,12 +61,12 @@ function raioDaBolha(clientes: number): number {
 function descrever(cidade: CidadeNoMapa): string {
   const quantidade = cidade.clientes.length;
   const cor = ROTULO_COR[cidade.clientes[0]!.cor].toLowerCase();
-  return `${cidade.nome}: ${quantidade} ${quantidade === 1 ? 'cliente' : 'clientes'}, situação mais urgente ${cor}`;
+  return `${cidade.nome}: ${contar(quantidade, 'cliente')}, situação mais urgente ${cor}`;
 }
 
 function balaoDaCidade({ nome, clientes }: CidadeNoMapa): ConteudoDoBalao {
   return {
-    titulo: `${nome} · ${clientes.length} ${clientes.length === 1 ? 'cliente' : 'clientes'}`,
+    titulo: `${nome} · ${contar(clientes.length, 'cliente')}`,
     linhas: clientes.map((cliente) => ({ nome: cliente.nomeFantasia, detalhe: ROTULO_COR[cliente.cor] })),
   };
 }

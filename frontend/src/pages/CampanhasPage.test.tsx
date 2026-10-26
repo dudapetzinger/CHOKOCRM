@@ -316,7 +316,7 @@ describe('CampanhasPage — filtro por campanha', () => {
     expect(within(natal).queryByRole('list', { name: 'Vendas vinculadas por representante' })).not.toBeInTheDocument();
     const tabela = within(natal).getByRole('table', { name: 'Resultados por representante' });
     expect(within(tabela).getAllByRole('columnheader')).toHaveLength(5);
-    expect(within(tabela).getByRole('row', { name: /Eduarda Fischer/ })).toHaveTextContent('50%');
+    expect(within(tabela).getByRole('row', { name: /Eduarda Fischer/ })).toHaveTextContent('50 %');
     // Produtos e metas
     const produtos = within(natal).getByRole('list', { name: 'Produtos mais vendidos na campanha' });
     expect(within(produtos).getAllByRole('listitem')[0]).toHaveTextContent('Caixa presente sortida — 12 un.');

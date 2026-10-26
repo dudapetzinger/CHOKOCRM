@@ -77,9 +77,9 @@ describe('Ranking', () => {
     render(<Ranking representantes={[...DADOS, representante('u5', 'Alice Prado', 0, null, 0)]} />);
 
     expect(itensDa('Ranking de conversão')).toEqual([
-      '1ºAna42%',
-      '2ºEduarda42%',
-      '3ºRafael20%',
+      '1ºAna42 %',
+      '2ºEduarda42 %',
+      '3ºRafael20 %',
       '4ºAlice—',
       '5ºBruno—',
     ]);
