@@ -44,7 +44,7 @@ export type ModoDoSeed = 'semear' | 'reiniciar' | 'recusar';
 /** Aviso de `--reset` em produção ou com banco remoto sem `--confirmar` (o processo sai com código 1). */
 export const AVISO_RESET_SEM_CONFIRMACAO = [
   'Reinício da demonstração recusado: o ambiente é de produção ou o banco é remoto (não é localhost).',
-  'O --reset apaga TODOS os clientes, contatos, visitas, pedidos, mensagens de estoque, campanhas e metas,',
+  'O --reset apaga TODOS os clientes, contatos, visitas, pedidos, lembretes, mensagens de estoque, campanhas e metas,',
   'inclusive os registrados pelos representantes de verdade (por exemplo, na validação); só as contas ficam.',
   'Para confirmar, rode de novo com --confirmar:  npm run db:seed:reset -- --confirmar',
 ].join('\n');
@@ -604,31 +604,53 @@ const VISITAS_DEMO: VisitasClienteSeed[] = [
 type ProximaVisitaSeed = {
   emailCliente: string;
   diasAFrente: number;
-  lembrete: string;
   campanha?: CampanhaDaVisita;
 };
 
 /**
- * Próxima visita marcada no check-in, com lembrete, em três clientes (todas
- * em "Próximos 7 dias" na agenda, uma vinculada ao Natal). Nenhuma muda a
- * cor nem tira cliente de "Atrasadas" ou "Hoje".
+ * Próxima visita marcada no check-in em três clientes: duas em "Próximos 7
+ * dias" na agenda (uma vinculada ao Natal) e uma marcada que já venceu há 2
+ * dias. Nenhuma muda a cor.
  */
 const PROXIMAS_VISITAS_DEMO: ProximaVisitaSeed[] = [
+  { emailCliente: 'contato@cafeblumenau.com.br', diasAFrente: 2 },
+  { emailCliente: 'contato@emporiodovalebrusque.com.br', diasAFrente: 3, campanha: 'NATAL' },
+  { emailCliente: 'contato@emporiodochocolate.com.br', diasAFrente: -2 },
+];
+
+type LembreteSeed = {
+  emailCliente: string;
+  /** Data do lembrete: hoje + `diasAFrente` (negativo: vencido). */
+  diasAFrente: number;
+  texto: string;
+  concluido?: boolean;
+};
+
+/**
+ * Lembretes (Etapa 9), criados pelo dono da carteira: três abertos (um
+ * vencido há 3 dias) e um já concluído, que não aparece em lugar nenhum.
+ */
+const LEMBRETES_DEMO: LembreteSeed[] = [
   {
     emailCliente: 'contato@cafeblumenau.com.br',
     diasAFrente: 2,
-    lembrete: 'Levar a tabela de preços da linha de inverno.',
+    texto: 'Levar a tabela de preços da linha de inverno.',
   },
   {
     emailCliente: 'contato@emporiodovalebrusque.com.br',
-    diasAFrente: 3,
-    lembrete: 'Fechar o pedido das caixas de Natal com a sócia.',
-    campanha: 'NATAL',
+    diasAFrente: -3,
+    texto: 'Fechar o pedido das caixas de Natal com a sócia.',
   },
   {
     emailCliente: 'contato@emporiodochocolate.com.br',
     diasAFrente: 6,
-    lembrete: 'Conferir o giro dos pães de mel vendidos na feira.',
+    texto: 'Conferir o giro dos pães de mel vendidos na feira.',
+  },
+  {
+    emailCliente: 'contato@cafeblumenau.com.br',
+    diasAFrente: -5,
+    texto: 'Enviar o catálogo de Natal para a compradora.',
+    concluido: true,
   },
 ];
 
@@ -775,13 +797,38 @@ async function seedProximasVisitas(
   hoje: DataCalendario,
   campanhas: Map<string, string>,
 ): Promise<void> {
-  for (const { emailCliente, diasAFrente, lembrete, campanha } of PROXIMAS_VISITAS_DEMO) {
+  for (const { emailCliente, diasAFrente, campanha } of PROXIMAS_VISITAS_DEMO) {
     await prisma.client.updateMany({
       where: { email: emailCliente, proximaVisita: null },
       data: {
         proximaVisita: colunaDateDaData(somarDias(hoje, diasAFrente)),
-        lembrete,
         proximaCampanhaId: campanha ? (campanhas.get(campanha) ?? null) : null,
+      },
+    });
+  }
+}
+
+/**
+ * Só cria o lembrete que ainda não existe (mesmo cliente e texto, aberto ou
+ * concluído), pelo dono da carteira; o concluído fica concluído `hoje`.
+ */
+async function seedLembretes(prisma: Banco, hoje: Date): Promise<void> {
+  const dia = dataCalendario(hoje);
+
+  for (const { emailCliente, diasAFrente, texto, concluido } of LEMBRETES_DEMO) {
+    const cliente = await prisma.client.findFirst({ where: { email: emailCliente } });
+    if (!cliente) continue;
+
+    const existente = await prisma.reminder.findFirst({ where: { clientId: cliente.id, texto } });
+    if (existente) continue;
+
+    await prisma.reminder.create({
+      data: {
+        clientId: cliente.id,
+        criadoPorId: cliente.representanteId,
+        texto,
+        data: colunaDateDaData(somarDias(dia, diasAFrente)),
+        concluidoEm: concluido ? hoje : null,
       },
     });
   }
@@ -814,7 +861,8 @@ async function seedMetas(prisma: Banco, hoje: DataCalendario, campanhas: Map<str
  * contas, clientes e contatos de demonstração os valores do seed (as contas
  * voltam à senha de demonstração e ficam ativas) e cria o que falta —
  * eventos sazonais, campanhas pelo nome, visitas em cliente ainda sem visita,
- * próxima visita em cliente sem uma e metas que não existem. Não apaga nada.
+ * próxima visita em cliente sem uma, lembretes e metas que não existem. Não
+ * apaga nada.
  */
 export async function semear(prisma: Banco, hoje: Date): Promise<void> {
   const dia = dataCalendario(hoje);
@@ -827,14 +875,15 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
   const campanhas = await seedCampanhas(prisma, dia);
   await seedVisitas(prisma, hoje, campanhas);
   await seedProximasVisitas(prisma, dia, campanhas);
+  await seedLembretes(prisma, hoje);
   await seedMetas(prisma, dia, campanhas);
 }
 
 /**
  * Renova a demonstração (`npm run db:seed:reset`), numa transação só: se algo
  * falhar no meio (inclusive no `semear`), nada é apagado. Apaga, nesta ordem (quem
- * depende antes de quem é referenciado), metas, itens de pedido, visitas,
- * mensagens de estoque, mudanças de recorrência, contatos, clientes,
+ * depende antes de quem é referenciado), metas, lembretes, itens de pedido,
+ * visitas, mensagens de estoque, mudanças de recorrência, contatos, clientes,
  * campanhas e tokens de redefinição de senha — inclusive o que o app gravou —
  * e recria tudo com `semear`, com datas relativas a `hoje`. As contas de
  * demonstração voltam à senha de demonstração e ficam ativas; os demais
@@ -845,6 +894,7 @@ export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): P
   await prisma.$transaction(
     async (tx) => {
       await tx.goal.deleteMany();
+      await tx.reminder.deleteMany();
       await tx.visitItem.deleteMany();
       await tx.visit.deleteMany();
       await tx.stockMessage.deleteMany();

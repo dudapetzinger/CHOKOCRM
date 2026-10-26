@@ -44,7 +44,6 @@ export type ClienteParaAgenda = {
   representante: { id: string; nome: string };
   /** Data marcada no check-in (spec 7.4), já como data de calendário. */
   proximaVisita: DataCalendario | null;
-  lembrete: string | null;
   /** Campanha da próxima visita (spec 7.7), para a etiqueta da agenda. */
   proximaCampanha: { id: string; nome: string } | null;
 };
@@ -68,7 +67,6 @@ export async function listAtivosParaAgenda(representanteId?: string): Promise<Cl
       recorrenciaDias: true,
       erpId: true,
       proximaVisita: true,
-      lembrete: true,
       proximaCampanha: { select: { id: true, nome: true } },
       visits: SELECT_ULTIMA_VISITA,
       representante: { select: { id: true, nome: true } },
@@ -189,7 +187,7 @@ export async function transferirCarteira(origemId: string, destinoId: string): P
  * mesma transação, para que nunca exista mudança de recorrência sem o
  * respectivo registro de justificativa. Apaga a próxima visita marcada no
  * check-in: quem muda o ritmo espera que a próxima data acompanhe a
- * recorrência nova; o lembrete continua (spec 7.4).
+ * recorrência nova; os lembretes (tabela própria) continuam (spec 7.4).
  */
 export async function updateRecorrenciaComHistorico(params: {
   clientId: string;

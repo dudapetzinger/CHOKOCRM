@@ -56,6 +56,7 @@ model User {
   clients             Client[]
   passwordResetTokens PasswordResetToken[]
   metas               Goal[]
+  lembretesCriados    Reminder[]
 
   @@map("users")
 }
@@ -88,8 +89,6 @@ model Client {
   /// Data prevista da próxima visita, marcada no check-in (spec 7.4). Nula:
   /// a agenda usa a última visita (ou o cadastro) + a recorrência.
   proximaVisita     DateTime?             @map("proxima_visita") @db.Date
-  /// Anotação que acompanha a próxima visita (até 200 caracteres).
-  lembrete          String?
   /// Campanha da próxima visita (spec 7.7): gravada e apagada com a data a
   /// cada check-in. Excluir a campanha só desvincula.
   proximaCampanhaId String?               @map("proxima_campanha_id")
@@ -102,6 +101,7 @@ model Client {
   visits            Visit[]
   scheduleChanges   VisitScheduleChange[]
   stockMessages     StockMessage[]
+  lembretes         Reminder[]
 
   @@index([representanteId])
   @@map("clients")
@@ -139,10 +139,34 @@ model Visit {
   campanhaId String?         @map("campanha_id")
   campanha   Campaign?       @relation(fields: [campanhaId], references: [id], onDelete: SetNull)
   itens      VisitItem[]
+  lembretes  Reminder[]
 
   @@index([clientId, dataHora(sort: Desc)])
   @@index([campanhaId])
   @@map("visits")
+}
+
+/// Lembrete do cliente como tarefa própria (Etapa 9): vários por cliente, cada
+/// um com a sua data, aberto até o representante (ou o gestor) concluir. Criado
+/// no check-in (`visitId`) e independente da próxima visita: um check-in novo
+/// não apaga nem conclui lembretes abertos. Texto de até 200 caracteres (CHECK
+/// escrito à mão na migration `lembretes_como_tarefa`). Excluir o cliente apaga
+/// os lembretes; a visita, se sumir, só desvincula.
+model Reminder {
+  id          String    @id @default(uuid())
+  clientId    String    @map("client_id")
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  criadoPorId String    @map("criado_por_id")
+  criadoPor   User      @relation(fields: [criadoPorId], references: [id])
+  visitId     String?   @map("visit_id")
+  visit       Visit?    @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  texto       String
+  data        DateTime  @db.Date
+  concluidoEm DateTime? @map("concluido_em")
+  criadoEm    DateTime  @default(now()) @map("criado_em")
+
+  @@index([clientId, concluidoEm])
+  @@map("lembretes")
 }
 
 /// Item do pedido registrado no check-in com resultado VENDA. Nome e preço

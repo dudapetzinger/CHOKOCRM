@@ -179,12 +179,12 @@ describe('GET /agenda/today', () => {
     expect(res.body.data).toEqual({ atrasadas: [], hoje: [], proximos7Dias: [] });
   });
 
-  it('traz os próximos 7 dias com a data marcada no check-in, o lembrete e o endereço (spec 7.4)', async () => {
+  it('traz os próximos 7 dias com a data marcada no check-in e o endereço (spec 7.4)', async () => {
     // Visitado há 3 dias com recorrência de 15: pela recorrência, só daqui a 12 dias
     const daquiADoisDias = somarDias(dataCalendario(new Date()), 2);
     await prisma.client.update({
       where: { id: clienteFuturoId },
-      data: { proximaVisita: new Date(`${daquiADoisDias}T00:00:00.000Z`), lembrete: 'Levar amostras de Natal' },
+      data: { proximaVisita: new Date(`${daquiADoisDias}T00:00:00.000Z`) },
     });
 
     const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenA}`);
@@ -196,12 +196,11 @@ describe('GET /agenda/today', () => {
         proximaVisita: daquiADoisDias,
         diasAtraso: -2,
         marcadaNoCheckIn: true,
-        lembrete: 'Levar amostras de Natal',
         endereco: 'Rua Hermann Weege, 100',
       }),
     ]);
     const [atrasado] = res.body.data.atrasadas;
-    expect(atrasado).toMatchObject({ endereco: 'Rua Hermann Weege, 100', lembrete: null, marcadaNoCheckIn: false });
+    expect(atrasado).toMatchObject({ endereco: 'Rua Hermann Weege, 100', marcadaNoCheckIn: false });
   });
 
   it('item traz cor, diasSemVisita, proximaVisita YYYY-MM-DD e diasAtraso', async () => {

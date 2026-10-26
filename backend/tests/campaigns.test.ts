@@ -478,7 +478,7 @@ describe('DELETE /campaigns/:id', () => {
     });
     await prisma.client.update({
       where: { id: clienteDaEduardaId },
-      data: { proximaCampanhaId: id, proximaVisita: new Date(`${daquiA(7)}T00:00:00.000Z`), lembrete: 'Levar kits' },
+      data: { proximaCampanhaId: id, proximaVisita: new Date(`${daquiA(7)}T00:00:00.000Z`) },
     });
 
     const res = await autenticado(request(app).delete(`/campaigns/${id}`), tokenGestor);
@@ -491,7 +491,6 @@ describe('DELETE /campaigns/:id', () => {
     const cliente = await prisma.client.findUniqueOrThrow({ where: { id: clienteDaEduardaId } });
     expect(cliente.proximaCampanhaId).toBeNull();
     expect(cliente.proximaVisita?.toISOString().slice(0, 10)).toBe(daquiA(7));
-    expect(cliente.lembrete).toBe('Levar kits');
   });
 
   it('excluir a campanha apaga as metas dela; as outras metas ficam', async () => {

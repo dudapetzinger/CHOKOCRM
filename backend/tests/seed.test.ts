@@ -27,11 +27,13 @@ async function totais() {
     metas: await prisma.goal.count(),
     proximasVisitas: await prisma.client.count({ where: { proximaVisita: { not: null } } }),
     visitasEmCampanha: await prisma.visit.count({ where: { campanhaId: { not: null } } }),
+    lembretesAbertos: await prisma.reminder.count({ where: { concluidoEm: null } }),
+    lembretesConcluidos: await prisma.reminder.count({ where: { concluidoEm: { not: null } } }),
     eventosSazonais: await prisma.seasonalEvent.count(),
   };
 }
 
-/** Usuário "criado pelo app" (fora da lista de demonstração), com cliente, meta e token próprios. */
+/** Usuário "criado pelo app" (fora da lista de demonstração), com cliente, lembrete, meta e token próprios. */
 async function criarDadosDoApp(): Promise<{ id: string; senhaHash: string }> {
   const senhaHash = await bcrypt.hash('senha-da-empresa', 4);
   const usuario = await prisma.user.create({
@@ -64,6 +66,9 @@ async function criarDadosDoApp(): Promise<{ id: string; senhaHash: string }> {
       resultado: 'SEM_VENDA',
     },
   });
+  await prisma.reminder.create({
+    data: { clientId: cliente.id, criadoPorId: usuario.id, texto: 'Lembrete criado pelo app.', data: HOJE },
+  });
   await prisma.campaign.create({
     data: { nome: 'Campanha criada pelo app', tipo: 'CAMPANHA', inicio: HOJE, fim: HOJE, produtos: [] },
   });
@@ -92,7 +97,7 @@ describe('seed de demonstração', () => {
     await prisma.$disconnect();
   });
 
-  it('reiniciarDemonstracao recria clientes, visitas com pedido, campanhas, metas e próximas visitas', async () => {
+  it('reiniciarDemonstracao recria clientes, visitas com pedido, campanhas, metas, próximas visitas e lembretes', async () => {
     await reiniciarDemonstracao(prisma, HOJE);
 
     expect(await totais()).toEqual({
@@ -105,6 +110,8 @@ describe('seed de demonstração', () => {
       metas: 3,
       proximasVisitas: 3,
       visitasEmCampanha: 3,
+      lembretesAbertos: 3,
+      lembretesConcluidos: 1,
       eventosSazonais: 10,
     });
 
@@ -149,9 +156,25 @@ describe('seed de demonstração', () => {
     expect(daCampanha[0]?.campanhaId).toBe(feira?.id);
 
     const comProximaVisita = await prisma.client.findMany({ where: { proximaVisita: { not: null } } });
-    expect(comProximaVisita.every((cliente) => cliente.lembrete)).toBe(true);
     expect(comProximaVisita.filter((cliente) => cliente.proximaCampanhaId)).toHaveLength(1);
-    expect(comProximaVisita.every((cliente) => dia(cliente.proximaVisita as Date) > '2026-10-19')).toBe(true);
+    // Duas adiante e uma marcada que já venceu (há 2 dias)
+    expect(comProximaVisita.map((cliente) => dia(cliente.proximaVisita as Date)).sort()).toEqual([
+      '2026-10-17',
+      '2026-10-21',
+      '2026-10-22',
+    ]);
+
+    // Lembretes: três abertos (um vencido há 3 dias), um concluído, todos do dono da carteira
+    const lembretes = await prisma.reminder.findMany({ include: { client: true }, orderBy: { data: 'asc' } });
+    const abertos = lembretes.filter((lembrete) => lembrete.concluidoEm === null);
+    expect(abertos.map((lembrete) => dia(lembrete.data))).toEqual(['2026-10-16', '2026-10-21', '2026-10-25']);
+    expect(lembretes.every((lembrete) => lembrete.criadoPorId === lembrete.client.representanteId)).toBe(true);
+    expect(lembretes.every((lembrete) => lembrete.texto.length > 0 && lembrete.texto.length <= 200)).toBe(true);
+
+    // O lembrete saiu do cliente: a coluna não existe mais
+    const colunas = await prisma.$queryRaw<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns WHERE table_name = 'clients'`;
+    expect(colunas.map((coluna) => coluna.column_name)).not.toContain('lembrete');
   });
 
   it('apaga o que o app gravou, mas mantém o usuário criado pelo app com a mesma senha', async () => {
@@ -167,6 +190,7 @@ describe('seed de demonstração', () => {
     expect(await prisma.campaign.count({ where: { nome: 'Campanha criada pelo app' } })).toBe(0);
     expect(await prisma.passwordResetToken.count()).toBe(0);
     expect(await prisma.goal.count({ where: { representanteId: joana.id } })).toBe(0);
+    expect(await prisma.reminder.count({ where: { texto: 'Lembrete criado pelo app.' } })).toBe(0);
     expect(await prisma.user.count()).toBe(4);
   });
 
@@ -205,6 +229,7 @@ describe('seed de demonstração', () => {
       visitas: antes.visitas + 1,
       campanhas: antes.campanhas + 1,
       metas: antes.metas + 1,
+      lembretesAbertos: antes.lembretesAbertos + 1,
     });
   });
 
@@ -232,6 +257,7 @@ describe('seed de demonstração', () => {
       visitas: primeira.visitas + 1,
       campanhas: primeira.campanhas + 1,
       metas: primeira.metas + 1,
+      lembretesAbertos: primeira.lembretesAbertos + 1,
     });
     expect((await prisma.user.findUniqueOrThrow({ where: { id: joana.id } })).senhaHash).toBe(joana.senhaHash);
     expect(await prisma.passwordResetToken.count()).toBe(1);

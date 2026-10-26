@@ -18,7 +18,6 @@ function clienteFabricado(overrides: Partial<ClienteParaAgenda> & { id: string }
     visits: [],
     representante: { id: 'rep-1', nome: 'Representante' },
     proximaVisita: null,
-    lembrete: null,
     endereco: 'Rua XV de Novembro, 100',
     proximaCampanha: null,
     ...overrides,
@@ -274,16 +273,15 @@ describe('montarAgenda com a próxima visita marcada no check-in (spec 7.4)', ()
     expect(agenda.proximos7Dias.map((item) => item.id)).toEqual(['verde-1', 'vermelho-2', 'verde-2', 'laranja-5']);
   });
 
-  it('o item traz o lembrete e o endereço do cliente', () => {
+  it('o item traz o endereço do cliente', () => {
     const cliente = clienteFabricado({
-      id: 'com-lembrete',
+      id: 'com-endereco',
       proximaVisita: diasDepois(3),
-      lembrete: 'Levar amostras de Natal',
       endereco: 'Rua Hermann Weege, 100',
     });
 
     const [item] = montarAgenda([cliente], hoje).proximos7Dias;
 
-    expect(item).toMatchObject({ lembrete: 'Levar amostras de Natal', endereco: 'Rua Hermann Weege, 100' });
+    expect(item).toMatchObject({ endereco: 'Rua Hermann Weege, 100' });
   });
 });

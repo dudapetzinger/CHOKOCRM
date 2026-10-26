@@ -24,7 +24,6 @@ function clienteFabricado(overrides: Partial<ClienteParaAgenda> & { id: string }
     visits: [],
     representante: { id: 'rep-1', nome: 'Eduarda Fischer' },
     proximaVisita: null,
-    lembrete: null,
     proximaCampanha: null,
     ...overrides,
   };
@@ -57,13 +56,12 @@ describe('limitesDoMes', () => {
 });
 
 describe('montarCalendario', () => {
-  it('visita marcada no check-in aparece no dia marcado, com o lembrete e a campanha da próxima visita', () => {
+  it('visita marcada no check-in aparece no dia marcado, com a campanha da próxima visita', () => {
     const cliente = clienteFabricado({
       id: 'marcada',
       nomeFantasia: 'Empório Central',
       visits: [{ dataHora: diasAtras(3), resultado: 'VENDA' }],
       proximaVisita: '2026-10-27',
-      lembrete: 'Levar amostras de Natal',
       proximaCampanha: { id: 'cp1', nome: 'Natal Chokolaten' },
     });
 
@@ -78,7 +76,6 @@ describe('montarCalendario', () => {
         clienteId: 'marcada',
         origem: 'CHECK_IN',
         recorrenciaDias: 15,
-        lembrete: 'Levar amostras de Natal',
         representante: { id: 'rep-1', nome: 'Eduarda Fischer' },
         campanha: { id: 'cp1', nome: 'Natal Chokolaten' },
       },
@@ -100,7 +97,6 @@ describe('montarCalendario', () => {
       clienteId: 'recorrencia',
       origem: 'RECORRENCIA',
       recorrenciaDias: 21,
-      lembrete: null,
       campanha: null,
     });
     expect(item?.detalhe).toBeUndefined();

@@ -591,7 +591,6 @@ describe('POST /clients', () => {
       representante: { id: representanteId, nome: REPRESENTANTE.nome },
       recorrenciaChanges: [],
       proximaVisita: null,
-      lembrete: null,
       proximaCampanha: null,
     });
 

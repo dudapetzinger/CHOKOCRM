@@ -1,5 +1,6 @@
 import { Prisma, type ResultadoVisita } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import * as reminderRepository from './reminder.repository';
 
 /**
  * Itens do pedido em ordem alfabética do produto: a tabela não guarda a
@@ -32,7 +33,6 @@ export type ItemDoPedidoData = {
  */
 export type ProximaVisitaDoClienteData = {
   proximaVisita: Date | null;
-  lembrete: string | null;
   proximaCampanhaId: string | null;
 };
 
@@ -46,13 +46,22 @@ export type CreateVisitData = {
   resultado: ResultadoVisita;
   itens: ItemDoPedidoData[];
   proximaVisitaDoCliente: ProximaVisitaDoClienteData;
+  /** Lembrete novo do check-in, com `data` já como valor de coluna `@db.Date`. */
+  lembrete?: { texto: string; data: Date };
 };
 
 /**
- * Visita, itens do pedido (`create` aninhado) e a próxima visita do cliente
- * numa transação só: ou o check-in fica inteiro, ou nada muda.
+ * Visita, itens do pedido (`create` aninhado), a próxima visita do cliente e
+ * o lembrete novo (criado pelo autor, ligado à visita) numa transação só: ou
+ * o check-in fica inteiro, ou nada muda. Os lembretes já abertos do cliente
+ * não são tocados.
  */
-export async function create({ itens, proximaVisitaDoCliente, ...data }: CreateVisitData): Promise<VisitComRelacoes> {
+export async function create({
+  itens,
+  proximaVisitaDoCliente,
+  lembrete,
+  ...data
+}: CreateVisitData): Promise<VisitComRelacoes> {
   return prisma.$transaction(async (tx) => {
     const visita = await tx.visit.create({
       data: { ...data, ...(itens.length > 0 ? { itens: { create: itens } } : {}) },
@@ -60,6 +69,13 @@ export async function create({ itens, proximaVisitaDoCliente, ...data }: CreateV
     });
 
     await tx.client.update({ where: { id: data.clientId }, data: proximaVisitaDoCliente });
+
+    if (lembrete) {
+      await reminderRepository.create(
+        { ...lembrete, clientId: data.clientId, criadoPorId: data.userId, visitId: visita.id },
+        tx,
+      );
+    }
 
     return visita;
   });

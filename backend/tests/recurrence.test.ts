@@ -192,10 +192,18 @@ describe('PUT /clients/:id/recurrence', () => {
     expect(registro).toMatchObject({ recorrenciaAnterior: 15, recorrenciaNova: 45, userId: representanteId });
   });
 
-  it('alterar a recorrência apaga a próxima visita marcada e mantém o lembrete (spec 7.4)', async () => {
+  it('alterar a recorrência apaga a próxima visita marcada e mantém os lembretes (spec 7.4)', async () => {
     await prisma.client.update({
       where: { id: clienteId },
-      data: { proximaVisita: new Date('2026-12-01T00:00:00.000Z'), lembrete: 'Levar amostras de Natal' },
+      data: { proximaVisita: new Date('2026-12-01T00:00:00.000Z') },
+    });
+    await prisma.reminder.create({
+      data: {
+        clientId: clienteId,
+        criadoPorId: representanteId,
+        texto: 'Levar amostras de Natal',
+        data: new Date('2026-12-01T00:00:00.000Z'),
+      },
     });
 
     const res = await request(app)
@@ -205,11 +213,10 @@ describe('PUT /clients/:id/recurrence', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.proximaVisita).toBeNull();
-    expect(res.body.lembrete).toBe('Levar amostras de Natal');
 
     const salvo = await prisma.client.findUniqueOrThrow({ where: { id: clienteId } });
     expect(salvo.proximaVisita).toBeNull();
-    expect(salvo.lembrete).toBe('Levar amostras de Natal');
+    expect(await prisma.reminder.count({ where: { clientId: clienteId, concluidoEm: null } })).toBe(1);
   });
 
   it('recorrência recusada não apaga a próxima visita marcada', async () => {

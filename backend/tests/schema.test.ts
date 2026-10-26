@@ -132,4 +132,61 @@ describe('Schema Prisma (smoke)', () => {
     expect(visita.editadoEm).toBeNull();
     expect(visita.criadoEm).toBeInstanceOf(Date);
   });
+
+  it('cria Reminder (lembretes): texto até 200 no banco, cai com o cliente e só desvincula da visita', async () => {
+    const user = await prisma.user.create({
+      data: {
+        nome: 'Eduarda Lembrete',
+        email: 'smoke.lembrete@chokolaten.com.br',
+        senhaHash: 'hash-fake',
+        role: 'REPRESENTANTE',
+      },
+    });
+    const client = await prisma.client.create({
+      data: {
+        razaoSocial: 'Lembrete Smoke Comércio Ltda',
+        nomeFantasia: 'Lembrete Smoke',
+        cnpj: '00000000000400',
+        cidade: 'Pomerode',
+        endereco: 'Rua de Teste, 400',
+        telefone: '(47) 0000-0002',
+        email: 'contato@lembretesmoke.com.br',
+        representanteId: user.id,
+      },
+    });
+    const visita = await prisma.visit.create({
+      data: {
+        clientId: client.id,
+        userId: user.id,
+        dataHora: new Date('2026-10-20T13:00:00.000Z'),
+        descricao: 'Visita com lembrete.',
+        resultado: 'NEGOCIACAO',
+      },
+    });
+
+    const lembrete = await prisma.reminder.create({
+      data: {
+        clientId: client.id,
+        criadoPorId: user.id,
+        visitId: visita.id,
+        texto: 'Levar amostras',
+        data: new Date('2026-10-25T00:00:00.000Z'),
+      },
+    });
+    expect(lembrete.concluidoEm).toBeNull();
+    expect(lembrete.criadoEm).toBeInstanceOf(Date);
+
+    // CHECK escrito à mão na migration
+    await expect(
+      prisma.reminder.create({
+        data: { clientId: client.id, criadoPorId: user.id, texto: 'a'.repeat(201), data: new Date('2026-10-25') },
+      }),
+    ).rejects.toThrow();
+
+    await prisma.visit.delete({ where: { id: visita.id } });
+    expect((await prisma.reminder.findUniqueOrThrow({ where: { id: lembrete.id } })).visitId).toBeNull();
+
+    await prisma.client.delete({ where: { id: client.id } });
+    expect(await prisma.reminder.count()).toBe(0);
+  });
 });

@@ -118,22 +118,22 @@ function montarItensDoPedido(
 }
 
 /**
- * Próxima visita, lembrete e campanha da próxima visita que o check-in grava
- * no cliente (spec 7.4 e 7.7). A visita nova substitui a data marcada antes
- * (ruling R22): sem data (`null` ou campo ausente), apaga a data, o lembrete
- * e a campanha e a agenda volta à recorrência — uma data antiga, talvez
- * vencida, deixaria o cliente recém-visitado como atrasado; e lembrete ou
- * campanha sem data não valem. Com data, lembrete e campanha são os do corpo
- * (ausentes ou em branco: nenhum).
+ * Próxima visita e campanha da próxima visita que o check-in grava no
+ * cliente (spec 7.4 e 7.7). A visita nova substitui a data marcada antes
+ * (ruling R22): sem data (`null` ou campo ausente), apaga a data e a
+ * campanha e a agenda volta à recorrência — uma data antiga, talvez
+ * vencida, deixaria o cliente recém-visitado como atrasado; e campanha sem
+ * data não vale. Com data, a campanha é a do corpo (ausente: nenhuma). O
+ * lembrete não mora mais no cliente (Etapa 9): é criado à parte, com a data
+ * dele, e sobrevive à data apagada.
  */
 function montarProximaVisitaDoCliente(input: CreateVisitInput): ProximaVisitaDoClienteData {
   if (input.proximaVisita === null || input.proximaVisita === undefined) {
-    return { proximaVisita: null, lembrete: null, proximaCampanhaId: null };
+    return { proximaVisita: null, proximaCampanhaId: null };
   }
 
   return {
     proximaVisita: colunaDateDaData(input.proximaVisita),
-    lembrete: input.lembrete ?? null,
     proximaCampanhaId: input.proximaCampanhaId ?? null,
   };
 }
@@ -203,6 +203,9 @@ export async function createVisit(
     resultado: input.resultado,
     itens,
     proximaVisitaDoCliente,
+    lembrete: input.lembrete
+      ? { texto: input.lembrete.texto, data: colunaDateDaData(input.lembrete.data) }
+      : undefined,
   });
 
   return toVisitaDTO(visita);

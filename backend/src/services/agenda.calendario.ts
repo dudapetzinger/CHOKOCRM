@@ -32,7 +32,6 @@ export type ItemCalendario = {
   clienteId?: string;
   origem?: 'CHECK_IN' | 'RECORRENCIA';
   recorrenciaDias?: number;
-  lembrete?: string | null;
   /** Dono da carteira do cliente. */
   representante?: { id: string; nome: string };
   /** Na visita, a campanha da próxima visita; na campanha, ela mesma. */
@@ -127,7 +126,6 @@ export function montarCalendario(entrada: {
         clienteId: cliente.id,
         origem: cliente.proximaVisita !== null ? 'CHECK_IN' : 'RECORRENCIA',
         recorrenciaDias: cliente.recorrenciaDias,
-        lembrete: cliente.lembrete,
         representante: cliente.representante,
         campanha: cliente.proximaCampanha,
         ...(diasAtraso > 0 ? { detalhe: descreverVencimento(prevista, diasAtraso) } : {}),
