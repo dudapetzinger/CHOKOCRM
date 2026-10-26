@@ -262,7 +262,7 @@ describe('PainelPage (gestor)', () => {
       'Quem está visitando pouco?',
       'Metas de visitas e vendas',
       'Resultado das visitas por representante',
-      'Ritmo de visitas — últimas 8 semanas',
+      'Ritmo de visitas no período',
       'Ranking dos representantes',
     ]);
     // Só o painel da aba aberta fica montado
@@ -376,15 +376,15 @@ describe('PainelPage (gestor)', () => {
     imprimir.mockRestore();
   });
 
-  it('resultado por representante em barra empilhada e ritmo das 8 semanas com a nota', () => {
+  it('resultado por representante em barra empilhada e ritmo de visitas no período com a nota', () => {
     renderizarComo('GESTOR');
 
     const resultado = screen.getByRole('region', { name: 'Resultado das visitas por representante' });
     expect(
-      within(resultado).getByRole('img', { name: 'Eduarda: 12 visitas, 5 com venda, 4 em negociação, 3 sem venda' }),
+      within(resultado).getByRole('group', { name: 'Eduarda: 12 visitas, 5 com venda, 4 em negociação, 3 sem venda' }),
     ).toBeInTheDocument();
 
-    const ritmo = screen.getByRole('region', { name: 'Ritmo de visitas — últimas 8 semanas' });
+    const ritmo = screen.getByRole('region', { name: 'Ritmo de visitas no período' });
     expect(within(within(ritmo).getByRole('table')).getAllByRole('row')).toHaveLength(9);
     expect(within(ritmo).getByText('Barra clara = visitas · parte escura = visitas com venda')).toBeInTheDocument();
   });
@@ -488,7 +488,7 @@ describe('PainelPage (gestor)', () => {
 
     const bloco = screen.getByRole('region', { name: 'Quais clientes estão esfriando?' });
     expect(
-      within(bloco).getByRole('img', { name: /1 clientes verdes, 1 amarelos, 0 laranjas e 1 vermelhos/ }),
+      within(bloco).getByRole('group', { name: /1 clientes verdes, 1 amarelos, 0 laranjas e 1 vermelhos/ }),
     ).toBeInTheDocument();
     expect(within(bloco).getByRole('heading', { level: 3, name: 'Mais urgentes' })).toBeInTheDocument();
     expect(within(bloco).getByRole('link', { name: /Doces da Vovó/ })).toHaveAttribute('href', '/clientes/c1');
@@ -537,7 +537,8 @@ describe('PainelPage (gestor)', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Você está sem internet.');
     const esfriando = screen.getByRole('region', { name: 'Quais clientes estão esfriando?' });
-    expect(within(esfriando).getByText('Doces da Vovó')).toBeInTheDocument();
+    // Na lista dos mais urgentes (a tabela acessível da distribuição por cor também tem o nome).
+    expect(within(within(esfriando).getByRole('list')).getByText('Doces da Vovó')).toBeInTheDocument();
   });
 
   it('sem os números por representante ainda, avisa que está carregando', () => {
@@ -563,7 +564,7 @@ describe('PainelPage (representante)', () => {
       'Como está a minha carteira?',
       'Metas de visitas e vendas',
       'Resultado das minhas visitas',
-      'Ritmo de visitas — últimas 8 semanas',
+      'Ritmo de visitas no período',
     ]);
     expect(screen.queryByRole('region', { name: 'Ranking dos representantes' })).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: /Ranking/ })).not.toBeInTheDocument();
@@ -588,7 +589,7 @@ describe('PainelPage (representante)', () => {
 
     const resultado = screen.getByRole('region', { name: 'Resultado das minhas visitas' });
     expect(
-      within(resultado).getByRole('img', { name: 'Eduarda: 12 visitas, 5 com venda, 4 em negociação, 3 sem venda' }),
+      within(resultado).getByRole('group', { name: 'Eduarda: 12 visitas, 5 com venda, 4 em negociação, 3 sem venda' }),
     ).toBeInTheDocument();
   });
 

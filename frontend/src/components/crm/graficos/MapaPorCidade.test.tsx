@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import type { ClienteListItem, Cor } from '@/services/clients';
@@ -74,18 +74,28 @@ describe('MapaPorCidade', () => {
     expect(mapa).not.toHaveTextContent('Cidade Inventada');
   });
 
-  it('o título da bolha lista os clientes da cidade, do mais urgente ao menos', () => {
+  it('focar a bolha abre o balão com os clientes da cidade e a situação, do mais urgente ao menos (sem <title>)', () => {
     renderizar();
 
     const joinville = screen.getByRole('button', { name: /^Joinville/ });
-    expect(joinville.querySelector('title')).toHaveTextContent('Empório Central, Padaria Estrela, Doces da Vovó');
+    expect(joinville.querySelector('title')).toBeNull();
+    act(() => joinville.focus());
+
+    const balao = screen.getByRole('tooltip');
+    expect(balao).toHaveTextContent('Joinville · 3 clientes');
+    expect(within(balao).getAllByRole('listitem').map((linha) => linha.textContent)).toEqual([
+      'Empório Central · Vermelho',
+      'Padaria Estrela · Amarelo',
+      'Doces da Vovó · Verde',
+    ]);
+    expect(joinville).toHaveAccessibleDescription(/Empório Central · Vermelho/);
   });
 
   it('Enter abre o cliente mais urgente da cidade', async () => {
     const usuario = userEvent.setup();
     renderizar();
 
-    screen.getByRole('button', { name: /^Joinville/ }).focus();
+    act(() => screen.getByRole('button', { name: /^Joinville/ }).focus());
     await usuario.keyboard('{Enter}');
 
     expect(screen.getByText('ficha do cliente c2')).toBeInTheDocument();
@@ -96,6 +106,53 @@ describe('MapaPorCidade', () => {
     renderizar();
 
     await usuario.click(screen.getByRole('button', { name: /^Blumenau/ }));
+
+    expect(screen.getByText('ficha do cliente c4')).toBeInTheDocument();
+  });
+
+  /** Um toque: o navegador emula mouseenter e foco antes do click. */
+  function tocar(bolha: HTMLElement) {
+    fireEvent.pointerDown(bolha, { pointerType: 'touch' });
+    fireEvent.mouseEnter(bolha);
+    act(() => bolha.focus());
+    fireEvent.click(bolha);
+  }
+
+  it('no toque, o primeiro toque na bolha só abre o balão, sem abrir a ficha', () => {
+    renderizar();
+
+    tocar(screen.getByRole('button', { name: /^Joinville/ }));
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Joinville · 3 clientes');
+    expect(screen.queryByText(/ficha do cliente/)).not.toBeInTheDocument();
+  });
+
+  it('no toque, o segundo toque na mesma bolha abre a ficha do cliente mais urgente', () => {
+    renderizar();
+    const joinville = screen.getByRole('button', { name: /^Joinville/ });
+
+    tocar(joinville);
+    tocar(joinville);
+
+    expect(screen.getByText('ficha do cliente c2')).toBeInTheDocument();
+  });
+
+  it('no toque, tocar outra bolha arma a outra (abre o balão dela, não a ficha)', () => {
+    renderizar();
+
+    tocar(screen.getByRole('button', { name: /^Joinville/ }));
+    tocar(screen.getByRole('button', { name: /^Blumenau/ }));
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Blumenau · 1 cliente');
+    expect(screen.queryByText(/ficha do cliente/)).not.toBeInTheDocument();
+  });
+
+  it('clique com o mouse abre a ficha já no primeiro clique', () => {
+    renderizar();
+    const blumenau = screen.getByRole('button', { name: /^Blumenau/ });
+
+    fireEvent.pointerDown(blumenau, { pointerType: 'mouse' });
+    fireEvent.click(blumenau);
 
     expect(screen.getByText('ficha do cliente c4')).toBeInTheDocument();
   });

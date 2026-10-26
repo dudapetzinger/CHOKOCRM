@@ -3,8 +3,10 @@
  * Etapa 8): o título com o segmentado "Próximos 30 · 60 · 90 · 180" e, para
  * cada produto sugerido de um evento próximo, quantos clientes estão com
  * estoque baixo — em texto e numa barra (comprimento = clientes ÷ o maior
- * alerta) — e, embaixo, os clientes com link para a ficha. A barra só
- * reforça o número escrito, então fica fora da árvore de acessibilidade.
+ * alerta). Os clientes ficam só no balão da barra (Etapa 9, spec 6.7:
+ * "Bombons sortidos — Natal · 5 clientes" e cada cliente com a quantidade em
+ * estoque); a linha "Estoque baixo: …" com links saiu (decisão da parceira).
+ * A tabela escondida lista evento, produto e clientes para leitores de tela.
  *
  * O segmentado fica fora da área de resultados: continua na tela enquanto o
  * horizonte novo carrega e depois de um erro, para sempre dar para escolher
@@ -12,14 +14,14 @@
  * alertas, uma frase neutra (que não interrompe o leitor de tela) ou, se o
  * ERP não respondeu por nenhum cliente, o aviso de indisponibilidade.
  */
-import { Fragment } from 'react';
-import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { descreverPrazo } from '@/lib/descreverPrazo';
-import type { Alertas } from '@/services/insights';
+import type { AlertaProducao, Alertas } from '@/services/insights';
 import { EstadoVazio } from '../../EstadoVazio';
 import { FiltroHorizonte } from '../../FiltroHorizonte';
 import { Aviso } from '../ui';
+import { AreaComBalao, GatilhoDoBalao, type ConteudoDoBalao } from './BalaoDoGrafico';
+import { TabelaAcessivel } from './TabelaAcessivel';
 
 type Props = {
   horizonteDias: number;
@@ -35,6 +37,13 @@ type Props = {
 
 function descreverClientes(quantidade: number): string {
   return `${quantidade} ${quantidade === 1 ? 'cliente' : 'clientes'}`;
+}
+
+function balaoDoAlerta({ evento, produto, clientes }: AlertaProducao): ConteudoDoBalao {
+  return {
+    titulo: `${produto.nome} — ${evento.nome} · ${descreverClientes(clientes.length)}`,
+    linhas: clientes.map((cliente) => ({ nome: cliente.nomeFantasia, detalhe: `(${cliente.quantidade})` })),
+  };
 }
 
 /** Falha parcial do ERP; para todos os clientes, a própria lista avisa. */
@@ -60,42 +69,49 @@ function ListaDeAlertas({ alertas }: { alertas: Alertas }) {
 
   const maior = Math.max(1, ...alertas.alertas.map(({ clientes }) => clientes.length));
 
-  // O `role="alert"` num invólucro: na própria `<ul>` ele tiraria o papel de lista.
+  // O `role="alert"` num invólucro: na própria `<ul>` ele tiraria o papel de lista. O balão e a tabela
+  // ficam fora dele, para abrir o balão não ser anunciado como alerta.
   return (
-    <div role="alert">
-      <ul className="space-y-4">
-        {alertas.alertas.map(({ evento, produto, clientes }) => (
-          <li key={`${evento.id}-${produto.sku}`}>
-            <p className="mb-1 text-sm">
-              <b className="font-medium">{produto.nome}</b> — {evento.nome} {descreverPrazo(evento.diasAteEvento)} —{' '}
-              {descreverClientes(clientes.length)}
-            </p>
-            <div aria-hidden="true" className="h-2 rounded-full bg-muted">
-              <div
-                data-testid="barra-alerta"
-                className="h-2 rounded-full bg-chart"
-                style={{ width: `${Math.round((clientes.length / maior) * 100)}%` }}
-              />
-            </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              Estoque baixo:{' '}
-              {clientes.map((cliente, indice) => (
-                <Fragment key={cliente.id}>
-                  {indice > 0 && ', '}
-                  <Link
-                    to={`/clientes/${cliente.id}`}
-                    className="font-medium text-primary underline underline-offset-2 hover:text-primary-hover"
-                  >
-                    {cliente.nomeFantasia}
-                  </Link>{' '}
-                  ({cliente.quantidade})
-                </Fragment>
-              ))}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <AreaComBalao>
+      <div role="alert">
+        <ul className="space-y-4">
+          {alertas.alertas.map((alerta) => {
+            const { evento, produto, clientes } = alerta;
+            const balao = balaoDoAlerta(alerta);
+            return (
+              <li key={`${evento.id}-${produto.sku}`}>
+                <p className="mb-1 text-sm">
+                  <b className="font-medium">{produto.nome}</b> — {evento.nome} {descreverPrazo(evento.diasAteEvento)}{' '}
+                  — {descreverClientes(clientes.length)}
+                </p>
+                <GatilhoDoBalao
+                  conteudo={balao}
+                  role="img"
+                  aria-label={balao.titulo}
+                  className="h-2 rounded-full bg-muted"
+                >
+                  <div
+                    data-testid="barra-alerta"
+                    className="h-2 rounded-full bg-chart"
+                    style={{ width: `${Math.round((clientes.length / maior) * 100)}%` }}
+                  />
+                </GatilhoDoBalao>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <TabelaAcessivel
+        legenda="Clientes com estoque baixo por alerta"
+        colunas={['Evento', 'Produto', 'Clientes']}
+        linhas={alertas.alertas.map(({ evento, produto, clientes }) => [
+          `${evento.nome} ${descreverPrazo(evento.diasAteEvento)}`,
+          produto.nome,
+          clientes.map((cliente) => `${cliente.nomeFantasia} (${cliente.quantidade})`).join(', '),
+        ])}
+      />
+    </AreaComBalao>
   );
 }
 

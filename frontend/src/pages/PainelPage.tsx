@@ -47,7 +47,7 @@ import { DistribuicaoPorCor } from '../components/crm/graficos/DistribuicaoPorCo
 import { MapaPorCidade } from '../components/crm/graficos/MapaPorCidade';
 import { Ranking } from '../components/crm/graficos/Ranking';
 import { ResultadoPorRepresentante } from '../components/crm/graficos/ResultadoPorRepresentante';
-import { RitmoSemanal } from '../components/crm/graficos/RitmoSemanal';
+import { RitmoDeVisitas } from '../components/crm/graficos/RitmoDeVisitas';
 import { VendasMensais } from '../components/crm/graficos/VendasMensais';
 import { MetasPanel } from '../components/crm/MetasPanel';
 import { Aviso, Cartao } from '../components/crm/ui';
@@ -102,9 +102,9 @@ function Atualizavel({ atualizando, children }: { atualizando: boolean; children
 
 /**
  * Os dois cartões que saem de `/dashboard/kpis/por-representante`: o
- * resultado das visitas por representante (no período) e o ritmo das 8
- * últimas semanas (independe do período). Uma consulta só; o erro é
- * anunciado uma vez, no primeiro cartão.
+ * resultado das visitas por representante e o ritmo de visitas, os dois no
+ * período escolhido (o ritmo por semana ou por mês, conforme o tamanho
+ * dele). Uma consulta só; o erro é anunciado uma vez, no primeiro cartão.
  */
 function CartoesDeVisitas({
   periodo,
@@ -136,13 +136,13 @@ function CartoesDeVisitas({
         </div>
       </Cartao>
 
-      <Cartao titulo="Ritmo de visitas — últimas 8 semanas">
+      <Cartao titulo="Ritmo de visitas no período">
         <div className="space-y-3">
           {isLoading && <Carregando>Carregando gráfico de visitas...</Carregando>}
           {mensagemDeErro && !data && <Aviso tom="erro">{mensagemDeErro}</Aviso>}
           {data && (
             <Atualizavel atualizando={isPlaceholderData}>
-              <RitmoSemanal semanas={data.ritmo.faixas} />
+              <RitmoDeVisitas ritmo={data.ritmo} />
             </Atualizavel>
           )}
         </div>
@@ -197,7 +197,11 @@ function CartaoClientesEsfriando({ periodo, representanteId, mostrarRepresentant
       {kpis && (
         <>
           <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Clientes ativos por cor, hoje</h3>
-          <DistribuicaoPorCor distribuicao={kpis.inativos.distribuicao} clientesAtivos={kpis.clientesAtivos} />
+          <DistribuicaoPorCor
+            distribuicao={kpis.inativos.distribuicao}
+            clientesAtivos={kpis.clientesAtivos}
+            clientes={clientes ?? []}
+          />
         </>
       )}
 

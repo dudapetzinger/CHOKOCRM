@@ -8,21 +8,28 @@
  * largura do cartão, para as letras ficarem no tamanho certo no celular.
  *
  * Cada bolha é um botão (foco pelo teclado, nome com a cidade, o número de
- * clientes e a situação mais urgente; `<title>` com os clientes): clique,
- * Enter ou espaço abrem a ficha do cliente mais urgente. As cidades fora da
- * tabela de municípios aparecem em texto embaixo do mapa.
+ * clientes e a situação mais urgente) que abre a ficha do cliente mais
+ * urgente. Hover, foco e toque abrem o balão (Etapa 9, spec 6.7, no lugar do
+ * `<title>` nativo) "Blumenau · 3 clientes" com os clientes da cidade e a
+ * situação de cada um, do mais urgente ao menos. Clique com o mouse, Enter e
+ * espaço abrem a ficha direto. No toque, como não há hover, o primeiro toque
+ * numa bolha só abre o balão (a bolha fica "armada"); o segundo toque na
+ * mesma bolha abre a ficha. Tocar outra bolha arma a outra; a bolha perder o
+ * foco (toque fora) desarma. As cidades fora da tabela de municípios
+ * aparecem em texto embaixo do mapa.
  *
  * Contraste do número dentro da bolha (texto pequeno, ≥ 4,5:1): branco só
  * no vermelho (4,7:1); no verde (4,8:1), no amarelo (8,8:1) e no laranja
  * (5,9:1), o texto escuro do app — branco ficaria em 3,4, 1,9 e 2,8:1.
  */
-import { useMemo, type KeyboardEvent } from 'react';
+import { useMemo, useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { agruparPorCidade, projetarCidades, type CidadeNoMapa } from '@/lib/mapa';
 import { useLarguraDoElemento } from '@/lib/useLarguraDoElemento';
 import { cn } from '@/lib/utils';
 import { ROTULO_COR, type ClienteListItem, type Cor } from '@/services/clients';
 import { EstadoVazio } from '../../EstadoVazio';
+import { AreaComBalao, GatilhoDoBalao, type ConteudoDoBalao } from './BalaoDoGrafico';
 
 const LARGURA_PADRAO = 520;
 const ALTURA_MINIMA = 220;
@@ -56,10 +63,21 @@ function descrever(cidade: CidadeNoMapa): string {
   return `${cidade.nome}: ${quantidade} ${quantidade === 1 ? 'cliente' : 'clientes'}, situação mais urgente ${cor}`;
 }
 
+function balaoDaCidade({ nome, clientes }: CidadeNoMapa): ConteudoDoBalao {
+  return {
+    titulo: `${nome} · ${clientes.length} ${clientes.length === 1 ? 'cliente' : 'clientes'}`,
+    linhas: clientes.map((cliente) => ({ nome: cliente.nomeFantasia, detalhe: ROTULO_COR[cliente.cor] })),
+  };
+}
+
 export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
   const navigate = useNavigate();
   const [refArea, largura] = useLarguraDoElemento<HTMLDivElement>(LARGURA_PADRAO);
   const { cidades, semCoordenadas } = useMemo(() => agruparPorCidade(clientes), [clientes]);
+  // O clique em andamento começou com o dedo (vale até o click que o encerra).
+  const cliqueDeToque = useRef(false);
+  // A cidade cujo balão o primeiro toque abriu: o próximo toque nela abre a ficha.
+  const cidadeArmada = useRef<string | null>(null);
 
   if (clientes.length === 0) {
     return <EstadoVazio icone="user">Nenhum cliente ativo para mostrar no mapa.</EstadoVazio>;
@@ -77,7 +95,28 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
     navigate(`/clientes/${cidade.clientes[0]!.id}`);
   }
 
-  function aoTeclar(evento: KeyboardEvent<SVGGElement>, cidade: CidadeNoMapa): void {
+  function aoApertar(evento: PointerEvent<Element>): void {
+    cliqueDeToque.current = evento.pointerType === 'touch';
+  }
+
+  /** Mouse (ou clique sem ponteiro) abre a ficha; no toque, só a bolha já armada. */
+  function aoClicar(cidade: CidadeNoMapa): void {
+    const deToque = cliqueDeToque.current;
+    cliqueDeToque.current = false;
+    if (deToque && cidadeArmada.current !== cidade.nome) {
+      // Sem `preventDefault`: o gatilho segue e abre o balão.
+      cidadeArmada.current = cidade.nome;
+      return;
+    }
+    cidadeArmada.current = null;
+    abrir(cidade);
+  }
+
+  function aoSairDaBolha(cidade: CidadeNoMapa): void {
+    if (cidadeArmada.current === cidade.nome) cidadeArmada.current = null;
+  }
+
+  function aoTeclar(evento: KeyboardEvent<Element>, cidade: CidadeNoMapa): void {
     if (evento.key === 'Enter' || evento.key === ' ') {
       evento.preventDefault();
       abrir(cidade);
@@ -85,7 +124,7 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
   }
 
   return (
-    <div className="space-y-2">
+    <AreaComBalao>
       <div ref={refArea}>
         {cidades.length > 0 && (
           <svg
@@ -100,16 +139,19 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
               const raio = raioDaBolha(cidade.clientes.length);
               const classes = CLASSES_BOLHA[cidade.clientes[0]!.cor];
               return (
-                <g
+                <GatilhoDoBalao
+                  as="g"
                   key={cidade.nome}
+                  conteudo={balaoDaCidade(cidade)}
                   role="button"
-                  tabIndex={0}
                   aria-label={descrever(cidade)}
+                  // O foco visível é o anel desenhado abaixo, não o contorno do gatilho.
                   className="group cursor-pointer focus:outline-none"
-                  onClick={() => abrir(cidade)}
+                  onPointerDown={aoApertar}
+                  onClick={() => aoClicar(cidade)}
                   onKeyDown={(evento) => aoTeclar(evento, cidade)}
+                  onBlur={() => aoSairDaBolha(cidade)}
                 >
-                  <title>{cidade.clientes.map((cliente) => cliente.nomeFantasia).join(', ')}</title>
                   <circle cx={ponto.x} cy={ponto.y} r={Math.max(raio, RAIO_DO_TOQUE)} fill="transparent" />
                   <circle
                     cx={ponto.x}
@@ -133,7 +175,7 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
                   >
                     {cidade.clientes.length}
                   </text>
-                </g>
+                </GatilhoDoBalao>
               );
             })}
             {/* Os nomes numa camada acima de todas as bolhas, para nenhuma bolha cobrir o nome da vizinha.
@@ -160,11 +202,11 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
       </div>
 
       {semCoordenadas.length > 0 && (
-        <p className="text-xs text-muted-foreground">Sem coordenadas: {semCoordenadas.join(', ')}.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Sem coordenadas: {semCoordenadas.join(', ')}.</p>
       )}
-      <p className="text-xs text-muted-foreground">
+      <p className="mt-2 text-xs text-muted-foreground">
         Tamanho = nº de clientes · cor = situação mais urgente da cidade. Clique para abrir.
       </p>
-    </div>
+    </AreaComBalao>
   );
 }

@@ -14,7 +14,9 @@
  *
  * Cada meta é um cartão (uma coluna no celular, duas a partir de 768 px)
  * com o representante, a periodicidade, o período e as barras de visitas e
- * de vendas, com o realizado calculado no backend. O formulário abre num
+ * de vendas, com o realizado calculado no backend; cada barra abre o balão
+ * (Etapa 9) com os clientes do realizado — as visitas de cada um e, nas
+ * vendas, só os que compraram, com o valor. O formulário abre num
  * cartão acima da lista, para criar e para editar: representante (os
  * ativos), periodicidade (semanal, mensal ou período personalizado; não
  * aparece na meta de campanha), início, fim (travado e calculado na semanal
@@ -32,6 +34,7 @@ import { useAuth } from '../../auth/useAuth';
 import { useMetas } from '../../hooks/useMetas';
 import { useRepresentantes } from '../../hooks/useRepresentantes';
 import { formatarDataCalendario } from '../../lib/formatarData';
+import { formatarMoeda } from '../../lib/formatarMoeda';
 import type { Periodo } from '../../lib/periodo';
 import { useFocoNoPrimeiroErro } from '../../lib/useFoco';
 import { mensagemErroApi } from '../../services/clients';
@@ -49,6 +52,7 @@ import {
 } from '../../services/goals';
 import { Segmentado, type Opcao } from '../Segmentado';
 import { BarraProgresso } from './BarraProgresso';
+import type { ConteudoDoBalao } from './graficos/BalaoDoGrafico';
 import { Aviso, Campo, CLASSES_BOTAO_PERIGO, CLASSES_SELECT, Etiqueta } from './ui';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar as metas.';
@@ -339,6 +343,29 @@ function FormularioMeta({
   );
 }
 
+/** "Visitas · 6 de 20" e os clientes visitados, com as visitas de cada um. */
+function balaoDeVisitas({ realizado, metaVisitas }: Meta): ConteudoDoBalao {
+  return {
+    titulo: `Visitas · ${realizado.visitas} de ${metaVisitas}`,
+    linhas: realizado.clientes
+      .filter(({ visitas }) => visitas > 0)
+      .map(({ nomeFantasia, visitas }) => ({
+        nome: nomeFantasia,
+        detalhe: `${visitas} ${visitas === 1 ? 'visita' : 'visitas'}`,
+      })),
+  };
+}
+
+/** "Vendas · R$ 4.200,00 de R$ 6.000,00" e só os clientes que compraram, com o valor. */
+function balaoDeVendas({ realizado, metaVendas }: Meta): ConteudoDoBalao {
+  return {
+    titulo: `Vendas · ${formatarMoeda(realizado.vendas)} de ${formatarMoeda(metaVendas)}`,
+    linhas: realizado.clientes
+      .filter(({ vendas }) => vendas > 0)
+      .map(({ nomeFantasia, vendas }) => ({ nome: nomeFantasia, detalhe: formatarMoeda(vendas) })),
+  };
+}
+
 function CartaoMeta({ meta, gestor, aoEditar }: { meta: Meta; gestor: boolean; aoEditar: (meta: Meta) => void }) {
   const queryClient = useQueryClient();
   const descricao = `${meta.representante.nome}, ${descreverPeriodo(meta)}`;
@@ -384,8 +411,19 @@ function CartaoMeta({ meta, gestor, aoEditar }: { meta: Meta; gestor: boolean; a
         )}
       </div>
       <p className="text-xs text-muted-foreground">{descreverPeriodo(meta)}</p>
-      <BarraProgresso rotulo="Visitas" real={meta.realizado.visitas} alvo={meta.metaVisitas} />
-      <BarraProgresso rotulo="Vendas" real={meta.realizado.vendas} alvo={meta.metaVendas} moeda />
+      <BarraProgresso
+        rotulo="Visitas"
+        real={meta.realizado.visitas}
+        alvo={meta.metaVisitas}
+        balao={balaoDeVisitas(meta)}
+      />
+      <BarraProgresso
+        rotulo="Vendas"
+        real={meta.realizado.vendas}
+        alvo={meta.metaVendas}
+        moeda
+        balao={balaoDeVendas(meta)}
+      />
     </li>
   );
 }

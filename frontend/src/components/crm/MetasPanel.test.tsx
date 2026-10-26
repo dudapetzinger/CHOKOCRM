@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthContext, type Role } from '../../auth/auth-context';
@@ -131,6 +131,39 @@ describe('MetasPanel — lista', () => {
     );
     expect(within(rafael).getByText('R$ 320,00 · sem meta')).toBeInTheDocument();
     expect(listarMetas).toHaveBeenCalledWith({ campanhaId: undefined, representanteId: undefined });
+  });
+
+  it('o balão das barras traz os clientes: visitas de cada um e, nas vendas, só os que compraram', async () => {
+    vi.mocked(listarMetas).mockResolvedValue([
+      {
+        ...OUTUBRO_EDUARDA,
+        realizado: {
+          visitas: 7,
+          vendas: 4200,
+          clientes: [
+            { id: 'c1', nomeFantasia: 'Doceria Aurora', visitas: 6, vendas: 4200 },
+            { id: 'c2', nomeFantasia: 'Café Central', visitas: 1, vendas: 0 },
+          ],
+        },
+      },
+    ]);
+    renderizar();
+    const cartao = await cartaoDe('Eduarda Fischer');
+
+    act(() => within(cartao).getByRole('progressbar', { name: 'Progresso de Visitas' }).focus());
+    let balao = screen.getByRole('tooltip');
+    expect(balao).toHaveTextContent('Visitas · 7 de 10');
+    expect(within(balao).getAllByRole('listitem').map((linha) => linha.textContent)).toEqual([
+      'Doceria Aurora · 6 visitas',
+      'Café Central · 1 visita',
+    ]);
+
+    act(() => within(cartao).getByRole('progressbar', { name: 'Progresso de Vendas' }).focus());
+    balao = screen.getByRole('tooltip');
+    expect(balao).toHaveTextContent('Vendas · R$ 4.200,00 de R$ 6.000,00');
+    const linhas = within(balao).getAllByRole('listitem');
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0]).toHaveTextContent('Doceria Aurora · R$ 4.200,00');
   });
 
   it('gestor com representante escolhido no Painel: busca só as dele', async () => {

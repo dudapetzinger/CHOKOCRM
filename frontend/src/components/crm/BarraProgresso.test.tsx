@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { BarraProgresso } from './BarraProgresso';
 
 describe('BarraProgresso', () => {
@@ -46,5 +46,31 @@ describe('BarraProgresso', () => {
 
     expect(screen.getByText('R$ 320,00 · sem meta')).toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+  });
+
+  it('com balão: focar a barra abre o balão com os clientes', () => {
+    render(
+      <BarraProgresso
+        rotulo="Visitas"
+        real={6}
+        alvo={20}
+        balao={{ titulo: 'Visitas · 6 de 20', linhas: [{ nome: 'Doceria Aurora', detalhe: '4 visitas' }] }}
+      />,
+    );
+
+    const barra = screen.getByRole('progressbar', { name: 'Progresso de Visitas' });
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    act(() => barra.focus());
+
+    const balao = screen.getByRole('tooltip');
+    expect(balao).toHaveTextContent('Visitas · 6 de 20');
+    expect(within(balao).getByRole('listitem')).toHaveTextContent('Doceria Aurora · 4 visitas');
+    expect(barra).toHaveAttribute('aria-valuetext', '6 de 20 · 30 %');
+  });
+
+  it('sem balão, a barra não é focável', () => {
+    render(<BarraProgresso rotulo="Visitas" real={6} alvo={20} />);
+
+    expect(screen.getByRole('progressbar')).not.toHaveAttribute('tabindex');
   });
 });

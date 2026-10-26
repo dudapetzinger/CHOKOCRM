@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { AlertaProducao, Alertas } from '@/services/insights';
@@ -73,7 +73,7 @@ describe('AlertasProducao', () => {
     expect(onHorizonteChange).toHaveBeenCalledWith(180);
   });
 
-  it('um item por alerta (produto, evento, prazo e clientes), barra proporcional ao maior e clientes com link', () => {
+  it('um item por alerta (produto, evento, prazo e clientes) e barra proporcional ao maior, sem a linha "Estoque baixo:"', () => {
     renderizar();
 
     const regiao = screen.getByRole('alert');
@@ -81,11 +81,47 @@ describe('AlertasProducao', () => {
     expect(itens).toHaveLength(2);
     expect(itens[0]).toHaveTextContent('Bombons sortidos — Natal em 72 dias — 2 clientes');
     expect(itens[1]).toHaveTextContent('Caixa presente — Natal em 72 dias — 1 cliente');
-    expect(screen.getByRole('link', { name: 'Café Blumenau' })).toHaveAttribute('href', '/clientes/c2');
-    expect(itens[0]).toHaveTextContent('Estoque baixo: Empório do Vale (0), Café Blumenau (4)');
+    // Os clientes ficam só no balão da barra (e na tabela acessível), sem links.
+    expect(screen.queryByText(/Estoque baixo:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
 
     const barras = screen.getAllByTestId('barra-alerta');
     expect(barras.map((barra) => barra.style.width)).toEqual(['100%', '50%']);
+  });
+
+  it('focar a barra abre o balão com os clientes de estoque baixo e a quantidade de cada um', () => {
+    renderizar();
+
+    const barra = screen.getByRole('img', { name: 'Bombons sortidos — Natal · 2 clientes' });
+    act(() => barra.focus());
+
+    const balao = screen.getByRole('tooltip');
+    expect(balao).toHaveTextContent('Bombons sortidos — Natal · 2 clientes');
+    expect(within(balao).getAllByRole('listitem').map((linha) => linha.textContent)).toEqual([
+      'Empório do Vale · (0)',
+      'Café Blumenau · (4)',
+    ]);
+    // O balão não fica dentro do `role="alert"`: abrir não é anunciado como alerta.
+    expect(within(screen.getByRole('alert')).queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Caixa presente — Natal · 1 cliente' })).toBeInTheDocument();
+  });
+
+  it('a tabela acessível lista evento, produto e a coluna Clientes', () => {
+    renderizar();
+
+    const tabela = screen.getByRole('table', { name: 'Clientes com estoque baixo por alerta' });
+    const linhas = within(tabela).getAllByRole('row');
+    expect(linhas).toHaveLength(3);
+    expect(within(linhas[0]).getAllByRole('columnheader').map((celula) => celula.textContent)).toEqual([
+      'Evento',
+      'Produto',
+      'Clientes',
+    ]);
+    expect(within(linhas[1]).getByRole('rowheader')).toHaveTextContent('Natal em 72 dias');
+    expect(within(linhas[1]).getAllByRole('cell').map((celula) => celula.textContent)).toEqual([
+      'Bombons sortidos',
+      'Empório do Vale (0), Café Blumenau (4)',
+    ]);
   });
 
   it('sem alertas, uma frase neutra que não interrompe o leitor de tela', () => {
@@ -117,6 +153,6 @@ describe('AlertasProducao', () => {
     renderizar({ erro: 'Você está sem internet.' });
 
     expect(screen.getAllByRole('alert')[0]).toHaveTextContent('Você está sem internet.');
-    expect(screen.getByText(/Bombons sortidos/)).toBeInTheDocument();
+    expect(within(screen.getByRole('list')).getByText('Bombons sortidos')).toBeInTheDocument();
   });
 });
