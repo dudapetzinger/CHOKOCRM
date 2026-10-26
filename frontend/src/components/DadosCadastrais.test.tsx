@@ -44,7 +44,9 @@ const cliente: ClienteCompleto = {
 };
 
 function renderizar() {
-  const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { mutations: { retry: false } },
+  });
   return render(
     <QueryClientProvider client={queryClient}>
       <DadosCadastrais cliente={cliente} />
@@ -54,32 +56,30 @@ function renderizar() {
 }
 
 describe('DadosCadastrais', () => {
-  it('começa fechado (sem o atributo open)', () => {
+  it('mostra os dois blocos abertos, sem recolher nada', () => {
     const { container } = renderizar();
 
-    const detalhes = container.querySelector('details');
-    expect(detalhes).toBeInTheDocument();
-    expect(detalhes).not.toHaveAttribute('open');
-    expect(screen.getByText('Dados cadastrais', { selector: 'summary' })).toBeInTheDocument();
+    expect(container.querySelector('details')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Dados do cliente' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Contatos' })).toBeVisible();
+    expect(screen.getByText('Marta Hoffmann')).toBeVisible();
   });
 
-  it('guarda dentro os dados, os contatos e as ações do cadastro', () => {
-    const { container } = renderizar();
-    const detalhes = container.querySelector('details')!;
+  it('traz os dados, os contatos e as ações do cadastro', () => {
+    renderizar();
 
-    expect(detalhes).toContainElement(screen.getByText('12.345.678/0001-99'));
-    expect(detalhes).toContainElement(screen.getByText('CNPJ'));
-    expect(detalhes).toContainElement(screen.getByText('Marta Hoffmann'));
-    expect(detalhes).toContainElement(screen.getByRole('button', { name: 'Editar dados', hidden: true }));
-    expect(detalhes).toContainElement(screen.getByRole('button', { name: 'Inativar cliente', hidden: true }));
-    expect(detalhes).toContainElement(screen.getByRole('button', { name: 'Adicionar contato', hidden: true }));
+    expect(screen.getByText('12.345.678/0001-99')).toBeInTheDocument();
+    expect(screen.getByText('CNPJ')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar dados' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Inativar cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Adicionar contato' })).toBeInTheDocument();
   });
 
   it('"Adicionar contato" abre o contato novo com o foco em "Nome"; Cancelar devolve o foco ao botão', async () => {
     const usuario = userEvent.setup({ delay: null });
     renderizar();
 
-    await usuario.click(screen.getByText('Dados cadastrais', { selector: 'summary' }));
     await usuario.click(screen.getByRole('button', { name: 'Adicionar contato' }));
     expect(screen.getByLabelText('Nome')).toHaveFocus();
 
@@ -93,7 +93,6 @@ describe('DadosCadastrais', () => {
     const usuario = userEvent.setup({ delay: null });
     renderizar();
 
-    await usuario.click(screen.getByText('Dados cadastrais', { selector: 'summary' }));
     await usuario.click(screen.getByRole('button', { name: 'Editar dados' }));
     await usuario.clear(screen.getByLabelText('Cidade'));
     await usuario.type(screen.getByLabelText('Cidade'), 'Rio Negrinho');

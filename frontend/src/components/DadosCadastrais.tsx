@@ -1,21 +1,20 @@
 /**
- * Dados cadastrais da ficha do cliente (Etapa 7, spec 5.5): o que antes
- * abria a ficha — "Dados do cliente" (com editar, inativar e reativar) e
- * "Contatos" (listar, adicionar, editar, tornar principal, remover) —
- * recolhido num `<details>` fechado por padrão no fim da página. Nada foi
- * removido, só agrupado.
+ * Dados cadastrais da ficha do cliente (Etapa 7, spec 5.5): "Dados do
+ * cliente" (com editar, inativar e reativar) e "Contatos" (listar, adicionar,
+ * editar, tornar principal, remover). Etapa 9: são o conteúdo da aba
+ * "Cadastro" da ficha, então os dois blocos aparecem direto, abertos, cada um
+ * num cartão, um embaixo do outro (antes ficavam recolhidos num `<details>`).
+ * A aba só monta quando está aberta, então uma edição em andamento se perde
+ * ao trocar de aba.
  *
  * Etapa 8 (visual do protótipo, `Cadastro` de `crm/ficha.tsx`): os dados
  * numa lista rótulo | valor, os contatos numa lista com bordas, os avisos de
  * sucesso em `toast` (com os mesmos textos de antes) e o contato novo pelo
  * formulário em linha `NovoContato`, o mesmo do cabeçalho da ficha.
- *
- * O conteúdo de um `<details>` fechado continua montado, então fechar o
- * grupo no meio de uma edição não descarta o que já foi digitado.
  */
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +39,7 @@ import {
 } from './ContatoFields';
 import { formatarData } from '../lib/formatarData';
 import { useDevolverFoco } from '../lib/useFoco';
-import { Aviso, Campo, CLASSES_BOTAO_PERIGO, Etiqueta } from './crm/ui';
+import { Aviso, Campo, Cartao, CLASSES_BOTAO_PERIGO, Etiqueta } from './crm/ui';
 import { NovoContato } from './crm/NovoContato';
 
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar as alterações.';
@@ -49,8 +48,6 @@ const MENSAGEM_ERRO_REATIVAR = 'Não foi possível reativar o cliente.';
 const MENSAGEM_ERRO_CONTATO = 'Não foi possível salvar o contato.';
 const MENSAGEM_ERRO_PROMOVER = 'Não foi possível promover o contato a principal.';
 const MENSAGEM_ERRO_REMOVER = 'Não foi possível remover o contato.';
-
-const CLASSES_SUBTITULO = 'mb-2 text-xs font-semibold text-muted-foreground uppercase';
 
 function formatarCnpj(cnpj: string): string {
   if (!/^\d{14}$/.test(cnpj)) return cnpj;
@@ -91,7 +88,12 @@ function dadosParaFormulario(cliente: {
 type CampoEditavel = Exclude<keyof DadosClienteFormulario, 'recorrenciaDias'>;
 
 /** Campos do formulário "Editar dados", na ordem da tela (a recorrência tem cartão próprio). */
-const CAMPOS_EDICAO: { campo: CampoEditavel; rotulo: string; tipo: 'text' | 'tel' | 'email'; cnpj?: true }[] = [
+const CAMPOS_EDICAO: {
+  campo: CampoEditavel;
+  rotulo: string;
+  tipo: 'text' | 'tel' | 'email';
+  cnpj?: true;
+}[] = [
   { campo: 'razaoSocial', rotulo: 'Razão social', tipo: 'text' },
   { campo: 'nomeFantasia', rotulo: 'Nome fantasia', tipo: 'text' },
   { campo: 'cnpj', rotulo: 'CNPJ', tipo: 'text', cnpj: true },
@@ -270,295 +272,280 @@ export function DadosCadastrais({ cliente }: Props) {
   ];
 
   return (
-    <details className="group @container rounded-xl border bg-card p-5">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md text-base font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 [&::-webkit-details-marker]:hidden">
-        Dados cadastrais
-        <ChevronDown aria-hidden="true" className="size-4 shrink-0 transition-transform group-open:rotate-180" />
-      </summary>
+    <div className="@container space-y-4">
+      <Cartao titulo="Dados do cliente" className="space-y-3">
+        <div className="space-y-1 text-sm text-muted-foreground">
+          <p>{formatarUltimaVisita(cliente.diasSemVisita)}</p>
+          {cliente.rebaixadoPorVenda && <p>Cor rebaixada: sem compra há {cliente.diasSemCompra} dias</p>}
+        </div>
 
-      <div className="mt-4 space-y-6">
-        <section aria-labelledby="titulo-dados-cliente" className="space-y-3">
-          <h2 id="titulo-dados-cliente" className={CLASSES_SUBTITULO}>
-            Dados do cliente
-          </h2>
+        {!cliente.ativo && <Aviso tom="atencao">Este cliente está inativo.</Aviso>}
 
-          <div className="space-y-1 text-sm text-muted-foreground">
-            <p>{formatarUltimaVisita(cliente.diasSemVisita)}</p>
-            {cliente.rebaixadoPorVenda && <p>Cor rebaixada: sem compra há {cliente.diasSemCompra} dias</p>}
-          </div>
+        {!modoEdicaoCliente && !confirmandoInativacao && (
+          <>
+            <dl className="grid grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-0.5 text-sm @sm:grid-cols-[8rem_minmax(0,1fr)] @sm:gap-y-2">
+              {dados.map(([rotulo, valor]) => (
+                <div key={rotulo} className="contents">
+                  <dt className="text-muted-foreground">{rotulo}</dt>
+                  <dd className="break-words @max-sm:mb-2">{valor}</dd>
+                </div>
+              ))}
+            </dl>
 
-          {!cliente.ativo && <Aviso tom="atencao">Este cliente está inativo.</Aviso>}
-
-          {!modoEdicaoCliente && !confirmandoInativacao && (
-            <>
-              <dl className="grid grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-0.5 text-sm @sm:grid-cols-[8rem_minmax(0,1fr)] @sm:gap-y-2">
-                {dados.map(([rotulo, valor]) => (
-                  <div key={rotulo} className="contents">
-                    <dt className="text-muted-foreground">{rotulo}</dt>
-                    <dd className="break-words @max-sm:mb-2">{valor}</dd>
-                  </div>
-                ))}
-              </dl>
-
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" size="sm" variant="outline" onClick={entrarModoEdicao}>
-                  Editar dados
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={entrarModoEdicao}>
+                Editar dados
+              </Button>
+              {cliente.ativo ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className={CLASSES_BOTAO_PERIGO}
+                  onClick={() => {
+                    setErroInativacaoEnvio(null);
+                    setConfirmandoInativacao(true);
+                  }}
+                >
+                  Inativar cliente
                 </Button>
-                {cliente.ativo ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className={CLASSES_BOTAO_PERIGO}
-                    onClick={() => {
-                      setErroInativacaoEnvio(null);
-                      setConfirmandoInativacao(true);
-                    }}
-                  >
-                    Inativar cliente
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setErroInativacaoEnvio(null);
-                      mutationReativar.mutate();
-                    }}
-                    disabled={mutationReativar.isPending}
-                  >
-                    {mutationReativar.isPending ? 'Reativando...' : 'Reativar cliente'}
-                  </Button>
-                )}
-              </div>
-              {!confirmandoInativacao && erroInativacaoEnvio && (
-                <Aviso tom="erro" role="alert">
-                  {erroInativacaoEnvio}
-                </Aviso>
-              )}
-            </>
-          )}
-
-          {confirmandoInativacao && (
-            <div className="space-y-3 rounded-lg border p-3 text-sm">
-              {erroInativacaoEnvio && (
-                <Aviso tom="erro" role="alert">
-                  {erroInativacaoEnvio}
-                </Aviso>
-              )}
-              <p>
-                Tem certeza que deseja inativar <strong>{cliente.nomeFantasia}</strong>? Ele deixará de aparecer na
-                listagem padrão de clientes.
-              </p>
-              <div className="flex flex-wrap gap-2">
+              ) : (
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    setConfirmandoInativacao(false);
                     setErroInativacaoEnvio(null);
+                    mutationReativar.mutate();
                   }}
-                  disabled={mutationInativar.isPending}
+                  disabled={mutationReativar.isPending}
                 >
-                  Cancelar
+                  {mutationReativar.isPending ? 'Reativando...' : 'Reativar cliente'}
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => mutationInativar.mutate()}
-                  disabled={mutationInativar.isPending}
-                >
-                  {mutationInativar.isPending ? 'Inativando...' : 'Confirmar inativação'}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {modoEdicaoCliente && (
-            <form onSubmit={handleSubmitEdicao} noValidate className="space-y-4">
-              {erroEdicaoEnvio && (
-                <Aviso tom="erro" role="alert">
-                  {erroEdicaoEnvio}
-                </Aviso>
               )}
+            </div>
+            {!confirmandoInativacao && erroInativacaoEnvio && (
+              <Aviso tom="erro" role="alert">
+                {erroInativacaoEnvio}
+              </Aviso>
+            )}
+          </>
+        )}
 
-              <div className="grid gap-3 @md:grid-cols-2">
-                {CAMPOS_EDICAO.map(({ campo, rotulo, tipo, cnpj }) => (
-                  <Campo key={campo} rotulo={rotulo} htmlFor={`edicao-${campo}`} erro={errosEdicao[campo]}>
-                    <Input
-                      type={tipo}
-                      id={`edicao-${campo}`}
-                      inputMode={cnpj ? 'numeric' : undefined}
-                      maxLength={cnpj ? 14 : undefined}
-                      value={dadosEdicao[campo]}
-                      onChange={(event) =>
-                        atualizarCampoEdicao(campo, cnpj ? event.target.value.replace(/\D/g, '') : event.target.value)
-                      }
+        {confirmandoInativacao && (
+          <div className="space-y-3 rounded-lg border p-3 text-sm">
+            {erroInativacaoEnvio && (
+              <Aviso tom="erro" role="alert">
+                {erroInativacaoEnvio}
+              </Aviso>
+            )}
+            <p>
+              Tem certeza que deseja inativar <strong>{cliente.nomeFantasia}</strong>? Ele deixará de aparecer na
+              listagem padrão de clientes.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setConfirmandoInativacao(false);
+                  setErroInativacaoEnvio(null);
+                }}
+                disabled={mutationInativar.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={() => mutationInativar.mutate()}
+                disabled={mutationInativar.isPending}
+              >
+                {mutationInativar.isPending ? 'Inativando...' : 'Confirmar inativação'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {modoEdicaoCliente && (
+          <form onSubmit={handleSubmitEdicao} noValidate className="space-y-4">
+            {erroEdicaoEnvio && (
+              <Aviso tom="erro" role="alert">
+                {erroEdicaoEnvio}
+              </Aviso>
+            )}
+
+            <div className="grid gap-3 @md:grid-cols-2">
+              {CAMPOS_EDICAO.map(({ campo, rotulo, tipo, cnpj }) => (
+                <Campo key={campo} rotulo={rotulo} htmlFor={`edicao-${campo}`} erro={errosEdicao[campo]}>
+                  <Input
+                    type={tipo}
+                    id={`edicao-${campo}`}
+                    inputMode={cnpj ? 'numeric' : undefined}
+                    maxLength={cnpj ? 14 : undefined}
+                    value={dadosEdicao[campo]}
+                    onChange={(event) =>
+                      atualizarCampoEdicao(campo, cnpj ? event.target.value.replace(/\D/g, '') : event.target.value)
+                    }
+                  />
+                </Campo>
+              ))}
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <Button type="button" variant="outline" onClick={cancelarEdicao} disabled={mutationEditar.isPending}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={mutationEditar.isPending}>
+                {mutationEditar.isPending ? 'Salvando...' : 'Salvar alterações'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Cartao>
+
+      <Cartao titulo="Contatos" className="space-y-3">
+        {erroAcaoContato && (
+          <Aviso tom="erro" role="alert">
+            {erroAcaoContato}
+          </Aviso>
+        )}
+
+        {cliente.contatos.length > 0 && (
+          <ul className="divide-y rounded-lg border text-sm">
+            {cliente.contatos.map((contato) =>
+              editandoContatoId === contato.id ? (
+                <li key={contato.id} className="p-3">
+                  <form onSubmit={(event) => handleSubmitContato(event, contato.id)} noValidate className="space-y-3">
+                    {erroContatoEnvio && (
+                      <Aviso tom="erro" role="alert">
+                        {erroContatoEnvio}
+                      </Aviso>
+                    )}
+                    <ContatoFields
+                      idPrefix={`editar-contato-${contato.id}`}
+                      legenda="Editar contato"
+                      value={valorContato}
+                      onChange={setValorContato}
+                      principalControl={{ tipo: 'checkbox' }}
+                      erro={erroContatoValidacao}
                     />
-                  </Campo>
-                ))}
-              </div>
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={fecharFormularioContato}
+                        disabled={mutationSalvarContato.isPending}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button type="submit" size="sm" disabled={mutationSalvarContato.isPending}>
+                        {mutationSalvarContato.isPending ? 'Salvando...' : 'Salvar contato'}
+                      </Button>
+                    </div>
+                  </form>
+                </li>
+              ) : (
+                <li key={contato.id} className="space-y-2 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      <b className="font-medium">{contato.nome}</b> · {contato.cargo}
+                    </span>
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      {contato.telefone}
+                      {contato.principal && <Etiqueta tom="laranja">Principal</Etiqueta>}
+                    </span>
+                  </div>
+                  <p className="break-words text-muted-foreground">{contato.email}</p>
 
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                <Button type="button" variant="outline" onClick={cancelarEdicao} disabled={mutationEditar.isPending}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={mutationEditar.isPending}>
-                  {mutationEditar.isPending ? 'Salvando...' : 'Salvar alterações'}
-                </Button>
-              </div>
-            </form>
-          )}
-        </section>
-
-        <section aria-labelledby="titulo-contatos" className="space-y-3">
-          <h2 id="titulo-contatos" className={CLASSES_SUBTITULO}>
-            Contatos
-          </h2>
-
-          {erroAcaoContato && (
-            <Aviso tom="erro" role="alert">
-              {erroAcaoContato}
-            </Aviso>
-          )}
-
-          {cliente.contatos.length > 0 && (
-            <ul className="divide-y rounded-lg border text-sm">
-              {cliente.contatos.map((contato) =>
-                editandoContatoId === contato.id ? (
-                  <li key={contato.id} className="p-3">
-                    <form onSubmit={(event) => handleSubmitContato(event, contato.id)} noValidate className="space-y-3">
-                      {erroContatoEnvio && (
-                        <Aviso tom="erro" role="alert">
-                          {erroContatoEnvio}
-                        </Aviso>
-                      )}
-                      <ContatoFields
-                        idPrefix={`editar-contato-${contato.id}`}
-                        legenda="Editar contato"
-                        value={valorContato}
-                        onChange={setValorContato}
-                        principalControl={{ tipo: 'checkbox' }}
-                        erro={erroContatoValidacao}
-                      />
-                      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                  {confirmandoRemocaoId === contato.id ? (
+                    <div className="space-y-2">
+                      <p>
+                        Remover o contato <strong>{contato.nome}</strong>?
+                      </p>
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
-                          onClick={fecharFormularioContato}
-                          disabled={mutationSalvarContato.isPending}
+                          onClick={() => setConfirmandoRemocaoId(null)}
+                          disabled={mutationRemoverContato.isPending}
                         >
                           Cancelar
                         </Button>
-                        <Button type="submit" size="sm" disabled={mutationSalvarContato.isPending}>
-                          {mutationSalvarContato.isPending ? 'Salvando...' : 'Salvar contato'}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => mutationRemoverContato.mutate(contato.id)}
+                          disabled={mutationRemoverContato.isPending}
+                        >
+                          {mutationRemoverContato.isPending ? 'Removendo...' : 'Confirmar remoção'}
                         </Button>
                       </div>
-                    </form>
-                  </li>
-                ) : (
-                  <li key={contato.id} className="space-y-2 p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span>
-                        <b className="font-medium">{contato.nome}</b> · {contato.cargo}
-                      </span>
-                      <span className="flex items-center gap-2 text-muted-foreground">
-                        {contato.telefone}
-                        {contato.principal && <Etiqueta tom="laranja">Principal</Etiqueta>}
-                      </span>
                     </div>
-                    <p className="break-words text-muted-foreground">{contato.email}</p>
-
-                    {confirmandoRemocaoId === contato.id ? (
-                      <div className="space-y-2">
-                        <p>
-                          Remover o contato <strong>{contato.nome}</strong>?
-                        </p>
-                        <div className="flex flex-wrap gap-2">
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" size="sm" variant="outline" onClick={() => abrirEditarContato(contato)}>
+                        Editar
+                      </Button>
+                      {!contato.principal && (
+                        <>
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
-                            onClick={() => setConfirmandoRemocaoId(null)}
-                            disabled={mutationRemoverContato.isPending}
+                            onClick={() => mutationPromoverContato.mutate(contato.id)}
+                            disabled={mutationPromoverContato.isPending}
                           >
-                            Cancelar
+                            Tornar principal
                           </Button>
                           <Button
                             type="button"
                             size="sm"
-                            variant="destructive"
-                            onClick={() => mutationRemoverContato.mutate(contato.id)}
-                            disabled={mutationRemoverContato.isPending}
+                            variant="ghost"
+                            className={CLASSES_BOTAO_PERIGO}
+                            onClick={() => setConfirmandoRemocaoId(contato.id)}
                           >
-                            {mutationRemoverContato.isPending ? 'Removendo...' : 'Confirmar remoção'}
+                            Remover
                           </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" size="sm" variant="outline" onClick={() => abrirEditarContato(contato)}>
-                          Editar
-                        </Button>
-                        {!contato.principal && (
-                          <>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => mutationPromoverContato.mutate(contato.id)}
-                              disabled={mutationPromoverContato.isPending}
-                            >
-                              Tornar principal
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className={CLASSES_BOTAO_PERIGO}
-                              onClick={() => setConfirmandoRemocaoId(contato.id)}
-                            >
-                              Remover
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                ),
-              )}
-            </ul>
-          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ),
+            )}
+          </ul>
+        )}
 
-          {adicionandoContato ? (
-            <NovoContato
-              clienteId={id}
-              aoConcluir={() => {
-                devolverFoco();
-                setAdicionandoContato(false);
-              }}
-            />
-          ) : (
-            <Button
-              ref={botaoAdicionarContato}
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                fecharFormularioContato();
-                setAdicionandoContato(true);
-              }}
-            >
-              <Plus aria-hidden="true" />
-              Adicionar contato
-            </Button>
-          )}
-        </section>
-      </div>
-    </details>
+        {adicionandoContato ? (
+          <NovoContato
+            clienteId={id}
+            aoConcluir={() => {
+              devolverFoco();
+              setAdicionandoContato(false);
+            }}
+          />
+        ) : (
+          <Button
+            ref={botaoAdicionarContato}
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              fecharFormularioContato();
+              setAdicionandoContato(true);
+            }}
+          >
+            <Plus aria-hidden="true" />
+            Adicionar contato
+          </Button>
+        )}
+      </Cartao>
+    </div>
   );
 }
