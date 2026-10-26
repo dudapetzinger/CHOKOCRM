@@ -88,7 +88,9 @@ describe('LembreteRow', () => {
 
   it('"Concluir" aparece só quando podeConcluir', () => {
     const { unmount } = renderizar({ podeConcluir: true });
-    expect(screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto' })).toHaveTextContent('Concluir');
+    expect(
+      screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto: Levar amostras de Natal' }),
+    ).toHaveTextContent('Concluir');
     unmount();
 
     renderizar({ podeConcluir: false });
@@ -100,7 +102,7 @@ describe('LembreteRow', () => {
     const usuario = userEvent.setup();
     renderizar({ podeConcluir: true });
 
-    await usuario.click(screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto' }));
+    await usuario.click(screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto: Levar amostras de Natal' }));
 
     expect(concluirLembrete).toHaveBeenCalledWith('l1');
     expect(await screen.findByText('Lembrete concluído')).toBeInTheDocument();
@@ -111,7 +113,7 @@ describe('LembreteRow', () => {
     const usuario = userEvent.setup();
     renderizar({ podeConcluir: true });
 
-    const botao = screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto' });
+    const botao = screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto: Levar amostras de Natal' });
     await usuario.click(botao);
     expect(await screen.findByText('Lembrete concluído')).toBeInTheDocument();
 
@@ -125,7 +127,7 @@ describe('LembreteRow', () => {
     const usuario = userEvent.setup();
     renderizar({ podeConcluir: true });
 
-    await usuario.click(screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto' }));
+    await usuario.click(screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto: Levar amostras de Natal' }));
 
     expect(await screen.findByText('Lembrete já concluído.')).toBeInTheDocument();
   });
@@ -135,7 +137,7 @@ describe('LembreteRow', () => {
     const usuario = userEvent.setup();
     renderizar({ podeConcluir: true });
 
-    const botao = screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto' });
+    const botao = screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto: Levar amostras de Natal' });
     await usuario.click(botao);
 
     expect(botao).toBeDisabled();

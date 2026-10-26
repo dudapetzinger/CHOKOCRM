@@ -419,7 +419,8 @@ export function CheckInPage() {
           </div>
 
           <div className="space-y-1.5">
-            <div className="grid gap-4 sm:grid-cols-2">
+            {/* A mesma largura de uma coluna da grade do lembrete, abaixo. */}
+            <div className="sm:w-[calc(50%-0.5rem)]">
               <Campo rotulo="Próxima visita" htmlFor="checkin-proxima-visita" erro={erros.proximaVisita}>
                 <Input
                   id="checkin-proxima-visita"
@@ -430,6 +431,8 @@ export function CheckInPage() {
                   onChange={(e) => {
                     setProximaVisitaEditada(e.target.value);
                     limparErro('proximaVisita');
+                    // "Para quando" segue esta data enquanto não for editado: a data que faltava chegou.
+                    if (lembreteDataEditada === null) limparErro('lembrete');
                   }}
                 />
               </Campo>

@@ -167,6 +167,15 @@ describe('ClienteDetalhePage', () => {
     expect(aviso).toHaveTextContent('Campanha: Natal Chokolaten');
   });
 
+  it('falha ao carregar os lembretes vira um aviso na ficha, e a ficha continua', async () => {
+    vi.mocked(getCliente).mockResolvedValue(FICHA);
+    vi.mocked(listarLembretesDoCliente).mockRejectedValue(new ApiError('INTERNAL', 'Erro interno do servidor.'));
+    renderizar();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível carregar os lembretes do cliente.');
+    expect(screen.getByRole('heading', { name: 'Doces da Vovó' })).toBeInTheDocument();
+  });
+
   it('o aviso mostra os lembretes abertos do cliente, com "Concluir" para o representante', async () => {
     vi.mocked(getCliente).mockResolvedValue(FICHA);
     vi.mocked(listarLembretesDoCliente).mockResolvedValue([LEMBRETE]);

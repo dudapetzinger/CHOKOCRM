@@ -1,20 +1,19 @@
 /**
  * Dados cadastrais da ficha do cliente (Etapa 7, spec 5.5): "Dados do
- * cliente" (com editar, inativar e reativar) e "Contatos" (listar, adicionar,
- * editar, tornar principal, remover). Etapa 9: são o conteúdo da aba
+ * cliente" (com editar, inativar e reativar) e "Contatos" (listar, editar,
+ * tornar principal, remover; adicionar fica só no cabeçalho da ficha, que
+ * está sempre à vista — Etapa 10). Etapa 9: são o conteúdo da aba
  * "Cadastro" da ficha, então os dois blocos aparecem direto, abertos, cada um
  * num cartão, um embaixo do outro (antes ficavam recolhidos num `<details>`).
  * A aba só monta quando está aberta, então uma edição em andamento se perde
  * ao trocar de aba.
  *
  * Etapa 8 (visual do protótipo, `Cadastro` de `crm/ficha.tsx`): os dados
- * numa lista rótulo | valor, os contatos numa lista com bordas, os avisos de
- * sucesso em `toast` (com os mesmos textos de antes) e o contato novo pelo
- * formulário em linha `NovoContato`, o mesmo do cabeçalho da ficha.
+ * numa lista rótulo | valor, os contatos numa lista com bordas e os avisos de
+ * sucesso em `toast` (com os mesmos textos de antes).
  */
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,9 +37,7 @@ import {
   type ContatoFormValue,
 } from './ContatoFields';
 import { formatarData } from '../lib/formatarData';
-import { useDevolverFoco } from '../lib/useFoco';
 import { Aviso, Campo, Cartao, CLASSES_BOTAO_PERIGO, Etiqueta } from './crm/ui';
-import { NovoContato } from './crm/NovoContato';
 
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar as alterações.';
 const MENSAGEM_ERRO_INATIVAR = 'Não foi possível inativar o cliente.';
@@ -120,8 +117,6 @@ export function DadosCadastrais({ cliente }: Props) {
   const [confirmandoInativacao, setConfirmandoInativacao] = useState(false);
   const [erroInativacaoEnvio, setErroInativacaoEnvio] = useState<string | null>(null);
 
-  const [adicionandoContato, setAdicionandoContato] = useState(false);
-  const { ref: botaoAdicionarContato, devolverFoco } = useDevolverFoco<HTMLButtonElement>(adicionandoContato);
   const [editandoContatoId, setEditandoContatoId] = useState<string | null>(null);
   const [valorContato, setValorContato] = useState<ContatoFormValue>(contatoFormularioVazio(false));
   const [erroContatoValidacao, setErroContatoValidacao] = useState<string | null>(null);
@@ -230,7 +225,6 @@ export function DadosCadastrais({ cliente }: Props) {
   }
 
   function abrirEditarContato(contato: Contato): void {
-    setAdicionandoContato(false);
     setEditandoContatoId(contato.id);
     setValorContato({
       nome: contato.nome,
@@ -520,30 +514,6 @@ export function DadosCadastrais({ cliente }: Props) {
               ),
             )}
           </ul>
-        )}
-
-        {adicionandoContato ? (
-          <NovoContato
-            clienteId={id}
-            aoConcluir={() => {
-              devolverFoco();
-              setAdicionandoContato(false);
-            }}
-          />
-        ) : (
-          <Button
-            ref={botaoAdicionarContato}
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              fecharFormularioContato();
-              setAdicionandoContato(true);
-            }}
-          >
-            <Plus aria-hidden="true" />
-            Adicionar contato
-          </Button>
         )}
       </Cartao>
     </div>

@@ -69,7 +69,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
   const fotoNaoEnviada = (location.state as { avisoFoto?: string } | null)?.avisoFoto === 'nao-enviada';
 
   const { data: visitas } = useVisitas(id);
-  const { data: lembretes } = useLembretesDoCliente(id);
+  const { data: lembretes, isError: erroNosLembretes } = useLembretesDoCliente(id);
   const mutationEditarDescricao = useEditarDescricaoVisita(id);
   const mutationAnexarFoto = useAnexarFotoVisita(id);
 
@@ -138,6 +138,12 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
 
       {ehRepresentante && !cliente.ativo && (
         <p className="text-sm text-muted-foreground">Cliente inativo não recebe check-in novo.</p>
+      )}
+
+      {erroNosLembretes && (
+        <Aviso tom="erro" role="alert">
+          Não foi possível carregar os lembretes do cliente.
+        </Aviso>
       )}
 
       {/* Some sozinho sem data, lembrete nem campanha */}

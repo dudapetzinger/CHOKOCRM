@@ -17,7 +17,7 @@ import { CalendarClock } from 'lucide-react';
 import { formatarDataCalendario } from '@/lib/formatarData';
 import { descreverPrazoDoLembrete } from '@/lib/descreverPrazo';
 import type { LembreteItem } from '@/services/lembretes';
-import { BotaoConcluirLembrete } from '../LembreteRow';
+import { BotaoConcluirLembrete } from '../BotaoConcluirLembrete';
 import { EtiquetaCampanha } from './EtiquetaCampanha';
 
 type Props = {

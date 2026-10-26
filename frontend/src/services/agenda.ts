@@ -60,7 +60,7 @@ export type ItemCalendario = {
   /** Nome do cliente, da campanha ou do evento. */
   titulo: string;
   clienteId?: string;
-  /** Só no lembrete: o id dele, para concluir direto do painel do dia. */
+  /** Só no lembrete: o id dele, que separa visita e lembrete do mesmo cliente no dia (concluir fica na agenda do dia e na ficha). */
   lembreteId?: string;
   /** Só no lembrete: o texto. */
   texto?: string;

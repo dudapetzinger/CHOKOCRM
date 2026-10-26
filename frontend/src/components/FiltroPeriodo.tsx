@@ -21,6 +21,7 @@ import { useId, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { hojeEmSaoPaulo } from '../lib/calendario';
 import {
+  chaveDoPeriodo,
   diasDaFaixa,
   ehPersonalizado,
   LIMITE_DIAS_DO_PAINEL,
@@ -89,6 +90,15 @@ export function FiltroPeriodo({ valor, onChange, onPeriodoDaPlanilha, className 
   const datas = rascunho ?? (ehPersonalizado(valor) ? datasDaJanela(valor, hoje) : null);
   // "Informe as duas datas." só depois de a pessoa mexer: ao abrir, os campos já vêm preenchidos.
   const [editou, setEditou] = useState(false);
+  // `valor` trocado por fora (outro período no Painel): o rascunho e o "editou" recomeçam, para o filtro
+  // seguir o período novo sem o aviso de uma edição antiga.
+  const chave = chaveDoPeriodo(valor);
+  const [chaveAnterior, setChaveAnterior] = useState(chave);
+  if (chave !== chaveAnterior) {
+    setChaveAnterior(chave);
+    setRascunho(null);
+    setEditou(false);
+  }
   const erros = datas ? errosDasDatas(datas, hoje, editou) : { de: undefined, ate: undefined };
   const acimaDoLimite =
     datas !== null &&

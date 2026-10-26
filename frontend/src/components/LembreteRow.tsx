@@ -4,8 +4,10 @@
  * texto do lembrete, "cidade · Lembrete venceu há N dias (dd/mm)" ou
  * "Lembrete para hoje" (`descreverPrazoDoLembrete`) e, para o gestor com o
  * seletor em "Todos", "Rep.: Nome". Com `podeConcluir`, o botão "Concluir"
- * (`BotaoConcluirLembrete`) conclui o lembrete; a agenda é recarregada e a
- * linha some. É um `<li>`: quem usa a põe dentro de uma lista.
+ * (`BotaoConcluirLembrete`, com o cliente e o texto no nome acessível: dois
+ * lembretes do mesmo cliente têm nomes diferentes) conclui o lembrete; a
+ * agenda é recarregada e a linha some. É um `<li>`: quem usa a põe dentro de
+ * uma lista.
  *
  * Como em `AgendaItemRow`, link e botão são irmãos, ambos com 44 px de altura
  * abaixo de 768 px (o bloco tem `min-h-11`; o `Button` já garante); com
@@ -13,45 +15,10 @@
  * desce para baixo dos textos.
  */
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { useConcluirLembrete } from '../hooks/useLembretes';
 import { descreverPrazoDoLembrete } from '../lib/descreverPrazo';
 import type { LembreteItem } from '../services/lembretes';
+import { BotaoConcluirLembrete } from './BotaoConcluirLembrete';
 import { Avatar } from './crm/ui';
-
-/**
- * "Concluir" de um lembrete, desabilitado enquanto conclui e depois de
- * concluir, até a lista recarregada tirar a linha: um segundo toque não
- * repete o pedido (que daria "Lembrete já concluído."). O nome acessível
- * (`rotulo`) diz qual lembrete, porque costuma haver vários botões iguais na
- * tela; o sucesso e o erro vêm num toast (`useConcluirLembrete`).
- */
-export function BotaoConcluirLembrete({
-  lembreteId,
-  rotulo,
-  className,
-}: {
-  lembreteId: string;
-  rotulo: string;
-  className?: string;
-}) {
-  const concluir = useConcluirLembrete();
-
-  return (
-    <Button
-      type="button"
-      size="sm"
-      variant="outline"
-      aria-label={rotulo}
-      disabled={concluir.isPending || concluir.isSuccess}
-      onClick={() => concluir.mutate(lembreteId)}
-      className={cn('shrink-0', className)}
-    >
-      Concluir
-    </Button>
-  );
-}
 
 type Props = {
   lembrete: LembreteItem;
@@ -82,7 +49,7 @@ export function LembreteRow({ lembrete, podeConcluir, mostrarRepresentante }: Pr
         {podeConcluir && (
           <BotaoConcluirLembrete
             lembreteId={lembrete.id}
-            rotulo={`Concluir lembrete de ${lembrete.nomeFantasia}`}
+            rotulo={`Concluir lembrete de ${lembrete.nomeFantasia}: ${lembrete.texto}`}
             className="ml-13 @[18rem]:ml-0"
           />
         )}

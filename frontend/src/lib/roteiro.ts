@@ -61,7 +61,8 @@ function distanciaKm([lat1, lng1]: Coordenada, [lat2, lng2]: Coordenada): number
 
 /**
  * Monta o roteiro com as `limite` primeiras paradas, na ordem de urgência em
- * que chegam (atrasadas, depois hoje). A primeira com cidade conhecida fica
+ * que chegam (as visitas de hoje da agenda do dia, da cor mais urgente para a
+ * menos; as atrasadas ficam fora). A primeira com cidade conhecida fica
  * fixa como parada 1 (a mais urgente; não há ponto de saída fixo); dali em
  * diante, sempre a mais próxima da anterior (vizinho mais próximo; no
  * empate, a mais urgente) — por isso as da mesma cidade (distância 0) ficam

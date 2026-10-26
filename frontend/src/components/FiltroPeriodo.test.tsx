@@ -150,6 +150,40 @@ describe('FiltroPeriodo', () => {
     expect(onPeriodoDaPlanilha).toHaveBeenLastCalledWith({ dias: 30 });
   });
 
+  it('apagar o "Até" mostra "Informe as duas datas." junto do campo e não troca o período do Painel', async () => {
+    const { onChange, onPeriodoDaPlanilha } = renderizar();
+    await abrirPersonalizado();
+
+    mudarData('Até', '');
+
+    expect(screen.getByLabelText('Até')).toHaveAccessibleDescription('Informe as duas datas.');
+    expect(screen.getByLabelText('Até')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('De')).not.toHaveAttribute('aria-invalid');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onPeriodoDaPlanilha).toHaveBeenLastCalledWith({ dias: 30 });
+  });
+
+  it('o `valor` trocado por fora segue o período novo e esquece a edição (sem "Informe as duas datas.")', async () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<FiltroPeriodo valor={{ dias: 30 }} onChange={onChange} />);
+    await abrirPersonalizado();
+    mudarData('De', '');
+    expect(screen.getByText('Informe as duas datas.')).toBeInTheDocument();
+
+    rerender(<FiltroPeriodo valor={{ dias: 90 }} onChange={onChange} />);
+
+    expect(screen.getByRole('radio', { name: '90 dias' })).toBeChecked();
+    expect(screen.queryByLabelText('De')).not.toBeInTheDocument();
+
+    rerender(<FiltroPeriodo valor={{ inicio: '2026-10-01', fim: '2026-10-20' }} onChange={onChange} />);
+
+    expect(screen.getByRole('radio', { name: 'Personalizado' })).toBeChecked();
+    expect(screen.getByLabelText('De')).toHaveValue('2026-10-01');
+    expect(screen.getByLabelText('Até')).toHaveValue('2026-10-20');
+    expect(screen.queryByText('Informe as duas datas.')).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('ao abrir "Personalizado" não há nenhum aviso: os campos já vêm preenchidos', async () => {
     renderizar();
 

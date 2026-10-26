@@ -333,7 +333,7 @@ describe('AgendaPage — lembretes', () => {
     await screen.findByRole('region', { name: 'Lembretes · 2' });
 
     prepararResposta({ hoje: [HOJE], lembretes: [LEMBRETE_DE_HOJE] });
-    await usuario.click(screen.getByRole('button', { name: 'Concluir lembrete de Bombons & Cia' }));
+    await usuario.click(screen.getByRole('button', { name: 'Concluir lembrete de Bombons & Cia: Levar amostras de Natal' }));
 
     expect(concluirLembrete).toHaveBeenCalledWith('l1');
     const lembretes = await screen.findByRole('region', { name: 'Lembretes · 1' });
@@ -353,7 +353,7 @@ describe('AgendaPage — lembretes', () => {
 
     const lembretes = within(await screen.findByRole('region', { name: 'Lembretes · 1' }));
     expect(lembretes.getByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
-    expect(lembretes.getByRole('button', { name: 'Concluir lembrete de Bombons & Cia' })).toBeInTheDocument();
+    expect(lembretes.getByRole('button', { name: 'Concluir lembrete de Bombons & Cia: Levar amostras de Natal' })).toBeInTheDocument();
   });
 
   it('no desktop, "Lembretes" vem na largura toda, depois das duas colunas e antes de "Próximos 7 dias"', async () => {

@@ -73,19 +73,8 @@ describe('DadosCadastrais', () => {
     expect(screen.getByText('CNPJ')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Editar dados' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Inativar cliente' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Adicionar contato' })).toBeInTheDocument();
-  });
-
-  it('"Adicionar contato" abre o contato novo com o foco em "Nome"; Cancelar devolve o foco ao botão', async () => {
-    const usuario = userEvent.setup({ delay: null });
-    renderizar();
-
-    await usuario.click(screen.getByRole('button', { name: 'Adicionar contato' }));
-    expect(screen.getByLabelText('Nome')).toHaveFocus();
-
-    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
-    expect(screen.queryByRole('group', { name: 'Novo contato' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Adicionar contato' })).toHaveFocus();
+    // "Adicionar contato" fica só no cabeçalho da ficha (Etapa 10), que está sempre à vista.
+    expect(screen.queryByRole('button', { name: 'Adicionar contato' })).not.toBeInTheDocument();
   });
 
   it('salvar a edição dos dados avisa "Dados do cliente atualizados." num toast', async () => {

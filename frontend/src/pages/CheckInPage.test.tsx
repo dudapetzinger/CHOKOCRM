@@ -561,6 +561,22 @@ describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
     expect(registrarCheckIn).not.toHaveBeenCalled();
   });
 
+  it('preencher a próxima visita depois do erro "Informe a data do lembrete." limpa o erro (a data segue a próxima visita)', async () => {
+    renderizar();
+    await esperarCliente();
+    preencher(screen.getByLabelText('Próxima visita'), '');
+    preencher(screen.getByLabelText('Lembrete (opcional)'), 'Levar amostras');
+    await salvarComDescricao();
+    const paraQuando = screen.getByLabelText('Para quando');
+    expect(paraQuando).toHaveAttribute('aria-invalid', 'true');
+
+    preencher(screen.getByLabelText('Próxima visita'), '2026-11-05');
+
+    expect(paraQuando).toHaveValue('2026-11-05');
+    expect(paraQuando).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByText('Informe a data do lembrete.')).not.toBeInTheDocument();
+  });
+
   it('lembrete com data antes de hoje mostra o erro e não envia', async () => {
     renderizar();
     await esperarCliente();
