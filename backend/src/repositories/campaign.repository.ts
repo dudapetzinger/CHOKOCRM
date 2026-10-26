@@ -49,8 +49,8 @@ export async function remove(id: string): Promise<void> {
 }
 
 /**
- * Visitas vinculadas às campanhas, com o autor e o pedido, para as vendas
- * vinculadas. Com `campanhaId`, só as daquela campanha; com `autorId`, só
+ * Visitas vinculadas às campanhas, com o autor, o cliente e o pedido (SKU e
+ * nome gravados), para os resultados e os produtos mais vendidos. Com `campanhaId`, só as daquela campanha; com `autorId`, só
  * as daquele autor (o representante vê só a própria linha).
  */
 export async function listarVisitasVinculadas(
@@ -63,9 +63,10 @@ export async function listarVisitasVinculadas(
     },
     select: {
       campanhaId: true,
+      clientId: true,
       resultado: true,
       user: { select: { id: true, nome: true } },
-      itens: { select: { quantidade: true, precoUnitario: true } },
+      itens: { select: { sku: true, produtoNome: true, quantidade: true, precoUnitario: true } },
     },
   });
 

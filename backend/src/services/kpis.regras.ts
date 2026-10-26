@@ -16,7 +16,7 @@ export type DistribuicaoPorCor = Record<Cor, number>;
 /** `percentual` é inteiro arredondado; `null` quando o denominador é 0. */
 export type Proporcao = { numerador: number; denominador: number; percentual: number | null };
 
-function proporcao(numerador: number, denominador: number): Proporcao {
+export function proporcao(numerador: number, denominador: number): Proporcao {
   return {
     numerador,
     denominador,

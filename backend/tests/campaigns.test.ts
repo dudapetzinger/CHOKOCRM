@@ -110,6 +110,17 @@ async function criarVisita(params: {
   return visita.id;
 }
 
+/** Linha de resultado sem visita vinculada: tudo zerado e conversão sem percentual. */
+function linhaZerada(representante: { id: string; nome: string }) {
+  return {
+    representante,
+    vendas: 0,
+    visitas: 0,
+    clientesAtendidos: 0,
+    conversao: { numerador: 0, denominador: 0, percentual: null },
+  };
+}
+
 /** Detalhes do erro de validação do zod: `{ path, message }[]`. */
 function mensagensDoErro(res: request.Response): string[] {
   return (res.body.error.details ?? []).map((detalhe: { message: string }) => detalhe.message);
@@ -162,9 +173,10 @@ describe('POST /campaigns', () => {
       ],
       status: 'EM_ANDAMENTO',
       resultados: [
-        { representante: { id: eduardaId, nome: 'Eduarda Fischer' }, vendas: 0, visitas: 0 },
-        { representante: { id: rafaelId, nome: 'Rafael Schmitt' }, vendas: 0, visitas: 0 },
+        linhaZerada({ id: eduardaId, nome: 'Eduarda Fischer' }),
+        linhaZerada({ id: rafaelId, nome: 'Rafael Schmitt' }),
       ],
+      produtosMaisVendidos: [],
     });
 
     const gravada = await prisma.campaign.findUniqueOrThrow({ where: { id: res.body.id } });
@@ -349,15 +361,111 @@ describe('GET /campaigns', () => {
 
     const campanhaNatal = res.body.data.find((c: { id: string }) => c.id === natal);
     expect(campanhaNatal.resultados).toEqual([
-      { representante: { id: anaId, nome: 'Ana Souza' }, vendas: 0, visitas: 1 },
-      { representante: { id: eduardaId, nome: 'Eduarda Fischer' }, vendas: 503.7, visitas: 2 },
-      { representante: { id: rafaelId, nome: 'Rafael Schmitt' }, vendas: 96, visitas: 1 },
+      {
+        representante: { id: anaId, nome: 'Ana Souza' },
+        vendas: 0,
+        visitas: 1,
+        clientesAtendidos: 1,
+        conversao: { numerador: 0, denominador: 1, percentual: 0 },
+      },
+      {
+        representante: { id: eduardaId, nome: 'Eduarda Fischer' },
+        vendas: 503.7,
+        visitas: 2,
+        clientesAtendidos: 1,
+        conversao: { numerador: 1, denominador: 2, percentual: 50 },
+      },
+      {
+        representante: { id: rafaelId, nome: 'Rafael Schmitt' },
+        vendas: 96,
+        visitas: 1,
+        clientesAtendidos: 1,
+        conversao: { numerador: 1, denominador: 1, percentual: 100 },
+      },
     ]);
     const campanhaOutra = res.body.data.find((c: { id: string }) => c.id === outra);
     expect(campanhaOutra.resultados).toEqual([
-      { representante: { id: eduardaId, nome: 'Eduarda Fischer' }, vendas: 90, visitas: 1 },
-      { representante: { id: rafaelId, nome: 'Rafael Schmitt' }, vendas: 0, visitas: 0 },
+      {
+        representante: { id: eduardaId, nome: 'Eduarda Fischer' },
+        vendas: 90,
+        visitas: 1,
+        clientesAtendidos: 1,
+        conversao: { numerador: 1, denominador: 1, percentual: 100 },
+      },
+      linhaZerada({ id: rafaelId, nome: 'Rafael Schmitt' }),
     ]);
+  });
+
+  it('produtos mais vendidos: só visitas VENDA da campanha, mesmo SKU somado entre representantes, no máximo 5', async () => {
+    const natal = (await criarCampanha()).body.id as string;
+    const outra = (await criarCampanha({ nome: 'Black Friday do Cacau' })).body.id as string;
+
+    await criarVisita({
+      clientId: clienteDaEduardaId,
+      userId: eduardaId,
+      campanhaId: natal,
+      resultado: 'VENDA',
+      itens: [
+        { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
+        { sku: 'PAO-MEL', produtoNome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
+        { sku: 'BARRA-70', produtoNome: 'Barra de chocolate 70% cacau', quantidade: 2, precoUnitario: 18 },
+      ],
+    });
+    await criarVisita({
+      clientId: clienteDoRafaelId,
+      userId: rafaelId,
+      campanhaId: natal,
+      resultado: 'VENDA',
+      itens: [
+        { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 5, precoUnitario: 42 },
+        { sku: 'CX-PRESENTE', produtoNome: 'Caixa presente sortida', quantidade: 4, precoUnitario: 48 },
+        { sku: 'TRUF-70', produtoNome: 'Trufas 70% cacau', quantidade: 1, precoUnitario: 30 },
+        { sku: 'TRUF-LEITE', produtoNome: 'Trufas ao leite', quantidade: 6, precoUnitario: 28 },
+      ],
+    });
+    // Não entram: pedido de negociação e visita de outra campanha
+    await criarVisita({
+      clientId: clienteDaEduardaId,
+      userId: eduardaId,
+      campanhaId: natal,
+      resultado: 'NEGOCIACAO',
+      itens: [{ sku: 'BARRA-70', produtoNome: 'Barra de chocolate 70% cacau', quantidade: 500, precoUnitario: 18 }],
+    });
+    await criarVisita({
+      clientId: clienteDaEduardaId,
+      userId: eduardaId,
+      campanhaId: outra,
+      resultado: 'VENDA',
+      itens: [{ sku: 'BARRA-70', produtoNome: 'Barra de chocolate 70% cacau', quantidade: 7, precoUnitario: 18 }],
+    });
+
+    const res = await autenticado(request(app).get('/campaigns'), tokenGestor);
+
+    const campanhaNatal = res.body.data.find((c: { id: string }) => c.id === natal);
+    expect(campanhaNatal.produtosMaisVendidos).toEqual([
+      { sku: 'BOMB-SORT', nome: 'Bombons sortidos', quantidade: 15, total: 630 },
+      { sku: 'TRUF-LEITE', nome: 'Trufas ao leite', quantidade: 6, total: 168 },
+      { sku: 'CX-PRESENTE', nome: 'Caixa presente sortida', quantidade: 4, total: 192 },
+      { sku: 'PAO-MEL', nome: 'Pães de mel', quantidade: 3, total: 83.7 },
+      { sku: 'BARRA-70', nome: 'Barra de chocolate 70% cacau', quantidade: 2, total: 36 },
+    ]);
+    const campanhaOutra = res.body.data.find((c: { id: string }) => c.id === outra);
+    expect(campanhaOutra.produtosMaisVendidos).toEqual([
+      { sku: 'BARRA-70', nome: 'Barra de chocolate 70% cacau', quantidade: 7, total: 126 },
+    ]);
+  });
+
+  it('duas visitas ao mesmo cliente contam um cliente atendido', async () => {
+    const natal = (await criarCampanha()).body.id as string;
+    await criarVisita({ clientId: clienteDaEduardaId, userId: eduardaId, campanhaId: natal, resultado: 'NEGOCIACAO' });
+    await criarVisita({ clientId: clienteDaEduardaId, userId: eduardaId, campanhaId: natal, resultado: 'SEM_VENDA' });
+
+    const res = await autenticado(request(app).get('/campaigns'), tokenGestor);
+
+    const linhaEduarda = res.body.data[0].resultados.find(
+      (linha: { representante: { id: string } }) => linha.representante.id === eduardaId,
+    );
+    expect(linhaEduarda).toMatchObject({ visitas: 2, clientesAtendidos: 1 });
   });
 
   it('o representante lê (200) e recebe só a própria linha em resultados', async () => {
@@ -382,7 +490,17 @@ describe('GET /campaigns', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
     expect(res.body.data[0].resultados).toEqual([
-      { representante: { id: eduardaId, nome: 'Eduarda Fischer' }, vendas: 42, visitas: 1 },
+      {
+        representante: { id: eduardaId, nome: 'Eduarda Fischer' },
+        vendas: 42,
+        visitas: 1,
+        clientesAtendidos: 1,
+        conversao: { numerador: 1, denominador: 1, percentual: 100 },
+      },
+    ]);
+    // Os produtos mais vendidos também saem só da conta dela (sem a Caixa presente do Rafael)
+    expect(res.body.data[0].produtosMaisVendidos).toEqual([
+      { sku: 'BOMB-SORT', nome: 'Bombons sortidos', quantidade: 1, total: 42 },
     ]);
   });
 
@@ -391,9 +509,8 @@ describe('GET /campaigns', () => {
 
     const res = await autenticado(request(app).get('/campaigns'), tokenEduarda);
 
-    expect(res.body.data[0].resultados).toEqual([
-      { representante: { id: eduardaId, nome: 'Eduarda Fischer' }, vendas: 0, visitas: 0 },
-    ]);
+    expect(res.body.data[0].resultados).toEqual([linhaZerada({ id: eduardaId, nome: 'Eduarda Fischer' })]);
+    expect(res.body.data[0].produtosMaisVendidos).toEqual([]);
   });
 });
 

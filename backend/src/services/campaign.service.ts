@@ -7,9 +7,11 @@ import * as userRepository from '../repositories/user.repository';
 import type { CampanhaInput } from '../schemas/campaign.schema';
 import type { UsuarioAutenticado } from './carteira';
 import {
+  produtosMaisVendidos,
   resultadosDaCampanha,
   statusDaCampanha,
   type Pessoa,
+  type ProdutoVendido,
   type ResultadoDoRepresentante,
   type StatusCampanha,
   type VisitaVinculada,
@@ -20,7 +22,7 @@ import { buscarProduto } from './erp.service';
 /**
  * Campanhas, promoções e eventos (spec 7.7). Todos leem; só o gestor cria,
  * altera e exclui (barrado nas rotas). O status sai do dia de hoje em São
- * Paulo; as vendas vinculadas, das visitas com a campanha.
+ * Paulo; os resultados e os produtos mais vendidos, das visitas com a campanha.
  */
 
 const MENSAGEM_CAMPANHA_NAO_ENCONTRADA = 'Campanha não encontrada.';
@@ -42,11 +44,14 @@ export type CampanhaDTO = {
   produtos: { sku: string; nome: string }[];
   status: StatusCampanha;
   /**
-   * Vendas (R$) e visitas vinculadas por representante, por nome. O
-   * representante recebe só a própria linha; o gestor, os representantes
-   * ativos e quem mais tiver visita vinculada (ex.: um inativado).
+   * Visitas, clientes atendidos, vendas (R$) e conversão vinculados por
+   * representante, por nome. O representante recebe só a própria linha; o
+   * gestor, os representantes ativos e quem mais tiver visita vinculada
+   * (ex.: um inativado).
    */
   resultados: ResultadoDoRepresentante[];
+  /** Os 5 produtos mais vendidos nas visitas vinculadas, no escopo de quem pede (o representante vê só os dele). */
+  produtosMaisVendidos: ProdutoVendido[];
 };
 
 function toCampanhaDTO(
@@ -69,6 +74,7 @@ function toCampanhaDTO(
     produtos: campanha.produtos.map((sku) => ({ sku, nome: buscarProduto(sku)?.nome ?? sku })),
     status: statusDaCampanha({ inicio, fim }, dataCalendario(hoje)),
     resultados: resultadosDaCampanha(visitas, base),
+    produtosMaisVendidos: produtosMaisVendidos(visitas),
   };
 }
 
