@@ -218,6 +218,30 @@ describe('ritmoNoPeriodo', () => {
     expect(meses.faixas.map((f) => f.inicio)).toEqual(['2026-07-01', '2026-08-01', '2026-09-01', '2026-10-01']);
   });
 
+  it('91 dias começando numa quarta (21/10/2026 a 19/01/2027): 14 semanas, a primeira e a última parciais — o teto de colunas do ritmo semanal', () => {
+    const ritmo = ritmoNoPeriodo([], { dias: 91, inicio: '2026-10-21', fim: '2027-01-19' });
+
+    expect(ritmo.granularidade).toBe('SEMANA');
+    expect(ritmo.faixas).toHaveLength(14);
+    expect(ritmo.faixas[0]).toEqual({
+      inicio: '2026-10-19',
+      fim: '2026-10-25',
+      parcial: true,
+      visitas: 0,
+      vendas: 0,
+      clientes: [],
+    });
+    expect(ritmo.faixas[13]).toEqual({
+      inicio: '2027-01-18',
+      fim: '2027-01-24',
+      parcial: true,
+      visitas: 0,
+      vendas: 0,
+      clientes: [],
+    });
+    expect(ritmo.faixas.filter((f) => f.parcial)).toHaveLength(2);
+  });
+
   it('365 dias terminando em 25/10/2026: 13 meses, out/2025 e out/2026 parciais', () => {
     const ritmo = ritmoNoPeriodo([], janelaAte('2026-10-25', 365));
 

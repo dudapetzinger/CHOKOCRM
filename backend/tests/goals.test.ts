@@ -123,6 +123,27 @@ function mensagensDoErro(res: request.Response): string[] {
   return (res.body.error.details ?? []).map((detalhe: { message: string }) => detalhe.message);
 }
 
+/** O id da única meta gravada (o POST acabou de criá-la). */
+async function idDaUnicaMeta(): Promise<string> {
+  return (await prisma.goal.findFirstOrThrow()).id;
+}
+
+/** O DTO da meta de `corpoDaMeta()` recém-criada, sem realizado; `overrides` muda o que o caso muda. */
+function dtoDaMeta(id: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    representante: { id: eduardaId, nome: EDUARDA.nome },
+    periodo: 'PERSONALIZADO',
+    inicio: '2026-10-05',
+    fim: '2026-10-20',
+    metaVisitas: 12,
+    metaVendas: 6000,
+    campanhaId: null,
+    realizado: { visitas: 0, vendas: 0, clientes: [] },
+    ...overrides,
+  };
+}
+
 beforeEach(async () => {
   await truncateAllTables();
 
@@ -155,18 +176,8 @@ describe('POST /goals', () => {
     const res = await criarMeta();
 
     expect(res.status).toBe(201);
-    expect(res.body).toEqual({
-      id: expect.any(String),
-      representante: { id: eduardaId, nome: EDUARDA.nome },
-      periodo: 'PERSONALIZADO',
-      inicio: '2026-10-05',
-      fim: '2026-10-20',
-      metaVisitas: 12,
-      metaVendas: 6000,
-      campanhaId: null,
-      realizado: { visitas: 0, vendas: 0, clientes: [] },
-    });
-    const gravada = await prisma.goal.findUniqueOrThrow({ where: { id: res.body.id } });
+    const gravada = await prisma.goal.findFirstOrThrow();
+    expect(res.body).toEqual(dtoDaMeta(gravada.id));
     // `@db.Date` sem deslocar um dia
     expect(gravada.inicio.toISOString()).toBe('2026-10-05T00:00:00.000Z');
     expect(gravada.fim.toISOString()).toBe('2026-10-20T00:00:00.000Z');
@@ -177,21 +188,23 @@ describe('POST /goals', () => {
     const res = await criarMeta({ periodo: 'MENSAL', inicio: '2026-10-15', fim: '2026-10-15' });
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ periodo: 'MENSAL', inicio: '2026-10-01', fim: '2026-10-31' });
+    expect(res.body).toEqual(dtoDaMeta(await idDaUnicaMeta(), { periodo: 'MENSAL', inicio: '2026-10-01', fim: '2026-10-31' }));
   });
 
   it('semanal: o período vira a semana (segunda a domingo) da data de início', async () => {
     const res = await criarMeta({ periodo: 'SEMANAL', inicio: '2026-10-15', fim: '2026-10-15' });
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ periodo: 'SEMANAL', inicio: '2026-10-12', fim: '2026-10-18' });
+    expect(res.body).toEqual(
+      dtoDaMeta(await idDaUnicaMeta(), { periodo: 'SEMANAL', inicio: '2026-10-12', fim: '2026-10-18' }),
+    );
   });
 
   it('aceita metas zero e vendas com centavos (arredondadas a 2 casas)', async () => {
     const res = await criarMeta({ metaVisitas: 0, metaVendas: 1234.567 });
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ metaVisitas: 0, metaVendas: 1234.57 });
+    expect(res.body).toEqual(dtoDaMeta(await idDaUnicaMeta(), { metaVisitas: 0, metaVendas: 1234.57 }));
   });
 
   it('o representante não cria (403) e nada é gravado', async () => {
@@ -236,10 +249,14 @@ describe('POST /goals', () => {
     expect(await prisma.goal.count()).toBe(0);
   });
 
-  it('campo desconhecido → 400', async () => {
+  it('campo desconhecido → 400 "Dados inválidos." com o detalhe na raiz do corpo', async () => {
     const res = await criarMeta({ extra: 1 });
 
     expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toBe('Dados inválidos.');
+    expect(res.body.error.details.map((detalhe: { path: string }) => detalhe.path)).toEqual(['']);
+    expect(await prisma.goal.count()).toBe(0);
   });
 
   it('representante que não existe ou que é gestor → 400 "Escolha um representante."', async () => {
@@ -297,12 +314,14 @@ describe('POST /goals', () => {
       });
 
       expect(res.status).toBe(201);
-      expect(res.body).toMatchObject({
-        periodo: 'CAMPANHA',
-        campanhaId: natalId,
-        inicio: '2026-11-01',
-        fim: '2026-12-24',
-      });
+      expect(res.body).toEqual(
+        dtoDaMeta(await idDaUnicaMeta(), {
+          periodo: 'CAMPANHA',
+          campanhaId: natalId,
+          inicio: '2026-11-01',
+          fim: '2026-12-24',
+        }),
+      );
     });
 
     it.each([
@@ -403,15 +422,16 @@ describe('GET /goals', () => {
     const res = await autenticado(request(app).get('/goals'), tokenGestor);
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0]).toMatchObject({
-      id: meta.id,
-      realizado: {
-        visitas: 3,
-        vendas: 600,
-        clientes: [{ id: clienteDaEduardaId, nomeFantasia: 'Emporio Pomerode', visitas: 3, vendas: 600 }],
+    expect(res.body.data).toEqual([
+      {
+        ...meta,
+        realizado: {
+          visitas: 3,
+          vendas: 600,
+          clientes: [{ id: clienteDaEduardaId, nomeFantasia: 'Emporio Pomerode', visitas: 3, vendas: 600 }],
+        },
       },
-    });
+    ]);
   });
 
   it('realizado.clientes: um item por cliente visitado, com vendas desc, visitas desc e nome', async () => {
@@ -522,9 +542,13 @@ describe('GET /goals', () => {
     const muitoLonga = await listar('?inicio=2020-01-01&fim=2025-01-01');
 
     expect(osDois.status).toBe(400);
+    expect(mensagensDoErro(osDois)).toEqual(['Informe o período em dias ou por datas, não os dois.']);
     expect(umaData.status).toBe(400);
+    expect(mensagensDoErro(umaData)).toEqual(['Informe o início e o fim do período.']);
     expect(fimAntes.status).toBe(400);
+    expect(mensagensDoErro(fimAntes)).toEqual(['A data de fim deve ser depois do início.']);
     expect(noFuturo.status).toBe(400);
+    expect(noFuturo.body.error.message).toBe('A data de fim não pode ser depois de hoje.');
     expect(porDias.status).toBe(200);
     expect(muitoLonga.status).toBe(200);
   });
@@ -571,10 +595,11 @@ describe('GET /goals', () => {
     expect(res.body.data.map((item: { id: string }) => item.id)).toEqual([meta.id]);
   });
 
-  it('representanteId que não é UUID → 400', async () => {
+  it('representanteId que não é UUID → 400 "Identificador do representante inválido."', async () => {
     const res = await autenticado(request(app).get('/goals?representanteId=abc'), tokenGestor);
 
     expect(res.status).toBe(400);
+    expect(mensagensDoErro(res)).toEqual(['Identificador do representante inválido.']);
   });
 });
 
@@ -612,7 +637,7 @@ describe('PUT /goals/:id', () => {
       realizado: {
         visitas: 1,
         vendas: 96,
-        clientes: [{ id: expect.any(String), nomeFantasia: expect.any(String), visitas: 1, vendas: 96 }],
+        clientes: [{ id: clienteDoRafaelId, nomeFantasia: 'Cafe Blumenau', visitas: 1, vendas: 96 }],
       },
     });
   });

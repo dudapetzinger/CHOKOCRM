@@ -39,6 +39,11 @@ describe('realizadoDaMeta (spec 7.8)', () => {
   const NATAL = 'cp-natal';
   const meta = { representanteId: EDUARDA, inicio: '2026-10-01', fim: '2026-10-31', campanhaId: null };
 
+  /** O único cliente destas visitas no realizado, com o que contou. */
+  function doceMel(visitas: number, vendas: number) {
+    return { id: 'c-doce-mel', nomeFantasia: 'Doce Mel', visitas, vendas };
+  }
+
   function visita(overrides: Partial<Parameters<typeof realizadoDaMeta>[0][number]> = {}) {
     return {
       dataHora: new Date('2026-10-15T14:00:00.000-03:00'),
@@ -59,7 +64,7 @@ describe('realizadoDaMeta (spec 7.8)', () => {
   it('visita às 23:30 de São Paulo do dia do fim conta', () => {
     const tarde = visita({ dataHora: new Date('2026-10-31T23:30:00.000-03:00') });
 
-    expect(realizadoDaMeta([tarde], meta)).toMatchObject({ visitas: 1, vendas: 100 });
+    expect(realizadoDaMeta([tarde], meta)).toEqual({ visitas: 1, vendas: 100, clientes: [doceMel(1, 100)] });
   });
 
   it('visita às 00:10 de São Paulo do dia seguinte ao fim não conta (já é 03:10 UTC do dia 1º)', () => {
@@ -72,7 +77,7 @@ describe('realizadoDaMeta (spec 7.8)', () => {
     const inicio = visita({ dataHora: new Date('2026-10-01T00:00:00.000-03:00') });
     const vespera = visita({ dataHora: new Date('2026-09-30T23:59:00.000-03:00') });
 
-    expect(realizadoDaMeta([inicio, vespera], meta)).toMatchObject({ visitas: 1, vendas: 100 });
+    expect(realizadoDaMeta([inicio, vespera], meta)).toEqual({ visitas: 1, vendas: 100, clientes: [doceMel(1, 100)] });
   });
 
   it('visita de outro autor não conta', () => {
@@ -85,14 +90,18 @@ describe('realizadoDaMeta (spec 7.8)', () => {
     const semCampanha = visita({ campanhaId: null, totalPedido: 50 });
     const deOutra = visita({ campanhaId: 'cp-pascoa', totalPedido: 70 });
 
-    expect(realizadoDaMeta([doNatal, semCampanha, deOutra], metaDoNatal)).toMatchObject({ visitas: 1, vendas: 420 });
+    expect(realizadoDaMeta([doNatal, semCampanha, deOutra], metaDoNatal)).toEqual({
+      visitas: 1,
+      vendas: 420,
+      clientes: [doceMel(1, 420)],
+    });
   });
 
   it('meta sem campanha: visitas com e sem campanha contam', () => {
     const doNatal = visita({ campanhaId: NATAL, totalPedido: 420 });
     const semCampanha = visita({ totalPedido: 50 });
 
-    expect(realizadoDaMeta([doNatal, semCampanha], meta)).toMatchObject({ visitas: 2, vendas: 470 });
+    expect(realizadoDaMeta([doNatal, semCampanha], meta)).toEqual({ visitas: 2, vendas: 470, clientes: [doceMel(2, 470)] });
   });
 
   it('as vendas somam só as visitas com VENDA; todas contam como visita', () => {
@@ -100,7 +109,11 @@ describe('realizadoDaMeta (spec 7.8)', () => {
     const negociacao = visita({ resultado: 'NEGOCIACAO', totalPedido: 0 });
     const semVenda = visita({ resultado: 'SEM_VENDA', totalPedido: 0 });
 
-    expect(realizadoDaMeta([venda, negociacao, semVenda], meta)).toMatchObject({ visitas: 3, vendas: 503.7 });
+    expect(realizadoDaMeta([venda, negociacao, semVenda], meta)).toEqual({
+      visitas: 3,
+      vendas: 503.7,
+      clientes: [doceMel(3, 503.7)],
+    });
   });
 
   it('soma em Decimal: 3 × 27,90 + 0,10 dá 83,80 exatos (em ponto flutuante daria 83,79999…)', () => {

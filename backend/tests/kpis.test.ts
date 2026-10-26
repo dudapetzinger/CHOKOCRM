@@ -5,8 +5,12 @@ import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
 import { dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
+import { fixarRelogio, liberarRelogio } from './helpers/relogio';
 
 const SENHA_PADRAO = 'chokocrm123';
+/** "Agora" fixo: 26/10/2026 ao meio-dia de São Paulo (15:00Z), longe da virada do dia (`fixarRelogio`). */
+const AGORA = new Date('2026-10-26T15:00:00.000Z');
+const MILISSEGUNDOS_POR_DIA = 86_400_000;
 
 const REPRESENTANTE = {
   nome: 'Eduarda Fischer',
@@ -35,12 +39,9 @@ async function logar(email: string): Promise<string> {
   return login.body.token;
 }
 
-/** Instante `diasAtras` dias antes de hoje, em horário de meio de dia (longe da virada do dia). */
+/** Instante `diasAtras` dias antes de AGORA, ao meio-dia de São Paulo. */
 function haDias(diasAtras: number): Date {
-  const data = new Date();
-  data.setUTCDate(data.getUTCDate() - diasAtras);
-  data.setUTCHours(15, 0, 0, 0);
-  return data;
+  return new Date(AGORA.getTime() - diasAtras * MILISSEGUNDOS_POR_DIA);
 }
 
 async function criarCliente(cnpj: string, nomeFantasia: string, ativo: boolean): Promise<string> {
@@ -81,6 +82,10 @@ async function criarClientes(): Promise<void> {
   clienteDId = await criarCliente('11222333000343', 'Armazem Sao Bento', false);
 }
 
+beforeAll(() => {
+  fixarRelogio(AGORA);
+});
+
 beforeEach(async () => {
   await truncateAllTables();
 
@@ -116,6 +121,7 @@ afterEach(() => {
 });
 
 afterAll(async () => {
+  liberarRelogio();
   await truncateAllTables();
   await prisma.$disconnect();
 });
@@ -666,10 +672,23 @@ describe('GET /dashboard/kpis/por-representante', () => {
 
       expect(anual.body.ritmo.granularidade).toBe('MES');
       const meses: Faixa[] = anual.body.ritmo.faixas;
-      expect(meses.length).toBeGreaterThanOrEqual(12);
-      expect(meses.length).toBeLessThanOrEqual(13);
-      expect(meses.every((mes) => /^\d{4}-\d{2}-01$/.test(mes.inicio))).toBe(true);
-      expect(meses.filter((mes) => mes.parcial).length).toBeLessThanOrEqual(2);
+      // 365 dias terminando em 26/10/2026 (o relógio fixo) começam em 27/10/2025: 13 meses, as duas pontas parciais.
+      expect(meses.map((mes) => mes.inicio)).toEqual([
+        '2025-10-01',
+        '2025-11-01',
+        '2025-12-01',
+        '2026-01-01',
+        '2026-02-01',
+        '2026-03-01',
+        '2026-04-01',
+        '2026-05-01',
+        '2026-06-01',
+        '2026-07-01',
+        '2026-08-01',
+        '2026-09-01',
+        '2026-10-01',
+      ]);
+      expect(meses.map((mes) => mes.parcial)).toEqual([true, ...Array<boolean>(11).fill(false), true]);
       expect(somar(meses, 'visitas')).toBe(5);
       expect(somar(meses, 'vendas')).toBe(3);
     });

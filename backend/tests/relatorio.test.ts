@@ -4,8 +4,12 @@ import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
 import { dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
+import { fixarRelogio, liberarRelogio } from './helpers/relogio';
 
 const SENHA_PADRAO = 'chokocrm123';
+/** "Agora" fixo: 26/10/2026 ao meio-dia de São Paulo (15:00Z), longe da virada do dia (`fixarRelogio`). */
+const AGORA = new Date('2026-10-26T15:00:00.000Z');
+const MILISSEGUNDOS_POR_DIA = 86_400_000;
 
 type Resultado = 'VENDA' | 'SEM_VENDA' | 'NEGOCIACAO';
 type Item = { quantidade: number; precoUnitario: string };
@@ -30,12 +34,9 @@ async function logar(email: string): Promise<string> {
   return login.body.token;
 }
 
-/** Instante `diasAtras` dias antes de hoje, ao meio-dia de São Paulo (longe da virada do dia). */
+/** Instante `diasAtras` dias antes de AGORA, ao meio-dia de São Paulo. */
 function haDias(diasAtras: number): Date {
-  const data = new Date();
-  data.setUTCDate(data.getUTCDate() - diasAtras);
-  data.setUTCHours(15, 0, 0, 0);
-  return data;
+  return new Date(AGORA.getTime() - diasAtras * MILISSEGUNDOS_POR_DIA);
 }
 
 async function criarCliente(
@@ -97,6 +98,10 @@ function getRelatorio(query: Record<string, string | number> = {}, token = token
   return request(app).get('/dashboard/relatorio').query(query).set('Authorization', `Bearer ${token}`);
 }
 
+beforeAll(() => {
+  fixarRelogio(AGORA);
+});
+
 beforeEach(async () => {
   await truncateAllTables();
   cnpjSequencial = 0;
@@ -148,6 +153,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
+  liberarRelogio();
   await truncateAllTables();
   await prisma.$disconnect();
 });
@@ -159,18 +165,23 @@ describe('GET /dashboard/relatorio', () => {
     expect(res.status).toBe(401);
   });
 
-  it.each(['60', 'abc'])('periodoDias=%s responde 400 VALIDATION_ERROR', async (periodoDias) => {
+  it.each(['60', 'abc'])('periodoDias=%s responde 400 "Período deve ser 30, 90 ou 365 dias."', async (periodoDias) => {
     const res = await getRelatorio({ periodoDias });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toBe('Dados inválidos.');
+    expect(res.body.error.details).toEqual([{ path: 'periodoDias', message: 'Período deve ser 30, 90 ou 365 dias.' }]);
   });
 
-  it('representanteId que não é uuid responde 400 VALIDATION_ERROR', async () => {
+  it('representanteId que não é uuid responde 400 "Identificador do representante inválido."', async () => {
     const res = await getRelatorio({ representanteId: 'abc' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details).toEqual([
+      { path: 'representanteId', message: 'Identificador do representante inválido.' },
+    ]);
   });
 
   it('gestor recebe uma linha por cliente ativo, em ordem de urgência, com a situação, as visitas e as vendas do período', async () => {
@@ -259,6 +270,7 @@ describe('GET /dashboard/relatorio', () => {
 
   it('aceita 400 dias (a Planilha não tem o teto de 365 do Painel) e período por datas', async () => {
     const hoje = dataCalendario(new Date());
+    expect(hoje).toBe('2026-10-26'); // o relógio fixo
 
     const longo = await getRelatorio({ inicio: somarDias(hoje, -399), fim: hoje });
     const porDatas = await getRelatorio({ inicio: somarDias(hoje, -3), fim: somarDias(hoje, -1) });

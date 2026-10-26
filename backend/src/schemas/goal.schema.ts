@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { representanteIdFiltroSchema } from './client.schema';
-import { camposDoPeriodo, validarPeriodo } from './kpis.schema';
+import { camposDoPeriodo, validarPeriodo } from './periodo.schema';
 
 /**
  * Validação das metas de visitas e vendas (spec 7.8), na criação e na
