@@ -1,5 +1,28 @@
 import { Prisma } from '@prisma/client';
-import { produtosMaisVendidos, resultadosDaCampanha, statusDaCampanha } from '../../src/services/campaign.regras';
+import {
+  produtosMaisVendidos,
+  resultadosDaCampanha,
+  statusDaCampanha,
+  vendasDaCampanha,
+  type VisitaVinculada,
+} from '../../src/services/campaign.regras';
+
+let proximaVisita = 0;
+
+/** Visita vinculada completa, com padrões para o que o teste não pede; `clientId` acompanha `cliente.id`. */
+function visitaVinculada(dados: Partial<VisitaVinculada> & Pick<VisitaVinculada, 'autor' | 'resultado'>): VisitaVinculada {
+  proximaVisita += 1;
+  const cliente = dados.cliente ?? { id: dados.clientId ?? 'c1', nomeFantasia: 'Emporio Pomerode', cidade: 'Pomerode' };
+
+  return {
+    id: `v${proximaVisita}`,
+    dataHora: new Date('2026-10-20T15:00:00.000Z'),
+    clientId: cliente.id,
+    cliente,
+    itens: [],
+    ...dados,
+  };
+}
 
 describe('statusDaCampanha (início e fim inclusivos, spec 7.7)', () => {
   const natal = { inicio: '2026-11-01', fim: '2026-12-24' };
@@ -53,9 +76,9 @@ describe('resultadosDaCampanha (vendas e visitas vinculadas por representante)',
   it('soma os pedidos das visitas com venda e conta todas as visitas, por autor', () => {
     const resultados = resultadosDaCampanha(
       [
-        { autor: EDUARDA, clientId: 'c1', resultado: 'VENDA', itens: [item(10, '42'), item(3, '27.9')] },
-        { autor: EDUARDA, clientId: 'c2', resultado: 'NEGOCIACAO', itens: [] },
-        { autor: RAFAEL, clientId: 'c3', resultado: 'VENDA', itens: [item(2, '18')] },
+        visitaVinculada({ autor: EDUARDA, clientId: 'c1', resultado: 'VENDA', itens: [item(10, '42'), item(3, '27.9')] }),
+        visitaVinculada({ autor: EDUARDA, clientId: 'c2', resultado: 'NEGOCIACAO', itens: [] }),
+        visitaVinculada({ autor: RAFAEL, clientId: 'c3', resultado: 'VENDA', itens: [item(2, '18')] }),
       ],
       [EDUARDA, RAFAEL],
     );
@@ -81,8 +104,8 @@ describe('resultadosDaCampanha (vendas e visitas vinculadas por representante)',
   it('soma em Decimal: 3 × 27,90 dá 83,70, não 83,6999…', () => {
     const [linha] = resultadosDaCampanha(
       [
-        { autor: EDUARDA, clientId: 'c1', resultado: 'VENDA', itens: [item(3, '27.9')] },
-        { autor: EDUARDA, clientId: 'c1', resultado: 'VENDA', itens: [item(1, '0.1'), item(1, '0.2')] },
+        visitaVinculada({ autor: EDUARDA, clientId: 'c1', resultado: 'VENDA', itens: [item(3, '27.9')] }),
+        visitaVinculada({ autor: EDUARDA, clientId: 'c1', resultado: 'VENDA', itens: [item(1, '0.1'), item(1, '0.2')] }),
       ],
       [EDUARDA],
     );
@@ -92,7 +115,7 @@ describe('resultadosDaCampanha (vendas e visitas vinculadas por representante)',
 
   it('pedido de visita que não é venda não entra nas vendas (a visita conta)', () => {
     const [linha] = resultadosDaCampanha(
-      [{ autor: EDUARDA, clientId: 'c1', resultado: 'SEM_VENDA', itens: [item(5, '10')] }],
+      [visitaVinculada({ autor: EDUARDA, clientId: 'c1', resultado: 'SEM_VENDA', itens: [item(5, '10')] })],
       [EDUARDA],
     );
 
@@ -122,7 +145,7 @@ describe('resultadosDaCampanha (vendas e visitas vinculadas por representante)',
 
   it('autor fora da lista base (ex.: inativado) aparece se tem visita vinculada; a lista sai por nome', () => {
     const resultados = resultadosDaCampanha(
-      [{ autor: ANA_INATIVA, clientId: 'c1', resultado: 'VENDA', itens: [item(1, '48')] }],
+      [visitaVinculada({ autor: ANA_INATIVA, clientId: 'c1', resultado: 'VENDA', itens: [item(1, '48')] })],
       [RAFAEL, EDUARDA],
     );
 
@@ -143,9 +166,9 @@ describe('resultadosDaCampanha (vendas e visitas vinculadas por representante)',
   it('duas visitas ao mesmo cliente contam um cliente atendido; clientes diferentes, um cada', () => {
     const [linha] = resultadosDaCampanha(
       [
-        { autor: EDUARDA, clientId: 'c1', resultado: 'VENDA', itens: [item(1, '10')] },
-        { autor: EDUARDA, clientId: 'c1', resultado: 'NEGOCIACAO', itens: [] },
-        { autor: EDUARDA, clientId: 'c2', resultado: 'SEM_VENDA', itens: [] },
+        visitaVinculada({ autor: EDUARDA, clientId: 'c1', resultado: 'VENDA', itens: [item(1, '10')] }),
+        visitaVinculada({ autor: EDUARDA, clientId: 'c1', resultado: 'NEGOCIACAO', itens: [] }),
+        visitaVinculada({ autor: EDUARDA, clientId: 'c2', resultado: 'SEM_VENDA', itens: [] }),
       ],
       [EDUARDA],
     );
@@ -158,8 +181,8 @@ describe('resultadosDaCampanha (vendas e visitas vinculadas por representante)',
   it('o mesmo cliente visitado por dois representantes conta para cada um', () => {
     const resultados = resultadosDaCampanha(
       [
-        { autor: EDUARDA, clientId: 'c1', resultado: 'VENDA', itens: [] },
-        { autor: RAFAEL, clientId: 'c1', resultado: 'VENDA', itens: [] },
+        visitaVinculada({ autor: EDUARDA, clientId: 'c1', resultado: 'VENDA', itens: [] }),
+        visitaVinculada({ autor: RAFAEL, clientId: 'c1', resultado: 'VENDA', itens: [] }),
       ],
       [EDUARDA, RAFAEL],
     );
@@ -172,17 +195,16 @@ describe('produtosMaisVendidos (só visitas com VENDA)', () => {
   const EDUARDA = { id: 'r1', nome: 'Eduarda Fischer' };
 
   function venda(...itens: [sku: string, nome: string, quantidade: number, preco: string][]) {
-    return {
+    return visitaVinculada({
       autor: EDUARDA,
-      clientId: 'c1',
-      resultado: 'VENDA' as const,
+      resultado: 'VENDA',
       itens: itens.map(([sku, produtoNome, quantidade, preco]) => ({
         sku,
         produtoNome,
         quantidade,
         precoUnitario: new Prisma.Decimal(preco),
       })),
-    };
+    });
   }
 
   it('ignora o pedido de visita que não é venda', () => {
@@ -247,5 +269,108 @@ describe('produtosMaisVendidos (só visitas com VENDA)', () => {
 
   it('sem visitas, lista vazia', () => {
     expect(produtosMaisVendidos([])).toEqual([]);
+  });
+});
+
+describe('vendasDaCampanha (só visitas com VENDA, uma linha por visita)', () => {
+  const EDUARDA = { id: 'r1', nome: 'Eduarda Fischer' };
+  const RAFAEL = { id: 'r2', nome: 'Rafael Schmitt' };
+  const EMPORIO = { id: 'c1', nomeFantasia: 'Emporio Pomerode', cidade: 'Pomerode' };
+  const CAFE = { id: 'c2', nomeFantasia: 'Cafe Blumenau', cidade: 'Blumenau' };
+
+  function item(quantidade: number, preco: string, sku = 'BOMB-SORT', nome = 'Bombons sortidos') {
+    return { sku, produtoNome: nome, quantidade, precoUnitario: new Prisma.Decimal(preco) };
+  }
+
+  it('ignora visitas de negociação e sem venda, mesmo com pedido', () => {
+    const vendas = vendasDaCampanha([
+      visitaVinculada({ id: 'neg', autor: EDUARDA, resultado: 'NEGOCIACAO', itens: [item(9, '10')] }),
+      visitaVinculada({ id: 'sem', autor: EDUARDA, resultado: 'SEM_VENDA', itens: [item(9, '10')] }),
+      visitaVinculada({ id: 'ok', autor: EDUARDA, resultado: 'VENDA', itens: [item(1, '10')] }),
+    ]);
+
+    expect(vendas.map((venda) => venda.visitaId)).toEqual(['ok']);
+  });
+
+  it('sem visitas, lista vazia', () => {
+    expect(vendasDaCampanha([])).toEqual([]);
+  });
+
+  it('ordena por data e hora decrescentes e, na mesma hora, pelo nome fantasia do cliente', () => {
+    const mesmaHora = new Date('2026-10-20T15:00:00.000Z');
+    const vendas = vendasDaCampanha([
+      visitaVinculada({ id: 'antiga', autor: EDUARDA, resultado: 'VENDA', dataHora: new Date('2026-10-18T12:00:00.000Z') }),
+      visitaVinculada({ id: 'cafe', autor: EDUARDA, resultado: 'VENDA', dataHora: mesmaHora, cliente: CAFE }),
+      visitaVinculada({ id: 'recente', autor: RAFAEL, resultado: 'VENDA', dataHora: new Date('2026-10-22T12:00:00.000Z') }),
+      visitaVinculada({ id: 'emporio', autor: RAFAEL, resultado: 'VENDA', dataHora: mesmaHora, cliente: EMPORIO }),
+    ]);
+
+    expect(vendas.map((venda) => venda.visitaId)).toEqual(['recente', 'cafe', 'emporio', 'antiga']);
+  });
+
+  it('total em Decimal: 2 × 12,50 + 1 × 0,10 = 25,10', () => {
+    const [venda] = vendasDaCampanha([
+      visitaVinculada({
+        autor: EDUARDA,
+        resultado: 'VENDA',
+        itens: [item(2, '12.5', 'BARRA-70', 'Barra 70%'), item(1, '0.1', 'PAO-MEL', 'Pães de mel')],
+      }),
+    ]);
+
+    expect(venda!.total).toBe(25.1);
+  });
+
+  it('total em Decimal: 3 × 27,90 = 83,70 (em ponto flutuante daria 83,69999…)', () => {
+    const [venda] = vendasDaCampanha([
+      visitaVinculada({ autor: EDUARDA, resultado: 'VENDA', itens: [item(3, '27.9', 'PAO-MEL', 'Pães de mel')] }),
+    ]);
+
+    expect(venda!.total).toBe(83.7);
+  });
+
+  it('venda sem itens (pedido vazio) fica com itens vazios e total zero', () => {
+    const [venda] = vendasDaCampanha([visitaVinculada({ autor: EDUARDA, resultado: 'VENDA', itens: [] })]);
+
+    expect(venda!.itens).toEqual([]);
+    expect(venda!.total).toBe(0);
+  });
+
+  it('itens saem com o nome gravado e o preço unitário numérico em reais com 2 casas', () => {
+    const [venda] = vendasDaCampanha([
+      visitaVinculada({
+        autor: EDUARDA,
+        resultado: 'VENDA',
+        // A coluna é Decimal(10,2); as 3 casas só garantem o toDecimalPlaces(2) da saída.
+        itens: [item(3, '27.9', 'PAO-MEL', 'Pães de mel'), item(1, '10.005', 'BARRA-70', 'Barra 70%')],
+      }),
+    ]);
+
+    expect(venda!.itens).toEqual([
+      { sku: 'PAO-MEL', nome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
+      { sku: 'BARRA-70', nome: 'Barra 70%', quantidade: 1, precoUnitario: 10.01 },
+    ]);
+    expect(typeof venda!.itens[0]!.precoUnitario).toBe('number');
+  });
+
+  it('a data é o dia de calendário em São Paulo da visita; leva visita, cliente e representante', () => {
+    // 01h UTC de 21/10 ainda é 20/10 (22h) em São Paulo
+    const [venda] = vendasDaCampanha([
+      visitaVinculada({
+        id: 'v-abc',
+        autor: RAFAEL,
+        resultado: 'VENDA',
+        dataHora: new Date('2026-10-21T01:00:00.000Z'),
+        cliente: CAFE,
+      }),
+    ]);
+
+    expect(venda).toEqual({
+      visitaId: 'v-abc',
+      data: '2026-10-20',
+      cliente: CAFE,
+      representante: RAFAEL,
+      itens: [],
+      total: 0,
+    });
   });
 });

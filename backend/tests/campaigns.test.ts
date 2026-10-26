@@ -52,14 +52,14 @@ async function logar(email: string): Promise<string> {
 
 let proximoCnpj = 0;
 
-async function criarCliente(representanteId: string, nomeFantasia: string): Promise<string> {
+async function criarCliente(representanteId: string, nomeFantasia: string, cidade = 'Pomerode'): Promise<string> {
   proximoCnpj += 1;
   const cliente = await prisma.client.create({
     data: {
       razaoSocial: `${nomeFantasia} Comércio Ltda`,
       nomeFantasia,
       cnpj: String(11222333000100 + proximoCnpj),
-      cidade: 'Pomerode',
+      cidade,
       endereco: 'Rua Hermann Weege, 100',
       telefone: '(47) 3395-0000',
       email: 'contato@cliente-campaigns-teste.com.br',
@@ -96,13 +96,14 @@ async function criarVisita(params: {
   userId: string;
   campanhaId: string | null;
   resultado: 'VENDA' | 'NEGOCIACAO' | 'SEM_VENDA';
+  dataHora?: Date;
   itens?: { sku: string; produtoNome: string; quantidade: number; precoUnitario: number }[];
 }): Promise<string> {
-  const { itens = [], ...dados } = params;
+  const { itens = [], dataHora = new Date(), ...dados } = params;
   const visita = await prisma.visit.create({
     data: {
       ...dados,
-      dataHora: new Date(),
+      dataHora,
       descricao: 'Visita de teste das campanhas.',
       ...(itens.length > 0 ? { itens: { create: itens } } : {}),
     },
@@ -140,7 +141,7 @@ beforeEach(async () => {
   tokenEduarda = await logar(EDUARDA.email);
 
   clienteDaEduardaId = await criarCliente(eduardaId, 'Emporio Pomerode');
-  clienteDoRafaelId = await criarCliente(rafaelId, 'Cafe Blumenau');
+  clienteDoRafaelId = await criarCliente(rafaelId, 'Cafe Blumenau', 'Blumenau');
 });
 
 afterAll(async () => {
@@ -177,6 +178,7 @@ describe('POST /campaigns', () => {
         linhaZerada({ id: rafaelId, nome: 'Rafael Schmitt' }),
       ],
       produtosMaisVendidos: [],
+      vendas: [],
     });
 
     const gravada = await prisma.campaign.findUniqueOrThrow({ where: { id: res.body.id } });
@@ -502,6 +504,109 @@ describe('GET /campaigns', () => {
     expect(res.body.data[0].produtosMaisVendidos).toEqual([
       { sku: 'BOMB-SORT', nome: 'Bombons sortidos', quantidade: 1, total: 42 },
     ]);
+  });
+
+  it('vendas: uma linha por visita VENDA da campanha, da mais recente para a mais antiga, com cliente, representante, itens e total', async () => {
+    const natal = (await criarCampanha()).body.id as string;
+    const outra = (await criarCampanha({ nome: 'Black Friday do Cacau' })).body.id as string;
+
+    const vendaDaEduarda = await criarVisita({
+      clientId: clienteDaEduardaId,
+      userId: eduardaId,
+      campanhaId: natal,
+      resultado: 'VENDA',
+      dataHora: new Date('2026-10-20T15:00:00.000Z'),
+      itens: [
+        { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
+        { sku: 'PAO-MEL', produtoNome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
+      ],
+    });
+    const vendaDoRafael = await criarVisita({
+      clientId: clienteDoRafaelId,
+      userId: rafaelId,
+      campanhaId: natal,
+      resultado: 'VENDA',
+      dataHora: new Date('2026-10-22T15:00:00.000Z'),
+      itens: [{ sku: 'CX-PRESENTE', produtoNome: 'Caixa presente sortida', quantidade: 2, precoUnitario: 48 }],
+    });
+    // Não entram: negociação vinculada, venda de outra campanha e venda sem campanha
+    await criarVisita({
+      clientId: clienteDaEduardaId,
+      userId: eduardaId,
+      campanhaId: natal,
+      resultado: 'NEGOCIACAO',
+      itens: [{ sku: 'BARRA-70', produtoNome: 'Barra de chocolate 70% cacau', quantidade: 500, precoUnitario: 18 }],
+    });
+    await criarVisita({ clientId: clienteDaEduardaId, userId: eduardaId, campanhaId: outra, resultado: 'VENDA' });
+    await criarVisita({ clientId: clienteDaEduardaId, userId: eduardaId, campanhaId: null, resultado: 'VENDA' });
+
+    const res = await autenticado(request(app).get('/campaigns'), tokenGestor);
+
+    const campanhaNatal = res.body.data.find((c: { id: string }) => c.id === natal);
+    expect(campanhaNatal.vendas).toEqual([
+      {
+        visitaId: vendaDoRafael,
+        data: '2026-10-22',
+        cliente: { id: clienteDoRafaelId, nomeFantasia: 'Cafe Blumenau', cidade: 'Blumenau' },
+        representante: { id: rafaelId, nome: 'Rafael Schmitt' },
+        itens: [{ sku: 'CX-PRESENTE', nome: 'Caixa presente sortida', quantidade: 2, precoUnitario: 48 }],
+        total: 96,
+      },
+      {
+        visitaId: vendaDaEduarda,
+        data: '2026-10-20',
+        cliente: { id: clienteDaEduardaId, nomeFantasia: 'Emporio Pomerode', cidade: 'Pomerode' },
+        representante: { id: eduardaId, nome: 'Eduarda Fischer' },
+        itens: [
+          { sku: 'BOMB-SORT', nome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
+          { sku: 'PAO-MEL', nome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
+        ],
+        total: 503.7,
+      },
+    ]);
+    const campanhaOutra = res.body.data.find((c: { id: string }) => c.id === outra);
+    expect(campanhaOutra.vendas).toHaveLength(1);
+    expect(campanhaOutra.vendas[0]).toMatchObject({ itens: [], total: 0 });
+  });
+
+  it('o representante vê só as próprias vendas em vendas', async () => {
+    const natal = (await criarCampanha()).body.id as string;
+    const vendaDaEduarda = await criarVisita({
+      clientId: clienteDaEduardaId,
+      userId: eduardaId,
+      campanhaId: natal,
+      resultado: 'VENDA',
+      itens: [{ sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 1, precoUnitario: 42 }],
+    });
+    await criarVisita({
+      clientId: clienteDoRafaelId,
+      userId: rafaelId,
+      campanhaId: natal,
+      resultado: 'VENDA',
+      itens: [{ sku: 'CX-PRESENTE', produtoNome: 'Caixa presente sortida', quantidade: 20, precoUnitario: 48 }],
+    });
+
+    const res = await autenticado(request(app).get('/campaigns'), tokenEduarda);
+
+    expect(res.body.data[0].vendas).toHaveLength(1);
+    expect(res.body.data[0].vendas[0]).toMatchObject({
+      visitaId: vendaDaEduarda,
+      representante: { id: eduardaId, nome: 'Eduarda Fischer' },
+      cliente: { nomeFantasia: 'Emporio Pomerode', cidade: 'Pomerode' },
+      total: 42,
+    });
+  });
+
+  it('campanha sem venda (só negociação ou sem visita) traz vendas vazio', async () => {
+    const natal = (await criarCampanha()).body.id as string;
+    await criarCampanha({ nome: 'Black Friday do Cacau' });
+    await criarVisita({ clientId: clienteDaEduardaId, userId: eduardaId, campanhaId: natal, resultado: 'NEGOCIACAO' });
+
+    const gestor = await autenticado(request(app).get('/campaigns'), tokenGestor);
+    const representante = await autenticado(request(app).get('/campaigns'), tokenEduarda);
+
+    expect(gestor.body.data.map((c: { vendas: unknown[] }) => c.vendas)).toEqual([[], []]);
+    expect(representante.body.data.map((c: { vendas: unknown[] }) => c.vendas)).toEqual([[], []]);
   });
 
   it('representante sem visita vinculada recebe a própria linha zerada', async () => {

@@ -10,10 +10,12 @@ import {
   produtosMaisVendidos,
   resultadosDaCampanha,
   statusDaCampanha,
+  vendasDaCampanha,
   type Pessoa,
   type ProdutoVendido,
   type ResultadoDoRepresentante,
   type StatusCampanha,
+  type VendaDaCampanha,
   type VisitaVinculada,
 } from './campaign.regras';
 import { colunaDateDaData, dataCalendario, dataDaColunaDate } from './classificacao.service';
@@ -22,7 +24,8 @@ import { buscarProduto } from './erp.service';
 /**
  * Campanhas, promoções e eventos (spec 7.7). Todos leem; só o gestor cria,
  * altera e exclui (barrado nas rotas). O status sai do dia de hoje em São
- * Paulo; os resultados e os produtos mais vendidos, das visitas com a campanha.
+ * Paulo; os resultados, os produtos mais vendidos e as vendas, das visitas
+ * com a campanha.
  */
 
 const MENSAGEM_CAMPANHA_NAO_ENCONTRADA = 'Campanha não encontrada.';
@@ -52,6 +55,12 @@ export type CampanhaDTO = {
   resultados: ResultadoDoRepresentante[];
   /** Os 5 produtos mais vendidos nas visitas vinculadas, no escopo de quem pede (o representante vê só os dele). */
   produtosMaisVendidos: ProdutoVendido[];
+  /**
+   * Uma linha por visita vinculada com VENDA (cliente, representante, itens
+   * e total), da mais recente para a mais antiga, no escopo de quem pede (o
+   * representante vê só as dele).
+   */
+  vendas: VendaDaCampanha[];
 };
 
 function toCampanhaDTO(
@@ -75,6 +84,7 @@ function toCampanhaDTO(
     status: statusDaCampanha({ inicio, fim }, dataCalendario(hoje)),
     resultados: resultadosDaCampanha(visitas, base),
     produtosMaisVendidos: produtosMaisVendidos(visitas),
+    vendas: vendasDaCampanha(visitas),
   };
 }
 

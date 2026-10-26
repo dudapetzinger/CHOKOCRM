@@ -49,9 +49,10 @@ export async function remove(id: string): Promise<void> {
 }
 
 /**
- * Visitas vinculadas às campanhas, com o autor, o cliente e o pedido (SKU e
- * nome gravados), para os resultados e os produtos mais vendidos. Com `campanhaId`, só as daquela campanha; com `autorId`, só
- * as daquele autor (o representante vê só a própria linha).
+ * Visitas vinculadas às campanhas, com o autor, o cliente (nome e cidade) e
+ * o pedido (SKU e nome gravados), para os resultados, os produtos mais
+ * vendidos e a lista de vendas. Com `campanhaId`, só as daquela campanha;
+ * com `autorId`, só as daquele autor (o representante vê só o que é dele).
  */
 export async function listarVisitasVinculadas(
   filtro: { campanhaId?: string; autorId?: string } = {},
@@ -62,16 +63,23 @@ export async function listarVisitasVinculadas(
       ...(filtro.autorId ? { userId: filtro.autorId } : {}),
     },
     select: {
+      id: true,
+      dataHora: true,
       campanhaId: true,
       clientId: true,
       resultado: true,
+      client: { select: { id: true, nomeFantasia: true, cidade: true } },
       user: { select: { id: true, nome: true } },
-      itens: { select: { sku: true, produtoNome: true, quantidade: true, precoUnitario: true } },
+      itens: {
+        select: { sku: true, produtoNome: true, quantidade: true, precoUnitario: true },
+        // Mesma ordem da ficha do cliente: a lista de vendas mostra os itens sempre iguais.
+        orderBy: { produtoNome: 'asc' },
+      },
     },
   });
 
   // O `where` já deixa de fora as sem campanha; o filtro só estreita o tipo.
-  return visitas.flatMap(({ campanhaId, user, ...visita }) =>
-    campanhaId ? [{ ...visita, campanhaId, autor: user }] : [],
+  return visitas.flatMap(({ campanhaId, user, client, ...visita }) =>
+    campanhaId ? [{ ...visita, campanhaId, autor: user, cliente: client }] : [],
   );
 }

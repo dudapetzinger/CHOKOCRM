@@ -1,14 +1,14 @@
 import { Prisma, type ResultadoVisita } from '@prisma/client';
 import { somarItens } from '../lib/somarItens';
-import type { DataCalendario } from './classificacao.service';
+import { dataCalendario, type DataCalendario } from './classificacao.service';
 import { proporcao, type Proporcao } from './kpis.regras';
 
 /**
  * Regras puras das campanhas, promoções e eventos (spec 7.7): status pelo
  * dia de calendário, resultados vinculados por representante (visitas,
- * clientes atendidos, vendas e conversão) e produtos mais vendidos. Sem
- * banco nem relógio — quem chama passa o "hoje" (de São Paulo) e as visitas
- * já lidas.
+ * clientes atendidos, vendas e conversão), produtos mais vendidos e a lista
+ * de vendas (uma por visita com VENDA). Sem banco nem relógio — quem chama
+ * passa o "hoje" (de São Paulo) e as visitas já lidas.
  */
 
 export type StatusCampanha = 'PROGRAMADA' | 'EM_ANDAMENTO' | 'ENCERRADA';
@@ -29,9 +29,12 @@ export function statusDaCampanha(
 
 export type Pessoa = { id: string; nome: string };
 
-/** Visita vinculada à campanha, com o que a conta de vendas usa. */
+/** Visita vinculada à campanha, com o que os resultados, os produtos mais vendidos e a lista de vendas usam. */
 export type VisitaVinculada = {
+  id: string;
+  dataHora: Date;
   autor: Pessoa;
+  cliente: { id: string; nomeFantasia: string; cidade: string };
   clientId: string;
   resultado: ResultadoVisita;
   itens: { sku: string; produtoNome: string; quantidade: number; precoUnitario: Prisma.Decimal }[];
@@ -145,5 +148,48 @@ export function produtosMaisVendidos(visitas: VisitaVinculada[], limite = 5): Pr
       nome,
       quantidade,
       total: total.toDecimalPlaces(2).toNumber(),
+    }));
+}
+
+export type VendaDaCampanha = {
+  visitaId: string;
+  /** Dia da visita em São Paulo, `AAAA-MM-DD`. */
+  data: DataCalendario;
+  cliente: { id: string; nomeFantasia: string; cidade: string };
+  /** O autor da visita. */
+  representante: Pessoa;
+  /** Pedido da visita, com o nome e o preço gravados no check-in (reais, 2 casas). */
+  itens: { sku: string; nome: string; quantidade: number; precoUnitario: number }[];
+  /** Soma de quantidade × preço dos itens, em reais com 2 casas; zero sem itens. */
+  total: number;
+};
+
+/**
+ * As vendas vinculadas, uma por visita com VENDA (negociação e sem venda
+ * ficam de fora, mesmo com pedido). Da mais recente para a mais antiga e, na
+ * mesma hora, pelo nome fantasia do cliente. O total soma em `Decimal`, como
+ * o do pedido; venda sem itens (pedido vazio) sai com `itens: []` e total 0.
+ */
+export function vendasDaCampanha(visitas: VisitaVinculada[]): VendaDaCampanha[] {
+  return visitas
+    .filter((visita) => visita.resultado === 'VENDA')
+    .sort(
+      (a, b) =>
+        b.dataHora.getTime() - a.dataHora.getTime() ||
+        a.cliente.nomeFantasia.localeCompare(b.cliente.nomeFantasia, 'pt-BR') ||
+        a.id.localeCompare(b.id),
+    )
+    .map((visita) => ({
+      visitaId: visita.id,
+      data: dataCalendario(visita.dataHora),
+      cliente: visita.cliente,
+      representante: visita.autor,
+      itens: visita.itens.map((item) => ({
+        sku: item.sku,
+        nome: item.produtoNome,
+        quantidade: item.quantidade,
+        precoUnitario: item.precoUnitario.toDecimalPlaces(2).toNumber(),
+      })),
+      total: somarItens(visita.itens).toDecimalPlaces(2).toNumber(),
     }));
 }
