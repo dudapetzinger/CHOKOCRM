@@ -20,7 +20,7 @@ const VISITA_MARCADA: ItemCalendario = {
   campanha: { id: 'cp1', nome: 'Natal Chokolaten' },
 };
 
-const VISITA_PREVISTA: ItemCalendario = {
+const VISITA_MARCADA_VENCIDA: ItemCalendario = {
   data: '2026-10-19',
   tipo: 'VISITA',
   titulo: 'Doces da Vovó',
@@ -28,6 +28,22 @@ const VISITA_PREVISTA: ItemCalendario = {
   representante: { id: 'u1', nome: 'Eduarda Fischer' },
   campanha: null,
   detalhe: 'Visita marcada venceu há 2 dias',
+};
+
+const LEMBRETE: ItemCalendario = {
+  data: '2026-10-21',
+  tipo: 'LEMBRETE',
+  titulo: 'Padaria Doce Sabor',
+  clienteId: 'c3',
+  lembreteId: 'l1',
+  texto: 'Levar amostras do Natal',
+  representante: { id: 'u1', nome: 'Eduarda Fischer' },
+};
+
+const LEMBRETE_VENCIDO: ItemCalendario = {
+  ...LEMBRETE,
+  data: '2026-10-19',
+  detalhe: 'Lembrete venceu há 3 dias',
 };
 
 const SAZONAL: ItemCalendario = {
@@ -50,7 +66,7 @@ function FichaFalsa() {
   return <p>Ficha do cliente {id}</p>;
 }
 
-function renderizar(role: Role = 'REPRESENTANTE', itens: ItemCalendario[] = [VISITA_MARCADA, VISITA_PREVISTA, SAZONAL]) {
+function renderizar(role: Role = 'REPRESENTANTE', itens: ItemCalendario[] = [VISITA_MARCADA, VISITA_MARCADA_VENCIDA, LEMBRETE, SAZONAL]) {
   vi.mocked(buscarCalendario).mockImplementation(async (mes) => ({ mes, itens: mes === '2026-10' ? itens : [] }));
   const auth = {
     user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role, telefone: null, ativo: true },
@@ -120,7 +136,8 @@ describe('Calendario', () => {
 
     const painel = painelDoDia('quinta-feira, 22 de outubro');
     expect(within(painel).getByText('Empório Central')).toBeInTheDocument();
-    expect(within(painel).getByText('Marcada no check-in')).toBeInTheDocument();
+    expect(within(painel).getByText('Visita marcada')).toBeInTheDocument();
+    expect(within(painel).queryByText(/venceu/)).not.toBeInTheDocument();
     expect(within(painel).getByText('Natal Chokolaten')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' })).toHaveAttribute(
       'aria-pressed',
@@ -128,13 +145,71 @@ describe('Calendario', () => {
     );
   });
 
-  it('a visita marcada que já passou diz quando venceu', async () => {
+  it('a visita marcada que já passou fica no dia marcado e diz quando venceu', async () => {
     renderizar();
 
+    await screen.findByRole('button', { name: 'segunda-feira, 19 de outubro, 1 item' });
     const painel = painelDoDia('segunda-feira, 19 de outubro');
-    expect(
-      await within(painel).findByText('Marcada no check-in · Visita marcada venceu há 2 dias'),
-    ).toBeInTheDocument();
+    expect(within(painel).getByText('Visita marcada')).toBeInTheDocument();
+    expect(within(painel).getByText('Doces da Vovó')).toBeInTheDocument();
+    expect(within(painel).getByText('Visita marcada venceu há 2 dias')).toBeInTheDocument();
+  });
+
+  it('o lembrete aparece no dia dele, com o cliente, o texto e a ficha', async () => {
+    renderizar();
+
+    const dia = await screen.findByRole('button', { name: 'quarta-feira, 21 de outubro, 1 item' });
+    expect(within(dia).getByText('Padaria Doce Sabor')).toBeInTheDocument();
+    await usuario.click(dia);
+
+    const painel = painelDoDia('quarta-feira, 21 de outubro');
+    expect(within(painel).getByText('Lembrete')).toBeInTheDocument();
+    expect(within(painel).getByText('Padaria Doce Sabor')).toBeInTheDocument();
+    expect(within(painel).getByText('Levar amostras do Natal')).toBeInTheDocument();
+    expect(within(painel).queryByText(/venceu/)).not.toBeInTheDocument();
+    expect(within(painel).queryByText(/^Rep\.:/)).not.toBeInTheDocument();
+    expect(within(painel).queryByRole('button', { name: /Concluir/ })).not.toBeInTheDocument();
+    expect(within(painel).getByRole('link', { name: /Padaria Doce Sabor/ })).toHaveAttribute('href', '/clientes/c3');
+    await usuario.click(within(painel).getByRole('link', { name: /Levar amostras do Natal/ }));
+    expect(screen.getByText('Ficha do cliente c3')).toBeInTheDocument();
+  });
+
+  it('o lembrete vencido fica no dia dele e diz quando venceu; o gestor vê de quem é', async () => {
+    renderizar('GESTOR', [LEMBRETE_VENCIDO]);
+
+    await usuario.click(await screen.findByRole('button', { name: 'segunda-feira, 19 de outubro, 1 item' }));
+
+    const painel = painelDoDia('segunda-feira, 19 de outubro');
+    expect(within(painel).getByText('Lembrete venceu há 3 dias')).toBeInTheDocument();
+    expect(within(painel).getByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
+  });
+
+  it('visita e lembrete do mesmo cliente no mesmo dia aparecem os dois, sem chave repetida', async () => {
+    const erro = vi.spyOn(console, 'error').mockImplementation(() => {});
+    renderizar('REPRESENTANTE', [
+      { ...VISITA_MARCADA, clienteId: 'c3', titulo: 'Padaria Doce Sabor', campanha: null },
+      { ...LEMBRETE, data: '2026-10-22' },
+    ]);
+
+    await usuario.click(await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 2 itens' }));
+
+    const painel = painelDoDia('quinta-feira, 22 de outubro');
+    expect(within(painel).getAllByRole('link')).toHaveLength(2);
+    expect(within(painel).getByText('Visita marcada')).toBeInTheDocument();
+    expect(within(painel).getByText('Lembrete')).toBeInTheDocument();
+    expect(erro).not.toHaveBeenCalled();
+    erro.mockRestore();
+  });
+
+  it('no celular, o lembrete vira um ponto amarelo e a visita marcada, um ponto da cor primária', async () => {
+    renderizar();
+
+    const comLembrete = await screen.findByRole('button', { name: 'quarta-feira, 21 de outubro, 1 item' });
+    expect(comLembrete.querySelector('.sm\\:hidden .bg-st-yellow')).not.toBeNull();
+    expect(comLembrete.querySelector('.sm\\:hidden .bg-primary')).toBeNull();
+    const comVisita = screen.getByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' });
+    expect(comVisita.querySelector('.sm\\:hidden .bg-primary')).not.toBeNull();
+    expect(comVisita.querySelector('.sm\\:hidden .bg-st-yellow')).toBeNull();
   });
 
   it('dia sem itens diz que não há nada', async () => {
@@ -188,6 +263,22 @@ describe('Calendario', () => {
     await usuario.click(screen.getByRole('button', { name: 'Hoje' }));
     expect(screen.getByRole('heading', { name: 'Outubro de 2026' })).toBeInTheDocument();
     expect(painelDoDia('segunda-feira, 19 de outubro')).toBeInTheDocument();
+  });
+
+  it('a legenda explica o marcado e o lembrete, sem falar em previsão pela recorrência', async () => {
+    renderizar('REPRESENTANTE');
+    const legenda = screen.getByRole('list', { name: 'Legenda' });
+    const itens = within(legenda).getAllByRole('listitem').map((item) => item.textContent);
+    expect(itens).toEqual(['Visita marcada no check-in', 'Lembrete', 'Data sazonal']);
+    expect(legenda).not.toHaveTextContent(/prevista|recorrência/i);
+  });
+
+  it('o gestor vê a campanha entre o lembrete e a data sazonal na legenda', async () => {
+    renderizar('GESTOR');
+    const itens = within(screen.getByRole('list', { name: 'Legenda' }))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
+    expect(itens).toEqual(['Visita marcada no check-in', 'Lembrete', 'Campanha/evento', 'Data sazonal']);
   });
 
   it('o representante não vê "Campanha/evento" na legenda', async () => {

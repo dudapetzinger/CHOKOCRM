@@ -3,21 +3,24 @@
  * protótipo). Grade 7 × 6 a partir do domingo, "‹ Hoje ›", até 3 itens por
  * dia e "+N", hoje em círculo, dia selecionado com anel e dias de fora do
  * mês esmaecidos; legenda abaixo. Os itens vêm prontos de `GET
- * /agenda/calendario` (o front não recalcula a data prevista): visita
- * prevista de cada cliente (as vencidas no dia de hoje), dias de campanha
- * (só para o gestor) e datas sazonais.
+ * /agenda/calendario` (o front não recalcula datas) e são só o que foi
+ * marcado de fato: a visita marcada no check-in e o lembrete aberto, cada
+ * um no dia que ficou marcado (o vencido continua nele, com "venceu há N
+ * dias"), mais os dias de campanha (só para o gestor) e as datas sazonais.
+ * A recorrência não põe nada aqui; ela vale só na agenda do dia.
  *
  * Abaixo de 640 px a célula mostra só o número e até 3 pontos coloridos (um
  * por tipo) e a lista do dia fica abaixo da grade; a partir de 1024 px, o
  * painel do dia (300 px) fica à direita. A célula inteira é o botão do dia,
  * com o nome "segunda-feira, 19 de outubro, 2 itens" (os rótulos e pontos
  * dentro dela são só visuais); hoje tem `aria-current="date"` e o dia
- * selecionado, `aria-pressed`. Item de cliente no painel abre a ficha.
+ * selecionado, `aria-pressed`. Item de cliente no painel abre a ficha; a
+ * conclusão do lembrete fica na agenda do dia e na ficha, não aqui.
  *
- * Cores (spec 6.3 e 7.6): visita marcada no check-in em `bg-primary` com
- * texto branco (o `--primary` escuro, 4,6:1); prevista pela recorrência em
- * `bg-primary-soft` com `text-brown`; campanha em `bg-chart-soft` com
- * `--chart-text`; data sazonal em `bg-st-green-soft` com `--st-green-text`.
+ * Cores (spec 6.3 e 7.6): visita marcada em `bg-primary` com texto branco (o
+ * `--primary` escuro, 4,6:1); lembrete em `bg-st-yellow-soft` com
+ * `text-brown` (cerca de 9:1); campanha em `bg-chart-soft` com `--chart-text`;
+ * data sazonal em `bg-st-green-soft` com `--st-green-text`.
  */
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -46,12 +49,12 @@ import { Aviso } from './ui';
 const ITENS_NA_CELULA = 3;
 const DIAS_DA_SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
-type Estilo = 'marcada' | 'prevista' | 'campanha' | 'sazonal';
+type Estilo = 'marcada' | 'lembrete' | 'campanha' | 'sazonal';
 
 /** Fundo e texto do rótulo de cada estilo (contraste na nota do topo). */
 const CLASSES_ESTILO: Record<Estilo, string> = {
   marcada: 'bg-primary text-primary-foreground',
-  prevista: 'bg-primary-soft text-brown',
+  lembrete: 'bg-st-yellow-soft text-brown',
   campanha: 'bg-chart-soft text-chart-text',
   sazonal: 'bg-st-green-soft text-st-green-text',
 };
@@ -59,7 +62,7 @@ const CLASSES_ESTILO: Record<Estilo, string> = {
 /** Quadradinho da legenda: o fundo do rótulo e, nos suaves, a borda na cor cheia do ponto do celular. */
 const CLASSES_AMOSTRA: Record<Estilo, string> = {
   marcada: 'bg-primary',
-  prevista: 'bg-primary-soft ring-1 ring-inset ring-primary',
+  lembrete: 'bg-st-yellow-soft ring-1 ring-inset ring-st-yellow',
   campanha: 'bg-chart-soft ring-1 ring-inset ring-chart',
   sazonal: 'bg-st-green-soft ring-1 ring-inset ring-st-green',
 };
@@ -67,25 +70,21 @@ const CLASSES_AMOSTRA: Record<Estilo, string> = {
 /** Ponto do celular, um por tipo: marcas sem texto, nas cores cheias. */
 const CLASSES_PONTO: Record<ItemCalendario['tipo'], string> = {
   VISITA: 'bg-primary',
-  LEMBRETE: 'bg-primary',
+  LEMBRETE: 'bg-st-yellow',
   CAMPANHA: 'bg-chart',
   DATA_SAZONAL: 'bg-st-green',
 };
 
 const ROTULO_ESTILO: Record<Estilo, string> = {
   marcada: 'Visita marcada',
-  prevista: 'Visita prevista',
+  lembrete: 'Lembrete',
   campanha: 'Campanha',
   sazonal: 'Data sazonal',
 };
 
-/**
- * A visita é um tipo só (decisão 9), mas em duas cores (spec 7.6): a legenda
- * explica as duas.
- */
 const ROTULO_LEGENDA: Record<Estilo, string> = {
   marcada: 'Visita marcada no check-in',
-  prevista: 'Visita prevista pela recorrência',
+  lembrete: 'Lembrete',
   campanha: 'Campanha/evento',
   sazonal: 'Data sazonal',
 };
@@ -93,14 +92,12 @@ const ROTULO_LEGENDA: Record<Estilo, string> = {
 function estiloDoItem(item: ItemCalendario): Estilo {
   if (item.tipo === 'CAMPANHA') return 'campanha';
   if (item.tipo === 'DATA_SAZONAL') return 'sazonal';
-  // O backend manda só a visita marcada no check-in; o lembrete fica, por
-  // ora, no estilo suave (o visual próprio dele vem depois).
-  return item.tipo === 'VISITA' ? 'marcada' : 'prevista';
+  return item.tipo === 'VISITA' ? 'marcada' : 'lembrete';
 }
 
-/** "Marcada no check-in", mais o vencimento. */
-function descreverVisita(item: ItemCalendario): string {
-  return ['Marcada no check-in', item.detalhe].filter(Boolean).join(' · ');
+/** Chave do item na lista: o lembrete tem id próprio, que separa visita e lembrete do mesmo cliente no dia. */
+function chaveDoItem(item: ItemCalendario, indice: number): string {
+  return `${item.tipo}-${item.lembreteId ?? item.clienteId ?? item.titulo}-${indice}`;
 }
 
 function contarItens(quantidade: number): string {
@@ -143,8 +140,8 @@ export function Calendario({ representanteId }: Props) {
   }
 
   const legenda: Estilo[] = gestor
-    ? ['marcada', 'prevista', 'campanha', 'sazonal']
-    : ['marcada', 'prevista', 'sazonal'];
+    ? ['marcada', 'lembrete', 'campanha', 'sazonal']
+    : ['marcada', 'lembrete', 'sazonal'];
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -224,7 +221,7 @@ export function Calendario({ representanteId }: Props) {
                 <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">
                   {itens.slice(0, ITENS_NA_CELULA).map((item, indice) => (
                     <span
-                      key={`${item.tipo}-${item.clienteId ?? item.titulo}-${indice}`}
+                      key={chaveDoItem(item, indice)}
                       className={cn(
                         'block truncate rounded px-1 py-0.5 text-[10px] leading-tight',
                         CLASSES_ESTILO[estiloDoItem(item)],
@@ -290,7 +287,7 @@ function PainelDoDia({
       ) : (
         <ul className="space-y-2">
           {itens.map((item, indice) => (
-            <li key={`${item.tipo}-${item.clienteId ?? item.titulo}-${indice}`}>
+            <li key={chaveDoItem(item, indice)}>
               <ItemDoPainel item={item} mostrarRepresentante={mostrarRepresentante} />
             </li>
           ))}
@@ -308,11 +305,10 @@ function ItemDoPainel({ item, mostrarRepresentante }: { item: ItemCalendario; mo
         {ROTULO_ESTILO[estilo]}
       </span>
       <span className="block font-medium text-foreground">{item.titulo}</span>
+      {item.tipo === 'LEMBRETE' && item.texto && <span className="block text-foreground">{item.texto}</span>}
       {item.tipo === 'VISITA' && item.campanha && <EtiquetaCampanha nome={item.campanha.nome} />}
-      <span className="block text-xs text-muted-foreground">
-        {item.tipo === 'VISITA' ? descreverVisita(item) : item.detalhe}
-      </span>
-      {item.tipo === 'VISITA' && mostrarRepresentante && item.representante && (
+      {item.detalhe && <span className="block text-xs text-muted-foreground">{item.detalhe}</span>}
+      {(item.tipo === 'VISITA' || item.tipo === 'LEMBRETE') && mostrarRepresentante && item.representante && (
         <span className="block text-xs text-muted-foreground">Rep.: {item.representante.nome}</span>
       )}
     </>

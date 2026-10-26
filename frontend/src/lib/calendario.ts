@@ -3,8 +3,8 @@
  * datas locais (`new Date(ano, mes, dia)`, meio-dia não importa: só o dia
  * conta) e as compara com os itens da API pela chave `AAAA-MM-DD`. O dia de
  * hoje é o de São Paulo pelo relógio do aparelho (`hojeEmSaoPaulo`): a API do
- * calendário não devolve o "hoje" dela, e as vencidas que ela põe em hoje
- * usam o mesmo dia, salvo um relógio de aparelho errado.
+ * calendário não devolve o "hoje" dela, e o dia de hoje na grade vem do
+ * mesmo relógio, salvo um relógio de aparelho errado.
  */
 
 const DIAS_NA_GRADE = 42;

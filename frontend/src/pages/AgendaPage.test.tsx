@@ -562,6 +562,26 @@ describe('AgendaPage — calendário (spec 7.6)', () => {
     expect(screen.queryByRole('region', { name: 'Atrasadas · 1' })).not.toBeInTheDocument();
   });
 
+  it('a introdução do calendário fala do que foi marcado e dos lembretes', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('REPRESENTANTE', {});
+    await usuario.click(await screen.findByRole('radio', { name: 'Calendário' }));
+    expect(
+      screen.getByText('As visitas marcadas no check-in e os lembretes, no dia de cada um, com as datas sazonais.'),
+    ).toBeInTheDocument();
+  });
+
+  it('a introdução do calendário do gestor inclui as campanhas e os eventos', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('GESTOR', {});
+    await usuario.click(await screen.findByRole('radio', { name: 'Calendário' }));
+    expect(
+      screen.getByText(
+        'As visitas marcadas no check-in e os lembretes, no dia de cada um, com as datas sazonais, as campanhas e os eventos.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('o gestor com um representante escolhido busca o calendário dele', async () => {
     const usuario = userEvent.setup();
     renderizarComo('GESTOR', { atrasadas: [ATRASADA] });
