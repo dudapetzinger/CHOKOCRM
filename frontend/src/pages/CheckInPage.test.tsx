@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -114,6 +114,9 @@ const PRODUTOS: Produto[] = [
   { sku: 'PAO-MEL', nome: 'Pães de mel', precoUnitario: 27.9 },
 ];
 
+const PERGUNTA_PROXIMA = 'Deseja marcar a data prevista da próxima visita?';
+const PERGUNTA_LEMBRETE = 'Deseja anotar um lembrete?';
+
 /** A ficha, para conferir a volta (e o aviso da foto que não subiu). */
 function FichaFalsa() {
   const { state } = useLocation();
@@ -136,6 +139,9 @@ function preencher(campo: HTMLElement, texto: string) {
 }
 
 beforeEach(() => {
+  // Só o relógio: a sugestão, o "agora" e o "hoje" não dependem do dia em que o teste roda.
+  // 18/10/2026, 13h30 no fuso do dispositivo; a recorrência do cliente é 15 dias.
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 18, 13, 30) });
   usuario = userEvent.setup({ delay: null });
   vi.mocked(getCliente).mockReset().mockResolvedValue(FICHA);
   vi.mocked(createContato).mockReset().mockResolvedValue(CONTATO_NOVO);
@@ -147,6 +153,10 @@ beforeEach(() => {
   // O jsdom não gera URL de prévia de arquivo
   URL.createObjectURL = vi.fn(() => 'blob:previa');
   URL.revokeObjectURL = vi.fn();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 function renderizar() {
@@ -169,31 +179,144 @@ async function esperarCliente() {
   expect(await screen.findByText('Armazém São Bento')).toBeInTheDocument();
 }
 
-describe('CheckInPage', () => {
-  it('mostra o cliente e os campos na ordem do protótipo', async () => {
+function titulo(nome: string) {
+  return screen.getByRole('heading', { level: 2, name: nome });
+}
+
+async function continuar() {
+  await usuario.click(screen.getByRole('button', { name: 'Continuar' }));
+}
+
+async function voltar() {
+  await usuario.click(screen.getByRole('button', { name: 'Voltar' }));
+}
+
+async function salvar() {
+  await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+}
+
+/** Do passo 3 ao 4, com uma descrição válida. */
+async function descreverEContinuar(descricao = 'Reposição do mostruário.') {
+  preencher(screen.getByLabelText('O que aconteceu na visita'), descricao);
+  await continuar();
+}
+
+/** Do passo 1 ao 4 sem mexer em nada além da descrição. */
+async function irAoPasso4(descricao?: string) {
+  await continuar();
+  await continuar();
+  await descreverEContinuar(descricao);
+  expect(titulo('Próximos passos')).toBeInTheDocument();
+}
+
+async function responder(pergunta: string, resposta: 'Sim' | 'Não') {
+  await usuario.click(within(screen.getByRole('radiogroup', { name: pergunta })).getByRole('radio', { name: resposta }));
+}
+
+function marcado(pergunta: string): string | null | undefined {
+  return within(screen.getByRole('radiogroup', { name: pergunta }))
+    .getAllByRole('radio')
+    .find((opcao) => opcao.getAttribute('aria-checked') === 'true')?.textContent;
+}
+
+describe('CheckInPage — passos', () => {
+  it('abre no passo 1 "A visita" com data e hora, contato e campanha; Continuar leva ao passo 2 e foca o título', async () => {
     renderizar();
     await esperarCliente();
 
     expect(screen.getByText(/Cliente:/)).toHaveTextContent('Cliente: Armazém São Bento');
+    expect(screen.getByText('Passo 1 de 4')).toBeInTheDocument();
+    expect(titulo('A visita')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'A visita' })).toBeInTheDocument();
+    const passo = screen.getByRole('group', { name: 'A visita' });
     const controles = [
-      screen.getByLabelText('Data e hora'),
-      screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' }),
-      screen.getByRole('radiogroup', { name: 'Resultado' }),
-      screen.getByRole('combobox', { name: 'Contato atendido' }),
-      screen.getByRole('group', { name: 'Pedido' }),
-      screen.getByLabelText('O que aconteceu na visita'),
-      screen.getByLabelText('Foto (opcional)'),
-      screen.getByLabelText('Próxima visita'),
-      screen.getByLabelText('Lembrete (opcional)'),
-      screen.getByLabelText('Para quando'),
-      screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' }),
-      screen.getByRole('button', { name: 'Salvar check-in' }),
+      within(passo).getByLabelText('Data e hora'),
+      within(passo).getByRole('combobox', { name: 'Contato atendido' }),
+      within(passo).getByRole('combobox', { name: 'Campanha da visita (opcional)' }),
     ];
     for (let i = 1; i < controles.length; i++) {
       expect(controles[i - 1]!.compareDocumentPosition(controles[i]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     }
-    expect(screen.getByRole('radio', { name: 'Venda' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByLabelText('Data e hora')).toHaveValue('2026-10-18T13:30');
     expect(screen.getByRole('combobox', { name: 'Contato atendido' })).toHaveDisplayValue('Não informar');
+    expect(screen.queryByRole('radiogroup', { name: 'Resultado' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('O que aconteceu na visita')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Salvar check-in' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+
+    await continuar();
+
+    expect(screen.getByText('Passo 2 de 4')).toBeInTheDocument();
+    expect(titulo('Resultado')).toHaveFocus();
+    expect(screen.getByRole('region', { name: 'Resultado' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Venda' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Data e hora')).not.toBeInTheDocument();
+
+    await continuar();
+    expect(titulo('O que aconteceu')).toHaveFocus();
+    expect(screen.getByLabelText('Foto (opcional)')).toBeInTheDocument();
+
+    await descreverEContinuar();
+    expect(screen.getByText('Passo 4 de 4')).toBeInTheDocument();
+    expect(titulo('Próximos passos')).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Continuar' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Salvar check-in' })).toHaveAttribute('type', 'submit');
+  });
+
+  it('Enter num campo dos passos 1 a 3 continua em vez de enviar', async () => {
+    renderizar();
+    await esperarCliente();
+
+    await usuario.type(screen.getByLabelText('Data e hora'), '{Enter}');
+
+    expect(titulo('Resultado')).toHaveFocus();
+    expect(registrarCheckIn).not.toHaveBeenCalled();
+  });
+
+  it('toque duplo no Continuar avança um passo só', async () => {
+    renderizar();
+    await esperarCliente();
+
+    await usuario.dblClick(screen.getByRole('button', { name: 'Continuar' }));
+
+    // O segundo mousedown leva o foco ao botão; o que importa é não pular o "Resultado"
+    expect(screen.getByText('Passo 2 de 4')).toBeInTheDocument();
+    expect(titulo('Resultado')).toBeInTheDocument();
+  });
+
+  it('passo 1 não avança com contato novo aberto; mensagem no campo', async () => {
+    renderizar();
+    await esperarCliente();
+
+    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), '+ Novo contato…');
+    await continuar();
+
+    expect(titulo('A visita')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Contato atendido' })).toHaveAccessibleDescription(
+      /Adicione ou cancele o contato novo antes de salvar\./,
+    );
+    expect(screen.getByRole('group', { name: 'Novo contato' })).toBeInTheDocument();
+  });
+
+  it('passo 1 não avança com a data e hora no futuro nem vazia; mensagem no campo, com o foco nele', async () => {
+    renderizar();
+    await esperarCliente();
+    const dataHora = screen.getByLabelText('Data e hora');
+
+    preencher(dataHora, '2026-10-18T14:00');
+    await continuar();
+
+    expect(titulo('A visita')).toBeInTheDocument();
+    expect(dataHora).toHaveAttribute('aria-invalid', 'true');
+    expect(dataHora).toHaveAccessibleDescription(/Data e hora da visita não podem estar no futuro\./);
+    expect(dataHora).toHaveFocus();
+
+    preencher(dataHora, '');
+    expect(dataHora).not.toHaveAttribute('aria-invalid');
+    await continuar();
+    expect(dataHora).toHaveAccessibleDescription(/Informe a data e a hora da visita\./);
   });
 
   it('"+ Novo contato…" no select "Contato atendido" abre o formulário e o contato criado fica selecionado', async () => {
@@ -217,8 +340,8 @@ describe('CheckInPage', () => {
     expect(select).toHaveDisplayValue('Jonas Kruger — Gerente');
     expect(select).toHaveFocus();
 
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Apresentei o catálogo de Natal.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+    await irAoPasso4('Apresentei o catálogo de Natal.');
+    await salvar();
 
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ contactId: 'ct9' }));
   });
@@ -238,91 +361,14 @@ describe('CheckInPage', () => {
     expect(createContato).not.toHaveBeenCalled();
   });
 
-  it('salvar envia resultado, descrição e contato, avisa "Check-in salvo" e volta para a ficha', async () => {
+  it('passo 2: Venda mostra o pedido; Negociação e Sem venda não', async () => {
     renderizar();
     await esperarCliente();
-
-    await usuario.click(screen.getByRole('radio', { name: 'Negociação' }));
-    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), 'Marta Hoffmann — Compradora');
-    preencher(screen.getByLabelText('O que aconteceu na visita'), '  Reposição do mostruário.  ');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
-
-    expect(registrarCheckIn).toHaveBeenCalledTimes(1);
-    expect(registrarCheckIn).toHaveBeenCalledWith('c1', {
-      descricao: 'Reposição do mostruário.',
-      resultado: 'NEGOCIACAO',
-      dataHora: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/),
-      contactId: 'ct1',
-      proximaVisita: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-    });
-    // O aviso aparece antes de a navegação terminar: espera a ficha, depois confere o aviso
-    expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
-    expect(await screen.findByText('Check-in salvo')).toBeInTheDocument();
-    expect(enviarFoto).not.toHaveBeenCalled();
-  });
-
-  it('sem contato escolhido, o check-in vai sem contactId', async () => {
-    renderizar();
-    await esperarCliente();
-
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Cliente fechado para balanço.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
-
-    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ contactId: expect.anything() }));
-  });
-
-  it('descrição com menos de 3 caracteres mostra o erro junto do campo, com o foco nele, e não envia', async () => {
-    renderizar();
-    await esperarCliente();
-
-    await usuario.type(screen.getByLabelText('O que aconteceu na visita'), 'ok');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
-
-    const descricao = screen.getByLabelText('O que aconteceu na visita');
-    expect(screen.getByText('Descreva a visita com pelo menos 3 caracteres.')).toBeInTheDocument();
-    expect(descricao).toHaveAttribute('aria-invalid', 'true');
-    expect(descricao).toHaveAccessibleDescription(/Descreva a visita com pelo menos 3 caracteres\./);
-    expect(descricao).toHaveFocus();
-    expect(registrarCheckIn).not.toHaveBeenCalled();
-  });
-
-  it('erro da API aparece no formulário e mantém o que foi digitado', async () => {
-    vi.mocked(registrarCheckIn).mockRejectedValue(
-      new ApiError('VALIDATION', 'Data e hora da visita não podem estar no futuro.'),
-    );
-    renderizar();
-    await esperarCliente();
-
-    await usuario.click(screen.getByRole('radio', { name: 'Sem venda' }));
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Cliente pediu retorno em novembro.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('Data e hora da visita não podem estar no futuro.');
-    expect(screen.getByLabelText('O que aconteceu na visita')).toHaveValue('Cliente pediu retorno em novembro.');
-    expect(screen.getByRole('radio', { name: 'Sem venda' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('button', { name: 'Salvar check-in' })).toBeEnabled();
-    expect(screen.queryByText('Ficha do cliente')).not.toBeInTheDocument();
-  });
-
-  it('salvar com o contato novo ainda aberto pede para concluir o contato e não envia', async () => {
-    renderizar();
-    await esperarCliente();
-
-    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), '+ Novo contato…');
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Conversei com o gerente novo.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
-
-    expect(screen.getByText('Adicione ou cancele o contato novo antes de salvar.')).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Novo contato' })).toBeInTheDocument();
-    expect(registrarCheckIn).not.toHaveBeenCalled();
-  });
-
-  it('pedido só aparece com resultado Venda', async () => {
-    renderizar();
-    await esperarCliente();
+    await continuar();
 
     // Venda é o resultado padrão: o pedido começa com uma linha, no primeiro produto
-    const pedido = screen.getByRole('group', { name: 'Pedido' });
+    const passo = screen.getByRole('group', { name: 'Resultado' });
+    const pedido = within(passo).getByRole('group', { name: 'Pedido' });
     const produto = await within(pedido).findByRole('combobox', { name: 'Produto do item 1' });
     expect(produto).toHaveDisplayValue(/^Bombons sortidos · R\$\s42,00$/);
     expect(within(pedido).getAllByRole('combobox')).toHaveLength(1);
@@ -337,73 +383,344 @@ describe('CheckInPage', () => {
     expect(screen.getByRole('group', { name: 'Pedido' })).toBeInTheDocument();
   });
 
-  it('envia itens sem as linhas de quantidade 0', async () => {
+  it('passo 3 não avança com descrição curta', async () => {
     renderizar();
     await esperarCliente();
+    await continuar();
+    await continuar();
+
+    await usuario.type(screen.getByLabelText('O que aconteceu na visita'), 'ok');
+    await continuar();
+
+    const descricao = screen.getByLabelText('O que aconteceu na visita');
+    expect(titulo('O que aconteceu')).toBeInTheDocument();
+    expect(descricao).toHaveAttribute('aria-invalid', 'true');
+    expect(descricao).toHaveAccessibleDescription(/Descreva a visita com pelo menos 3 caracteres\./);
+    expect(descricao).toHaveFocus();
+  });
+
+  it('Voltar preserva os campos (descrição digitada continua ao voltar ao 2 e avançar de novo)', async () => {
+    renderizar();
+    await esperarCliente();
+    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), 'Marta Hoffmann — Compradora');
+    preencher(screen.getByLabelText('Data e hora'), '2026-10-16T09:00');
+    await continuar();
+    await usuario.click(screen.getByRole('radio', { name: 'Negociação' }));
+    await continuar();
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Cliente vai pensar até sexta.');
+    await usuario.upload(
+      screen.getByLabelText('Foto (opcional)'),
+      new File(['foto'], 'vitrine.jpg', { type: 'image/jpeg' }),
+    );
+
+    await voltar();
+    expect(titulo('Resultado')).toHaveFocus();
+    expect(screen.getByRole('radio', { name: 'Negociação' })).toHaveAttribute('aria-checked', 'true');
+    await voltar();
+    expect(screen.getByRole('combobox', { name: 'Contato atendido' })).toHaveDisplayValue('Marta Hoffmann — Compradora');
+    expect(screen.getByLabelText('Data e hora')).toHaveValue('2026-10-16T09:00');
+
+    await continuar();
+    await continuar();
+    expect(screen.getByLabelText('O que aconteceu na visita')).toHaveValue('Cliente vai pensar até sexta.');
+    expect(screen.getByRole('img', { name: 'Prévia da foto do check-in' })).toBeInTheDocument();
+  });
+
+  it('trocar Venda por Sem venda depois de preencher o pedido: o corpo não leva itens', async () => {
+    renderizar();
+    await esperarCliente();
+    await continuar();
     const pedido = screen.getByRole('group', { name: 'Pedido' });
     await within(pedido).findByRole('combobox', { name: 'Produto do item 1' });
+    preencher(within(pedido).getByRole('spinbutton', { name: 'Quantidade do item 1' }), '10');
 
+    await usuario.click(screen.getByRole('radio', { name: 'Sem venda' }));
+    await continuar();
+    await descreverEContinuar('Cliente vai pensar até sexta.');
+    await salvar();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ itens: expect.anything() }));
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ resultado: 'SEM_VENDA' }));
+  });
+
+  it('passo 4 com as duas perguntas em "não" envia proximaVisita: null e sem lembrete', async () => {
+    renderizar();
+    await esperarCliente();
+    await irAoPasso4('  Reposição do mostruário.  ');
+
+    expect(screen.getByRole('group', { name: PERGUNTA_PROXIMA })).toBeInTheDocument();
+    expect(marcado(PERGUNTA_PROXIMA)).toBe('Não');
+    expect(marcado(PERGUNTA_LEMBRETE)).toBe('Não');
+    expect(screen.queryByLabelText('Próxima visita')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Lembrete')).not.toBeInTheDocument();
+    await salvar();
+
+    expect(registrarCheckIn).toHaveBeenCalledTimes(1);
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', {
+      descricao: 'Reposição do mostruário.',
+      resultado: 'VENDA',
+      dataHora: new Date(2026, 9, 18, 13, 30).toISOString(),
+      proximaVisita: null,
+    });
+    // O aviso aparece antes de a navegação terminar: espera a ficha, depois confere o aviso
+    expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
+    expect(await screen.findByText('Check-in salvo')).toBeInTheDocument();
+    expect(enviarFoto).not.toHaveBeenCalled();
+  });
+
+  it('"sim" na próxima visita mostra data sugerida e campanha; "sim" no lembrete mostra texto e Para quando (sugerido pela próxima visita)', async () => {
+    renderizar();
+    await esperarCliente();
+    await irAoPasso4();
+
+    await responder(PERGUNTA_PROXIMA, 'Sim');
+    const proxima = screen.getByLabelText('Próxima visita');
+    expect(proxima).toHaveValue('2026-11-02');
+    expect(proxima).toHaveAccessibleDescription(/recorrência de 15 dias/);
+    expect(screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' })).toHaveDisplayValue(
+      'Sem campanha',
+    );
+
+    await responder(PERGUNTA_LEMBRETE, 'Sim');
+    expect(screen.getByLabelText('Lembrete')).toHaveAttribute('maxlength', '200');
+    const paraQuando = screen.getByLabelText('Para quando');
+    expect(paraQuando).toHaveValue('2026-11-02');
+    expect(paraQuando).toHaveAttribute('type', 'date');
+    expect(paraQuando).toHaveAttribute('min', '2026-10-18');
+
+    // Com "não" na próxima visita, "Para quando" não tem de onde vir
+    await responder(PERGUNTA_PROXIMA, 'Não');
+    expect(screen.queryByLabelText('Próxima visita')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Para quando')).toHaveValue('');
+  });
+
+  it('cliente com data marcada abre o passo 4 em "sim" com a data atual; salvar sem mexer mantém a data', async () => {
+    vi.mocked(getCliente).mockResolvedValue({
+      ...FICHA,
+      proximaVisita: '2026-10-25',
+      proximaCampanha: { id: 'cp2', nome: 'Natal Chokolaten' },
+    });
+    renderizar();
+    await esperarCliente();
+    await within(screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' })).findByRole('option', {
+      name: 'Natal Chokolaten',
+    });
+    await irAoPasso4();
+
+    expect(marcado(PERGUNTA_PROXIMA)).toBe('Sim');
+    expect(screen.getByLabelText('Próxima visita')).toHaveValue('2026-10-25');
+    expect(screen.getByLabelText('Próxima visita')).toHaveAccessibleDescription(/Data já marcada para este cliente\./);
+    expect(screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' })).toHaveDisplayValue(
+      'Natal Chokolaten',
+    );
+    await salvar();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ proximaVisita: '2026-10-25', proximaCampanhaId: 'cp2', campanhaId: 'cp2' }),
+    );
+  });
+
+  it('cliente com a data marcada já passada: "sim" com a sugestão', async () => {
+    vi.mocked(getCliente).mockResolvedValue({ ...FICHA, proximaVisita: '2026-10-10' });
+    renderizar();
+    await esperarCliente();
+    await irAoPasso4();
+
+    expect(marcado(PERGUNTA_PROXIMA)).toBe('Sim');
+    expect(screen.getByLabelText('Próxima visita')).toHaveValue('2026-11-02');
+    await salvar();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ proximaVisita: '2026-11-02' }));
+  });
+
+  it('fluxo completo até registrarCheckIn com o mesmo corpo de hoje (data, contato, campanha, Venda com itens, descrição, próxima visita, lembrete)', async () => {
+    renderizar();
+    await esperarCliente();
+    const daVisita = screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' });
+    await within(daVisita).findByRole('option', { name: 'Natal Chokolaten' });
+
+    // Passo 1
+    preencher(screen.getByLabelText('Data e hora'), '2026-10-16T09:00');
+    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), 'Marta Hoffmann — Compradora');
+    await usuario.selectOptions(daVisita, 'Natal Chokolaten');
+    await continuar();
+
+    // Passo 2: Venda, só as linhas com quantidade vão
+    const pedido = screen.getByRole('group', { name: 'Pedido' });
+    await within(pedido).findByRole('combobox', { name: 'Produto do item 1' });
     preencher(within(pedido).getByRole('spinbutton', { name: 'Quantidade do item 1' }), '10');
     await usuario.click(within(pedido).getByRole('button', { name: 'Adicionar item' }));
     await usuario.click(within(pedido).getByRole('button', { name: 'Adicionar item' }));
     preencher(within(pedido).getByRole('spinbutton', { name: 'Quantidade do item 3' }), '3');
     expect(within(pedido).getByText('R$ 503,70')).toBeInTheDocument();
+    await continuar();
 
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Pedido de bombons e pães de mel.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+    // Passo 3
+    await descreverEContinuar('  Pedido de bombons e pães de mel.  ');
 
-    expect(registrarCheckIn).toHaveBeenCalledWith(
-      'c1',
-      expect.objectContaining({
-        resultado: 'VENDA',
-        itens: [
-          { sku: 'BOMB-SORT', quantidade: 10 },
-          { sku: 'PAO-MEL', quantidade: 3 },
-        ],
-      }),
+    // Passo 4: a sugestão acompanha a data da visita (16/10 + 15 dias)
+    await responder(PERGUNTA_PROXIMA, 'Sim');
+    expect(screen.getByLabelText('Próxima visita')).toHaveValue('2026-10-31');
+    await usuario.selectOptions(
+      screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' }),
+      'Feira Sabores do Vale',
     );
+    await responder(PERGUNTA_LEMBRETE, 'Sim');
+    preencher(screen.getByLabelText('Lembrete'), '  Levar amostras de Natal  ');
+    await salvar();
+
+    expect(registrarCheckIn).toHaveBeenCalledTimes(1);
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', {
+      descricao: 'Pedido de bombons e pães de mel.',
+      resultado: 'VENDA',
+      dataHora: new Date('2026-10-16T09:00').toISOString(),
+      campanhaId: 'cp2',
+      contactId: 'ct1',
+      itens: [
+        { sku: 'BOMB-SORT', quantidade: 10 },
+        { sku: 'PAO-MEL', quantidade: 3 },
+      ],
+      proximaVisita: '2026-10-31',
+      proximaCampanhaId: 'cp3',
+      lembrete: { texto: 'Levar amostras de Natal', data: '2026-10-31' },
+    });
+    expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
+  });
+
+  it('erro 400 da API no campo dataHora leva ao passo 1 com a mensagem no campo', async () => {
+    vi.mocked(registrarCheckIn).mockRejectedValueOnce(
+      new ApiError('VALIDATION_ERROR', 'Dados inválidos.', [
+        { path: 'dataHora', message: 'Data e hora da visita não podem estar no futuro.' },
+      ]),
+    );
+    renderizar();
+    await esperarCliente();
+    await irAoPasso4('Cliente pediu retorno em novembro.');
+    await salvar();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'A visita' })).toBeInTheDocument();
+    const dataHora = screen.getByLabelText('Data e hora');
+    expect(dataHora).toHaveAttribute('aria-invalid', 'true');
+    expect(dataHora).toHaveAccessibleDescription(/Data e hora da visita não podem estar no futuro\./);
+    expect(dataHora).toHaveFocus();
+    expect(screen.queryByText('Ficha do cliente')).not.toBeInTheDocument();
+
+    // O resto continua como estava, e salvar de novo funciona
+    preencher(dataHora, '2026-10-18T09:00');
+    await continuar();
+    await continuar();
+    expect(screen.getByLabelText('O que aconteceu na visita')).toHaveValue('Cliente pediu retorno em novembro.');
+    await continuar();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await salvar();
+    expect(registrarCheckIn).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
+  });
+
+  it('erro 400 com campo e mensagem sem campo: passo 1 com o erro no campo e o aviso visível; Continuar o limpa', async () => {
+    vi.mocked(registrarCheckIn).mockRejectedValueOnce(
+      new ApiError('VALIDATION_ERROR', 'Dados inválidos.', [
+        { path: 'dataHora', message: 'Data e hora da visita não podem estar no futuro.' },
+        { path: 'campanhaId', message: 'Identificador da campanha inválido.' },
+      ]),
+    );
+    renderizar();
+    await esperarCliente();
+    await irAoPasso4();
+    await salvar();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'A visita' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Data e hora')).toHaveAccessibleDescription(
+      /Data e hora da visita não podem estar no futuro\./,
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Identificador da campanha inválido.');
+
+    preencher(screen.getByLabelText('Data e hora'), '2026-10-18T09:00');
+    await continuar();
+
+    expect(titulo('Resultado')).toHaveFocus();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await continuar();
+    await continuar();
+    expect(screen.queryByText('Identificador da campanha inválido.')).not.toBeInTheDocument();
+  });
+
+  it('erro genérico da API aparece no passo 4', async () => {
+    vi.mocked(registrarCheckIn).mockRejectedValue(new ApiError('NETWORK', 'Você está sem internet.'));
+    renderizar();
+    await esperarCliente();
+    await continuar();
+    await usuario.click(screen.getByRole('radio', { name: 'Sem venda' }));
+    await continuar();
+    await descreverEContinuar('Cliente pediu retorno em novembro.');
+    await salvar();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Você está sem internet.');
+    expect(titulo('Próximos passos')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Salvar check-in' })).toBeEnabled();
+    expect(screen.queryByText('Ficha do cliente')).not.toBeInTheDocument();
+
+    await voltar();
+    expect(screen.getByLabelText('O que aconteceu na visita')).toHaveValue('Cliente pediu retorno em novembro.');
+    await voltar();
+    expect(screen.getByRole('radio', { name: 'Sem venda' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('Cancelar em qualquer passo volta à ficha sem chamar registrarCheckIn', async () => {
+    for (const passos of [0, 1, 2, 3]) {
+      renderizar();
+      await esperarCliente();
+      if (passos >= 1) await continuar();
+      if (passos >= 2) await continuar();
+      if (passos >= 3) await descreverEContinuar();
+
+      await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+      expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
+      cleanup();
+    }
+    expect(registrarCheckIn).not.toHaveBeenCalled();
+  });
+
+  it('sem contato escolhido, o check-in vai sem contactId', async () => {
+    renderizar();
+    await esperarCliente();
+    await irAoPasso4('Cliente fechado para balanço.');
+    await salvar();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ contactId: expect.anything() }));
   });
 
   it('Venda com o pedido em branco vai sem itens', async () => {
     renderizar();
     await esperarCliente();
+    await continuar();
     await within(screen.getByRole('group', { name: 'Pedido' })).findByRole('combobox', { name: 'Produto do item 1' });
-
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Venda acertada por telefone depois.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
-
-    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ itens: expect.anything() }));
-  });
-
-  it('o pedido preenchido não vai quando o resultado muda para outro', async () => {
-    renderizar();
-    await esperarCliente();
-    const pedido = screen.getByRole('group', { name: 'Pedido' });
-    await within(pedido).findByRole('combobox', { name: 'Produto do item 1' });
-    preencher(within(pedido).getByRole('spinbutton', { name: 'Quantidade do item 1' }), '10');
-
-    await usuario.click(screen.getByRole('radio', { name: 'Negociação' }));
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Cliente vai pensar até sexta.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+    await continuar();
+    await descreverEContinuar('Venda acertada por telefone depois.');
+    await salvar();
 
     expect(registrarCheckIn).toHaveBeenCalledWith(
       'c1',
       expect.not.objectContaining({ itens: expect.anything() }),
     );
-    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ resultado: 'NEGOCIACAO' }));
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ resultado: 'VENDA' }));
   });
 
   it('sem o catálogo, o pedido avisa e o check-in ainda salva', async () => {
     vi.mocked(listarProdutos).mockRejectedValue(new ApiError('NETWORK', 'Você está sem internet.'));
     renderizar();
     await esperarCliente();
+    await continuar();
 
     const pedido = screen.getByRole('group', { name: 'Pedido' });
     expect(await within(pedido).findByText('Não foi possível carregar os produtos.')).toBeInTheDocument();
     expect(within(pedido).getByRole('button', { name: 'Adicionar item' })).toBeDisabled();
 
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Venda registrada sem o pedido.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+    await continuar();
+    await descreverEContinuar('Venda registrada sem o pedido.');
+    await salvar();
 
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ itens: expect.anything() }));
   });
@@ -411,12 +728,15 @@ describe('CheckInPage', () => {
   it('com foto, envia a foto comprimida depois do check-in', async () => {
     renderizar();
     await esperarCliente();
+    await continuar();
+    await continuar();
     const foto = new File(['foto'], 'vitrine.jpg', { type: 'image/jpeg' });
 
     await usuario.upload(screen.getByLabelText('Foto (opcional)'), foto);
     expect(screen.getByRole('img', { name: 'Prévia da foto do check-in' })).toHaveAttribute('src', 'blob:previa');
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Vitrine montada.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+    expect(screen.getByText('Registra que você esteve no cliente.')).toBeInTheDocument();
+    await descreverEContinuar('Vitrine montada.');
+    await salvar();
 
     expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
     expect(comprimirImagem).toHaveBeenCalledWith(foto);
@@ -424,103 +744,93 @@ describe('CheckInPage', () => {
     expect(await screen.findByText('Check-in salvo')).toBeInTheDocument();
   });
 
-  it('se a foto não sobe, volta para a ficha com o aviso da foto (o check-in já está salvo)', async () => {
+  it('foto não enviada: continua navegando com avisoFoto', async () => {
     vi.mocked(enviarFoto).mockRejectedValue(new ApiError('NETWORK', 'Você está sem internet.'));
     renderizar();
     await esperarCliente();
+    await continuar();
+    await continuar();
 
     await usuario.upload(
       screen.getByLabelText('Foto (opcional)'),
       new File(['foto'], 'vitrine.jpg', { type: 'image/jpeg' }),
     );
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Vitrine montada.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+    await descreverEContinuar('Vitrine montada.');
+    await salvar();
 
     expect(await screen.findByText('Ficha do cliente (foto: nao-enviada)')).toBeInTheDocument();
     expect(registrarCheckIn).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
-  beforeEach(() => {
-    // Só o relógio: a sugestão e o "hoje" não dependem do dia em que o teste roda.
-    // 18/10/2026, 13h30 no fuso do dispositivo; a recorrência do cliente é 15 dias.
-    vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 18, 13, 30) });
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  async function salvarComDescricao() {
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Reposição do mostruário.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
+describe('CheckInPage — próxima visita e lembrete no passo 4 (spec 7.4)', () => {
+  /** Abre o passo 4 com "sim" na próxima visita (e no lembrete, se pedido). */
+  async function abrirPasso4({ lembrete = false } = {}) {
+    renderizar();
+    await esperarCliente();
+    await irAoPasso4();
+    await responder(PERGUNTA_PROXIMA, 'Sim');
+    if (lembrete) await responder(PERGUNTA_LEMBRETE, 'Sim');
   }
 
-  it('sugere a próxima visita = data da visita + recorrência e envia proximaVisita e lembrete', async () => {
+  it('a sugestão acompanha a data da visita escolhida no passo 1', async () => {
     renderizar();
     await esperarCliente();
-    const proxima = screen.getByLabelText('Próxima visita');
-
-    expect(proxima).toHaveValue('2026-11-02');
-    expect(proxima).toHaveAccessibleDescription(/recorrência de 15 dias/);
-
-    // A sugestão acompanha a data da visita
     preencher(screen.getByLabelText('Data e hora'), '2026-10-16T09:00');
-    expect(proxima).toHaveValue('2026-10-31');
+    await irAoPasso4();
+    await responder(PERGUNTA_PROXIMA, 'Sim');
 
-    preencher(screen.getByLabelText('Lembrete (opcional)'), '  Levar amostras de Natal  ');
-    await salvarComDescricao();
-
-    expect(registrarCheckIn).toHaveBeenCalledWith(
-      'c1',
-      expect.objectContaining({
-        proximaVisita: '2026-10-31',
-        lembrete: { texto: 'Levar amostras de Natal', data: '2026-10-31' },
-      }),
-    );
+    expect(screen.getByLabelText('Próxima visita')).toHaveValue('2026-10-31');
+    expect(
+      screen.getByText(/Sugestão: data da visita \+ recorrência de 15 dias\. Sem data, a agenda segue a recorrência\./),
+    ).toBeInTheDocument();
   });
 
-  it('depois que a representante muda a data, mudar a data da visita não mexe mais nela', async () => {
-    renderizar();
-    await esperarCliente();
-    const proxima = screen.getByLabelText('Próxima visita');
+  it('depois que a representante muda a data, voltar e mudar a data da visita não mexe mais nela', async () => {
+    await abrirPasso4();
+    preencher(screen.getByLabelText('Próxima visita'), '2026-11-10');
 
-    preencher(proxima, '2026-11-10');
+    await voltar();
+    await voltar();
+    await voltar();
     preencher(screen.getByLabelText('Data e hora'), '2026-10-16T09:00');
-    expect(proxima).toHaveValue('2026-11-10');
+    await continuar();
+    await continuar();
+    await continuar();
+    expect(screen.getByLabelText('Próxima visita')).toHaveValue('2026-11-10');
+    await salvar();
 
-    await salvarComDescricao();
-
-    expect(registrarCheckIn).toHaveBeenCalledWith(
-      'c1',
-      expect.objectContaining({ proximaVisita: '2026-11-10' }),
-    );
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ proximaVisita: '2026-11-10' }));
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ lembrete: expect.anything() }));
   });
 
-  it('apagar a data envia proximaVisita: null e, sem texto de lembrete, nenhum lembrete', async () => {
-    renderizar();
-    await esperarCliente();
+  it('"sim" com a data apagada envia proximaVisita: null e esconde a campanha da próxima visita', async () => {
+    await abrirPasso4();
+    await usuario.selectOptions(
+      await screen.findByRole('combobox', { name: 'Campanha da próxima visita (opcional)' }),
+      'Natal Chokolaten',
+    );
 
     preencher(screen.getByLabelText('Próxima visita'), '');
-    await salvarComDescricao();
 
+    expect(screen.queryByRole('combobox', { name: 'Campanha da próxima visita (opcional)' })).not.toBeInTheDocument();
+    await salvar();
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ proximaVisita: null }));
-    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ lembrete: expect.anything() }));
+    expect(registrarCheckIn).toHaveBeenCalledWith(
+      'c1',
+      expect.not.objectContaining({ proximaCampanhaId: expect.anything() }),
+    );
   });
 
-  it('o lembrete é independente da próxima visita: sem data marcada, vai com a data própria e proximaVisita: null', async () => {
+  it('o lembrete é independente da próxima visita: com "não" nela, vai com a data própria e proximaVisita: null', async () => {
     renderizar();
     await esperarCliente();
+    await irAoPasso4();
+    await responder(PERGUNTA_LEMBRETE, 'Sim');
 
-    preencher(screen.getByLabelText('Próxima visita'), '');
-    const lembrete = screen.getByLabelText('Lembrete (opcional)');
-    expect(lembrete).toBeEnabled();
-    expect(screen.getByLabelText('Para quando')).toHaveValue('');
-    preencher(lembrete, 'Levar amostras');
+    preencher(screen.getByLabelText('Lembrete'), 'Levar amostras');
     preencher(screen.getByLabelText('Para quando'), '2026-11-20');
-    await salvarComDescricao();
+    await salvar();
 
     expect(registrarCheckIn).toHaveBeenCalledWith(
       'c1',
@@ -528,15 +838,9 @@ describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
     );
   });
 
-  it('"Para quando" vem com a data da próxima visita e acompanha a sugestão até a representante mudá-la', async () => {
-    renderizar();
-    await esperarCliente();
+  it('"Para quando" acompanha a próxima visita até a representante mudá-lo', async () => {
+    await abrirPasso4({ lembrete: true });
     const paraQuando = screen.getByLabelText('Para quando');
-
-    expect(paraQuando).toHaveValue('2026-11-02');
-    expect(paraQuando).toHaveAttribute('type', 'date');
-    expect(paraQuando).toHaveAttribute('min', '2026-10-18');
-    expect(screen.getByLabelText('Lembrete (opcional)')).toHaveAttribute('maxlength', '200');
 
     preencher(screen.getByLabelText('Próxima visita'), '2026-11-05');
     expect(paraQuando).toHaveValue('2026-11-05');
@@ -546,13 +850,12 @@ describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
     expect(paraQuando).toHaveValue('2026-11-20');
   });
 
-  it('lembrete com texto e sem data mostra o erro no campo da data e não envia', async () => {
-    renderizar();
-    await esperarCliente();
+  it('lembrete com texto e sem data mostra o erro no campo da data, com o foco nele, e não envia', async () => {
+    await abrirPasso4({ lembrete: true });
 
     preencher(screen.getByLabelText('Próxima visita'), '');
-    preencher(screen.getByLabelText('Lembrete (opcional)'), 'Levar amostras');
-    await salvarComDescricao();
+    preencher(screen.getByLabelText('Lembrete'), 'Levar amostras');
+    await salvar();
 
     const paraQuando = screen.getByLabelText('Para quando');
     expect(paraQuando).toHaveAttribute('aria-invalid', 'true');
@@ -562,11 +865,10 @@ describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
   });
 
   it('preencher a próxima visita depois do erro "Informe a data do lembrete." limpa o erro (a data segue a próxima visita)', async () => {
-    renderizar();
-    await esperarCliente();
+    await abrirPasso4({ lembrete: true });
     preencher(screen.getByLabelText('Próxima visita'), '');
-    preencher(screen.getByLabelText('Lembrete (opcional)'), 'Levar amostras');
-    await salvarComDescricao();
+    preencher(screen.getByLabelText('Lembrete'), 'Levar amostras');
+    await salvar();
     const paraQuando = screen.getByLabelText('Para quando');
     expect(paraQuando).toHaveAttribute('aria-invalid', 'true');
 
@@ -578,12 +880,11 @@ describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
   });
 
   it('lembrete com data antes de hoje mostra o erro e não envia', async () => {
-    renderizar();
-    await esperarCliente();
+    await abrirPasso4({ lembrete: true });
 
-    preencher(screen.getByLabelText('Lembrete (opcional)'), 'Levar amostras');
+    preencher(screen.getByLabelText('Lembrete'), 'Levar amostras');
     preencher(screen.getByLabelText('Para quando'), '2026-10-17');
-    await salvarComDescricao();
+    await salvar();
 
     expect(screen.getByLabelText('Para quando')).toHaveAccessibleDescription(
       /A data do lembrete não pode ser antes de hoje\./,
@@ -591,36 +892,32 @@ describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
     expect(registrarCheckIn).not.toHaveBeenCalled();
   });
 
-  it('texto do lembrete vazio não envia lembrete, mesmo com data', async () => {
-    renderizar();
-    await esperarCliente();
+  it('texto do lembrete vazio não envia lembrete, mesmo com "sim" e data', async () => {
+    await abrirPasso4({ lembrete: true });
 
-    preencher(screen.getByLabelText('Lembrete (opcional)'), '   ');
+    preencher(screen.getByLabelText('Lembrete'), '   ');
     preencher(screen.getByLabelText('Para quando'), '2026-11-20');
-    await salvarComDescricao();
+    await salvar();
 
     expect(registrarCheckIn).toHaveBeenCalledTimes(1);
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ lembrete: expect.anything() }));
   });
 
-  it('as ajudas não prometem mais "sem lembrete" nem "salvar sem foto"', async () => {
-    renderizar();
-    await esperarCliente();
+  it('lembrete preenchido e depois "não": não vai', async () => {
+    await abrirPasso4({ lembrete: true });
+    preencher(screen.getByLabelText('Lembrete'), 'Levar amostras');
 
-    expect(
-      screen.getByText(/Sugestão: data da visita \+ recorrência de 15 dias\. Sem data, a agenda segue a recorrência\./),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/e não há lembrete/)).not.toBeInTheDocument();
-    expect(screen.getByText('Registra que você esteve no cliente.')).toBeInTheDocument();
-    expect(screen.queryByText(/Pode salvar sem foto/)).not.toBeInTheDocument();
+    await responder(PERGUNTA_LEMBRETE, 'Não');
+    await salvar();
+
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ lembrete: expect.anything() }));
   });
 
   it('data antes de hoje mostra o erro junto do campo, com o foco nele, e não envia', async () => {
-    renderizar();
-    await esperarCliente();
+    await abrirPasso4();
 
     preencher(screen.getByLabelText('Próxima visita'), '2026-10-17');
-    await salvarComDescricao();
+    await salvar();
 
     const proxima = screen.getByLabelText('Próxima visita');
     expect(proxima).toHaveAttribute('aria-invalid', 'true');
@@ -632,11 +929,12 @@ describe('CheckInPage — próxima visita e lembrete (spec 7.4)', () => {
   it('visita antiga: a sugestão cairia antes de hoje, então o campo fica vazio e a agenda segue a recorrência', async () => {
     renderizar();
     await esperarCliente();
-
     preencher(screen.getByLabelText('Data e hora'), '2026-09-01T09:00');
+    await irAoPasso4();
+    await responder(PERGUNTA_PROXIMA, 'Sim');
 
     expect(screen.getByLabelText('Próxima visita')).toHaveValue('');
-    await salvarComDescricao();
+    await salvar();
 
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ proximaVisita: null }));
   });
@@ -654,73 +952,52 @@ describe('CheckInPage — campanhas (spec 7.7)', () => {
     await within(select).findByRole('option', { name: 'Natal Chokolaten' });
   }
 
-  async function salvarComDescricao() {
-    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Apresentei os kits de Natal.');
-    await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
-  }
-
   it('os selects listam só campanhas não encerradas, depois de "Sem campanha"', async () => {
     renderizar();
     await esperarCliente();
     const daVisita = screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' });
-    const daProxima = screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' });
     await esperarCampanhas(daVisita);
 
     expect(opcoes(daVisita)).toEqual(['Sem campanha', 'Natal Chokolaten', 'Feira Sabores do Vale']);
-    expect(opcoes(daProxima)).toEqual(['Sem campanha', 'Natal Chokolaten', 'Feira Sabores do Vale']);
     expect(daVisita).toHaveDisplayValue('Sem campanha');
+
+    await irAoPasso4();
+    await responder(PERGUNTA_PROXIMA, 'Sim');
+    const daProxima = screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' });
+    expect(opcoes(daProxima)).toEqual(['Sem campanha', 'Natal Chokolaten', 'Feira Sabores do Vale']);
     expect(daProxima).toHaveDisplayValue('Sem campanha');
-  });
-
-  it('envia a campanha da visita e a da próxima visita', async () => {
-    renderizar();
-    await esperarCliente();
-    const daVisita = screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' });
-    await esperarCampanhas(daVisita);
-
-    await usuario.selectOptions(daVisita, 'Natal Chokolaten');
-    await usuario.selectOptions(
-      screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' }),
-      'Feira Sabores do Vale',
-    );
-    await salvarComDescricao();
-
-    expect(registrarCheckIn).toHaveBeenCalledWith(
-      'c1',
-      expect.objectContaining({ campanhaId: 'cp2', proximaCampanhaId: 'cp3' }),
-    );
   });
 
   it('sem campanha escolhida, o check-in vai sem os dois campos', async () => {
     renderizar();
     await esperarCliente();
     await esperarCampanhas(screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' }));
+    await irAoPasso4();
+    await responder(PERGUNTA_PROXIMA, 'Sim');
+    await salvar();
 
-    await salvarComDescricao();
-
-    expect(registrarCheckIn).toHaveBeenCalledWith(
-      'c1',
-      expect.not.objectContaining({ campanhaId: expect.anything() }),
-    );
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ campanhaId: expect.anything() }));
     expect(registrarCheckIn).toHaveBeenCalledWith(
       'c1',
       expect.not.objectContaining({ proximaCampanhaId: expect.anything() }),
     );
   });
 
-  it('a campanha da próxima visita só aparece com data; sem data, não vai', async () => {
+  it('campanha da próxima visita escolhida e depois "não" na pergunta: não vai', async () => {
     renderizar();
     await esperarCliente();
     await esperarCampanhas(screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' }));
+    await irAoPasso4();
+    await responder(PERGUNTA_PROXIMA, 'Sim');
     await usuario.selectOptions(
       screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' }),
       'Natal Chokolaten',
     );
 
-    preencher(screen.getByLabelText('Próxima visita'), '');
+    await responder(PERGUNTA_PROXIMA, 'Não');
+    await salvar();
 
-    expect(screen.queryByRole('combobox', { name: 'Campanha da próxima visita (opcional)' })).not.toBeInTheDocument();
-    await salvarComDescricao();
+    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ proximaVisita: null }));
     expect(registrarCheckIn).toHaveBeenCalledWith(
       'c1',
       expect.not.objectContaining({ proximaCampanhaId: expect.anything() }),
@@ -735,6 +1012,9 @@ describe('CheckInPage — campanhas (spec 7.7)', () => {
     await esperarCampanhas(daVisita);
 
     expect(daVisita).toHaveDisplayValue('Natal Chokolaten');
+    await irAoPasso4();
+    // Com campanha marcada, a pergunta já começa em "sim"
+    expect(marcado(PERGUNTA_PROXIMA)).toBe('Sim');
     expect(screen.getByRole('combobox', { name: 'Campanha da próxima visita (opcional)' })).toHaveDisplayValue(
       'Natal Chokolaten',
     );
