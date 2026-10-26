@@ -1,7 +1,7 @@
 import type { TipoCampanha } from '@prisma/client';
 import type { ClienteParaAgenda } from '../repositories/client.repository';
+import type { LembreteParaAgenda } from './agenda.montagem';
 import {
-  calcularProximaVisita,
   classificacaoDoCliente,
   dataCalendario,
   dataDaColunaDate,
@@ -15,14 +15,14 @@ import {
 /** Mês no formato `AAAA-MM`. */
 export type MesCalendario = string;
 
-export type TipoItemCalendario = 'VISITA' | 'CAMPANHA' | 'DATA_SAZONAL';
+export type TipoItemCalendario = 'VISITA' | 'LEMBRETE' | 'CAMPANHA' | 'DATA_SAZONAL';
 
 /**
- * Um item num dia do calendário da Agenda (spec 7.6). VISITA é a data
- * prevista da próxima visita de um cliente (um tipo só, decisão 9: `origem`
- * diz se foi marcada no check-in ou vem da recorrência); CAMPANHA, um dia
- * do intervalo de uma campanha (só para o gestor); DATA_SAZONAL, o dia
- * (`dataFim`) de um evento sazonal.
+ * Um item num dia do calendário da Agenda (spec 7.6). O calendário mostra só
+ * o que foi marcado de fato: VISITA é a data que o representante marcou no
+ * check-in para a próxima visita de um cliente; LEMBRETE, a data de um
+ * lembrete aberto; CAMPANHA, um dia do intervalo de uma campanha (só para o
+ * gestor); DATA_SAZONAL, o dia (`dataFim`) de um evento sazonal.
  */
 export type ItemCalendario = {
   data: DataCalendario;
@@ -30,13 +30,15 @@ export type ItemCalendario = {
   /** Nome do cliente, da campanha ou do evento. */
   titulo: string;
   clienteId?: string;
-  origem?: 'CHECK_IN' | 'RECORRENCIA';
-  recorrenciaDias?: number;
+  /** Só no lembrete: o id dele, para concluir direto do painel do dia. */
+  lembreteId?: string;
+  /** Só no lembrete: o texto. */
+  texto?: string;
   /** Dono da carteira do cliente. */
   representante?: { id: string; nome: string };
   /** Na visita, a campanha da próxima visita; na campanha, ela mesma. */
   campanha?: { id: string; nome: string } | null;
-  /** Texto pronto: o vencimento da visita prevista, o tipo e o período da campanha, "Data sazonal". */
+  /** Texto pronto: o vencimento da visita marcada ou do lembrete, o tipo e o período da campanha, "Data sazonal". */
   detalhe?: string;
 };
 
@@ -55,11 +57,17 @@ const ROTULO_TIPO_CAMPANHA: Record<TipoCampanha, string> = {
 };
 
 /**
- * Ordem dentro do mesmo dia: data sazonal e campanha antes das visitas
- * (minha escolha: são poucas e a célula mostra só 3 itens; as visitas, que
- * podem ser muitas, ficam no "+N" e no painel do dia).
+ * Ordem dentro do mesmo dia: data sazonal e campanha antes das visitas e dos
+ * lembretes (minha escolha: são poucas e a célula mostra só 3 itens; as
+ * visitas e os lembretes, que podem ser muitos, ficam no "+N" e no painel do
+ * dia).
  */
-const ORDEM_DO_TIPO: Record<TipoItemCalendario, number> = { DATA_SAZONAL: 0, CAMPANHA: 1, VISITA: 2 };
+const ORDEM_DO_TIPO: Record<TipoItemCalendario, number> = {
+  DATA_SAZONAL: 0,
+  CAMPANHA: 1,
+  VISITA: 2,
+  LEMBRETE: 3,
+};
 
 /** Primeiro e último dia (inclusivos) de um mês `AAAA-MM` válido. */
 export function limitesDoMes(mes: MesCalendario): { primeiro: DataCalendario; ultimo: DataCalendario } {
@@ -74,61 +82,85 @@ function formatarData(dia: DataCalendario): string {
   return `${numero}/${mes}/${ano}`;
 }
 
-function descreverVencimento(previstaPara: DataCalendario, diasAtraso: number): string {
-  const dias = diasAtraso === 1 ? '1 dia' : `${diasAtraso} dias`;
-  return `Visita prevista venceu há ${dias} (${formatarData(previstaPara).slice(0, 5)})`;
+/** "Visita marcada venceu há 5 dias", "Lembrete venceu há 1 dia". */
+function descreverVencimento(quem: string, diasAtraso: number): string {
+  return `${quem} venceu há ${diasAtraso === 1 ? '1 dia' : `${diasAtraso} dias`}`;
 }
 
 /**
- * Calendário de um mês da Agenda (spec 7.6). Cada cliente ativo entra uma
- * vez, no dia da data prevista da próxima visita (spec 7.4, a mesma regra
- * de `montarAgenda`); se ela já venceu, entra no dia de hoje — e só quando
- * hoje cai no mês pedido. Cada campanha entra em cada dia do intervalo que
- * cai no mês (`campanhas: null` para o representante, que não vê campanhas
- * no calendário). Cada evento sazonal, no `dataFim`. Ordem: por dia; no
- * mesmo dia, data sazonal, campanha e visitas da cor mais urgente para a
- * menos (a composta, com `ultimasVendas`, como na agenda do dia), depois por
- * nome.
+ * Calendário de um mês da Agenda (spec 7.6): só o que foi marcado de fato.
+ * Cada cliente com data marcada no check-in (`proximaVisita`) entra uma vez,
+ * no dia marcado — mesmo que ele já tenha passado, com o detalhe "Visita
+ * marcada venceu há N dias"; a data prevista pela recorrência não entra (ela
+ * é da agenda do dia). Cada lembrete aberto entra no dia dele, com "Lembrete
+ * venceu há N dias" quando já passou. Cada campanha entra em cada dia do
+ * intervalo que cai no mês (`campanhas: null` para o representante, que não
+ * vê campanhas no calendário). Cada evento sazonal, no `dataFim`. Ordem: por
+ * dia; no mesmo dia, data sazonal, campanha, visitas da cor mais urgente para
+ * a menos (a composta, com `ultimasVendas`, como na agenda do dia) e por
+ * nome, e por fim os lembretes por nome.
  * Função pura, como `montarAgenda`: o `hoje` e o mapa `erpId -> última
  * venda` vêm de quem chama.
  */
 export function montarCalendario(entrada: {
   clientes: ClienteParaAgenda[];
+  lembretes: LembreteParaAgenda[];
   campanhas: CampanhaParaCalendario[] | null;
   eventos: EventoParaCalendario[];
   mes: MesCalendario;
   hoje: Date;
   ultimasVendas: Map<string, Date | null>;
 }): CalendarioDTO {
-  const { clientes, campanhas, eventos, mes, hoje, ultimasVendas } = entrada;
+  const { clientes, lembretes, campanhas, eventos, mes, hoje, ultimasVendas } = entrada;
   const { primeiro, ultimo } = limitesDoMes(mes);
   const hojeCal = dataCalendario(hoje);
   const noMes = (dia: DataCalendario): boolean => dia >= primeiro && dia <= ultimo;
   const itens: { item: ItemCalendario; cor?: Cor }[] = [];
 
   for (const cliente of clientes) {
+    const marcada = cliente.proximaVisita;
+
+    if (marcada === null || !noMes(marcada)) {
+      continue;
+    }
+
     const ultimaVenda = ultimasVendas.get(cliente.erpId ?? '') ?? null;
-    const { ultima, cor } = classificacaoDoCliente(cliente.visits, hoje, ultimaVenda);
-    const prevista = calcularProximaVisita(ultima, cliente.criadoEm, cliente.recorrenciaDias, cliente.proximaVisita);
-    const diasAtraso = diasEntre(prevista, hojeCal);
-    const data = diasAtraso > 0 ? hojeCal : prevista;
+    const { cor } = classificacaoDoCliente(cliente.visits, hoje, ultimaVenda);
+    const diasAtraso = diasEntre(marcada, hojeCal);
+
+    itens.push({
+      cor,
+      item: {
+        data: marcada,
+        tipo: 'VISITA',
+        titulo: cliente.nomeFantasia,
+        clienteId: cliente.id,
+        representante: cliente.representante,
+        campanha: cliente.proximaCampanha,
+        ...(diasAtraso > 0 ? { detalhe: descreverVencimento('Visita marcada', diasAtraso) } : {}),
+      },
+    });
+  }
+
+  for (const lembrete of lembretes) {
+    const data = dataDaColunaDate(lembrete.data);
 
     if (!noMes(data)) {
       continue;
     }
 
+    const diasAtraso = diasEntre(data, hojeCal);
+
     itens.push({
-      cor,
       item: {
         data,
-        tipo: 'VISITA',
-        titulo: cliente.nomeFantasia,
-        clienteId: cliente.id,
-        origem: cliente.proximaVisita !== null ? 'CHECK_IN' : 'RECORRENCIA',
-        recorrenciaDias: cliente.recorrenciaDias,
-        representante: cliente.representante,
-        campanha: cliente.proximaCampanha,
-        ...(diasAtraso > 0 ? { detalhe: descreverVencimento(prevista, diasAtraso) } : {}),
+        tipo: 'LEMBRETE',
+        titulo: lembrete.client.nomeFantasia,
+        clienteId: lembrete.client.id,
+        lembreteId: lembrete.id,
+        texto: lembrete.texto,
+        representante: lembrete.client.representante,
+        ...(diasAtraso > 0 ? { detalhe: descreverVencimento('Lembrete', diasAtraso) } : {}),
       },
     });
   }

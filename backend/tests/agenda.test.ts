@@ -103,6 +103,21 @@ async function criarVisita(
   });
 }
 
+/** Lembrete gravado direto no banco (`@db.Date` = meia-noite UTC), `dias` a partir de hoje (negativo = vencido). */
+async function criarLembrete(
+  clienteId: string,
+  criadoPorId: string,
+  texto: string,
+  dias: number,
+  concluidoEm?: Date,
+): Promise<string> {
+  const dia = somarDias(dataCalendario(new Date()), dias);
+  const lembrete = await prisma.reminder.create({
+    data: { clientId: clienteId, criadoPorId, texto, data: new Date(`${dia}T00:00:00.000Z`), concluidoEm },
+  });
+  return lembrete.id;
+}
+
 async function logar(email: string): Promise<string> {
   const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
   return login.body.token;
@@ -176,7 +191,7 @@ describe('GET /agenda/today', () => {
     const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenC}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual({ atrasadas: [], hoje: [], proximos7Dias: [] });
+    expect(res.body.data).toEqual({ atrasadas: [], hoje: [], proximos7Dias: [], lembretes: [] });
   });
 
   it('traz os próximos 7 dias com a data marcada no check-in e o endereço (spec 7.4)', async () => {
@@ -232,6 +247,43 @@ describe('GET /agenda/today', () => {
     expect(item.rebaixadoPorVenda).toBe(true);
   });
 
+  it('traz os lembretes abertos até hoje da carteira; os de amanhã, os concluídos e os de outro representante não', async () => {
+    const vencido = await criarLembrete(clienteAtrasadoId, representanteAId, 'Levar amostras de Natal', -3);
+    const deHoje = await criarLembrete(clienteHojeId, representanteAId, 'Confirmar pedido', 0);
+    await criarLembrete(clienteFuturoId, representanteAId, 'Só amanhã', 1);
+    await criarLembrete(clienteAtrasadoId, representanteAId, 'Já feito', -1, new Date());
+    await criarLembrete(clienteBId, representanteBId, 'Da carteira do Bruno', 0);
+
+    const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.lembretes).toEqual([
+      {
+        id: vencido,
+        clienteId: clienteAtrasadoId,
+        nomeFantasia: 'Emporio Pomerode',
+        cidade: 'Pomerode',
+        texto: 'Levar amostras de Natal',
+        data: somarDias(dataCalendario(new Date()), -3),
+        diasAtraso: 3,
+        representante: { id: representanteAId, nome: REPRESENTANTE_A.nome },
+      },
+      expect.objectContaining({ id: deHoje, texto: 'Confirmar pedido', diasAtraso: 0 }),
+    ]);
+  });
+
+  it('gestor vê os lembretes de todas as carteiras', async () => {
+    await criarLembrete(clienteHojeId, representanteAId, 'Da Eduarda', 0);
+    await criarLembrete(clienteBId, representanteBId, 'Do Bruno', 0);
+
+    const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.body.data.lembretes.map((lembrete: { texto: string }) => lembrete.texto).sort()).toEqual([
+      'Da Eduarda',
+      'Do Bruno',
+    ]);
+  });
+
   it('provider indisponível responde 200', async () => {
     jest.spyOn(erpProvider, 'getLastSale').mockRejectedValue(new ErpIndisponivelError());
     await prisma.client.update({ where: { id: clienteHojeId }, data: { erpId: 'ERP-1001' } });
@@ -265,7 +317,7 @@ describe('GET /agenda/today com representanteId', () => {
       .set('Authorization', `Bearer ${tokenGestor}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual({ atrasadas: [], hoje: [], proximos7Dias: [] });
+    expect(res.body.data).toEqual({ atrasadas: [], hoje: [], proximos7Dias: [], lembretes: [] });
   });
 
   it('representante A com ?representanteId=<B> continua vendo a própria carteira', async () => {
@@ -323,7 +375,17 @@ describe('GET /agenda/calendario', () => {
     expect(res.status).toBe(401);
   });
 
-  it('representante vê a própria carteira, com as vencidas no dia de hoje', async () => {
+  /** Marca a próxima visita (coluna `@db.Date`) do cliente para `dias` a partir de hoje. */
+  async function marcarVisita(clienteId: string, dias: number): Promise<string> {
+    const dia = somarDias(hojeCal(), dias);
+    await prisma.client.update({ where: { id: clienteId }, data: { proximaVisita: new Date(`${dia}T00:00:00.000Z`) } });
+    return dia;
+  }
+
+  it('representante vê só as visitas marcadas da própria carteira; sem data marcada, fica de fora', async () => {
+    await marcarVisita(clienteHojeId, 0);
+    await marcarVisita(clienteBId, 0);
+
     const res = await request(app)
       .get('/agenda/calendario')
       .query({ mes: mesAtual() })
@@ -331,31 +393,89 @@ describe('GET /agenda/calendario', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.mes).toBe(mesAtual());
-    const doDia = visitas(res).filter((item) => item.data === hojeCal());
-    expect(doDia.map((item) => item.clienteId)).toEqual(expect.arrayContaining([clienteAtrasadoId, clienteHojeId]));
-    expect(visitas(res).map((item) => item.clienteId)).not.toContain(clienteBId);
+    // clienteAtrasado (recorrência vencida) e clienteFuturo não têm data marcada
+    expect(visitas(res)).toEqual([expect.objectContaining({ data: hojeCal(), clienteId: clienteHojeId })]);
+    expect(res.body.data.itens.some((item: Item & { origem?: string }) => 'origem' in item)).toBe(false);
+  });
+
+  it('visita marcada que já passou fica no dia marcado, com o detalhe do vencimento', async () => {
+    const dia = await marcarVisita(clienteAtrasadoId, -1);
+
+    const res = await request(app)
+      .get('/agenda/calendario')
+      .query({ mes: dia.slice(0, 7) })
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(visitas(res)).toEqual([
+      expect.objectContaining({ data: dia, clienteId: clienteAtrasadoId, detalhe: 'Visita marcada venceu há 1 dia' }),
+    ]);
+  });
+
+  it('traz os lembretes abertos no dia deles; concluídos e de outra carteira ficam de fora', async () => {
+    const dia = somarDias(hojeCal(), 0);
+    const aberto = await criarLembrete(clienteHojeId, representanteAId, 'Levar amostras de Natal', 0);
+    await criarLembrete(clienteAtrasadoId, representanteAId, 'Já feito', 0, new Date());
+    await criarLembrete(clienteBId, representanteBId, 'Do Bruno', 0);
+
+    const res = await request(app)
+      .get('/agenda/calendario')
+      .query({ mes: dia.slice(0, 7) })
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.itens).toEqual([
+      {
+        data: dia,
+        tipo: 'LEMBRETE',
+        titulo: 'Cafe Blumenau',
+        clienteId: clienteHojeId,
+        lembreteId: aberto,
+        texto: 'Levar amostras de Natal',
+        representante: { id: representanteAId, nome: REPRESENTANTE_A.nome },
+      },
+    ]);
+  });
+
+  it('lembrete de outro mês não aparece no mês pedido', async () => {
+    await criarLembrete(clienteHojeId, representanteAId, 'Daqui a dois meses', 62);
+
+    const res = await request(app)
+      .get('/agenda/calendario')
+      .query({ mes: mesAtual() })
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.body.data.itens).toEqual([]);
   });
 
   it('representante com representanteId de outro recebe a própria carteira', async () => {
+    await marcarVisita(clienteHojeId, 0);
+    await marcarVisita(clienteBId, 0);
+
     const res = await request(app)
       .get('/agenda/calendario')
       .query({ mes: mesAtual(), representanteId: representanteBId })
       .set('Authorization', `Bearer ${tokenA}`);
 
     expect(res.status).toBe(200);
-    const ids = visitas(res).map((item) => item.clienteId);
-    expect(ids).toEqual(expect.arrayContaining([clienteAtrasadoId, clienteHojeId]));
-    expect(ids).not.toContain(clienteBId);
+    expect(visitas(res).map((item) => item.clienteId)).toEqual([clienteHojeId]);
   });
 
   it('gestor com representanteId vê só a carteira daquele representante', async () => {
+    await marcarVisita(clienteHojeId, 0);
+    await marcarVisita(clienteBId, 0);
+    await criarLembrete(clienteHojeId, representanteAId, 'Da Eduarda', 0);
+    await criarLembrete(clienteBId, representanteBId, 'Do Bruno', 0);
+
     const res = await request(app)
       .get('/agenda/calendario')
       .query({ mes: mesAtual(), representanteId: representanteBId })
       .set('Authorization', `Bearer ${tokenGestor}`);
 
     expect(res.status).toBe(200);
-    expect(visitas(res).map((item) => item.clienteId)).toEqual([clienteBId]);
+    expect(res.body.data.itens.map((item: Item) => [item.tipo, item.clienteId])).toEqual([
+      ['VISITA', clienteBId],
+      ['LEMBRETE', clienteBId],
+    ]);
   });
 
   it('campanhas aparecem para o gestor e não para o representante', async () => {

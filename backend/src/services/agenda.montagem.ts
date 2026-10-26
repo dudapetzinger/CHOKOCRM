@@ -1,13 +1,16 @@
 import type { ClienteParaAgenda } from '../repositories/client.repository';
+import type { LembreteComCliente } from '../repositories/reminder.repository';
 import {
   calcularProximaVisita,
   classificacaoDoCliente,
   dataCalendario,
+  dataDaColunaDate,
   diasEntre,
   ordemDeCor,
   type Cor,
   type DataCalendario,
 } from './classificacao.service';
+import { toLembreteDTO, type LembreteDTO } from './lembrete.dto';
 
 /** Quantos dias depois de hoje entram na seção "Próximos 7 dias" (spec 7.4). */
 const DIAS_DOS_PROXIMOS = 7;
@@ -33,7 +36,16 @@ export type AgendaItem = {
   representante: { id: string; nome: string };
 };
 
-export type Agenda = { atrasadas: AgendaItem[]; hoje: AgendaItem[]; proximos7Dias: AgendaItem[] };
+/** Lembrete aberto como o repositório devolve; `data` é coluna `@db.Date` (`dataDaColunaDate`). */
+export type LembreteParaAgenda = LembreteComCliente;
+
+export type Agenda = {
+  atrasadas: AgendaItem[];
+  hoje: AgendaItem[];
+  proximos7Dias: AgendaItem[];
+  /** Lembretes abertos com data até hoje (vencidos e de hoje), do mais antigo ao mais novo. */
+  lembretes: LembreteDTO[];
+};
 
 /** Cor (mais atrasada primeiro) -> mais dias de atraso -> nome, para desempate estável. */
 function compararAgendaItem(a: AgendaItem, b: AgendaItem): number {
@@ -53,6 +65,11 @@ function compararProximoItem(a: AgendaItem, b: AgendaItem): number {
   );
 }
 
+/** Lembrete mais antigo primeiro -> nome do cliente, para desempate estável. */
+function compararLembrete(a: LembreteDTO, b: LembreteDTO): number {
+  return a.data.localeCompare(b.data) || a.nomeFantasia.localeCompare(b.nomeFantasia, 'pt-BR');
+}
+
 /**
  * Monta a agenda do dia (UC10) a partir de clientes já carregados: para cada
  * um, calcula a data prevista da próxima visita (spec 7.4: a marcada no
@@ -61,7 +78,10 @@ function compararProximoItem(a: AgendaItem, b: AgendaItem): number {
  * (`diasAtraso > 0`), quem vence hoje (`diasAtraso === 0`) e quem vence de
  * amanhã a hoje + 7 (`proximos7Dias`). Datas mais distantes ficam de fora. A
  * cor de classificação não muda com a data marcada: continua pela última
- * visita.
+ * visita. Os `lembretes` (Etapa 9: tarefa própria, fora das seções por data
+ * prevista) vão numa lista à parte: só os abertos com data até hoje, do mais
+ * antigo ao mais novo e, no mesmo dia, por nome; os de amanhã em diante
+ * ficam de fora, mesmo que quem chama os tenha buscado.
  * Função pura: nenhuma dependência de banco ou relógio além do `hoje`
  * recebido — isolada num módulo próprio (sem `client.repository`, só o tipo,
  * importado com `import type` para não puxar `lib/prisma`/`config/env`) para
@@ -74,6 +94,7 @@ export function montarAgenda(
   clientes: ClienteParaAgenda[],
   hoje: Date,
   ultimasVendas: Map<string, Date | null> = new Map(),
+  lembretes: LembreteParaAgenda[] = [],
 ): Agenda {
   const hojeCal = dataCalendario(hoje);
   const atrasadas: AgendaItem[] = [];
@@ -127,5 +148,10 @@ export function montarAgenda(
   agendaHoje.sort(compararAgendaItem);
   proximos7Dias.sort(compararProximoItem);
 
-  return { atrasadas, hoje: agendaHoje, proximos7Dias };
+  const lembretesAteHoje = lembretes
+    .filter((lembrete) => dataDaColunaDate(lembrete.data) <= hojeCal)
+    .map((lembrete) => toLembreteDTO(lembrete, hojeCal))
+    .sort(compararLembrete);
+
+  return { atrasadas, hoje: agendaHoje, proximos7Dias, lembretes: lembretesAteHoje };
 }

@@ -1,5 +1,5 @@
 import type { ClienteParaAgenda } from '../../src/repositories/client.repository';
-import { montarAgenda } from '../../src/services/agenda.montagem';
+import { montarAgenda, type LembreteParaAgenda } from '../../src/services/agenda.montagem';
 import { somarDias } from '../../src/services/classificacao.service';
 
 const hoje = new Date('2026-09-27T15:00:00Z');
@@ -21,6 +21,20 @@ function clienteFabricado(overrides: Partial<ClienteParaAgenda> & { id: string }
     endereco: 'Rua XV de Novembro, 100',
     proximaCampanha: null,
     ...overrides,
+  };
+}
+
+function lembreteFabricado(id: string, data: string, nomeFantasia = `Cliente ${id}`): LembreteParaAgenda {
+  return {
+    id,
+    texto: `Texto ${id}`,
+    data: new Date(`${data}T00:00:00.000Z`),
+    client: {
+      id: `cli-${id}`,
+      nomeFantasia,
+      cidade: 'Pomerode',
+      representante: { id: 'rep-1', nome: 'Representante' },
+    },
   };
 }
 
@@ -283,5 +297,56 @@ describe('montarAgenda com a próxima visita marcada no check-in (spec 7.4)', ()
     const [item] = montarAgenda([cliente], hoje).proximos7Dias;
 
     expect(item).toMatchObject({ endereco: 'Rua Hermann Weege, 100' });
+  });
+
+  it('sem lembretes, a lista de lembretes vem vazia', () => {
+    expect(montarAgenda([], hoje).lembretes).toEqual([]);
+  });
+
+  it('lembretes vencidos e de hoje entram, com os dados do cliente; os de amanhã ficam de fora', () => {
+    const lembretes = [
+      lembreteFabricado('vencido', '2026-09-24'),
+      lembreteFabricado('hoje', '2026-09-27'),
+      lembreteFabricado('amanha', '2026-09-28'),
+    ];
+
+    const agenda = montarAgenda([], hoje, new Map(), lembretes);
+
+    expect(agenda.lembretes).toEqual([
+      {
+        id: 'vencido',
+        clienteId: 'cli-vencido',
+        nomeFantasia: 'Cliente vencido',
+        cidade: 'Pomerode',
+        texto: 'Texto vencido',
+        data: '2026-09-24',
+        diasAtraso: 3,
+        representante: { id: 'rep-1', nome: 'Representante' },
+      },
+      expect.objectContaining({ id: 'hoje', data: '2026-09-27', diasAtraso: 0 }),
+    ]);
+  });
+
+  it('lembretes ordenam pela data (mais antigo primeiro) e, no mesmo dia, pelo nome', () => {
+    const lembretes = [
+      lembreteFabricado('z-hoje', '2026-09-27', 'Zulu'),
+      lembreteFabricado('a-hoje', '2026-09-27', 'Alfa'),
+      lembreteFabricado('velho', '2026-09-20', 'Yara'),
+    ];
+
+    const agenda = montarAgenda([], hoje, new Map(), lembretes);
+
+    expect(agenda.lembretes.map((lembrete) => lembrete.id)).toEqual(['velho', 'a-hoje', 'z-hoje']);
+  });
+
+  it('lembretes não mudam as seções da agenda por data prevista', () => {
+    const futuro = clienteFabricado({ id: 'futuro', visits: [{ dataHora: diasAtras(10), resultado: 'VENDA' }] });
+
+    const agenda = montarAgenda([futuro], hoje, new Map(), [lembreteFabricado('l1', '2026-09-27')]);
+
+    expect(agenda.atrasadas).toEqual([]);
+    expect(agenda.hoje).toEqual([]);
+    expect(agenda.proximos7Dias.map((item) => item.id)).toEqual(['futuro']);
+    expect(agenda.lembretes).toHaveLength(1);
   });
 });
