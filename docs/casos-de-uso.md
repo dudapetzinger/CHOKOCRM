@@ -280,8 +280,16 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 9. O sistema valida os dados informados.
 10. O sistema persiste a visita e atualiza a timeline de interações (UC08) e a cor de classificação do cliente (UC05), agora recalculada.
 
+O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check-in é feito em quatro passos na mesma tela, com o indicador "Passo N de 4" no topo; os mesmos campos e regras, só apresentados de outro jeito:
+- **Passo 1 — "A visita":** data e hora (padrão agora), contato atendido (com "+ Novo contato…" na própria tela) e campanha da visita, opcional.
+- **Passo 2 — "Resultado":** Venda, Negociação ou Sem venda; com Venda, o bloco "Pedido" aparece no mesmo passo.
+- **Passo 3 — "O que aconteceu":** a descrição, obrigatória, e a foto, opcional.
+- **Passo 4 — "Próximos passos":** duas perguntas de sim ou não, "Deseja marcar a data prevista da próxima visita?" (com sim, a data e a campanha da próxima visita) e "Deseja anotar um lembrete?" (com sim, o texto e "Para quando"). As duas começam em "não", exceto quando o cliente já tem data marcada ou campanha da próxima visita: aí a primeira começa em "sim", com os valores atuais.
+- **Botões:** "Voltar" (do passo 2 em diante), "Continuar" (passos 1 a 3), "Salvar check-in" (passo 4) e "Cancelar", que volta à ficha sem salvar. O "Continuar" valida só o passo atual: data e hora não futuras, contato novo fechado (adicionado ou cancelado) e descrição com pelo menos 3 caracteres. Voltar não perde nada do que foi digitado.
+- O que o "Salvar check-in" envia não muda, inclusive a regra da Etapa 8: com "não" na próxima visita, vai `proximaVisita: null`; com "não" no lembrete, o lembrete não vai. Se a API devolver erro de validação de um campo, a tela volta ao passo desse campo com a mensagem nele.
+
 **Fluxo de exceção:**
-- **E1** (passo 9): tentativa de salvar o check-in sem informar a descrição da visita — o sistema bloqueia o salvamento e exibe mensagem indicando que a descrição é obrigatória.
+- **E1** (passo 9): tentativa de salvar o check-in sem informar a descrição da visita — o sistema bloqueia o salvamento e exibe mensagem indicando que a descrição é obrigatória. Desde a Etapa 10, a descrição é validada no passo 3, e o "Continuar" fica bloqueado até ela ser informada.
 - **E2** (passo 10): a visita é gravada, mas o envio da foto falha (sinal instável em campo) — o check-in permanece registrado e a timeline oferece anexar a foto depois.
 - **E3** (passo 9): o cliente é de outra carteira — a API responde 403 `FORBIDDEN` com a mensagem "Cliente de outra carteira." e não grava a visita. Pela interface o caso não ocorre, porque o representante só vê clientes da própria carteira (UC05).
 
@@ -293,6 +301,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - A data/hora é preenchida automaticamente no momento do check-in, mas admite ajuste manual pelo representante (ex.: registro posterior de uma visita já ocorrida). **A data/hora informada não pode estar no futuro.**
 - A foto de comprovação é **opcional**: o check-in é registrado sem ela e a foto pode ser anexada depois, pela timeline. A foto **não pode ser substituída**, para preservar seu valor de comprovação. Desde a Etapa 9, a ajuda do campo "Foto (opcional)" diz "Registra que você esteve no cliente." — a frase "Pode salvar sem foto." saiu; a regra não mudou.
 - Desde a Etapa 9, o check-in pode criar um lembrete (UC17) e **não** conclui os lembretes que o cliente já tem abertos (UC27).
+- Desde a Etapa 10, o check-in é apresentado em quatro passos (decisão da parceira, 26/10/2026). Nada muda na API nem nas regras de negócio acima; só a apresentação.
 - O check-in é exclusivo do representante; o gestor não registra visitas.
 - Cliente inativo não recebe check-in novo.
 
@@ -306,7 +315,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Fluxo principal:**
 1. O representante acessa a timeline de visitas na ficha do cliente (UC06).
-2. O sistema lista as visitas do cliente em ordem cronológica reversa (mais recente primeiro).
+2. O sistema lista as visitas do cliente em ordem cronológica reversa (mais recente primeiro). Desde a Etapa 10, a última visita aparece em destaque, com o rótulo "Última visita", e as anteriores ficam atrás do filtro "Mostrar", com as opções "Últimas 3", "Últimas 6" e "Todas" (padrão "Últimas 3" = o destaque mais as 3 anteriores), com a contagem "N visitas no total". A escolha do filtro não vai para a URL.
 3. Para cada visita, o sistema exibe data, hora, descrição, contato atendido (quando informado), autor do check-in, resultado e a foto de comprovação, quando houver.
 4. O autor de uma visita pode corrigir a descrição dela no próprio item da timeline.
 5. O sistema grava a data/hora da edição e passa a exibi-la junto da descrição.
@@ -314,9 +323,10 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Fluxo alternativo:**
 - **A1** (passo 2): o cliente não possui visitas registradas — o sistema exibe mensagem informando que não há visitas registradas.
 - **A2** (passo 3): a visita não tem foto e o usuário é o autor — o sistema oferece anexar a foto de comprovação naquele momento.
+- **A3** (passo 2): o cliente tem uma visita só — o sistema exibe só o destaque "Última visita", sem o filtro.
 
 **Regras de negócio associadas:**
-- A listagem segue sempre ordenação cronológica reversa.
+- A listagem segue sempre ordenação cronológica reversa, também com o destaque e o filtro da Etapa 10.
 - Todos os campos da visita (data/hora, descrição, contato, resultado, autor) são exibidos integralmente.
 - **Somente o autor** da visita pode editar a descrição dela, e **somente a descrição** é editável: data/hora, resultado, contato atendido e foto permanecem como foram gravados.
 - Não há prazo limite para a edição da descrição.
@@ -934,6 +944,8 @@ A Etapa 7 (refino de UX, gráficos e PWA — seção 11 da [especificação téc
 A Etapa 8 (revisão pelo protótipo Lovable — seção 11 da [especificação técnica](especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)) cria os UC16 a UC26 e revisa: o login (UC01) ganha a conta inativa e a tela inicial por papel; o check-in (UC07) ganha o pedido, a campanha e a próxima visita; a agenda (UC10) passa a usar a data prevista e ganha "Próximos 7 dias", calendário e roteiro; o painel (UC14) e os alertas (UC15) passam a servir também o representante, com a própria carteira, e o painel ganha metas, ritmo semanal, mapa e exportação. Todas as telas passam à base de interface do protótipo, sem mudar as regras de cor, os limiares nem os KPIs.
 
 A Etapa 9 (ajustes pós-validação, 25/10/2026 — seção 11 da [especificação técnica](especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina) e [spec da etapa](superpowers/specs/2026-10-25-etapa-9-ajustes-pos-validacao-design.md)) cria o UC27 e revisa: a ficha (UC06) ganha as abas Visitas, ERP e sugestões e Cadastro; o check-in (UC07) perde a frase "Pode salvar sem foto." e passa a criar o lembrete (UC17), que vira tarefa com data própria, independente da próxima visita e concluída no UC27; a agenda do dia (UC10) ganha a seção "Lembretes" e o roteiro (UC25) passa a usar só as visitas de hoje; o painel (UC14) ganha o período personalizado de até 365 dias, duas abas, o balão com os clientes em todos os gráficos, a sazonalidade no formato do protótipo e o ranking dos representantes, e as metas (UC19) e os alertas (UC15) entram no balão; as campanhas (UC18) ganham o filtro, os resultados por representante, os produtos mais vendidos e as metas por representante; o calendário (UC24) mostra só as visitas marcadas e os lembretes; e a exportação (UC26) aceita períodos maiores que 365 dias.
+
+A Etapa 10 (26/10/2026 — [spec da parte 10b](superpowers/specs/2026-10-26-etapa-10b-checkin-em-passos-e-filtro-de-visitas-design.md)) não cria caso de uso novo; revisa o UC07 (check-in em quatro passos) e o UC08 (última visita em destaque e filtro de quantidade).
 
 ## 6. Cobertura das regras de negócio da especificação (seção 6)
 
