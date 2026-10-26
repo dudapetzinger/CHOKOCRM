@@ -498,7 +498,7 @@ describe('PainelPage (gestor)', () => {
     renderizarComo('GESTOR', '/painel?aba=producao');
 
     const bloco = screen.getByRole('region', { name: 'O próximo evento está chegando e o estoque acompanha?' });
-    expect(within(bloco).getByRole('table', { name: 'Vendas mensais dos últimos 12 meses (R$)' })).toBeInTheDocument();
+    expect(within(bloco).getByRole('table', { name: 'Vendas mensais dos últimos 12 meses (R$ mil)' })).toBeInTheDocument();
     expect(within(bloco).getByRole('heading', { level: 3, name: 'Alertas de produção' })).toBeInTheDocument();
     expect(within(bloco).getByRole('radiogroup', { name: 'Horizonte de eventos sazonais' })).toBeInTheDocument();
     expect(within(bloco).getByText('Nenhum alerta de produção para os próximos 90 dias.')).toBeInTheDocument();
