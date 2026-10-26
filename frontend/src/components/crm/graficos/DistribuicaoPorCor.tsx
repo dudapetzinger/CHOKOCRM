@@ -6,7 +6,8 @@
  * de cada cor, então a cor nunca é o único canal. A barra é um grupo com o
  * resumo em texto como nome acessível.
  *
- * Cada segmento abre o balão (Etapa 9, spec 6.7) "Verde · 3 clientes" com os
+ * Cada segmento (com 44 px de toque no celular, por `TOQUE_NO_SEGMENTO`)
+ * abre o balão (Etapa 9, spec 6.7) "Verde · 3 clientes" com os
  * clientes daquela cor, do mais urgente ao menos — a carteira que o Painel já
  * busca para os "Mais urgentes". A tabela escondida repete as contagens e os
  * clientes de cada cor.
@@ -18,7 +19,7 @@ import { CORES, ROTULO_COR, type ClienteListItem, type Cor } from '@/services/cl
 import type { DistribuicaoPorCor as Distribuicao } from '@/services/kpis';
 import { EstadoVazio } from '../../EstadoVazio';
 import { CLASSES_COR } from '../ui';
-import { AreaComBalao, GatilhoDoBalao } from './BalaoDoGrafico';
+import { AreaComBalao, GatilhoDoBalao, TOQUE_NO_SEGMENTO } from './BalaoDoGrafico';
 import { TabelaAcessivel } from './TabelaAcessivel';
 
 type Props = {
@@ -49,7 +50,7 @@ export function DistribuicaoPorCor({ distribuicao, clientesAtivos, clientes }: P
   return (
     <AreaComBalao>
       <div
-        className="flex h-3 gap-[2px] overflow-hidden rounded-full"
+        className="flex h-3 gap-[2px] rounded-full"
         role="group"
         aria-label={descrever(distribuicao, clientesAtivos)}
       >
@@ -62,8 +63,8 @@ export function DistribuicaoPorCor({ distribuicao, clientesAtivos, clientes }: P
               role="img"
               aria-label={titulo}
               data-testid="segmento-cor"
-              // O anel por dentro: a barra arredondada corta o que passa da borda.
-              className={cn('min-w-2 focus-visible:ring-inset', CLASSES_COR[cor].ponto)}
+              // O anel por dentro, para não encostar no segmento vizinho.
+              className={cn('min-w-2 focus-visible:ring-inset', TOQUE_NO_SEGMENTO, CLASSES_COR[cor].ponto)}
               style={{ flexGrow: distribuicao[cor] }}
             />
           );

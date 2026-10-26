@@ -8,14 +8,14 @@
  * resultado que vêm do backend. A barra é um grupo com os números no nome
  * acessível; a legenda de cores é só visual.
  *
- * Cada segmento (no mínimo 8 px, para ser tocável) abre o balão (Etapa 9,
- * spec 6.7) "Eduarda · Venda: 5" com os clientes daquele resultado e quantas
- * visitas de cada um. A tabela escondida repete os números e os clientes.
+ * Cada segmento (no mínimo 8 px de largura, e com 44 px de toque no celular
+ * por `TOQUE_NO_SEGMENTO`) abre o balão (Etapa 9, spec 6.7) "Eduarda ·
+ * Venda: 5" com os clientes daquele resultado e quantas visitas de cada um. A tabela escondida repete os números e os clientes.
  */
 import { cn } from '@/lib/utils';
 import type { KpiRepresentante } from '@/services/dashboard';
 import { EstadoVazio } from '../../EstadoVazio';
-import { AreaComBalao, GatilhoDoBalao, type ConteudoDoBalao } from './BalaoDoGrafico';
+import { AreaComBalao, GatilhoDoBalao, TOQUE_NO_SEGMENTO, type ConteudoDoBalao } from './BalaoDoGrafico';
 import { TabelaAcessivel } from './TabelaAcessivel';
 
 type Resultado = 'venda' | 'negociacao' | 'semVenda';
@@ -96,7 +96,7 @@ export function ResultadoPorRepresentante({ representantes }: { representantes: 
             <div
               role="group"
               aria-label={nomeAcessivel(representante)}
-              className="flex h-3 gap-[2px] overflow-hidden rounded-full bg-muted"
+              className="flex h-3 gap-[2px] rounded-full bg-muted"
               style={{ width: `${Math.max(8, Math.round((representante.visitas / maior) * 100))}%` }}
             >
               {RESULTADOS.filter(({ campo }) => contar(representante, campo) > 0).map(({ campo, rotulo, classe }) => {
@@ -107,8 +107,8 @@ export function ResultadoPorRepresentante({ representantes }: { representantes: 
                     conteudo={balao}
                     role="img"
                     aria-label={balao.titulo}
-                    // O anel por dentro: a barra arredondada corta o que passa da borda.
-                    className={cn('min-w-2 focus-visible:ring-inset', classe)}
+                    // O anel por dentro, para não encostar no segmento vizinho.
+                    className={cn('min-w-2 focus-visible:ring-inset', TOQUE_NO_SEGMENTO, classe)}
                     style={{ flexGrow: contar(representante, campo) }}
                   />
                 );

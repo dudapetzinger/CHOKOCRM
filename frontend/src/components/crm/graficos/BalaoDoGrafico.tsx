@@ -11,7 +11,14 @@
  * e só tem texto: título, até `LINHAS_NO_BALAO` linhas "nome · detalhe" e
  * "+N clientes". Ele aceita o ponteiro (WCAG 1.4.13): sair do gatilho só
  * fecha depois de `ATRASO_PARA_FECHAR_MS`, tempo de cruzar a margem até o
- * balão; entrar no balão mantém aberto. Escape e um toque fora fecham.
+ * balão; entrar no balão mantém aberto. Escape e um toque fora fecham. O
+ * balão nunca passa da largura da área (no celular de 320 px, 18rem passaria).
+ *
+ * Barras finas (8–12 px) como gatilho ficam pequenas demais para o dedo:
+ * abaixo de `md` todo controle tocável tem ao menos 44 px de altura.
+ * `TOQUE_NA_BARRA` faz do gatilho um invólucro transparente dessa altura, com
+ * a barra desenhada dentro; `TOQUE_NO_SEGMENTO` estende, por um `::before`,
+ * a área de toque de cada segmento de uma barra empilhada.
  */
 import {
   createContext,
@@ -40,6 +47,25 @@ export const LINHAS_NO_BALAO = 8;
 
 /** Quanto o balão espera, depois que o mouse sai, antes de fechar. */
 export const ATRASO_PARA_FECHAR_MS = 150;
+
+/**
+ * Gatilho que envolve uma barra simples de 8 px (`h-2`, com `w-full`): no
+ * celular, 44 px de altura (`min-h-11`) com a barra centrada; as margens
+ * negativas de 18 px devolvem os 36 px a mais, então o cartão não cresce.
+ * `relative` põe o invólucro acima do texto vizinho que ele cobre (sem isso,
+ * o texto, pintado por cima, ficaria com o toque). No desktop, o invólucro
+ * tem a altura da barra.
+ */
+export const TOQUE_NA_BARRA = 'relative flex items-center rounded-full max-md:min-h-11 max-md:-my-[18px]';
+
+/**
+ * Segmento de 12 px (`h-3`) de uma barra empilhada: no celular, um `::before`
+ * transparente estende o toque 16 px acima e abaixo (44 px no total), sem
+ * mudar o desenho. A barra não pode ter `overflow-hidden` (cortaria a área);
+ * por isso o primeiro e o último segmento é que arredondam as pontas.
+ */
+export const TOQUE_NO_SEGMENTO =
+  'relative first:rounded-l-full last:rounded-r-full max-md:before:absolute max-md:before:inset-x-0 max-md:before:-inset-y-4';
 
 type Aberto = { chave: string; conteudo: ConteudoDoBalao; gatilho: Element };
 
@@ -151,7 +177,7 @@ export function AreaComBalao({ children, className }: PropsDaArea) {
             ref={balao}
             id={idDoBalao}
             role="tooltip"
-            className="absolute left-0 top-0 z-20 w-max max-w-72 rounded-md bg-foreground px-3 py-2 text-xs text-background shadow-md"
+            className="absolute left-0 top-0 z-20 w-max max-w-[min(18rem,100%)] rounded-md bg-foreground px-3 py-2 text-xs text-background shadow-md"
             onMouseEnter={cancelarAgendado}
             onMouseLeave={() => fecharDepois(aberto.chave)}
           >

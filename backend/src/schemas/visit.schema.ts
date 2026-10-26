@@ -80,7 +80,7 @@ const MENSAGEM_TEXTO_DO_LEMBRETE = 'Informe o texto do lembrete.';
  * Lembrete como tarefa própria (Etapa 9): texto e data, os dois
  * obrigatórios; a data segue a regra da próxima visita (calendário, hoje ou
  * depois em São Paulo), mas é independente dela. Sem lembrete, o campo fica
- * ausente — o `null` e o texto solto do formato antigo são recusados.
+ * ausente. O formato antigo é tratado em `lembreteDoCheckInSchema`, abaixo.
  */
 export const lembreteSchema = z
   .object({
@@ -97,6 +97,24 @@ export const lembreteSchema = z
       .refine((data) => data >= dataCalendario(new Date()), { message: 'A data do lembrete não pode ser antes de hoje.' }),
   })
   .strict();
+
+const MENSAGEM_ATUALIZE_O_APP = 'Atualize o app para registrar o lembrete.';
+
+/**
+ * Lembrete no corpo do check-in, compatível com o front da versão anterior
+ * (o PWA só troca o JS quando a pessoa toca em "Atualizar"): ele manda
+ * `lembrete: null` em todo check-in sem lembrete, que aqui vale como
+ * ausente (`undefined`, que o serviço já ignora); e o lembrete como texto
+ * solto, que não tem data e não dá para gravar, recebe uma mensagem pedindo
+ * para atualizar o app em vez do erro de tipo do zod.
+ */
+const lembreteDoCheckInSchema = z.preprocess((valor, ctx) => {
+  if (typeof valor === 'string') {
+    ctx.addIssue({ code: 'custom', message: MENSAGEM_ATUALIZE_O_APP, input: valor });
+    return z.NEVER;
+  }
+  return valor === null ? undefined : valor;
+}, lembreteSchema.optional());
 
 const campanhaIdSchema = z.string().uuid('Identificador da campanha inválido.');
 
@@ -122,8 +140,9 @@ export const createVisitSchema = z
     /**
      * Lembrete novo do cliente, criado com a visita. Não depende da próxima
      * visita e não mexe nos lembretes já abertos (que só saem ao concluir).
+     * `null` vale como sem lembrete; texto solto, ver `lembreteDoCheckInSchema`.
      */
-    lembrete: lembreteSchema.optional(),
+    lembrete: lembreteDoCheckInSchema,
     /**
      * Campanhas (spec 7.7): a da visita e a da próxima visita, que vai para
      * o cliente com a data (sem data, é ignorada). Só campanha não encerrada

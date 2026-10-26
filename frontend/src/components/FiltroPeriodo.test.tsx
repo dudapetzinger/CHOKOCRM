@@ -113,6 +113,19 @@ describe('FiltroPeriodo', () => {
     expect(onPeriodoDaPlanilha).toHaveBeenCalledWith({ inicio: '2025-10-25', fim: '2026-10-25' });
   });
 
+  it('faixa acima do limite e depois uma edição inválida: a Planilha não fica presa na faixa velha', async () => {
+    const { onChange, onPeriodoDaPlanilha } = renderizar({ dias: 90 });
+    await abrirPersonalizado();
+
+    mudarData('De', '2025-09-20');
+    expect(onPeriodoDaPlanilha).toHaveBeenLastCalledWith({ inicio: '2025-09-20', fim: '2026-10-25' });
+
+    mudarData('De', '');
+
+    expect(onPeriodoDaPlanilha).toHaveBeenLastCalledWith({ dias: 90 });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('a mensagem do limite some quando a faixa volta a caber', async () => {
     const { onChange } = renderizar();
     await abrirPersonalizado();
@@ -124,7 +137,7 @@ describe('FiltroPeriodo', () => {
     expect(onChange).toHaveBeenCalledWith({ inicio: '2026-01-01', fim: '2026-10-25' });
   });
 
-  it('fim antes do início mostra o erro junto do campo e não chama onChange', async () => {
+  it('fim antes do início mostra o erro junto do campo, não chama onChange e a Planilha fica no período atual', async () => {
     const { onChange, onPeriodoDaPlanilha } = renderizar();
     await abrirPersonalizado();
 
@@ -133,7 +146,8 @@ describe('FiltroPeriodo', () => {
     expect(screen.getByText('A data de fim deve ser depois do início.')).toBeInTheDocument();
     expect(screen.getByLabelText('Até')).toHaveAccessibleDescription('A data de fim deve ser depois do início.');
     expect(onChange).not.toHaveBeenCalled();
-    expect(onPeriodoDaPlanilha).not.toHaveBeenCalled();
+    // A Planilha volta ao período que o Painel está mostrando.
+    expect(onPeriodoDaPlanilha).toHaveBeenLastCalledWith({ dias: 30 });
   });
 
   it('ao abrir "Personalizado" não há nenhum aviso: os campos já vêm preenchidos', async () => {
@@ -146,7 +160,7 @@ describe('FiltroPeriodo', () => {
     expect(screen.getByLabelText('Até')).not.toHaveAttribute('aria-invalid');
   });
 
-  it('apagar o "De" mostra "Informe as duas datas." junto do campo e não troca o período', async () => {
+  it('apagar o "De" mostra "Informe as duas datas." junto do campo e não troca o período do Painel', async () => {
     const { onChange, onPeriodoDaPlanilha } = renderizar();
     await abrirPersonalizado();
 
@@ -157,10 +171,11 @@ describe('FiltroPeriodo', () => {
     expect(screen.getByLabelText('De')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText('Até')).not.toHaveAttribute('aria-invalid');
     expect(onChange).not.toHaveBeenCalled();
-    expect(onPeriodoDaPlanilha).not.toHaveBeenCalled();
+    // A Planilha volta ao período que o Painel está mostrando.
+    expect(onPeriodoDaPlanilha).toHaveBeenLastCalledWith({ dias: 30 });
   });
 
-  it('"Até" depois de hoje mostra a mensagem junto do campo e não chama onChange nem onPeriodoDaPlanilha', async () => {
+  it('"Até" depois de hoje mostra a mensagem junto do campo, não chama onChange e a Planilha fica no período atual', async () => {
     const { onChange, onPeriodoDaPlanilha } = renderizar();
     await abrirPersonalizado();
 
@@ -170,7 +185,8 @@ describe('FiltroPeriodo', () => {
     expect(screen.getByLabelText('Até')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText('De')).not.toHaveAttribute('aria-invalid');
     expect(onChange).not.toHaveBeenCalled();
-    expect(onPeriodoDaPlanilha).not.toHaveBeenCalled();
+    // A Planilha volta ao período que o Painel está mostrando.
+    expect(onPeriodoDaPlanilha).toHaveBeenLastCalledWith({ dias: 30 });
   });
 
   it('"De" depois de hoje mostra a mensagem no campo "De", não a de "fim antes do início"', async () => {
@@ -183,7 +199,8 @@ describe('FiltroPeriodo', () => {
     expect(screen.queryByText('A data de fim deve ser depois do início.')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Até')).not.toHaveAttribute('aria-invalid');
     expect(onChange).not.toHaveBeenCalled();
-    expect(onPeriodoDaPlanilha).not.toHaveBeenCalled();
+    // A Planilha volta ao período que o Painel está mostrando.
+    expect(onPeriodoDaPlanilha).toHaveBeenLastCalledWith({ dias: 30 });
   });
 
   it('os dois campos podem ter erro ao mesmo tempo', async () => {

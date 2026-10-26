@@ -179,12 +179,25 @@ describe('POST /clients/:id/visits com lembrete', () => {
     expect(await prisma.visit.count()).toBe(0);
   });
 
-  it.each([
-    ['texto solto (formato antigo)', 'Levar amostras'],
-    ['null', null],
-    ['campo a mais', { texto: 'Levar amostras', data: '2099-01-01', concluidoEm: '2099-01-01' }],
-  ])('recusa lembrete como %s', async (_rotulo, lembrete) => {
-    const res = await checkIn({ lembrete });
+  it('lembrete null (front da versão anterior, ainda em cache) → 201 sem lembrete', async () => {
+    const res = await checkIn({ proximaVisita: daquiA(7), lembrete: null });
+
+    expect(res.status).toBe(201);
+    expect(await prisma.visit.count()).toBe(1);
+    expect(await prisma.reminder.count()).toBe(0);
+  });
+
+  it('lembrete como texto solto (formato antigo) → 400 "Atualize o app para registrar o lembrete."', async () => {
+    const res = await checkIn({ lembrete: 'Levar amostras' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mensagensDoErro(res)).toEqual(['Atualize o app para registrar o lembrete.']);
+    expect(await prisma.visit.count()).toBe(0);
+  });
+
+  it('recusa lembrete com campo a mais', async () => {
+    const res = await checkIn({ lembrete: { texto: 'Levar amostras', data: '2099-01-01', concluidoEm: '2099-01-01' } });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -275,6 +288,32 @@ describe('GET /clients/:id/lembretes', () => {
     const deOutraCarteira = await autenticado(request(app).get(`/clients/${clienteId}/lembretes`), tokenRafael);
     expect(deOutraCarteira.status).toBe(404);
     expect(deOutraCarteira.body.error.message).toBe('Cliente não encontrado.');
+  });
+
+  it('cliente inativado: o lembrete sai da agenda do dia e do calendário, mas continua na ficha', async () => {
+    const doInativo = await criarLembrete({ clientId: clienteId, criadoPorId: eduardaId, texto: 'Levar amostras', data: daquiA(0) });
+    const doAtivo = await criarLembrete({
+      clientId: clienteDoRafaelId,
+      criadoPorId: rafaelId,
+      texto: 'Cobrar boleto',
+      data: daquiA(0),
+    });
+    await prisma.client.update({ where: { id: clienteId }, data: { ativo: false } });
+
+    const agenda = await autenticado(request(app).get('/agenda/today'), tokenGestor);
+    expect(agenda.status).toBe(200);
+    expect(agenda.body.data.lembretes.map((lembrete: { id: string }) => lembrete.id)).toEqual([doAtivo]);
+
+    const calendario = await autenticado(request(app).get('/agenda/calendario').query({ mes: daquiA(0).slice(0, 7) }), tokenGestor);
+    expect(calendario.status).toBe(200);
+    const idsNoCalendario = calendario.body.data.itens
+      .filter((item: { tipo: string }) => item.tipo === 'LEMBRETE')
+      .map((item: { lembreteId: string }) => item.lembreteId);
+    expect(idsNoCalendario).toEqual([doAtivo]);
+
+    const ficha = await autenticado(request(app).get(`/clients/${clienteId}/lembretes`), tokenEduarda);
+    expect(ficha.status).toBe(200);
+    expect(ficha.body.data.map((lembrete: { id: string }) => lembrete.id)).toEqual([doInativo]);
   });
 
   it('cliente inexistente → 404; sem lembretes → lista vazia', async () => {

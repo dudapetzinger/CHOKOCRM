@@ -294,7 +294,9 @@ describe('BalaoDoGrafico', () => {
     const balao = screen.getByRole('tooltip');
     expect(area.offsetHeight).toBe(alturaAntes);
     expect(balao.parentElement).toBe(area);
-    expect(balao).toHaveClass('absolute', 'max-w-72');
+    // Nunca mais largo que a área (a 320 px, 18rem passaria do cartão).
+    expect(balao).toHaveClass('absolute', 'max-w-[min(18rem,100%)]');
+    expect(balao).not.toHaveClass('max-w-72');
     // Aceita o ponteiro (WCAG 1.4.13): dá para passar o mouse por cima.
     expect(balao).not.toHaveClass('pointer-events-none');
     // O único filho novo é o balão, fora do fluxo.

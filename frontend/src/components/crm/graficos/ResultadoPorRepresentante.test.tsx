@@ -97,6 +97,12 @@ describe('ResultadoPorRepresentante', () => {
       'Eduarda · Sem venda: 3',
     ]);
     for (const segmento of segmentos) expect(segmento).toHaveClass('min-w-2');
+    // No celular, a área de toque passa da barra de 12 px para 44 px; a barra não corta mais o que passa da borda.
+    for (const segmento of segmentos) {
+      expect(segmento).toHaveClass('relative', 'max-md:before:absolute', 'max-md:before:-inset-y-4');
+      expect(segmento).toHaveClass('first:rounded-l-full', 'last:rounded-r-full');
+    }
+    expect(barra).not.toHaveClass('overflow-hidden');
 
     act(() => segmentos[0].focus());
     const balao = screen.getByRole('tooltip');

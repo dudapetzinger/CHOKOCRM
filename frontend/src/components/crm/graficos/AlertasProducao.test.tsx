@@ -106,6 +106,15 @@ describe('AlertasProducao', () => {
     expect(screen.getByRole('img', { name: 'Caixa presente — Natal · 1 cliente' })).toBeInTheDocument();
   });
 
+  it('no celular, a barra tem área de toque de 44 px (sem ocupar mais espaço) e o desenho fica dentro', () => {
+    renderizar();
+
+    const gatilho = screen.getByRole('img', { name: 'Bombons sortidos — Natal · 2 clientes' });
+    expect(gatilho).toHaveClass('relative', 'max-md:min-h-11', 'max-md:-my-[18px]');
+    expect(gatilho).not.toHaveClass('bg-muted');
+    expect(within(gatilho).getByTestId('barra-alerta').parentElement).toHaveClass('h-2', 'bg-muted');
+  });
+
   it('a tabela acessível lista evento, produto e a coluna Clientes', () => {
     renderizar();
 

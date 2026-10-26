@@ -31,6 +31,8 @@ describe('Abas', () => {
       const outra = screen.getByRole('tab', { name: nome });
       expect(outra).toHaveAttribute('aria-selected', 'false');
       expect(outra).toHaveAttribute('tabindex', '-1');
+      // Só o painel da aba marcada é montado: as outras não apontam para um id que não existe.
+      expect(outra).not.toHaveAttribute('aria-controls');
     }
   });
 

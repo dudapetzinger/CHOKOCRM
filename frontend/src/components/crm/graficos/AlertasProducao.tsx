@@ -6,6 +6,7 @@
  * alerta). Os clientes ficam só no balão da barra (Etapa 9, spec 6.7:
  * "Bombons sortidos — Natal · 5 clientes" e cada cliente com a quantidade em
  * estoque); a linha "Estoque baixo: …" com links saiu (decisão da parceira).
+ * No celular, o gatilho é um invólucro com 44 px de toque (`TOQUE_NA_BARRA`).
  * A tabela escondida lista evento, produto e clientes para leitores de tela.
  *
  * O segmentado fica fora da área de resultados: continua na tela enquanto o
@@ -20,7 +21,7 @@ import type { AlertaProducao, Alertas } from '@/services/insights';
 import { EstadoVazio } from '../../EstadoVazio';
 import { FiltroHorizonte } from '../../FiltroHorizonte';
 import { Aviso } from '../ui';
-import { AreaComBalao, GatilhoDoBalao, type ConteudoDoBalao } from './BalaoDoGrafico';
+import { AreaComBalao, GatilhoDoBalao, TOQUE_NA_BARRA, type ConteudoDoBalao } from './BalaoDoGrafico';
 import { TabelaAcessivel } from './TabelaAcessivel';
 
 type Props = {
@@ -84,17 +85,14 @@ function ListaDeAlertas({ alertas }: { alertas: Alertas }) {
                   <b className="font-medium">{produto.nome}</b> — {evento.nome} {descreverPrazo(evento.diasAteEvento)}{' '}
                   — {descreverClientes(clientes.length)}
                 </p>
-                <GatilhoDoBalao
-                  conteudo={balao}
-                  role="img"
-                  aria-label={balao.titulo}
-                  className="h-2 rounded-full bg-muted"
-                >
-                  <div
-                    data-testid="barra-alerta"
-                    className="h-2 rounded-full bg-chart"
-                    style={{ width: `${Math.round((clientes.length / maior) * 100)}%` }}
-                  />
+                <GatilhoDoBalao conteudo={balao} role="img" aria-label={balao.titulo} className={TOQUE_NA_BARRA}>
+                  <div className="h-2 w-full rounded-full bg-muted">
+                    <div
+                      data-testid="barra-alerta"
+                      className="h-2 rounded-full bg-chart"
+                      style={{ width: `${Math.round((clientes.length / maior) * 100)}%` }}
+                    />
+                  </div>
                 </GatilhoDoBalao>
               </li>
             );

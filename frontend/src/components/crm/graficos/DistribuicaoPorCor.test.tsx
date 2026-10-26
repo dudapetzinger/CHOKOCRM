@@ -56,6 +56,12 @@ describe('DistribuicaoPorCor', () => {
 
     const segmentos = screen.getAllByTestId('segmento-cor');
     expect(segmentos.map((segmento) => segmento.style.flexGrow)).toEqual(['4', '2', '3']);
+    // No celular, a área de toque passa da barra de 12 px para 44 px; a barra não corta mais o que passa da borda.
+    for (const segmento of segmentos) {
+      expect(segmento).toHaveClass('relative', 'max-md:before:absolute', 'max-md:before:-inset-y-4');
+      expect(segmento).toHaveClass('first:rounded-l-full', 'last:rounded-r-full');
+    }
+    expect(segmentos[0].parentElement).not.toHaveClass('overflow-hidden');
     expect(segmentos.map((segmento) => segmento.getAttribute('aria-label'))).toEqual([
       'Verde · 4 clientes',
       'Amarelo · 2 clientes',

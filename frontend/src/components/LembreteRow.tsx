@@ -21,7 +21,9 @@ import type { LembreteItem } from '../services/lembretes';
 import { Avatar } from './crm/ui';
 
 /**
- * "Concluir" de um lembrete, desabilitado enquanto conclui. O nome acessível
+ * "Concluir" de um lembrete, desabilitado enquanto conclui e depois de
+ * concluir, até a lista recarregada tirar a linha: um segundo toque não
+ * repete o pedido (que daria "Lembrete já concluído."). O nome acessível
  * (`rotulo`) diz qual lembrete, porque costuma haver vários botões iguais na
  * tela; o sucesso e o erro vêm num toast (`useConcluirLembrete`).
  */
@@ -42,7 +44,7 @@ export function BotaoConcluirLembrete({
       size="sm"
       variant="outline"
       aria-label={rotulo}
-      disabled={concluir.isPending}
+      disabled={concluir.isPending || concluir.isSuccess}
       onClick={() => concluir.mutate(lembreteId)}
       className={cn('shrink-0', className)}
     >

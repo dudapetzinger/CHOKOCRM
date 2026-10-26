@@ -1,8 +1,10 @@
 /**
  * Abas de verdade (Etapa 9, spec das abas do Painel e da ficha do cliente):
  * `tablist` com um `tab` por aba e um `tabpanel` por conteúdo (`PainelDaAba`),
- * ligados por `aria-controls`/`aria-labelledby` a partir de `idBase`. Só a
- * aba marcada entra no Tab; as setas (e Home/End) trocam de aba e levam o
+ * ligados por `aria-controls`/`aria-labelledby` a partir de `idBase`. Como só
+ * o painel da aba marcada é montado, só ela leva `aria-controls` (nas outras,
+ * o id apontaria para um elemento que não existe). Só a aba marcada entra no
+ * Tab; as setas (e Home/End) trocam de aba e levam o
  * foco junto, com volta ao início/fim (`proximoIndicePorSeta`). Visual das
  * `AbasSituacao` (sublinhado, 44 px de altura no celular); no celular as abas
  * dividem a largura. Controlado: quem usa guarda a aba (em geral na URL, com
@@ -62,7 +64,7 @@ export function Abas<V extends string>({ idBase, ariaLabel, abas, valor, onChang
             role="tab"
             id={idDaAba(idBase, aba.valor)}
             aria-selected={marcada}
-            aria-controls={idDoPainel(idBase, aba.valor)}
+            aria-controls={marcada ? idDoPainel(idBase, aba.valor) : undefined}
             tabIndex={marcada ? 0 : -1}
             className={cn(
               '-mb-px flex shrink-0 items-center justify-center whitespace-nowrap rounded-t-md border-b-2 pb-2 pt-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring max-md:min-h-11 max-md:flex-1 max-md:px-2',

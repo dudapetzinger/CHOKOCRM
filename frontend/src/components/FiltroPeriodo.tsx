@@ -9,7 +9,10 @@
  * chamado com uma faixa válida: início e fim preenchidos, `De ≤ Até ≤ hoje` e
  * no máximo 365 dias. Acima disso o Painel não mostra: a mensagem do limite
  * aparece (`role="status"`) e `onPeriodoDaPlanilha` recebe a faixa, porque a
- * Planilha aceita qualquer tamanho. Os erros ficam junto do campo, na ordem:
+ * Planilha aceita qualquer tamanho. Numa edição inválida (data vazia, depois
+ * de hoje, fim antes do início), `onPeriodoDaPlanilha` recebe o `valor` (o
+ * período que o Painel está mostrando), para a Planilha não ficar presa numa
+ * faixa acima do limite digitada antes. Os erros ficam junto do campo, na ordem:
  * data vazia ("Informe as duas datas.", só depois de a pessoa editar), data
  * depois de hoje e fim antes do início. No celular os dois campos ficam lado a
  * lado, abaixo do segmentado.
@@ -43,7 +46,7 @@ const MENSAGEM_DATA_VAZIA = 'Informe as duas datas.';
 type Props = {
   valor: Periodo;
   onChange: (periodo: Periodo) => void;
-  /** Recebe a faixa que passou do limite do Painel, para a Planilha usá-la. */
+  /** Recebe a faixa que passou do limite do Painel, para a Planilha usá-la (ou o `valor`, numa edição inválida). */
   onPeriodoDaPlanilha?: (periodo: Periodo) => void;
   /** Regra de layout do `FiltroPilulas` (padrão: respiro embaixo). */
   className?: string;
@@ -109,7 +112,10 @@ export function FiltroPeriodo({ valor, onChange, onPeriodoDaPlanilha, className 
     setRascunho(proximas);
     setEditou(true);
     const { de, ate } = proximas;
-    if (!de || !ate || de > ate || ate > hoje) return;
+    if (!de || !ate || de > ate || ate > hoje) {
+      onPeriodoDaPlanilha?.(valor);
+      return;
+    }
     const faixa = { inicio: de, fim: ate };
     if (diasDaFaixa(de, ate) > LIMITE_DIAS_DO_PAINEL) {
       onPeriodoDaPlanilha?.(faixa);

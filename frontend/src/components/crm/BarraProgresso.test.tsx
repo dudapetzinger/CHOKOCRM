@@ -68,6 +68,17 @@ describe('BarraProgresso', () => {
     expect(barra).toHaveAttribute('aria-valuetext', '6 de 20 · 30 %');
   });
 
+  it('com balão, no celular a barra tem área de toque de 44 px (sem ocupar mais espaço) e o desenho fica dentro', () => {
+    render(
+      <BarraProgresso rotulo="Visitas" real={6} alvo={20} balao={{ titulo: 'Visitas · 6 de 20', linhas: [] }} />,
+    );
+
+    const gatilho = screen.getByRole('progressbar', { name: 'Progresso de Visitas' });
+    expect(gatilho).toHaveClass('relative', 'max-md:min-h-11', 'max-md:-my-[18px]');
+    expect(gatilho).not.toHaveClass('bg-muted');
+    expect(gatilho.firstElementChild).toHaveClass('h-2', 'bg-muted');
+  });
+
   it('sem balão, a barra não é focável', () => {
     render(<BarraProgresso rotulo="Visitas" real={6} alvo={20} />);
 

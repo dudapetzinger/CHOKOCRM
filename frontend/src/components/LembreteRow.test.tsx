@@ -106,6 +106,20 @@ describe('LembreteRow', () => {
     expect(await screen.findByText('Lembrete concluído')).toBeInTheDocument();
   });
 
+  it('depois de concluir, "Concluir" continua desabilitado até a linha sumir (toque duplo não dá 409)', async () => {
+    vi.mocked(concluirLembrete).mockResolvedValue({ id: 'l1', concluidoEm: '2026-10-26T12:00:00.000Z' });
+    const usuario = userEvent.setup();
+    renderizar({ podeConcluir: true });
+
+    const botao = screen.getByRole('button', { name: 'Concluir lembrete de Doce Encanto' });
+    await usuario.click(botao);
+    expect(await screen.findByText('Lembrete concluído')).toBeInTheDocument();
+
+    expect(botao).toBeDisabled();
+    await usuario.click(botao);
+    expect(concluirLembrete).toHaveBeenCalledTimes(1);
+  });
+
   it('se não conclui, mostra o erro da API num toast', async () => {
     vi.mocked(concluirLembrete).mockRejectedValue(new ApiError('CONFLICT', 'Lembrete já concluído.'));
     const usuario = userEvent.setup();

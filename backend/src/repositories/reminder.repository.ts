@@ -49,19 +49,26 @@ export async function findById(id: string): Promise<(Reminder & { client: { repr
 /**
  * Lembretes abertos (`concluidoEm` nulo): com `clientId`, só os do cliente;
  * com `representanteId`, só os da carteira dele (o dono atual do cliente, não
- * quem criou); com `ate` (coluna `@db.Date`), só os com `data` até esse dia.
+ * quem criou); com `ate` (coluna `@db.Date`), só os com `data` até esse dia;
+ * com `apenasClientesAtivos`, só os de cliente ativo (a agenda do dia e o
+ * calendário, que já deixam o cliente inativo de fora; a ficha mostra todos).
  * Por data, depois pelo nome do cliente e, no empate, pelo mais antigo.
  */
 export async function listarAbertos(filtro: {
   clientId?: string;
   representanteId?: string;
   ate?: Date;
+  apenasClientesAtivos?: boolean;
 }): Promise<LembreteComCliente[]> {
+  const doCliente: Prisma.ClientWhereInput = {
+    ...(filtro.representanteId ? { representanteId: filtro.representanteId } : {}),
+    ...(filtro.apenasClientesAtivos ? { ativo: true } : {}),
+  };
   return prisma.reminder.findMany({
     where: {
       concluidoEm: null,
       ...(filtro.clientId ? { clientId: filtro.clientId } : {}),
-      ...(filtro.representanteId ? { client: { representanteId: filtro.representanteId } } : {}),
+      ...(Object.keys(doCliente).length > 0 ? { client: doCliente } : {}),
       ...(filtro.ate ? { data: { lte: filtro.ate } } : {}),
     },
     select: SELECT_COM_CLIENTE,

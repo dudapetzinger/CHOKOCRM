@@ -7,11 +7,13 @@
  * `progressbar` com o mesmo texto em `aria-valuetext`; `data-atingida`
  * marca a meta batida sem depender da cor. Com alvo zero não há barra: o
  * texto diz "· sem meta". Com `balao` (Etapa 9, spec 6.7), a barra abre no
- * hover, no foco e no toque o balão com os clientes que fizeram o realizado.
+ * hover, no foco e no toque o balão com os clientes que fizeram o realizado;
+ * aí o `progressbar` é o gatilho, um invólucro com 44 px de toque no celular
+ * (`TOQUE_NA_BARRA`), e a barra desenhada fica dentro.
  */
 import { cn } from '@/lib/utils';
 import { formatarMoeda } from '../../lib/formatarMoeda';
-import { AreaComBalao, GatilhoDoBalao, type ConteudoDoBalao } from './graficos/BalaoDoGrafico';
+import { AreaComBalao, GatilhoDoBalao, TOQUE_NA_BARRA, type ConteudoDoBalao } from './graficos/BalaoDoGrafico';
 
 /** Espaço sem quebra: "70 %" nunca separa o número do sinal. */
 const NBSP = ' ';
@@ -42,7 +44,7 @@ export function BarraProgresso({
       ? `${formatar(real)} de ${formatar(alvo)} · ${percentual}${NBSP}%`
       : `${formatar(real)} · sem meta`;
 
-  // A mesma barra, com ou sem balão.
+  // O mesmo `progressbar`, com ou sem balão.
   const atributosDaBarra = {
     role: 'progressbar',
     'aria-label': `Progresso de ${rotulo}`,
@@ -51,8 +53,8 @@ export function BarraProgresso({
     'aria-valuenow': Math.min(real, alvo),
     'aria-valuetext': texto,
     'data-atingida': atingida,
-    className: 'h-2 overflow-hidden rounded-full bg-muted',
   };
+  const CLASSE_DA_BARRA = 'h-2 w-full overflow-hidden rounded-full bg-muted';
   const preenchimento = (
     <div
       className={cn('h-full rounded-full', atingida ? 'bg-st-green' : 'bg-chart')}
@@ -68,11 +70,13 @@ export function BarraProgresso({
       </div>
       {alvo > 0 &&
         (balao ? (
-          <GatilhoDoBalao conteudo={balao} {...atributosDaBarra}>
-            {preenchimento}
+          <GatilhoDoBalao conteudo={balao} {...atributosDaBarra} className={TOQUE_NA_BARRA}>
+            <div className={CLASSE_DA_BARRA}>{preenchimento}</div>
           </GatilhoDoBalao>
         ) : (
-          <div {...atributosDaBarra}>{preenchimento}</div>
+          <div {...atributosDaBarra} className={CLASSE_DA_BARRA}>
+            {preenchimento}
+          </div>
         ))}
     </div>
   );

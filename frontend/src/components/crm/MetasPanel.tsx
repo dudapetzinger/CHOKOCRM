@@ -18,7 +18,9 @@
  * (Etapa 9) com os clientes do realizado — as visitas de cada um e, nas
  * vendas, só os que compraram, com o valor. O formulário abre num
  * cartão acima da lista, para criar e para editar: representante (os
- * ativos), periodicidade (semanal, mensal ou período personalizado; não
+ * ativos; na meta nova, já vem o escolhido no Painel e, sem ele — gestor em
+ * "Todos" e sempre na campanha —, começa em "Escolha um representante", que
+ * a validação exige trocar, spec 10.4), periodicidade (semanal, mensal ou período personalizado; não
  * aparece na meta de campanha), início, fim (travado e calculado na semanal
  * e na mensal), meta de visitas e meta de vendas. As regras do backend são
  * conferidas antes de enviar, com as mesmas mensagens, junto do campo.
@@ -141,14 +143,6 @@ function FormularioMeta({
   useEffect(() => {
     campoRepresentante.current?.focus();
   }, []);
-
-  // Meta nova sem representante escolhido: o primeiro ativo, quando a lista chega
-  useEffect(() => {
-    if (meta || !representantes || representantes.length === 0) return;
-    setDados((anteriores) =>
-      anteriores.representanteId ? anteriores : { ...anteriores, representanteId: representantes[0]!.id },
-    );
-  }, [meta, representantes]);
 
   // O representante de uma meta existente que foi inativado continua na lista
   const opcoes = [...(representantes ?? []).map((representante) => ({ ...representante, inativo: false }))];

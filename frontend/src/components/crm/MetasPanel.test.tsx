@@ -236,12 +236,16 @@ describe('MetasPanel — criar, editar e excluir (gestor)', () => {
     const formulario = screen.getByRole('form', { name: 'Nova meta' });
     expect(screen.queryByRole('button', { name: 'Nova meta' })).not.toBeInTheDocument();
 
+    // Gestor em "Todos" no Painel: nenhum representante vem escolhido.
     const representante = within(formulario).getByRole('combobox', { name: 'Representante' });
-    await waitFor(() => expect(representante).toHaveValue('r1'));
+    await within(representante).findByRole('option', { name: 'Rafael Schmitt' });
+    expect(representante).toHaveValue('');
     expect(within(representante).getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
+      'Escolha um representante',
       'Eduarda Fischer',
       'Rafael Schmitt',
     ]);
+    await usuario.selectOptions(representante, 'r1');
     const periodicidade = within(formulario).getByRole('radiogroup', { name: 'Periodicidade' });
     expect(within(periodicidade).getByRole('radio', { name: 'Mensal' })).toHaveAttribute('aria-checked', 'true');
 
@@ -270,6 +274,33 @@ describe('MetasPanel — criar, editar e excluir (gestor)', () => {
     expect(screen.queryByRole('form', { name: 'Nova meta' })).not.toBeInTheDocument();
   });
 
+  it('sem escolher o representante, mostra "Escolha um representante." junto do campo e não envia', async () => {
+    renderizar();
+    await cartaoDe('Eduarda Fischer');
+    await usuario.click(screen.getByRole('button', { name: 'Nova meta' }));
+    const formulario = screen.getByRole('form', { name: 'Nova meta' });
+    const representante = within(formulario).getByRole('combobox', { name: 'Representante' });
+    await within(representante).findByRole('option', { name: 'Eduarda Fischer' });
+
+    await usuario.click(within(formulario).getByRole('button', { name: 'Salvar meta' }));
+
+    expect(within(formulario).getByText('Escolha um representante.')).toBeInTheDocument();
+    expect(representante).toHaveAttribute('aria-invalid', 'true');
+    expect(criarMeta).not.toHaveBeenCalled();
+  });
+
+  it('gestor com representante escolhido no Painel: a meta nova já vem com ele', async () => {
+    renderizar({ representanteId: 'r2' });
+    await cartaoDe('Eduarda Fischer');
+    await usuario.click(screen.getByRole('button', { name: 'Nova meta' }));
+    const formulario = screen.getByRole('form', { name: 'Nova meta' });
+    const representante = within(formulario).getByRole('combobox', { name: 'Representante' });
+    await within(representante).findByRole('option', { name: 'Eduarda Fischer' });
+
+    expect(representante).toHaveValue('r2');
+    expect(within(representante).queryByRole('option', { name: 'Escolha um representante' })).not.toBeInTheDocument();
+  });
+
   it('semanal: o período vira a semana de segunda a domingo do início', async () => {
     renderizar();
     await cartaoDe('Eduarda Fischer');
@@ -289,6 +320,9 @@ describe('MetasPanel — criar, editar e excluir (gestor)', () => {
     await cartaoDe('Eduarda Fischer');
     await usuario.click(screen.getByRole('button', { name: 'Nova meta' }));
     const formulario = screen.getByRole('form', { name: 'Nova meta' });
+    const representante = within(formulario).getByRole('combobox', { name: 'Representante' });
+    await within(representante).findByRole('option', { name: 'Eduarda Fischer' });
+    await usuario.selectOptions(representante, 'r1');
 
     await usuario.click(within(formulario).getByRole('radio', { name: 'Período personalizado' }));
     const fim = within(formulario).getByLabelText('Fim');
@@ -313,7 +347,9 @@ describe('MetasPanel — criar, editar e excluir (gestor)', () => {
     await cartaoDe('Eduarda Fischer');
     await usuario.click(screen.getByRole('button', { name: 'Nova meta' }));
     const formulario = screen.getByRole('form', { name: 'Nova meta' });
-    await waitFor(() => expect(within(formulario).getByRole('combobox', { name: 'Representante' })).toHaveValue('r1'));
+    const representante = within(formulario).getByRole('combobox', { name: 'Representante' });
+    await within(representante).findByRole('option', { name: 'Eduarda Fischer' });
+    await usuario.selectOptions(representante, 'r1');
 
     await usuario.click(within(formulario).getByRole('button', { name: 'Salvar meta' }));
 
@@ -406,7 +442,11 @@ describe('MetasPanel — campanha', () => {
 
     await usuario.click(screen.getByRole('button', { name: 'Nova meta' }));
     const formulario = screen.getByRole('form', { name: 'Nova meta' });
-    await waitFor(() => expect(within(formulario).getByRole('combobox', { name: 'Representante' })).toHaveValue('r1'));
+    // No cartão da campanha não há representante escolhido: o select começa vazio.
+    const representante = within(formulario).getByRole('combobox', { name: 'Representante' });
+    await within(representante).findByRole('option', { name: 'Eduarda Fischer' });
+    expect(representante).toHaveValue('');
+    await usuario.selectOptions(representante, 'r1');
     expect(within(formulario).queryByRole('radiogroup', { name: 'Periodicidade' })).not.toBeInTheDocument();
     expect(within(formulario).getByLabelText('Início')).toHaveValue('2026-11-01');
     expect(within(formulario).getByLabelText('Fim')).toHaveValue('2026-12-24');
