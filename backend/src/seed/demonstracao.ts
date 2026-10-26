@@ -488,6 +488,12 @@ type VisitasClienteSeed = {
  * futura), o que também é um estado válido de demonstração. O usuário de
  * cada visita é o dono da carteira do cliente; os preços dos itens são os do
  * catálogo do ERP simulado.
+ *
+ * Histórico antigo (Etapa 10): visitas com VENDA de 6 a 12 meses atrás em
+ * clientes que já têm visita recente, para o Painel em 365 dias mostrar mais
+ * do que o de 90 (ritmo por mês com colunas preenchidas, metas e relatório
+ * com vendas antigas). Nenhuma muda cor nem agenda: a classificação olha só a
+ * visita mais recente.
  */
 const VISITAS_DEMO: VisitasClienteSeed[] = [
   {
@@ -513,6 +519,24 @@ const VISITAS_DEMO: VisitasClienteSeed[] = [
         descricao: 'Visita de relacionamento; estoque ainda alto, sem pedido.',
         resultado: 'SEM_VENDA',
       },
+      {
+        diasAtras: 200,
+        descricao: 'Pedido das caixas do Dia das Mães e reposição das trufas.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'CX-PRESENTE', quantidade: 8 },
+          { sku: 'TRUF-70', quantidade: 12 },
+        ],
+      },
+      {
+        diasAtras: 330,
+        descricao: 'Pedido de Páscoa: ovos e bombons para a vitrine.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'OVO-PASCOA', quantidade: 20 },
+          { sku: 'BOMB-SORT', quantidade: 10 },
+        ],
+      },
     ],
   },
   {
@@ -522,6 +546,15 @@ const VISITAS_DEMO: VisitasClienteSeed[] = [
         diasAtras: 10,
         descricao: 'Apresentação da linha de inverno; pediu tabela de preços.',
         resultado: 'NEGOCIACAO',
+      },
+      {
+        diasAtras: 260,
+        descricao: 'Pedido de dragées e tabletes para o balcão.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'DRAGEE', quantidade: 15 },
+          { sku: 'TAB-LEITE', quantidade: 40 },
+        ],
       },
     ],
   },
@@ -545,6 +578,15 @@ const VISITAS_DEMO: VisitasClienteSeed[] = [
         itens: [
           { sku: 'BARRA-70', quantidade: 30 },
           { sku: 'TAB-LEITE', quantidade: 60 },
+        ],
+      },
+      {
+        diasAtras: 150,
+        descricao: 'Pedido do Dia dos Namorados: caixas presente e pães de mel.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'CX-PRESENTE', quantidade: 10 },
+          { sku: 'PAO-MEL', quantidade: 18 },
         ],
       },
     ],
@@ -596,6 +638,15 @@ const VISITAS_DEMO: VisitasClienteSeed[] = [
         diasAtras: 20,
         descricao: 'Primeira visita; estoque da vitrine ainda cheio, sem pedido.',
         resultado: 'SEM_VENDA',
+      },
+      {
+        diasAtras: 290,
+        descricao: 'Pedido de tabletes e barras para a loja.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TAB-LEITE', quantidade: 25 },
+          { sku: 'BARRA-70', quantidade: 15 },
+        ],
       },
     ],
   },

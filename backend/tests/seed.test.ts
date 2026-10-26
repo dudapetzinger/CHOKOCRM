@@ -104,8 +104,8 @@ describe('seed de demonstração', () => {
       usuarios: 3,
       clientes: 13,
       contatos: 15,
-      visitas: 10,
-      itens: 8,
+      visitas: 15,
+      itens: 18,
       campanhas: 3,
       metas: 3,
       proximasVisitas: 3,
@@ -117,6 +117,22 @@ describe('seed de demonstração', () => {
 
     const usuarios = await prisma.user.findMany();
     expect(usuarios.every((usuario) => usuario.telefone && usuario.ativo)).toBe(true);
+
+    // Histórico antigo (6 a 12 meses): vendas fora dos 90 dias, para o Painel em 365 dias; nunca a mais recente do cliente
+    const antigas = await prisma.visit.findMany({
+      where: { dataHora: { lt: new Date(HOJE.getTime() - 90 * 86_400_000) } },
+      orderBy: { dataHora: 'asc' },
+    });
+    expect(antigas).toHaveLength(5);
+    expect(antigas.every((visita) => visita.resultado === 'VENDA')).toBe(true);
+    expect(antigas.every((visita) => visita.dataHora >= new Date(HOJE.getTime() - 365 * 86_400_000))).toBe(true);
+    for (const antiga of antigas) {
+      const maisRecente = await prisma.visit.findFirst({
+        where: { clientId: antiga.clientId },
+        orderBy: { dataHora: 'desc' },
+      });
+      expect(maisRecente?.id).not.toBe(antiga.id);
+    }
 
     // Todas as visitas de venda têm pedido de 2 itens do catálogo, com o preço do catálogo
     const visitas = await prisma.visit.findMany({ include: { itens: true } });
