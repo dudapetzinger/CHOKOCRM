@@ -4,7 +4,7 @@ Este documento descreve o modelo de dados do ChokoCRM. Complementa a [especifica
 
 ## 1. Visão geral
 
-Este documento descreve o modelo de dados do ChokoCRM: o diagrama entidade-relacionamento (ER) das onze entidades persistidas e o dicionário de dados correspondente, campo a campo. Os nomes de entidades e campos aqui definidos são canônicos e foram implementados literalmente no `schema.prisma` a partir da Etapa 2 (Fundação). As sete primeiras vêm da proposta; a Etapa 8 (revisão pelo protótipo) acrescentou `PasswordResetToken`, `VisitItem`, `Campaign` e `Goal` (seções 3.8 a 3.11) e campos novos em `User`, `Client` e `Visit`.
+Este documento descreve o modelo de dados do ChokoCRM: o diagrama entidade-relacionamento (ER) das doze entidades persistidas e o dicionário de dados correspondente, campo a campo. Os nomes de entidades e campos aqui definidos são canônicos e foram implementados literalmente no `schema.prisma` a partir da Etapa 2 (Fundação). As sete primeiras vêm da proposta; a Etapa 8 (revisão pelo protótipo) acrescentou `PasswordResetToken`, `VisitItem`, `Campaign` e `Goal` (seções 3.8 a 3.11) e campos novos em `User`, `Client` e `Visit`; a Etapa 9 (ajustes pós-validação) acrescentou `Reminder` (seção 3.12), o lembrete como tarefa própria, e tirou `Client.lembrete`.
 
 Duas classes de informação relevantes ao domínio **não são modeladas como entidade persistida** neste documento, por decisão explícita da especificação técnica:
 
@@ -31,6 +31,9 @@ erDiagram
   CAMPAIGN |o--o{ CLIENT : "vincula a próxima visita"
   USER ||--o{ GOAL : "tem meta"
   CAMPAIGN |o--o{ GOAL : "tem meta"
+  CLIENT ||--o{ REMINDER : "tem lembretes"
+  USER ||--o{ REMINDER : cria
+  VISIT |o--o{ REMINDER : origina
 ```
 
 Leitura das cardinalidades:
@@ -43,8 +46,9 @@ Leitura das cardinalidades:
 - Um **User** pode ter vários `PasswordResetToken` (links de redefinição pedidos pelo gestor; só o último vale) e várias `Goal` (metas de visitas e vendas); cada token e cada meta pertencem a exatamente um usuário.
 - Uma **Visit** com resultado `VENDA` pode ter vários `VisitItem` (o pedido do check-in); cada item pertence a exatamente uma visita e é apagado com ela.
 - Uma **Campaign** pode estar vinculada a zero ou várias `Visit` (`campanha_id`), a zero ou vários `Client` pela próxima visita (`proxima_campanha_id`) e a zero ou várias `Goal` (metas da campanha). Excluir a campanha desvincula visitas e clientes e apaga as metas dela.
+- Um **Client** tem zero ou vários `Reminder` (lembretes, Etapa 9); cada lembrete pertence a exatamente um cliente e é apagado com ele. Um **User** cria vários `Reminder` (`criado_por_id`) e uma **Visit** pode ser a origem de zero ou vários (`visit_id`, opcional: apagar a visita só solta o vínculo).
 
-As entidades do diagrama (em maiúsculas, convenção do Mermaid) correspondem uma a uma às entidades do dicionário de dados da seção 3: `USER` → `User`, `CLIENT` → `Client`, `CONTACT` → `Contact`, `VISIT` → `Visit`, `VISIT_SCHEDULE_CHANGE` → `VisitScheduleChange`, `STOCK_MESSAGE` → `StockMessage`, `SEASONAL_EVENT` → `SeasonalEvent`, `PASSWORD_RESET_TOKEN` → `PasswordResetToken`, `VISIT_ITEM` → `VisitItem`, `CAMPAIGN` → `Campaign`, `GOAL` → `Goal`.
+As entidades do diagrama (em maiúsculas, convenção do Mermaid) correspondem uma a uma às entidades do dicionário de dados da seção 3: `USER` → `User`, `CLIENT` → `Client`, `CONTACT` → `Contact`, `VISIT` → `Visit`, `VISIT_SCHEDULE_CHANGE` → `VisitScheduleChange`, `STOCK_MESSAGE` → `StockMessage`, `SEASONAL_EVENT` → `SeasonalEvent`, `PASSWORD_RESET_TOKEN` → `PasswordResetToken`, `VISIT_ITEM` → `VisitItem`, `CAMPAIGN` → `Campaign`, `GOAL` → `Goal`, `REMINDER` → `Reminder`.
 
 ## 3. Dicionário de dados
 
@@ -83,11 +87,12 @@ Convenções adotadas nas tabelas abaixo:
 | erp_id | Texto | Não | Identificador do cliente no ERP da Senior Sistemas; chave usada nas consultas ao `ErpProvider` (seção 4 deste documento). Preenchimento recomendado assim que disponível, mas opcional no cadastro — o cliente pode ainda não ter vínculo com o ERP (UC02, UC11 em `docs/casos-de-uso.md`). |
 | recorrencia_dias | Número inteiro | Sim | Intervalo, em dias, entre visitas recorrentes a este cliente. **Valor padrão: 15. Faixa sugerida: 15 a 30.** Alteração exige registro correspondente em `VisitScheduleChange`, com justificativa (seção 6.2 da especificação). |
 | proxima_visita | Data | Não | Data prevista da próxima visita, marcada no check-in (Etapa 8, UC17). Quando existe, é ela que a agenda usa; nula, a agenda usa a última visita (ou o cadastro) + `recorrencia_dias`. Cada check-in regrava (ou apaga) a data, e alterar a recorrência (UC09) a apaga. |
-| lembrete | Texto (até 200 caracteres) | Não | Anotação que acompanha a próxima visita (Etapa 8), mostrada na agenda, no calendário e na ficha. O banco recusa mais de 200 caracteres (`CHECK`). |
 | proxima_campanha_id | Chave estrangeira → `Campaign.id` | Não | Campanha da próxima visita (Etapa 8), gravada e apagada junto com `proxima_visita` a cada check-in. Excluir a campanha só desvincula (`ON DELETE SET NULL`). |
 | ativo | Booleano | Sim | Indica se o cliente está ativo na carteira do representante. A especificação não define valor padrão explícito para este campo; sugere-se `true` na criação, como decisão de implementação da Etapa 2. |
 | representante_id | FK → User.id | Sim | Representante dono da carteira. Preenchido automaticamente com o usuário que cadastra; só o gestor transfere (Etapa 4). |
 | criado_em | Data/hora | Sim | Data e hora de criação do registro. |
+
+**Etapa 9:** o campo `lembrete` (texto de até 200 caracteres preso à próxima visita) **saiu** de `Client`: o lembrete virou a entidade `Reminder` (seção 3.12), com data própria, e a migration `20261025232841_lembretes_como_tarefa` copiou os lembretes existentes antes de remover a coluna (e a constraint `clients_lembrete_ate_200`).
 
 ### 3.3 Contact
 
@@ -219,7 +224,28 @@ Meta de visitas e vendas de um representante (Etapa 8, UC19), sem campanha ou de
 
 **Realizado:** não é gravado. A cada leitura, conta as visitas feitas pelo representante (autor da visita) no período — e vinculadas à campanha, na meta de campanha — e soma o total dos pedidos das que tiveram resultado `VENDA`.
 
-**Seed de demonstração (Etapa 8):** `backend/src/seed/demonstracao.ts` grava, relativo ao dia em que roda, três campanhas (uma em andamento), metas mensais para os dois representantes e uma da campanha em andamento, pedidos de dois itens do catálogo em toda visita de venda e a próxima visita com lembrete em três clientes (um com campanha). `npm run db:seed:reset` apaga e recria esses dados, mantendo as contas criadas pelo app ([guia de desenvolvimento](guia-de-desenvolvimento.md#4-banco-de-dados-migrations-e-seed)).
+**Seed de demonstração (Etapa 8):** `backend/src/seed/demonstracao.ts` grava, relativo ao dia em que roda, três campanhas (uma em andamento), metas mensais para os dois representantes e uma da campanha em andamento, pedidos de dois itens do catálogo em toda visita de venda e a próxima visita em três clientes (um com campanha). `npm run db:seed:reset` apaga e recria esses dados, mantendo as contas criadas pelo app ([guia de desenvolvimento](guia-de-desenvolvimento.md#4-banco-de-dados-migrations-e-seed)).
+
+**Seed de demonstração (Etapa 9):** o seed passa a gravar também quatro `Reminder`, criados pelo dono da carteira: três abertos (um deles vencido há 3 dias, para a seção "Lembretes" da agenda e o calendário mostrarem o vencido) e um já concluído, que não deve aparecer em lugar nenhum. As visitas marcadas no check-in continuam em três clientes, uma delas com data passada (vencida), para o calendário mostrar a marcada vencida no dia dela. As visitas com venda dos últimos 45 dias (o seed não grava visita mais antiga) alimentam os rankings e a receita por representante do Painel.
+
+### 3.12 Reminder
+
+Lembrete do cliente como tarefa própria (Etapa 9, UC17 e UC27): nasce no check-in, tem data, fica aberto até alguém concluí-lo e sobrevive a novos check-ins ([ADR-017](arquitetura.md#adr-017--lembrete-como-tarefa-própria-tabela-reminder)). Tabela `lembretes`.
+
+| Campo | Tipo | Obrigatório | Descrição / Regra |
+|---|---|---|---|
+| id | Identificador único (UUID) | Sim | Chave primária. |
+| client_id | Chave estrangeira → `Client.id` | Sim | Cliente do lembrete; apagar o cliente apaga os lembretes (`ON DELETE CASCADE`). O lembrete vale para a carteira atual do cliente: se ele for transferido, o lembrete vai junto. |
+| criado_por_id | Chave estrangeira → `User.id` | Sim | Quem criou o lembrete (o representante do check-in). |
+| visit_id | Chave estrangeira → `Visit.id` | Não | Check-in de origem; apagar a visita só solta o vínculo (`ON DELETE SET NULL`). Nulo nos lembretes migrados de `Client.lembrete`. |
+| texto | Texto (até 200 caracteres) | Sim | O que lembrar. O banco recusa mais de 200 caracteres (`CHECK`, constraint `lembretes_texto_ate_200`), além do zod do check-in. |
+| data | Data | Sim | Dia para o qual o lembrete vale (`DATE`, sem hora), independente da próxima visita; no check-in não pode ser antes de hoje. |
+| concluido_em | Data/hora | Não | Momento da conclusão (`PATCH /lembretes/:id/concluir`); nulo enquanto aberto. Os concluídos continuam gravados (auditoria), mas não aparecem em tela nenhuma. |
+| criado_em | Data/hora | Sim | Momento da criação. |
+
+Índice em (`client_id`, `concluido_em`), para listar os abertos de um cliente. Um cliente pode ter vários lembretes abertos ao mesmo tempo; um check-in novo não conclui os que já estão abertos, e apagar a próxima visita no check-in ou mudar a recorrência (UC09) não toca neles.
+
+**Migração (Etapa 9):** a migration `20261025232841_lembretes_como_tarefa` cria a tabela e, em SQL escrito à mão, copia cada `Client.lembrete` não nulo para um `Reminder` aberto, criado pelo dono da carteira (`criado_por_id = representante_id`), com `data` igual à `proxima_visita` do cliente ou, sem ela, ao dia da migração; depois remove a coluna `clients.lembrete`.
 
 ## 4. Dados externos (ERP)
 

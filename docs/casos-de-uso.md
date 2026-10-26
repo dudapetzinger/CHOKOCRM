@@ -8,14 +8,14 @@ Este documento descreve os casos de uso do ChokoCRM. Complementa a [especificaç
 
 Este documento especifica os casos de uso do ChokoCRM, cobrindo os fluxos de cadastro e gestão de clientes, registro de visitas, classificação por cores, cruzamento com dados de ERP, geração de mensagens de consulta de estoque, insights de sazonalidade e indicadores gerenciais, conforme descrito nos objetivos do produto e nas regras de negócio da especificação técnica (seções 2 e 6).
 
-Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protótipo navegável (`docs/prototipo/`) e pela matriz de rastreabilidade das etapas 2 a 7 do cronograma da disciplina. Os **UC16 a UC26** nasceram na Etapa 8, com a revisão pelo protótipo do Lovable aprovado pela parceira: pedido, próxima visita, campanhas, metas, usuários e senhas, calendário, roteiro e exportação.
+Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protótipo navegável (`docs/prototipo/`) e pela matriz de rastreabilidade das etapas 2 a 7 do cronograma da disciplina. Os **UC16 a UC26** nasceram na Etapa 8, com a revisão pelo protótipo do Lovable aprovado pela parceira: pedido, próxima visita, campanhas, metas, usuários e senhas, calendário, roteiro e exportação. O **UC27** nasceu na Etapa 9, com os ajustes que a parceira trouxe depois de validar o app ([spec da etapa](superpowers/specs/2026-10-25-etapa-9-ajustes-pos-validacao-design.md)): o lembrete passou a ser uma tarefa que o representante conclui.
 
 ## 2. Atores
 
 | Ator | Tipo | Descrição |
 |---|---|---|
-| **Representante Comercial** | Principal, humano | Usuário de campo. Cadastra e mantém os clientes da própria carteira, realiza check-ins de visita (com pedido e próxima visita, desde a Etapa 8), consulta agenda, calendário, roteiro, histórico, dados de ERP, insights, campanhas, as próprias metas e, desde a Etapa 8, o próprio painel — sempre restrito aos clientes da própria carteira (desde a Etapa 7). |
-| **Gestor** | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Consulta, em modo somente leitura e para todas as carteiras — ou para a de um representante, escolhido no seletor de representante —, a lista de clientes, a ficha, o histórico e a agenda do dia, além da recorrência de visitas e seu histórico de alterações; pode transferir um cliente entre representantes. Desde a Etapa 8, gerencia os usuários, as campanhas e as metas. |
+| **Representante Comercial** | Principal, humano | Usuário de campo. Cadastra e mantém os clientes da própria carteira, realiza check-ins de visita (com pedido e próxima visita, desde a Etapa 8), consulta agenda, calendário, roteiro, histórico, dados de ERP, insights, campanhas, as próprias metas e, desde a Etapa 8, o próprio painel; desde a Etapa 9, conclui os lembretes dos próprios clientes — sempre restrito aos clientes da própria carteira (desde a Etapa 7). |
+| **Gestor** | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Consulta, em modo somente leitura e para todas as carteiras — ou para a de um representante, escolhido no seletor de representante —, a lista de clientes, a ficha, o histórico e a agenda do dia, além da recorrência de visitas e seu histórico de alterações; pode transferir um cliente entre representantes. Desde a Etapa 8, gerencia os usuários, as campanhas e as metas; desde a Etapa 9, também conclui lembretes (UC27). |
 | **Sistema (Agendador)** | Secundário, automatizado | Processo executado diariamente (job agendado, sem intervenção humana) que recalcula a lista de visitas previstas e atrasadas por representante e registra os alertas em log, sem persistir nada. |
 
 **Observação sobre permissões do Gestor:** o Gestor **não** possui todas as permissões do Representante Comercial. Ele autentica-se no sistema (UC01); consulta, em modo somente leitura e para todas as carteiras, a lista de clientes com classificação por cores (UC05), a ficha do cliente (UC06), o histórico de interações (UC08), a agenda do dia (UC10) e as sugestões sazonais da ficha (UC13); visualiza a recorrência de visitas e seu histórico de alterações, sem poder alterá-la; possui o painel de KPIs (UC14) e recebe os alertas de produção (UC15) — desde a Etapa 8 o representante também tem o painel e os alertas, limitados à própria carteira —; pode transferir um cliente entre representantes através de `PUT /clients/:id` (campo `representanteId`); e, desde a Etapa 8, é o único que gerencia usuários (UC20), transfere carteiras inteiras (UC23), dispara a redefinição de senha (UC22) e cria ou altera campanhas (UC18) e metas (UC19). O Gestor **não** cadastra clientes (UC02 responde 400), não registra check-ins de visita (UC07) e não altera a recorrência de visitas (UC09 responde 403).
@@ -26,12 +26,12 @@ Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protó
 
 ```mermaid
 graph LR
-  R[Representante] --> UC05 & UC07 & UC10 & UC12 & UC13 & UC16 & UC17 & UC25
-  G[Gestor] --> UC14 & UC15 & UC18 & UC19 & UC20
+  R[Representante] --> UC05 & UC07 & UC10 & UC12 & UC13 & UC16 & UC17 & UC25 & UC27
+  G[Gestor] --> UC14 & UC15 & UC18 & UC19 & UC20 & UC27
   S[Agendador] --> UC10
 ```
 
-O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator no uso cotidiano do sistema. A tabela a seguir complementa a visão geral, associando **todos** os 26 casos de uso ao(s) ator(es) principal(is), para fins de rastreabilidade:
+O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator no uso cotidiano do sistema. A tabela a seguir complementa a visão geral, associando **todos** os 27 casos de uso ao(s) ator(es) principal(is), para fins de rastreabilidade:
 
 | UC | Nome | Ator(es) |
 |---|---|---|
@@ -61,6 +61,7 @@ O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator
 | UC24 | Ver o calendário da agenda | Representante; Gestor |
 | UC25 | Ver o roteiro do dia | Representante; Gestor (com um representante escolhido) |
 | UC26 | Exportar o relatório do Painel | Gestor; Representante (própria carteira) |
+| UC27 | Concluir lembrete | Representante (própria carteira); Gestor |
 
 ## 4. Especificação dos casos de uso
 
@@ -144,7 +145,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Regras de negócio associadas:**
 - A inativação de cliente é sempre lógica, por meio da flag `ativo`; não há, em nenhum fluxo do sistema, exclusão física do registro do cliente.
-- Desde a Etapa 7, o representante só edita clientes da própria carteira: `PUT /clients/:id` em cliente de outra carteira responde 403 `FORBIDDEN` ("Cliente de outra carteira."). Os botões "Editar dados" e "Inativar cliente" ficam no grupo "Dados cadastrais" da ficha (UC06), recolhido por padrão.
+- Desde a Etapa 7, o representante só edita clientes da própria carteira: `PUT /clients/:id` em cliente de outra carteira responde 403 `FORBIDDEN` ("Cliente de outra carteira."). Os botões "Editar dados" e "Inativar cliente" ficam na aba "Cadastro" da ficha (UC06); até a Etapa 8 ficavam num grupo "Dados cadastrais" recolhido.
 
 ---
 
@@ -171,7 +172,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Regras de negócio associadas:**
 - O cliente pode ter múltiplos contatos (nome, cargo, telefone, e-mail).
 - Exatamente um contato deve estar marcado como principal a qualquer momento.
-- Desde a Etapa 7, só se gerenciam contatos de clientes da própria carteira: `POST /clients/:id/contacts`, `PUT /contacts/:id` e `DELETE /contacts/:id` em cliente de outra carteira respondem 403 `FORBIDDEN` ("Cliente de outra carteira."). A seção de contatos fica no grupo "Dados cadastrais" da ficha (UC06).
+- Desde a Etapa 7, só se gerenciam contatos de clientes da própria carteira: `POST /clients/:id/contacts`, `PUT /contacts/:id` e `DELETE /contacts/:id` em cliente de outra carteira respondem 403 `FORBIDDEN` ("Cliente de outra carteira."). A seção de contatos fica na aba "Cadastro" da ficha (UC06), junto dos dados do cliente.
 
 ---
 
@@ -238,24 +239,24 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 1. O representante seleciona um cliente na lista (UC05) ou na agenda do dia (UC10); o gestor também pode abri-la pela lista de clientes esfriando do painel (UC14).
 2. O sistema exibe o cabeçalho da ficha: nome fantasia, cidade, selo de cor, etiqueta de situação (UC05), o telefone do contato principal (ou, sem ele, o do cliente) com os atalhos "Ligar" (link `tel:`) e "WhatsApp" (link `wa.me`) e, para o gestor, o representante da carteira ("Rep.: {nome}").
 3. Para o representante, o sistema exibe o botão "Novo check-in" (UC07), a ação principal da tela.
-4. O sistema exibe o card "Mensagem de estoque" (UC12).
-5. O sistema exibe o card "Insights e sugestões" (UC13), com as sugestões do cliente para os eventos sazonais próximos.
-6. O sistema exibe os dados de venda e estoque obtidos do ERP (UC11).
-7. O sistema exibe o histórico de visitas em ordem cronológica reversa (UC08).
-8. O sistema exibe a recorrência de visitas e o histórico de alterações dela (UC09).
-9. O sistema exibe, no fim da ficha e **recolhido por padrão**, o grupo "Dados cadastrais": os dados do cliente (razão social, CNPJ, endereço, telefone, e-mail, identificador no ERP), com "Editar dados" e "Inativar cliente" (UC03), e os contatos (UC04).
+4. Abaixo do cabeçalho, o sistema exibe o aviso da próxima visita — a data marcada no check-in e a campanha dela, quando há — e a lista "Lembretes" com os lembretes abertos do cliente, cada um com o texto, o prazo e "Concluir" (UC17 e UC27). Sem data marcada e sem lembrete aberto, o aviso não aparece.
+5. Abaixo do aviso, o sistema divide a ficha em três abas, guardadas na URL (`?aba=`; sem o parâmetro, abre em "Visitas"):
+   - **Visitas**: o histórico de visitas em ordem cronológica reversa (UC08) e a recorrência de visitas com o histórico de alterações dela (UC09);
+   - **ERP e sugestões** (`?aba=erp`): o card "Mensagem de estoque" (UC12), o card "Insights e sugestões", com as sugestões do cliente para os eventos sazonais próximos (UC13), e os dados de venda e estoque obtidos do ERP (UC11);
+   - **Cadastro** (`?aba=cadastro`): os dados do cliente (razão social, CNPJ, endereço, telefone, e-mail, identificador no ERP), com "Editar dados" e "Inativar cliente" (UC03), e os contatos (UC04).
+6. O ator troca de aba e o sistema mostra só o painel dela.
 
 **Fluxos alternativos:**
 - **A1** (passo 3): cliente inativo — no lugar do botão, o sistema informa "Cliente inativo não recebe check-in novo.".
-- **A2** (passo 1, tela ≥ 768 px): a ficha aberta pela lista de clientes aparece na coluna da direita, ao lado da lista (UC05 A4), sem a barra "Voltar"; aberta em tela estreita, ocupa a tela inteira, como antes.
+- **A2** (passo 1, tela ≥ 768 px): a ficha aberta pela lista de clientes aparece na coluna da direita, ao lado da lista (UC05 A4), sem a barra "Voltar"; aberta em tela estreita, ocupa a tela inteira, como antes. As abas valem para a ficha sozinha e para a embutida ao lado da lista.
 
 **Fluxo de exceção:**
-- **E1** (passos 5 e 6): dados do ERP indisponíveis (ex.: provedor fora do ar) — o sistema exibe a seção correspondente (insights ou dados do ERP) com mensagem de indisponibilidade, sem impedir a visualização do restante da ficha.
+- **E1** (passo 5, aba "ERP e sugestões"): dados do ERP indisponíveis (ex.: provedor fora do ar) — o sistema exibe a seção correspondente (insights ou dados do ERP) com mensagem de indisponibilidade, sem impedir a visualização do restante da ficha.
 - **E2** (passo 1): o representante abre, pela URL, um cliente de outra carteira — a API responde 404, exatamente como para um cliente inexistente ("Cliente não encontrado."), e a ficha não é exibida.
 
 **Regras de negócio associadas:**
 - A ficha do cliente consolida dados próprios do cliente e informações provenientes de UC04 (contatos), UC08 (histórico), UC09 (recorrência), UC11 (ERP), UC12 (mensagem de estoque) e UC13 (insights).
-- Este caso de uso é **evolutivo**: a seção de contatos e dados básicos é entregue na Etapa 2, a timeline de visitas na Etapa 3, a cor de classificação na Etapa 4, a seção de ERP na Etapa 5, a mensagem de consulta de estoque (UC12) na Etapa 6A e a seção de insights na Etapa 6B. Na Etapa 7, a ficha foi reorganizada para abrir pelo que se usa em campo — cabeçalho com atalhos de contato, check-in, mensagem, insights e ERP — e os dados cadastrais foram recolhidos num `<details>` no fim; nada foi removido, só reordenado e agrupado.
+- Este caso de uso é **evolutivo**: a seção de contatos e dados básicos é entregue na Etapa 2, a timeline de visitas na Etapa 3, a cor de classificação na Etapa 4, a seção de ERP na Etapa 5, a mensagem de consulta de estoque (UC12) na Etapa 6A e a seção de insights na Etapa 6B. Na Etapa 7, a ficha foi reorganizada para abrir pelo que se usa em campo — cabeçalho com atalhos de contato, check-in, mensagem, insights e ERP — e os dados cadastrais foram recolhidos num `<details>` no fim; nada foi removido, só reordenado e agrupado. Na Etapa 9, a ficha ganhou as três abas do fluxo principal, para facilitar a visualização (decisão da parceira): o `<details>` recolhido saiu, porque a aba "Cadastro" já isola o conteúdo, e os dados do cliente e os contatos abrem expandidos. Só o painel da aba aberta é montado: as consultas de ERP e de insights só rodam quando a aba "ERP e sugestões" é aberta, e o cache do TanStack Query guarda o resultado ao trocar de aba. Voltar do check-in cai na aba "Visitas". No celular, as três abas dividem a largura, com 44 px de altura.
 - O card de insights fica na ficha entre a mensagem de estoque e os dados do ERP e é visível a qualquer papel (representante ou gestor).
 - Desde a Etapa 7, o representante só abre fichas de clientes da própria carteira; o gestor abre qualquer ficha.
 
@@ -273,7 +274,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 3. O representante pode ajustar manualmente a data/hora, se necessário.
 4. O representante informa a descrição da visita, numa área de texto que cresce com o conteúdo e mostra a contagem de caracteres.
 5. O representante escolhe o resultado da visita entre **houve venda**, **em negociação** e **sem venda**, em três botões lado a lado ("Venda", "Negociação" e "Sem venda").
-6. O representante pode selecionar o contato atendido, de forma opcional. Desde a Etapa 8, com resultado Venda, ele registra o pedido (UC16), pode vincular a visita a uma campanha não encerrada ("Campanha da visita (opcional)", UC18) e confirma ou muda a próxima visita, com lembrete e campanha opcionais (UC17).
+6. O representante pode selecionar o contato atendido, de forma opcional. Desde a Etapa 8, com resultado Venda, ele registra o pedido (UC16), pode vincular a visita a uma campanha não encerrada ("Campanha da visita (opcional)", UC18) e confirma ou muda a próxima visita, com a campanha dela opcional, e pode deixar um lembrete com data própria, que não depende da próxima visita (UC17).
 7. O representante pode, opcionalmente, anexar uma foto de comprovação de presença, tirada na hora pela câmera do celular.
 8. O representante confirma o check-in.
 9. O sistema valida os dados informados.
@@ -290,7 +291,8 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - O resultado da visita é **obrigatório** e assume um de três valores: houve venda, em negociação, sem venda. Apenas "houve venda" conta como venda para a classificação por cores (UC05); "em negociação" registra visita realizada com negócio em andamento.
 - O contato atendido é opcional; quando informado, precisa pertencer ao próprio cliente.
 - A data/hora é preenchida automaticamente no momento do check-in, mas admite ajuste manual pelo representante (ex.: registro posterior de uma visita já ocorrida). **A data/hora informada não pode estar no futuro.**
-- A foto de comprovação é **opcional**: o check-in é registrado sem ela e a foto pode ser anexada depois, pela timeline. A foto **não pode ser substituída**, para preservar seu valor de comprovação.
+- A foto de comprovação é **opcional**: o check-in é registrado sem ela e a foto pode ser anexada depois, pela timeline. A foto **não pode ser substituída**, para preservar seu valor de comprovação. Desde a Etapa 9, a ajuda do campo "Foto (opcional)" diz "Registra que você esteve no cliente." — a frase "Pode salvar sem foto." saiu; a regra não mudou.
+- Desde a Etapa 9, o check-in pode criar um lembrete (UC17) e **não** conclui os lembretes que o cliente já tem abertos (UC27).
 - O check-in é exclusivo do representante; o gestor não registra visitas.
 - Cliente inativo não recebe check-in novo.
 
@@ -371,6 +373,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - **A1** (passo 3): não há visitas previstas ou atrasadas para o representante no dia — o sistema exibe a agenda vazia, com mensagem informativa.
 - **A2** (passo 2, Gestor): a agenda do gestor traz todas as carteiras e, enquanto o seletor de representante está em "Todos", cada cliente mostra "Rep.: {nome do representante}"; ao escolher um representante no seletor (o mesmo de UC05 A3), a agenda passa a mostrar só a carteira dele. O gestor não tem o atalho de check-in.
 - **A3** (passo 3, tela ≥ 1024 px desde a Etapa 8; antes, 768 px): "Atrasadas" e "Hoje" aparecem lado a lado, mesmo quando uma delas está vazia.
+- **A4** (passo 3, Etapa 9): havendo lembretes abertos com data até hoje, o sistema exibe, entre "Hoje" e "Próximos 7 dias" e na largura toda, a seção "Lembretes". Cada linha traz o avatar e o nome do cliente (link para a ficha, UC06), o texto, o prazo ("para hoje" ou "venceu há N dias (dd/mm)"), "Rep.: {nome}" para o gestor com o seletor em "Todos" e o botão "Concluir" (UC27). Sem lembretes, a seção não aparece.
 
 **Regras de negócio associadas:**
 - Próxima visita prevista = a data marcada no check-in (UC17), quando existe; senão, data da última visita (ou do cadastro) + recorrência (em dias) do cliente.
@@ -378,6 +381,8 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - A agenda é sempre calculada em tempo de consulta, restrita à carteira do representante (`Client.representanteId`, atribuído automaticamente a quem cadastra o cliente; só o gestor transfere um cliente para outro representante); o gestor vê a agenda de todos os representantes ou, com `GET /agenda/today?representanteId=`, a de um só (para o representante o parâmetro é ignorado). Cada item da agenda traz o representante da carteira (`representante: { id, nome }`).
 - Um job diário (executado pelo Sistema/Agendador) roda o mesmo cálculo por representante e registra os alertas de visita atrasada/prevista em log estruturado, sem persistir nada; notificação por push ou e-mail fica fora do escopo desta etapa.
 - A priorização da lista segue a cor de classificação do cliente (UC05).
+- **Lembretes (Etapa 9):** `GET /agenda/today` ganha `lembretes`: os lembretes abertos com `data` até hoje, do mais antigo ao mais novo, cada um com `{ id, clienteId, nomeFantasia, cidade, texto, data, diasAtraso, representante }`, no escopo da carteira como o resto da agenda (o gestor, de todos ou do representante escolhido). Lembrete é item próprio: as linhas de visita (Atrasadas, Hoje, Próximos 7 dias) deixaram de mostrar o texto do lembrete, e um cliente com visita e lembrete no mesmo dia aparece duas vezes, uma em cada tipo. As seções de visita continuam pela data prevista, com a recorrência. O job diário não muda e não avisa de lembretes.
+- **Roteiro (Etapa 9):** o roteiro do dia (UC25) usa só a seção "Hoje"; as atrasadas ficam na seção delas, fora do roteiro.
 
 ---
 
@@ -484,15 +489,15 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Pré-condições:** o gestor está autenticado (UC01).
 
 **Fluxo principal:**
-1. O gestor acessa a aba "Painel" (`/painel`) — desde a Etapa 8 também do representante, ver A6. No topo ficam o seletor de representante (o mesmo da lista de clientes, UC05 A3, em "Todos" por padrão) e o filtro "Período", que começa em 30 dias.
+1. O gestor acessa a aba "Painel" (`/painel`) — desde a Etapa 8 também do representante, ver A6. No topo ficam o seletor de representante (o mesmo da lista de clientes, UC05 A3, em "Todos" por padrão) e o filtro "Período" (30 · 90 · 365 dias ou "Personalizado", A8), que começa em 30 dias.
 2. O sistema obtém, para a carteira escolhida (todas, ou a do representante selecionado): os indicadores (`GET /dashboard/kpis?periodoDias=&representanteId=`), calculando a cor de cada cliente ativo pelo mesmo caminho da lista de clientes (UC05, regra composta com o ERP); o comparativo por representante (`GET /dashboard/kpis/por-representante?periodoDias=&representanteId=`); as vendas mês a mês (`GET /dashboard/vendas-mensais?representanteId=`); os alertas de produção (UC15); e a lista de clientes (`GET /clients?representanteId=`).
-3. O sistema organiza a tela em três blocos, cada um com o título em forma de pergunta:
-   - **"Quem está visitando pouco?"** — o período analisado, o número de clientes ativos e os quatro indicadores (visitas no período, com a média por cliente ativo; taxa de registro; conversão em vendas; clientes inativos), seguidos de um gráfico de barras horizontais com uma barra por representante, de comprimento igual às visitas no período e o rótulo "5 visitas · 40% com venda". Desde a Etapa 8, a barra de cada representante é empilhada pelo resultado (Venda, Negociação, Sem venda), e o gráfico "Ritmo de visitas" mostra sempre as últimas 8 semanas (uma coluna por semana, de segunda a domingo, com a parte das vendas), no lugar do gráfico de visitas por semana do representante escolhido.
+3. O sistema organiza a tela em três blocos, cada um com o título em forma de pergunta (desde a Etapa 9, em duas abas — A9 —, com a ordem descrita lá):
+   - **"Quem está visitando pouco?"** — o período analisado, o número de clientes ativos e os quatro indicadores (visitas no período, com a média por cliente ativo; taxa de registro; conversão em vendas; clientes inativos), seguidos de um gráfico de barras horizontais com uma barra por representante, de comprimento igual às visitas no período e o rótulo "5 visitas · 40% com venda". Desde a Etapa 8, a barra de cada representante é empilhada pelo resultado (Venda, Negociação, Sem venda), e o gráfico "Ritmo de visitas" mostra uma coluna por semana (de segunda a domingo) ou por mês, com a parte das vendas, dentro do período escolhido (Etapa 9; na Etapa 8 eram sempre as últimas 8 semanas), no lugar do gráfico de visitas por semana do representante escolhido.
    - **"O próximo evento está chegando e o estoque acompanha?"** — um gráfico de linha com as vendas da carteira mês a mês nos últimos 12 meses, com um marcador vertical em cada mês de evento sazonal e outro no mês de hoje — o mês de hoje ainda não fechou, então o ponto dele é vazado e o tooltip e a tabela dizem "(em curso)"; abaixo, os alertas de produção (UC15), com uma barra por produto proporcional ao número de clientes com estoque baixo.
    - **"Quais clientes estão esfriando?"** — a distribuição dos clientes ativos por cor, hoje, em uma barra com legenda, e os cinco clientes mais urgentes entre laranja e vermelho, na ordem da aba Prioridade da lista (UC05), cada um com a etiqueta de situação, o representante (com o seletor em "Todos") e o link para a ficha (UC06).
 
    No fim, o card "Época do ano" (UC15). Desde a Etapa 8, os blocos seguem a ordem do protótipo — indicadores (4 em linha a partir de 1024 px, 2 × 2 abaixo), metas (UC19), resultado das visitas, ritmo de visitas e clientes esfriando à esquerda; vendas mensais com os alertas de produção, mapa de clientes por cidade e "Época do ano" à direita —, com duas colunas a partir de 1024 px, e a barra traz "Planilha" e "PDF" (UC26).
-4. O gestor troca o período entre 30, 90 e 365 dias e o sistema recalcula e exibe os indicadores e o gráfico de visitas do novo período; o gráfico de vendas mensais não depende do período.
+4. O gestor troca o período entre 30, 90 e 365 dias — ou escolhe um período personalizado (A8) — e o sistema recalcula e exibe os indicadores, as metas, o resultado das visitas, o ritmo e os rankings do novo período; o gráfico de vendas mensais não depende do período.
 5. O gestor troca o representante no seletor e o sistema recalcula todos os blocos para a carteira escolhida.
 
 **Fluxo alternativo:**
@@ -502,7 +507,11 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - **A4** (passo 3): o ERP não responde para parte dos clientes — o gráfico de vendas mensais soma só os que responderam e informa, abaixo, "N clientes sem dados do ERP".
 - **A5** (passo 3): nenhum cliente laranja ou vermelho — no lugar da lista dos mais urgentes, o sistema exibe "Nenhum cliente esfriando.".
 - **A6** (passo 1, representante, Etapa 8): o representante abre o Painel pela navegação e vê "Como está a minha carteira?", com os mesmos blocos calculados só para a própria carteira, sem o seletor de representante e com as próprias metas sem edição.
-- **A7** (passo 3, Etapa 8): o mapa de clientes por cidade põe uma bolha por cidade (tamanho pelo número de clientes, cor pela situação mais urgente); clicar numa bolha (ou Enter) abre o cliente mais urgente dela.
+- **A7** (passo 3, Etapa 8): o mapa de clientes por cidade põe uma bolha por cidade (tamanho pelo número de clientes, cor pela situação mais urgente); clicar numa bolha (ou Enter) abre o cliente mais urgente dela. No celular, desde a Etapa 9, o primeiro toque abre o balão da cidade (A10) e o segundo toque na mesma bolha abre a ficha.
+- **A8** (passo 1, Etapa 9): o ator marca "Personalizado" no período e informa duas datas, "De" e "Até" (`type="date"`, com `max` = hoje; o padrão é a janela que estava marcada). Os blocos só trocam de período quando as duas datas são válidas e `De ≤ Até ≤ hoje`; fora disso, a mensagem de erro fica junto dos campos e os blocos continuam no último período válido. Com mais de 365 dias entre as datas, o Painel não troca: a mensagem "O Painel mostra até 365 dias por vez. Para um período maior, use a Planilha." aparece junto dos campos e o botão "Planilha" exporta a janela digitada, sem limite (UC26).
+- **A9** (passo 3, Etapa 9): a tela tem duas abas abaixo da barra do topo, guardadas na URL (`?aba=producao` para a segunda; sem o parâmetro, "Metas e resultados"), para voltar da ficha de um cliente na mesma aba. **Metas e resultados**: o título "Quem está visitando pouco?" (gestor) ou "Como está a minha carteira?" (representante) com o período e os quatro indicadores; as metas (UC19); o resultado das visitas por representante e o ritmo de visitas; e, só para o gestor, o "Ranking dos representantes" (A11). **Produção e sazonalidade**: primeiro "O próximo evento está chegando e o estoque acompanha?" (vendas mensais e alertas de produção, na largura toda) e, depois, "Quais clientes estão esfriando?", "Época do ano" e o mapa de clientes por cidade. Só o painel da aba aberta é montado, e o botão "PDF" imprime a aba aberta ("PDF da aba aberta").
+- **A10** (passo 3, Etapa 9): em todos os gráficos de barras, linha e mapa, passar o mouse, focar pelo teclado ou tocar numa barra, segmento, ponto ou bolha abre um balão com os clientes daquela fatia (até 8 nomes e "+N clientes", cada um com o detalhe do gráfico: visitas, "(venda)", R$ ou quantidade); Escape, sair do foco ou tocar fora fecha. O balão é um texto sobre o cartão, sem links e sem mudar o layout, e o mesmo conteúdo vai para a coluna "Clientes" da tabela visualmente oculta de cada gráfico, para o leitor de tela não depender do hover.
+- **A11** (passo 3, Etapa 9, só o gestor): o cartão "Ranking dos representantes" traz três listas — Visitas, Conversão em vendas e Receita —, cada uma com posição, primeiro nome, o valor e uma barra proporcional ao primeiro colocado. Só aparece com o seletor em "Todos os representantes" (com um representante escolhido, o cartão pede para escolher "Todos"); todo representante entra, mesmo zerado, e na conversão quem não visitou vai para o fim com "—".
 
 **Fluxo de exceção:**
 - **E1** (passo 1): até a Etapa 7, usuário que não é gestor recebia 403 e não via a aba "Painel"; desde a Etapa 8, o representante tem o próprio painel (A6) e a API ignora o `representanteId` que ele mandar.
@@ -510,7 +519,8 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Regras de negócio associadas:**
 - Os indicadores são calculados a cada consulta, a partir de `Visit`, `StockMessage` e da classificação por cor; nada é persistido ([ADR-006](arquitetura.md#adr-006--classificação-por-cor-calculada-em-tempo-de-consulta)).
-- **Período:** `?periodoDias=` aceita só 30, 90 ou 365, com padrão 30; qualquer outro valor (ou não numérico) é rejeitado com 400 (`VALIDATION_ERROR`). O período vai de hoje − (N − 1) até hoje, inclusive — 30 dias inclui hoje —, em dias de calendário de `America/Sao_Paulo`. Na tela, o período é escolhido nas opções 30 · 90 · 365 dias, vale só para a tela aberta e não é salvo. Os valores ficam em `config/kpis.ts`.
+- **Período:** `?periodoDias=` aceita só 30, 90 ou 365, com padrão 30; qualquer outro valor (ou não numérico) é rejeitado com 400 (`VALIDATION_ERROR`). O período vai de hoje − (N − 1) até hoje, inclusive — 30 dias inclui hoje —, em dias de calendário de `America/Sao_Paulo`. Na tela, o período é escolhido nas opções 30 · 90 · 365 dias ou em "Personalizado", vale só para a tela aberta e não é salvo. Os valores ficam em `config/kpis.ts`.
+- **Período por datas (Etapa 9):** `GET /dashboard/kpis`, `GET /dashboard/kpis/por-representante` e `GET /dashboard/relatorio` (e, no UC19, `GET /goals`) aceitam, no lugar de `?periodoDias=`, `?inicio=AAAA-MM-DD&fim=AAAA-MM-DD`, sempre as duas juntas. Datas e `periodoDias` ao mesmo tempo respondem 400 "Informe o período em dias ou por datas, não os dois."; só uma das datas, 400 "Informe o início e o fim do período."; data inválida, fim antes do início ou fim depois de hoje (São Paulo) também respondem 400. Nos dois endpoints do Painel (`/kpis` e `/kpis/por-representante`), um período de mais de 365 dias (`fim − início + 1`) responde 400 "O período de visualização é de até 365 dias; para mais, use a Planilha."; `/relatorio` e `/goals` não limitam o tamanho. A resposta mantém `periodo: { dias, inicio, fim }`, com `dias` igual ao número de dias da janela.
 - **Por representante (Etapa 7):** `?representanteId=` (identificador uuid, opcional; formato inválido responde 400 `VALIDATION_ERROR`) restringe os indicadores, o comparativo, as vendas mensais, os alertas e a lista à carteira daquele representante. "Por representante" é sempre **pela carteira do cliente** (`Client.representanteId`), nunca pelo autor da visita. Um identificador que não é de nenhum representante não casa com nenhum cliente: os números vêm zerados e o comparativo vem vazio.
 - **Visitas no período:** número de check-ins do período, de qualquer cliente da carteira considerada; a média é esse total ÷ clientes ativos, com uma casa decimal.
 - **Taxa de registro:** clientes ativos com pelo menos um check-in **ou** uma mensagem de estoque gerada no período ÷ clientes ativos; cada cliente conta uma vez, e o percentual é inteiro arredondado.
@@ -519,12 +529,13 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - Proporção sem denominador (nenhum cliente ativo, nenhuma visita) não tem percentual: a tela mostra "—".
 - Cliente inativado no cadastro (UC03) fica fora da taxa de registro e da distribuição por cor, mas as visitas que ele teve no período ainda contam em "visitas no período" e na conversão.
 - **Época do ano:** não é um filtro destes indicadores; a leitura por sazonalidade é feita pelo card "Época do ano" da mesma tela (UC15), com o horizonte próprio "Próximos".
-- **Comparativo por representante** (`GET /dashboard/kpis/por-representante`): o mesmo período de `?periodoDias=`; para cada usuário com papel REPRESENTANTE — inclusive quem não tem cliente nem visita —, os clientes ativos da carteira, as visitas no período e a conversão em vendas, com as mesmas regras acima, só agrupadas; ordem por visitas (decrescente) e, no empate, pelo nome. Desde a Etapa 8, cada linha traz também as contagens por resultado (`vendas`, `negociacoes`, `semVenda`), e a resposta traz `ritmoSemanal`: as visitas à carteira considerada e, delas, as com venda, em cada uma das últimas 8 semanas (de segunda a domingo, a última contendo hoje), com zero nas semanas sem visita, independentemente do período. Com `?representanteId=`, só aquele representante.
-- **Vendas mensais** (`GET /dashboard/vendas-mensais`): soma do valor das vendas no ERP dos clientes ativos com identificador de ERP, mês a mês ('AAAA-MM'), nos 12 meses que terminam no mês atual, com quantos clientes compraram em cada mês; os marcadores de evento são as datas de `dataDoEvento` (`config/sazonalidade.ts`) do ano atual e do anterior que caem na janela. A janela é fixa e independe do período. Cliente cujo ERP não responde fica fora da soma e é contado em `clientesIndisponiveis`, sem derrubar a resposta.
+- **Comparativo por representante** (`GET /dashboard/kpis/por-representante`): o mesmo período de `?periodoDias=`; para cada usuário com papel REPRESENTANTE — inclusive quem não tem cliente nem visita —, os clientes ativos da carteira, as visitas no período e a conversão em vendas, com as mesmas regras acima, só agrupadas; ordem por visitas (decrescente) e, no empate, pelo nome. Desde a Etapa 8, cada linha traz também as contagens por resultado (`vendas`, `negociacoes`, `semVenda`), e a resposta traz `ritmoSemanal`: as visitas à carteira considerada e, delas, as com venda, em cada uma das últimas 8 semanas (de segunda a domingo, a última contendo hoje), com zero nas semanas sem visita, independentemente do período. Com `?representanteId=`, só aquele representante. **Etapa 9:** o `ritmoSemanal` deu lugar ao `ritmo`, que acompanha o período escolhido — `{ granularidade: 'SEMANA' | 'MES', faixas: [{ inicio, fim, parcial, visitas, vendas, clientes }] }`: até 91 dias (`DIAS_MAXIMOS_DO_RITMO_SEMANAL`, em `config/kpis.ts`), uma faixa por semana (segunda a domingo) que cruza o período, no máximo 14; acima disso, uma por mês, no máximo 13. A primeira e a última faixa podem ser parciais (`parcial: true`; o balão diz "semana parcial" ou "mês parcial"), e cada visita conta no dia de calendário de São Paulo. Cada linha de `representantes` ganha `receita` (a soma, em reais, de quantidade × preço dos itens dos pedidos das visitas com resultado `VENDA` no período, pela carteira do cliente, como o resto do cartão) e `clientes` (os clientes com visita no período e as visitas de cada um por resultado: `{ id, nomeFantasia, vendas, negociacoes, semVenda }`), que alimentam o balão do resultado das visitas e o ranking de receita.
+- **Vendas mensais** (`GET /dashboard/vendas-mensais`): soma do valor das vendas no ERP dos clientes ativos com identificador de ERP, mês a mês ('AAAA-MM'), nos 12 meses que terminam no mês atual, com quantos clientes compraram em cada mês — e, desde a Etapa 9, quais (`meses[].clientes: { id, nomeFantasia, total }[]`, em ordem de valor, só os que compraram no mês), para o balão do gráfico; os marcadores de evento são as datas de `dataDoEvento` (`config/sazonalidade.ts`) do ano atual e do anterior que caem na janela. A janela é fixa e independe do período. Cliente cujo ERP não responde fica fora da soma e é contado em `clientesIndisponiveis`, sem derrubar a resposta.
 - A pergunta é o título (h2) de cada bloco; dentro dele, cada gráfico tem uma legenda (figcaption) que descreve o que ele mostra, rótulos nos próprios dados e, para leitores de tela, um resumo dos números e uma tabela visualmente oculta com os mesmos valores.
 - Até a Etapa 7 os indicadores eram exclusivos do Gestor. Desde a Etapa 8, `GET /dashboard/kpis`, `GET /dashboard/kpis/por-representante`, `GET /dashboard/vendas-mensais` e `GET /dashboard/relatorio` servem os dois papéis: o representante recebe sempre só a própria carteira, e o `?representanteId=` que ele mandar é ignorado (ADR-015 do documento de arquitetura).
 - O aviso "dados simulados" aparece sempre que a consulta traz dados e o provedor o sinalizar (como em UC11), pois a cor composta e as vendas mensais consultam o ERP.
-- Fora do escopo: comparação com o período anterior, filtro por intervalo livre e a evolução dos inativos ao longo do tempo (a "redução de inativos" da especificação entra aqui como a contagem atual por cor). Os indicadores por representante, fora do escopo na Etapa 6C, entraram na Etapa 7, e a exportação, na Etapa 8 (UC26).
+- **Sazonalidade (Etapa 9):** o gráfico de vendas mensais segue o formato do protótipo — subtítulo "Vendas mensais dos últimos 12 meses (R$ mil)", eixo em valores compactos que parte do zero, marcas tracejadas com o nome do evento na horizontal no topo (o seguinte desce para uma segunda linha quando o nome anterior o invade; no celular o nome é encurtado, com o inteiro no balão) e a linha laranja "Hoje" com o rótulo junto da base. O mês em curso continua vazado e "(em curso)".
+- Fora do escopo: comparação com o período anterior e a evolução dos inativos ao longo do tempo (a "redução de inativos" da especificação entra aqui como a contagem atual por cor). Os indicadores por representante, fora do escopo na Etapa 6C, entraram na Etapa 7, a exportação, na Etapa 8 (UC26), e o intervalo livre de até 365 dias, na Etapa 9 (A8). Os gráficos novos que a parceira vai discutir com o Maicon ficam fora da Etapa 9.
 
 ---
 
@@ -538,7 +549,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 1. O gestor acessa a aba "Painel" (`/painel`) — desde a Etapa 8 também o representante, com os alertas da própria carteira —, onde os "Alertas de produção" ficam no bloco "O próximo evento está chegando e o estoque acompanha?" (UC14). O horizonte de "evento próximo" começa em 90 dias.
 2. O sistema (`GET /insights/manager-alerts?horizonteDias=&representanteId=`) identifica os eventos sazonais cuja data cai entre hoje e hoje + horizonte e, para cada cliente ativo com identificador de ERP — da carteira escolhida no seletor de representante, ou de todas —, obtém do provedor de ERP o estoque mais recente.
 3. O sistema cruza os itens em nível BAIXO de cada cliente com os produtos sugeridos para cada evento do horizonte (por SKU do catálogo do ERP) e identifica as ocorrências em que estoque baixo coincide com alta demanda sazonal prevista.
-4. O sistema exibe um alerta por produto e evento (ex.: "Caixa presente sortida — Natal 2026 em 79 dias"), com o número de clientes com estoque baixo — também em uma barra, proporcional ao maior alerta (Etapa 7) — e a lista deles — nome fantasia com link para a ficha (UC06) e a quantidade em estoque —, do estoque mais crítico para o menos crítico. Os alertas vêm do evento mais próximo para o mais distante e, dentro do mesmo evento, do produto com mais clientes afetados para o com menos.
+4. O sistema exibe um alerta por produto e evento (ex.: "Caixa presente sortida — Natal 2026 em 79 dias"), com o número de clientes com estoque baixo — também em uma barra, proporcional ao maior alerta (Etapa 7) — e, no balão da barra (desde a Etapa 9, UC14 A10; antes, numa lista com links abaixo dela), os clientes com a quantidade em estoque, do estoque mais crítico para o menos crítico. Os alertas vêm do evento mais próximo para o mais distante e, dentro do mesmo evento, do produto com mais clientes afetados para o com menos.
 5. O sistema exibe também o card "Época do ano", com os eventos do horizonte (data, prazo e produtos sugeridos).
 6. O gestor troca o horizonte entre 30, 60, 90 e 180 dias e o sistema recalcula e exibe os alertas do novo horizonte.
 
@@ -600,19 +611,25 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Fluxo principal:**
 1. O sistema sugere, no campo "Próxima visita", a data da visita + a recorrência do cliente (UC09).
-2. O representante mantém ou muda a data, escreve opcionalmente um "Lembrete (opcional)" e, com data, escolhe opcionalmente a "Campanha da próxima visita (opcional)" entre as campanhas não encerradas (UC18).
-3. O representante salva o check-in e o sistema grava os três no cliente (`proximaVisita`, `lembrete`, `proximaCampanhaId`).
-4. A agenda do dia (UC10), o calendário (UC24) e a ficha (UC06) passam a usar a data prevista: "Prevista para dd/mm", "Visita prevista para hoje" ou "Visita prevista venceu há N dias", com o lembrete e a etiqueta da campanha.
+2. O representante mantém ou muda a data e, com data, escolhe opcionalmente a "Campanha da próxima visita (opcional)" entre as campanhas não encerradas (UC18).
+3. Independentemente da próxima visita, o representante pode escrever um "Lembrete (opcional)" — o texto — e dizer "Para quando" (data). O campo de data começa na próxima visita, quando marcada, ou vazio, e não aceita dia anterior a hoje.
+4. O representante salva o check-in e o sistema grava a próxima visita no cliente (`proximaVisita` e `proximaCampanhaId`) e, havendo lembrete, cria um lembrete aberto ligado à visita, na mesma transação (UC27 o conclui).
+5. A agenda do dia (UC10), o calendário (UC24) e a ficha (UC06) passam a usar a data prevista — "Prevista para dd/mm", "Visita prevista para hoje" ou "Visita prevista venceu há N dias", com a etiqueta da campanha — e mostram o lembrete como item próprio, com a data dele.
 
 **Fluxos alternativos:**
-- **A1** (passo 2): o representante apaga a data — o cliente volta à data prevista pela recorrência (última visita + recorrência) e o lembrete e a campanha da próxima visita são apagados.
-- **A2** (UC09): a recorrência do cliente é alterada — a data marcada é apagada e a data prevista volta a ser calculada pela recorrência nova; lembrete e campanha continuam.
+- **A1** (passo 2): o representante apaga a data — o cliente volta à data prevista pela recorrência (última visita + recorrência) e a campanha da próxima visita é apagada; os lembretes não são tocados.
+- **A2** (UC09): a recorrência do cliente é alterada — a data marcada é apagada e a data prevista volta a ser calculada pela recorrência nova; a campanha da próxima visita continua e os lembretes não são tocados.
+
+**Fluxo de exceção:**
+- **E1** (passo 4): lembrete com texto e sem data — o formulário mostra "Informe a data do lembrete." junto do campo e a API responde 400 com a mesma mensagem; data anterior a hoje, 400 "A data do lembrete não pode ser antes de hoje.".
 
 **Regras de negócio associadas:**
 - Cada check-in regrava a próxima visita: um check-in sem data substitui a marcação anterior, e a agenda volta à recorrência.
-- Lembrete de até 200 caracteres.
+- **Lembrete como tarefa (Etapa 9, [ADR-017](arquitetura.md#adr-017--lembrete-como-tarefa-própria-tabela-reminder)):** o lembrete é uma linha própria (`Reminder`, tabela `lembretes`) com texto de até 200 caracteres, data, autor, visita de origem e conclusão; o cliente pode ter vários abertos ao mesmo tempo. O check-in manda `lembrete?: { texto, data: 'AAAA-MM-DD' }` (no lugar do texto solto da Etapa 8), com `data` a partir de hoje em São Paulo. **O texto decide se há lembrete**: texto em branco é sem lembrete, qualquer que seja a data, e o formulário não envia o campo.
+- Um check-in novo **não** conclui lembretes abertos: eles só saem ao ser concluídos (UC27). Apagar a próxima visita ou mudar a recorrência também não os apaga. A ajuda do campo da próxima visita diz "Sem data, a agenda segue a recorrência.".
 - A data prevista é a marcada quando existe; senão, a última visita (ou o cadastro) + a recorrência. A cor de classificação (UC05) **não** muda por causa dela.
-- O job diário do Agendador usa a mesma data prevista.
+- O job diário do Agendador usa a mesma data prevista e não avisa de lembretes.
+- Fora do escopo: criar ou editar lembrete fora do check-in, e histórico de lembretes concluídos (os concluídos não aparecem em lugar nenhum).
 
 ---
 
@@ -624,7 +641,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Fluxo principal:**
 1. O ator abre "Campanhas" na navegação.
-2. O sistema lista as campanhas, promoções e eventos em cartões, em ordem de início, com o tipo, o status (Programada, Em andamento ou Encerrada), o desconto, o período, a descrição, os produtos em destaque, as vendas vinculadas por representante (para o representante, "Minhas vendas vinculadas", só a própria linha) e as metas da campanha (UC19).
+2. O sistema lista as campanhas, promoções e eventos em cartões, em ordem de início, com o tipo, o status (Programada, Em andamento ou Encerrada), o desconto, o período, a descrição, os produtos em destaque, as vendas vinculadas por representante (para o representante, "Minhas vendas vinculadas", só a própria linha) e as metas da campanha (UC19). No topo, o filtro "Campanha" separa os dados por campanha (A4).
 3. O gestor escolhe "Nova campanha ou evento" e informa nome, tipo, início, fim, desconto (opcional), descrição e produtos em destaque do catálogo.
 4. O sistema valida e grava a campanha e mostra o aviso "Campanha criada — os representantes já podem ver".
 5. No check-in (UC07), o representante vincula a visita a uma campanha não encerrada ("Campanha da visita (opcional)") e, se quiser, a próxima visita (UC17).
@@ -633,6 +650,10 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - **A1** (passo 3): o gestor edita uma campanha existente — mesmo formulário, aviso "Campanha atualizada".
 - **A2** (passo 3): o gestor exclui uma campanha, depois de confirmar — as metas da campanha são apagadas e as visitas e próximas visitas vinculadas ficam sem campanha.
 - **A3** (passo 2): na Agenda, as campanhas em andamento aparecem em chips ao lado do seletor "Agenda do dia | Calendário", com link para Campanhas.
+- **A4** (passo 2, Etapa 9): o ator escolhe uma campanha no filtro "Campanha" do topo da tela — um `select` com "Todas as campanhas" e cada campanha ("Nome · Em andamento"), na ordem de início, guardado na URL (`?campanha=`; para o gestor fica ao lado de "Nova campanha ou evento"). Com "Todas", a lista de cartões segue como no passo 2. Com uma campanha, só o cartão dela aparece, com o cabeçalho de sempre (tipo, status, desconto, período, descrição, produtos e, para o gestor, editar e excluir) e, abaixo:
+  1. **"Resultados por representante"** (para o representante, "Meus resultados", só a própria linha): uma tabela com Representante, Visitas vinculadas, Clientes atendidos, Vendas (R$) e Conversão, no lugar da lista resumida de vendas vinculadas; conversão sem visitas aparece como "—";
+  2. **"Produtos mais vendidos na campanha"**: os 5 produtos de maior quantidade nos pedidos das visitas vinculadas com venda, com a quantidade e o total em R$ (sem pedido, "Nenhum pedido vinculado ainda."); para o representante, só dos pedidos dele;
+  3. **"Metas da campanha"** (UC19): uma meta por representante, com as visitas e as vendas realizadas e o percentual de cada uma.
 
 **Fluxo de exceção:**
 - **E1** (passo 4): nome vazio, fim antes do início, desconto fora de 0 a 100 ou SKU fora do catálogo — a API responde 400 com a mensagem do campo.
@@ -641,6 +662,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Regras de negócio associadas:**
 - O status é calculado pelo dia de hoje em `America/Sao_Paulo`, com início e fim inclusivos; nunca é gravado.
 - Vendas vinculadas = soma dos pedidos (UC16) das visitas com venda vinculadas à campanha, por autor da visita.
+- **Resultados (Etapa 9):** `GET /campaigns` traz, em `resultados[]` (por representante, por nome), `visitas`, `clientesAtendidos` (clientes distintos das visitas vinculadas: duas visitas ao mesmo cliente contam um), `vendas` e `conversao` (visitas vinculadas com resultado `VENDA` ÷ visitas vinculadas, no formato `{ numerador, denominador, percentual }`, `percentual` nulo sem visitas); e, em `produtosMaisVendidos: { sku, nome, quantidade, total }[]`, o top 5 por quantidade (depois total e nome), somando o mesmo SKU entre as visitas e contando só pedidos de visitas com `VENDA`. No escopo de quem pede: o representante recebe só a própria linha e só os produtos dos pedidos dele. Nada muda na escrita.
 
 ---
 
@@ -652,13 +674,14 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Fluxo principal:**
 1. O gestor abre o bloco "Metas de visitas e vendas" no Painel (UC14) — ou "Metas da campanha" num cartão de Campanhas (UC18).
-2. O sistema lista as metas (sem campanha, no Painel, filtradas pelo representante escolhido no seletor), cada uma com o período, a meta e o realizado de visitas e de vendas e uma barra de progresso, verde a partir de 100 %.
+2. O sistema lista as metas (sem campanha, no Painel, filtradas pelo representante escolhido no seletor e, desde a Etapa 9, só as que cruzam o período escolhido no Painel), cada uma com o período, a meta e o realizado de visitas e de vendas e uma barra de progresso, verde a partir de 100 %. Passar o mouse, focar ou tocar numa barra abre o balão com os clientes do realizado (UC14 A10): na de visitas, os clientes visitados com a quantidade de visitas de cada um; na de vendas, os clientes com venda e o R$ de cada um.
 3. O gestor cria uma meta: representante, período (semanal, mensal, personalizado ou da campanha), data de início (e de fim, no personalizado), meta de visitas e meta de vendas.
 4. O sistema valida, grava e mostra o aviso "Meta salva".
 
 **Fluxos alternativos:**
 - **A1** (passo 3): o gestor edita ou exclui uma meta (aviso "Meta excluída").
-- **A2** (passo 1, representante): o representante vê só as próprias metas, sem os botões de criar, editar e excluir.
+- **A2** (passo 1, representante): o representante vê só as próprias metas, sem os botões de criar, editar e excluir. No Painel dele (Etapa 9), o bloco mantém a borda externa, mas com a largura do conteúdo: a partir de 768 px, os cartões de meta ficam em colunas de 20 rem, no máximo duas; com uma meta, o bloco fica com cerca de 22 rem; abaixo de 768 px, a largura toda.
+- **A3** (passo 1, Etapa 9): em "Metas da campanha" (UC18 A4), cada representante tem a sua meta com o realizado dele; "Nova meta" continua só para o gestor, com o formulário sem representante escolhido.
 
 **Fluxo de exceção:**
 - **E1** (passo 4): fim antes do início, meta negativa ou meta de campanha fora do período da campanha — a API responde 400 com a mensagem do campo.
@@ -668,6 +691,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - Semanal = de segunda a domingo da semana do início; mensal = do primeiro ao último dia do mês do início (o backend recalcula o fim); personalizado = período livre; campanha = dentro do período da campanha.
 - Realizado = visitas feitas pelo representante (autor) no período — e vinculadas à campanha, na meta de campanha — e soma dos pedidos (UC16) das que tiveram venda; calculado a cada leitura.
 - O percentual exibido só chega a 100 % com a meta atingida (199 de 200 aparece como 99 %).
+- **Período e clientes (Etapa 9):** `GET /goals` aceita `?periodoDias=` ou `?inicio=&fim=` (as regras de UC14, sem teto de dias): com período, devolve só as metas cujo período cruza a janela (`meta.inicio ≤ fim` e `meta.fim ≥ início`); sem período, todas, como antes (a tela de Campanhas não passa período). O `realizado` de cada meta ganha `clientes: { id, nomeFantasia, visitas, vendas }[]`, em ordem de vendas, visitas e nome, para o balão das barras.
 
 ---
 
@@ -781,17 +805,18 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Fluxo principal:**
 1. Na Agenda, o ator escolhe "Calendário" no seletor "Agenda do dia | Calendário".
-2. O sistema mostra o mês em grade de 7 × 6 a partir do domingo, com "‹ Hoje ›" para navegar, o dia de hoje em círculo e até 3 itens por dia ("+N" para o resto): visitas previstas (UC17), campanhas e eventos (só para o gestor) e datas sazonais.
-3. O ator escolhe um dia e o sistema mostra a lista do dia ao lado (desktop) ou abaixo da grade (celular), com o detalhe de cada item ("marcada no check-in" ou "pela recorrência de N dias", lembrete).
+2. O sistema mostra o mês em grade de 7 × 6 a partir do domingo, com "‹ Hoje ›" para navegar, o dia de hoje em círculo e até 3 itens por dia ("+N" para o resto): só o que foi agendado de fato — as visitas marcadas no check-in (UC17), cada uma no dia marcado, e os lembretes abertos (UC17, UC27), no dia de cada um —, mais as campanhas e eventos (só para o gestor) e as datas sazonais. A legenda distingue "Visita marcada", "Lembrete", "Campanha/evento" e "Data sazonal", cada um com cor própria.
+3. O ator escolhe um dia e o sistema mostra a lista do dia ao lado (desktop) ou abaixo da grade (celular), com o detalhe de cada item: a visita marcada (e, se o dia já passou, "Visita marcada venceu há N dias"), o lembrete ("Lembrete", o cliente, o texto, "Lembrete venceu há N dias" quando já passou e, para o gestor com o seletor em "Todos", "Rep.: {nome}"), a campanha ou a data sazonal.
 4. O ator escolhe um cliente da lista e o sistema abre a ficha (UC06).
 
 **Fluxos alternativos:**
 - **A1** (passo 2, celular): as células mostram o número e até 3 pontos coloridos, um por tipo, em vez dos rótulos.
 - **A2** (passo 2, gestor): com o seletor de representante em "Todos", a agenda de todos; com um representante, só a dele.
+- **A3** (passo 4): o item de lembrete abre a ficha do cliente, como o de visita; o "Concluir" não fica aqui, e sim na agenda do dia (UC10 A4) e na ficha (UC06), onde se conclui (UC27).
 
 **Regras de negócio associadas:**
-- Visitas previstas já vencidas aparecem no dia de hoje.
 - Mesmo escopo da agenda do dia (UC10): o representante vê a própria carteira (`GET /agenda/calendario?mes=AAAA-MM`).
+- **Só o que foi marcado (Etapa 9):** a visita entra só quando tem data marcada no check-in (`proximaVisita`), no dia marcado — inclusive se já passou, com o `detalhe` "Visita marcada venceu há N dias"; a visita prevista pela recorrência **não** entra no calendário (ela é da agenda do dia), nem as vencidas se empilham mais no dia de hoje (até a Etapa 8 entravam, com "Visita prevista pela recorrência" na legenda). O lembrete entra no dia da data dele e sai quando é concluído. `ItemCalendario` ganha o tipo `LEMBRETE`, com `lembreteId` e `texto`, e perde `origem` e `recorrenciaDias`, porque só há uma origem.
 
 ---
 
@@ -799,18 +824,19 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Ator principal:** Representante Comercial. **Ator secundário:** Gestor (com um representante escolhido).
 
-**Pré-condições:** a agenda do dia (UC10) tem pelo menos um cliente atrasado ou previsto para hoje.
+**Pré-condições:** a agenda do dia (UC10) tem pelo menos um cliente previsto para hoje (seção "Hoje").
 
 **Fluxo principal:**
 1. Na "Agenda do dia", o sistema mostra o cartão "Roteiro do dia" acima das seções.
-2. O sistema monta as paradas com os 10 primeiros clientes da agenda, na ordem de urgência (atrasados, depois hoje): a parada 1 é a mais urgente e, dali em diante, a cidade mais próxima.
+2. O sistema monta as paradas com os 10 primeiros clientes da seção "Hoje" da agenda, na ordem de urgência: a parada 1 é a mais urgente e, dali em diante, a cidade mais próxima. Desde a Etapa 9, as visitas atrasadas ficam na seção delas e fora do roteiro (até a Etapa 8 entravam, antes das de hoje).
 3. O sistema mostra os chips "1 Nome · Cidade" ligados pela distância ("→ 12 km →" ou "mesma cidade") e o resumo "N paradas · cerca de X km".
 4. O ator escolhe "Abrir no Google Maps" e o sistema abre, em nova aba (no celular, o app do Google Maps), o trajeto pelos endereços completos. Como o Google Maps do celular aceita só 3 paradas intermediárias por link, o roteiro vira trechos de até 5 paradas, com um botão por trecho ("Trecho 1 de 3"): a origem de cada trecho é o destino do anterior.
 
 **Fluxos alternativos:**
-- **A1** (passo 2): a agenda tem mais de 10 clientes — o cartão avisa "+N clientes da agenda fora do roteiro".
+- **A1** (passo 2): a seção "Hoje" tem mais de 10 clientes — o cartão avisa "+N clientes da agenda fora do roteiro".
 - **A2** (passo 1, gestor): o roteiro só aparece com um representante escolhido no seletor.
 - **A3** (passo 2): cidade fora da tabela de municípios de SC — o cliente vai para o fim, sem distância.
+- **A4** (passo 1, Etapa 9): sem visita prevista para hoje — mesmo que haja atrasadas —, o roteiro não aparece.
 
 **Regras de negócio associadas:**
 - Distância = reta entre as cidades × 1,3, arredondada, com as coordenadas estáticas dos municípios de SC (ADR-016 do documento de arquitetura); sem serviço externo de geocodificação.
@@ -825,18 +851,49 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Fluxo principal:**
 1. O ator escolhe "Planilha" na barra do Painel.
-2. O sistema busca as linhas do relatório (`GET /dashboard/relatorio`) para o período e a carteira da tela e baixa `chokocrm-relatorio-AAAA-MM-DD.csv`, com o aviso "Planilha gerada".
+2. O sistema busca as linhas do relatório (`GET /dashboard/relatorio`) para o período (inclusive o personalizado, UC14 A8) e a carteira da tela e baixa `chokocrm-relatorio-AAAA-MM-DD.csv`, com o aviso "Planilha gerada".
 3. A planilha traz uma linha por cliente ativo, em ordem de urgência: Cliente, Cidade, Representante, Situação, Dias sem visita ("nunca"), Visitas no período e Vendas no período (R$).
 
 **Fluxo alternativo:**
-- **A1** (passo 1): o ator escolhe "PDF" — o sistema abre a impressão do navegador com a página do Painel, sem menu, barra superior, navegação nem botões.
+- **A1** (passo 1): o ator escolhe "PDF" — o sistema abre a impressão do navegador com a página do Painel, sem menu, barra superior, navegação nem botões. Desde a Etapa 9, imprime a aba aberta (o botão se chama "PDF da aba aberta").
+- **A2** (passo 1, Etapa 9): o ator informou um período personalizado de mais de 365 dias (UC14 A8) — o Painel segue no período anterior, mas "Planilha" continua ativa e exporta a janela digitada.
 
 **Fluxo de exceção:**
 - **E1** (passo 2): falha ao buscar o relatório — aviso de erro, sem baixar arquivo.
 
 **Regras de negócio associadas:**
 - Os números vêm do backend; o representante exporta só a própria carteira.
+- O período da planilha é o da tela e, diferentemente do Painel, não tem limite de 365 dias: `GET /dashboard/relatorio` aceita `?periodoDias=` ou `?inicio=&fim=` (fim não depois de hoje) de qualquer tamanho.
 - CSV com BOM e `;`, todo campo entre aspas; texto que começa com `=`, `+`, `-`, `@`, tabulação ou retorno de carro ganha um `'` na frente, para a planilha não o tratar como fórmula.
+
+---
+
+### UC27 — Concluir lembrete
+
+**Ator principal:** Representante Comercial (dono da carteira do cliente). **Ator secundário:** Gestor.
+
+**Pré-condições:** o ator está autenticado (UC01); existe um lembrete aberto (criado no check-in, UC17) de um cliente da carteira do representante — o gestor conclui o de qualquer carteira.
+
+**Fluxo principal:**
+1. O ator vê o lembrete aberto na seção "Lembretes" da agenda do dia (UC10 A4), quando a data dele é hoje ou já passou, ou na lista "Lembretes" do aviso do topo da ficha do cliente (UC06), que mostra todos os abertos, por data.
+2. O ator escolhe "Concluir" na linha do lembrete.
+3. O sistema (`PATCH /lembretes/:id/concluir`) grava o momento da conclusão e responde `{ id, concluidoEm }`.
+4. O sistema avisa "Lembrete concluído" e recarrega a agenda e a ficha: o lembrete some das duas e do calendário (UC24).
+
+**Fluxos alternativos:**
+- **A1** (passo 1): o ator conclui pela ficha do cliente (UC06), na lista "Lembretes" do aviso do topo, em vez de pela agenda do dia; vale para qualquer lembrete aberto do cliente, inclusive os de data futura, que a agenda ainda não mostra.
+- **A2** (passo 2, gestor): o gestor conclui um lembrete da carteira de um representante — na agenda do dia (com o seletor em "Todos" ou com o representante escolhido) ou na ficha — sem ser o dono dela.
+
+**Fluxo de exceção:**
+- **E1** (passo 3): o lembrete não existe, ou o representante tenta concluir o de um cliente de outra carteira — a API responde 404 "Lembrete não encontrado.", como para um registro inexistente, para não revelar que existe (para o gestor, só o lembrete inexistente responde 404).
+- **E2** (passo 3): o lembrete já foi concluído (por exemplo, o gestor concluiu enquanto o representante olhava a mesma tela) — a API responde 409 "Lembrete já concluído." e a data da conclusão original não muda.
+- **E3** (passo 3): falha de rede ou da API — o aviso de erro "Não foi possível concluir o lembrete." (ou a mensagem devolvida pela API) aparece e o lembrete continua aberto.
+
+**Regras de negócio associadas:**
+- Só o representante dono da carteira atual do cliente e o gestor concluem; o gestor que acompanha a agenda do representante pode fechar o que já foi resolvido. Se o cliente for transferido (UC23), os lembretes vão com ele.
+- Um lembrete só nasce no check-in (UC17) e só termina no "Concluir": não há criar lembrete avulso nem editá-lo, e um check-in novo **não** conclui os abertos.
+- Os concluídos continuam gravados (`concluidoEm`, auditável), mas não aparecem na agenda, no calendário nem na ficha; `GET /clients/:id/lembretes` devolve só os abertos do cliente, por data.
+- O gestor não cria lembretes (não registra check-ins, UC07); o lembrete usa o dono atual da carteira para o escopo, não o autor.
 
 ---
 
@@ -870,10 +927,13 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 | UC24 | Ver o calendário da agenda | Etapa 8 |
 | UC25 | Ver o roteiro do dia | Etapa 8 |
 | UC26 | Exportar o relatório do Painel | Etapa 8 |
+| UC27 | Concluir lembrete | Etapa 9 |
 
 A Etapa 7 (refino de UX, gráficos e PWA — seção 11 da [especificação técnica](especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)) não cria caso de uso novo; revisa os existentes: a regra de carteira do representante vale para UC03 a UC09 e UC11 a UC13; a lista (UC05) ganha abas por ação, etiqueta de situação e ordem por urgência; a ficha (UC06) é reordenada; o check-in (UC07) e a recorrência (UC09) ganham controles de toque; a agenda (UC10), o painel (UC14) e os alertas (UC15) ganham o seletor de representante do gestor; e o painel (UC14) ganha os gráficos.
 
 A Etapa 8 (revisão pelo protótipo Lovable — seção 11 da [especificação técnica](especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)) cria os UC16 a UC26 e revisa: o login (UC01) ganha a conta inativa e a tela inicial por papel; o check-in (UC07) ganha o pedido, a campanha e a próxima visita; a agenda (UC10) passa a usar a data prevista e ganha "Próximos 7 dias", calendário e roteiro; o painel (UC14) e os alertas (UC15) passam a servir também o representante, com a própria carteira, e o painel ganha metas, ritmo semanal, mapa e exportação. Todas as telas passam à base de interface do protótipo, sem mudar as regras de cor, os limiares nem os KPIs.
+
+A Etapa 9 (ajustes pós-validação, 25/10/2026 — seção 11 da [especificação técnica](especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina) e [spec da etapa](superpowers/specs/2026-10-25-etapa-9-ajustes-pos-validacao-design.md)) cria o UC27 e revisa: a ficha (UC06) ganha as abas Visitas, ERP e sugestões e Cadastro; o check-in (UC07) perde a frase "Pode salvar sem foto." e passa a criar o lembrete (UC17), que vira tarefa com data própria, independente da próxima visita e concluída no UC27; a agenda do dia (UC10) ganha a seção "Lembretes" e o roteiro (UC25) passa a usar só as visitas de hoje; o painel (UC14) ganha o período personalizado de até 365 dias, duas abas, o balão com os clientes em todos os gráficos, a sazonalidade no formato do protótipo e o ranking dos representantes, e as metas (UC19) e os alertas (UC15) entram no balão; as campanhas (UC18) ganham o filtro, os resultados por representante, os produtos mais vendidos e as metas por representante; o calendário (UC24) mostra só as visitas marcadas e os lembretes; e a exportação (UC26) aceita períodos maiores que 365 dias.
 
 ## 6. Cobertura das regras de negócio da especificação (seção 6)
 
@@ -882,10 +942,10 @@ Esta seção verifica que cada regra de negócio principal descrita na seção 6
 | Subseção da especificação | Regra de negócio | Caso(s) de uso |
 |---|---|---|
 | 6.1 | Classificação por cores (regra base) e evolução para regra composta na Etapa 5 | UC05 (regra base **e** regra composta a partir da Etapa 5), UC06 (exibição), UC10 (priorização), UC11 (fonte do dado de última venda usado pela regra composta) |
-| 6.2 | Lembretes de próxima visita (última visita + recorrência; job diário) | UC09 (recorrência), UC10 (agenda do dia) |
+| 6.2 | Lembretes de próxima visita (última visita + recorrência; job diário) e, desde a Etapa 9, lembretes como tarefa (criar no check-in, concluir) | UC09 (recorrência), UC10 (agenda do dia), UC17 (próxima visita e lembrete), UC24 (calendário), UC27 (concluir lembrete) |
 | 6.3 | Mensagem de consulta de estoque (template + link `wa.me` + registro) | UC12 |
 | 6.4 | Módulo de insights (sugestões ao representante, alertas ao gestor, painel de KPIs e, na Etapa 7, gráficos por representante e de vendas mensais) | UC13 (sugestões), UC15 (alertas), UC14 (painel de KPIs e gráficos) |
-| 6.5 | Carteira do representante (Etapa 7: leitura e escrita restritas à própria carteira; gestor vê todas e filtra por representante) | UC03 a UC09, UC11 a UC13 (restrição do representante), UC05, UC10, UC14 e UC15 (filtro do gestor; desde a Etapa 8, painel e alertas do representante limitados à própria carteira), UC24 a UC26 |
+| 6.5 | Carteira do representante (Etapa 7: leitura e escrita restritas à própria carteira; gestor vê todas e filtra por representante) | UC03 a UC09, UC11 a UC13 (restrição do representante), UC05, UC10, UC14 e UC15 (filtro do gestor; desde a Etapa 8, painel e alertas do representante limitados à própria carteira), UC24 a UC27 |
 | 6.6 | Usuários, pedido, campanhas e metas (Etapa 8) | UC20 a UC23 (usuários e senhas), UC16 (pedido), UC17 (próxima visita), UC18 (campanhas), UC19 (metas) |
 
 Todas as regras de negócio da seção 6 possuem caso de uso correspondente; não foram identificadas lacunas de cobertura.

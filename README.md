@@ -50,6 +50,15 @@ Na Etapa 8, o app passou à interface do protótipo aprovado pela Chokolaten (Ta
 
 **Como o gestor cria as contas:** entra com a conta de gestor, abre **Usuários → Novo usuário**, informa nome, e-mail, telefone, papel (representante ou gestor) e uma senha inicial (mínimo de 6 caracteres) e passa o e-mail e a senha à pessoa, que pode trocá-la em **menu da conta → Alterar senha**. Se ela esquecer a senha, o gestor usa **Redefinir senha** na linha dela: o ChokoCRM envia ao e-mail de cadastro um link válido por 24 horas para ela mesma definir a senha nova (em produção, isso depende da conta de e-mail remetente configurada no App Service — ver o [guia](docs/guia-de-desenvolvimento.md#92-configurações-do-app-service)). Inativar uma conta bloqueia o próximo login; os clientes dela ficam na carteira até o gestor transferi-los.
 
+Na Etapa 9, a partir do que a parceira trouxe depois de validar o app com os dados de demonstração ([spec da etapa](docs/superpowers/specs/2026-10-25-etapa-9-ajustes-pos-validacao-design.md)), o app ganhou:
+
+- **Painel com período personalizado e abas:** o gestor e o representante escolhem as datas "De" e "Até" (até 365 dias; para um período maior, a Planilha aceita), e o Painel se divide em "Metas e resultados" e "Produção e sazonalidade", com a aba na URL. Indicadores, metas, resultado das visitas, ritmo de visitas (por semana ou por mês, conforme o período) e rankings respondem ao período.
+- **Clientes em cada gráfico:** passar o mouse, focar pelo teclado ou tocar numa barra, ponto ou bolha mostra num balão os clientes daquela fatia, com o mesmo conteúdo na tabela para leitor de tela; o gráfico de sazonalidade passou ao formato do protótipo.
+- **Ranking dos representantes (só o gestor):** visitas, conversão em vendas e receita por representante no período.
+- **Lembrete como tarefa:** o check-in cria um lembrete com data própria ("Para quando"), que aparece na agenda do dia ("Lembretes"), no calendário e na ficha, sobrevive a novos check-ins e só sai quando o representante (ou o gestor) o conclui ([ADR-017](docs/arquitetura.md#adr-017--lembrete-como-tarefa-própria-tabela-reminder)).
+- **Calendário só com o que foi marcado** (visitas marcadas no check-in e lembretes, mais campanhas e datas sazonais) e **roteiro do dia só com as visitas de hoje**.
+- **Ficha do cliente em abas** (Visitas, ERP e sugestões, Cadastro) e **Campanhas com filtro**, com os resultados por representante (visitas, clientes atendidos, vendas e conversão), os produtos mais vendidos e as metas de cada representante na campanha.
+
 Cada funcionalidade está especificada como caso de uso em [docs/casos-de-uso.md](docs/casos-de-uso.md), com as regras de negócio detalhadas na [seção 6 da especificação técnica](docs/especificacao-tecnica.md#6-regras-de-negócio-principais).
 
 ## 3. Especificação técnica
@@ -72,7 +81,7 @@ Diagrama entidade-relacionamento, dicionário de dados campo a campo, tratamento
 
 ## 6. Arquitetura e decisões técnicas
 
-Arquitetura em camadas documentada nos três níveis do modelo C4 (contexto, contêineres e componentes), estrutura de pastas do repositório e o registro das decisões técnicas em ADRs — ORM, integração com o ERP por Adapter, mensageria por link `wa.me`, cálculo da cor, hospedagem, autenticação, ferramentas de qualidade, armazenamento das fotos de comprovação de visita, carteira por representante, app instalável (PWA) e, na Etapa 8, a base de interface do protótipo, o e-mail por SMTP, o painel do representante e as coordenadas dos municípios de SC.
+Arquitetura em camadas documentada nos três níveis do modelo C4 (contexto, contêineres e componentes), estrutura de pastas do repositório e o registro das decisões técnicas em ADRs — ORM, integração com o ERP por Adapter, mensageria por link `wa.me`, cálculo da cor, hospedagem, autenticação, ferramentas de qualidade, armazenamento das fotos de comprovação de visita, carteira por representante, app instalável (PWA) e, na Etapa 8, a base de interface do protótipo, o e-mail por SMTP, o painel do representante e as coordenadas dos municípios de SC e, na Etapa 9, o lembrete como tarefa própria ([ADR-017](docs/arquitetura.md#adr-017--lembrete-como-tarefa-própria-tabela-reminder)).
 
 → [docs/arquitetura.md](docs/arquitetura.md) · [diagramas C4](docs/arquitetura.md#1-visão-geral) · [ADRs](docs/arquitetura.md#3-decisões-arquiteturais-adrs)
 
@@ -124,7 +133,7 @@ Análise estática de código pelo SonarCloud, executada como job do pipeline de
 
 ## 13. Cronograma de entregas
 
-O projeto é entregue em seis etapas, da documentação e protótipo até o deploy em produção e os testes com os representantes, mais uma Etapa 7 de refino de UX, gráficos e PWA e uma Etapa 8 de revisão pelo protótipo do Lovable, antes dos testes de campo.
+O projeto é entregue em seis etapas, da documentação e protótipo até o deploy em produção e os testes com os representantes, mais uma Etapa 7 de refino de UX, gráficos e PWA, uma Etapa 8 de revisão pelo protótipo do Lovable e uma Etapa 9 de ajustes pós-validação (25/10/2026), antes dos testes de campo.
 
 → [seção 11 da especificação técnica](docs/especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)
 
