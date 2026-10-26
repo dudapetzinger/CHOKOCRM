@@ -43,6 +43,7 @@ function campanha(id: string, nome: string, status: Campanha['status']): Campanh
     produtos: [],
     status,
     resultados: [],
+    produtosMaisVendidos: [],
   };
 }
 

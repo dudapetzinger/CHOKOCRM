@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { AuthContext, type Role } from '../auth/auth-context';
 import { Toaster } from '../components/ui/sonner';
 import { ApiError } from '../services/api';
@@ -11,6 +11,7 @@ import {
   excluirCampanha,
   listarCampanhas,
   type Campanha,
+  type ResultadoDaCampanha,
 } from '../services/campaigns';
 import { listarProdutos, type Produto } from '../services/erp';
 import { listarMetas, type Meta } from '../services/goals';
@@ -38,6 +39,22 @@ const PRODUTOS: Produto[] = [
   { sku: 'PAO-MEL', nome: 'Pães de mel', precoUnitario: 27.9 },
 ];
 
+function resultado(
+  id: string,
+  nome: string,
+  vendas: number,
+  visitas: number,
+  percentual: number | null = visitas === 0 ? null : 50,
+): ResultadoDaCampanha {
+  return {
+    representante: { id, nome },
+    vendas,
+    visitas,
+    clientesAtendidos: visitas,
+    conversao: { numerador: percentual === null ? 0 : Math.round((percentual * visitas) / 100), denominador: visitas, percentual },
+  };
+}
+
 const PASCOA: Campanha = {
   id: 'cp1',
   nome: 'Páscoa Chokolaten',
@@ -48,7 +65,8 @@ const PASCOA: Campanha = {
   desconto: null,
   produtos: [],
   status: 'ENCERRADA',
-  resultados: [{ representante: { id: 'r1', nome: 'Eduarda Fischer' }, vendas: 0, visitas: 0 }],
+  resultados: [resultado('r1', 'Eduarda Fischer', 0, 0)],
+  produtosMaisVendidos: [],
 };
 
 const NATAL: Campanha = {
@@ -64,9 +82,10 @@ const NATAL: Campanha = {
     { sku: 'BOMB-SORT', nome: 'Bombons sortidos' },
   ],
   status: 'EM_ANDAMENTO',
-  resultados: [
-    { representante: { id: 'r1', nome: 'Eduarda Fischer' }, vendas: 503.7, visitas: 2 },
-    { representante: { id: 'r2', nome: 'Rafael Schmitt' }, vendas: 96, visitas: 1 },
+  resultados: [resultado('r1', 'Eduarda Fischer', 503.7, 2, 50), resultado('r2', 'Rafael Schmitt', 96, 1, 100)],
+  produtosMaisVendidos: [
+    { sku: 'CX-PRESENTE', nome: 'Caixa presente sortida', quantidade: 12, total: 576 },
+    { sku: 'BOMB-SORT', nome: 'Bombons sortidos', quantidade: 3, total: 126 },
   ],
 };
 
@@ -81,6 +100,7 @@ const FEIRA: Campanha = {
   produtos: [],
   status: 'PROGRAMADA',
   resultados: [],
+  produtosMaisVendidos: [],
 };
 
 const META_DO_NATAL: Meta = {
@@ -124,7 +144,12 @@ beforeEach(() => {
     .mockImplementation(async (filtro) => (filtro?.campanhaId === 'cp2' ? [META_DO_NATAL] : []));
 });
 
-function renderizar(role: Role = 'GESTOR') {
+function LocalizacaoAtual() {
+  const { search } = useLocation();
+  return <output data-testid="busca">{search}</output>;
+}
+
+function renderizar(role: Role = 'GESTOR', rota = '/campanhas') {
   const auth = {
     user: {
       id: 'r1',
@@ -142,8 +167,9 @@ function renderizar(role: Role = 'GESTOR') {
   render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={auth}>
-        <MemoryRouter initialEntries={['/campanhas']}>
+        <MemoryRouter initialEntries={[rota]}>
           <CampanhasPage />
+          <LocalizacaoAtual />
         </MemoryRouter>
       </AuthContext.Provider>
       <Toaster />
@@ -250,10 +276,119 @@ describe('CampanhasPage — cartões', () => {
   });
 });
 
+function titulosDosCartoes(): (string | null)[] {
+  return within(screen.getByRole('list', { name: 'Campanhas e eventos' }))
+    .getAllByRole('heading', { level: 2 })
+    .map((titulo) => titulo.textContent);
+}
+
+describe('CampanhasPage — filtro por campanha', () => {
+  it('o select lista "Todas as campanhas" e cada campanha com o status, na ordem da lista', async () => {
+    renderizar();
+
+    const filtro = await screen.findByLabelText('Campanha');
+    expect(filtro).toHaveAttribute('id', 'campanhas-filtro');
+    expect(within(filtro).getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
+      'Todas as campanhas',
+      'Páscoa Chokolaten · Encerrada',
+      'Natal Chokolaten · Em andamento',
+      'Feira Sabores do Vale · Programada',
+    ]);
+    expect(filtro).toHaveValue('');
+    // "Todas": os três cartões, com a lista resumida de vendas
+    await cartao('Natal Chokolaten');
+    expect(titulosDosCartoes()).toHaveLength(3);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('escolher uma campanha deixa só o cartão dela, com resultados, produtos e metas, e escreve ?campanha=', async () => {
+    renderizar();
+    await usuario.selectOptions(await screen.findByLabelText('Campanha'), 'cp2');
+
+    expect(screen.getByTestId('busca')).toHaveTextContent('?campanha=cp2');
+    expect(titulosDosCartoes()).toEqual(['Natal Chokolaten']);
+    const natal = await cartao('Natal Chokolaten');
+
+    // O cabeçalho de sempre
+    expect(within(natal).getByText('−15%')).toBeInTheDocument();
+    expect(within(natal).getByRole('button', { name: 'Editar Natal Chokolaten' })).toBeInTheDocument();
+    // A tabela no lugar da lista de vendas vinculadas
+    expect(within(natal).queryByRole('list', { name: 'Vendas vinculadas por representante' })).not.toBeInTheDocument();
+    const tabela = within(natal).getByRole('table', { name: 'Resultados por representante' });
+    expect(within(tabela).getAllByRole('columnheader')).toHaveLength(5);
+    expect(within(tabela).getByRole('row', { name: /Eduarda Fischer/ })).toHaveTextContent('50%');
+    // Produtos e metas
+    const produtos = within(natal).getByRole('list', { name: 'Produtos mais vendidos na campanha' });
+    expect(within(produtos).getAllByRole('listitem')[0]).toHaveTextContent('Caixa presente sortida — 12 un.');
+    const metas = within(natal).getByRole('region', { name: 'Metas da campanha' });
+    expect(await within(metas).findByText('2 de 4 · 50 %')).toBeInTheDocument();
+    expect(produtos.compareDocumentPosition(metas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('voltar para "Todas as campanhas" tira o parâmetro e preserva os outros', async () => {
+    renderizar('GESTOR', '/campanhas?campanha=cp2&outro=1');
+    const filtro = await screen.findByLabelText('Campanha');
+    expect(filtro).toHaveValue('cp2');
+
+    await usuario.selectOptions(filtro, '');
+
+    expect(screen.getByTestId('busca')).toHaveTextContent('?outro=1');
+    expect(titulosDosCartoes()).toHaveLength(3);
+  });
+
+  it('?campanha=<id> inicial abre direto na campanha', async () => {
+    renderizar('GESTOR', '/campanhas?campanha=cp3');
+
+    await cartao('Feira Sabores do Vale');
+    expect(screen.getByLabelText('Campanha')).toHaveValue('cp3');
+    expect(titulosDosCartoes()).toEqual(['Feira Sabores do Vale']);
+  });
+
+  it('um id que não existe na lista cai em "Todas as campanhas"', async () => {
+    renderizar('GESTOR', '/campanhas?campanha=inexistente');
+
+    await cartao('Natal Chokolaten');
+    expect(screen.getByLabelText('Campanha')).toHaveValue('');
+    expect(titulosDosCartoes()).toHaveLength(3);
+  });
+
+  it('o representante, na campanha escolhida, vê "Meus resultados"', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([{ ...NATAL, resultados: [resultado('r1', 'Eduarda Fischer', 503.7, 2)] }]);
+    renderizar('REPRESENTANTE', '/campanhas?campanha=cp2');
+    const natal = await cartao('Natal Chokolaten');
+
+    expect(within(natal).getByRole('heading', { level: 3, name: 'Meus resultados' })).toBeInTheDocument();
+    expect(within(natal).getByRole('table', { name: 'Meus resultados' })).toBeInTheDocument();
+    expect(within(natal).queryByText('Resultados por representante')).not.toBeInTheDocument();
+  });
+
+  it('campanha sem pedidos vinculados mostra "Nenhum pedido vinculado ainda."', async () => {
+    renderizar('GESTOR', '/campanhas?campanha=cp1');
+    const pascoa = await cartao('Páscoa Chokolaten');
+
+    expect(within(pascoa).getByText('Nenhum pedido vinculado ainda.')).toBeInTheDocument();
+  });
+
+  it('sem campanhas, o estado vazio de sempre, sem o select', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([]);
+    renderizar();
+
+    expect(await screen.findByText('Nenhuma campanha cadastrada.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Campanha')).not.toBeInTheDocument();
+  });
+
+  it('o gestor continua vendo "Nova campanha ou evento" ao lado do filtro', async () => {
+    renderizar();
+
+    expect(await screen.findByLabelText('Campanha')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nova campanha ou evento' })).toBeInTheDocument();
+  });
+});
+
 describe('CampanhasPage — representante', () => {
   it('não vê "Nova campanha ou evento" nem editar/excluir; vê "Minhas vendas vinculadas"', async () => {
     vi.mocked(listarCampanhas).mockResolvedValue([
-      { ...NATAL, resultados: [{ representante: { id: 'r1', nome: 'Eduarda Fischer' }, vendas: 503.7, visitas: 2 }] },
+      { ...NATAL, resultados: [resultado('r1', 'Eduarda Fischer', 503.7, 2)] },
     ]);
     renderizar('REPRESENTANTE');
     const natal = await cartao('Natal Chokolaten');

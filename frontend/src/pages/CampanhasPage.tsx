@@ -4,9 +4,15 @@
  * cartões, em ordem de início: nome, tipo, status (Programada em laranja, Em
  * andamento em verde, Encerrada neutra — calculado no backend pelo dia de
  * hoje em São Paulo), desconto em vermelho, período, descrição, produtos em
- * destaque e as vendas vinculadas: por representante para o gestor, "Minhas
- * vendas vinculadas" para o representante (o backend já manda só a linha
- * dele) e, embaixo, as "Metas da campanha" (spec 7.8, `MetasPanel`).
+ * destaque e as vendas vinculadas, resumidas: por representante para o
+ * gestor, "Minhas vendas vinculadas" para o representante (o backend já
+ * manda só a linha dele) e, embaixo, as "Metas da campanha" (spec 7.8,
+ * `MetasPanel`).
+ *
+ * No topo, o filtro "Campanha" (`?campanha=<id>`, `replace`; id desconhecido
+ * vale "Todas as campanhas"). Com uma campanha escolhida, só o cartão dela
+ * aparece e a lista resumida dá lugar a `ResultadosDaCampanha` (tabela por
+ * representante e produtos mais vendidos), seguida das metas.
  *
  * Só o gestor tem "Nova campanha ou evento", editar e excluir (o backend
  * também barra). O formulário abre num cartão no topo, para criar e para
@@ -17,6 +23,7 @@
  * continuam no histórico, sem a campanha.
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,7 +35,8 @@ import { useAuth } from '../auth/useAuth';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { Segmentado, type Opcao } from '../components/Segmentado';
 import { MetasPanel } from '../components/crm/MetasPanel';
-import { Aviso, Campo, CLASSES_BOTAO_PERIGO, Etiqueta } from '../components/crm/ui';
+import { ResultadosDaCampanha } from '../components/crm/ResultadosDaCampanha';
+import { Aviso, Campo, CLASSES_BOTAO_PERIGO, CLASSES_SELECT, Etiqueta } from '../components/crm/ui';
 import { useCampanhas } from '../hooks/useCampanhas';
 import { useProdutos } from '../hooks/useDadosErp';
 import { formatarDataCalendario } from '../lib/formatarData';
@@ -53,6 +61,7 @@ const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar as campanhas.';
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar a campanha.';
 const MENSAGEM_ERRO_EXCLUIR = 'Não foi possível excluir a campanha.';
 const MENSAGEM_ERRO_PRODUTOS = 'Não foi possível carregar os produtos.';
+const PARAMETRO_CAMPANHA = 'campanha';
 
 const TOM_STATUS: Record<StatusCampanha, 'laranja' | 'verde' | 'neutro'> = {
   PROGRAMADA: 'laranja',
@@ -352,13 +361,19 @@ function ConfirmarExclusao({ campanha, aoFechar }: { campanha: Campanha; aoFecha
   );
 }
 
+/**
+ * `detalhado` (a campanha escolhida no filtro) troca a lista resumida de
+ * vendas pelos resultados por representante e pelos produtos mais vendidos.
+ */
 function CartaoCampanha({
   campanha,
   gestor,
+  detalhado,
   aoEditar,
 }: {
   campanha: Campanha;
   gestor: boolean;
+  detalhado: boolean;
   aoEditar: (campanha: Campanha) => void;
 }) {
   const [confirmando, setConfirmando] = useState(false);
@@ -426,26 +441,30 @@ function CartaoCampanha({
         </ul>
       )}
 
-      <div className="mt-4 border-t pt-4">
-        <h3 id={idVendas} className="mb-2 text-sm font-semibold">
-          {tituloVendas}
-        </h3>
-        {campanha.resultados.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum representante ativo.</p>
-        ) : (
-          <ul aria-labelledby={idVendas} className="divide-y">
-            {campanha.resultados.map((linha) => (
-              <li key={linha.representante.id} className="flex flex-wrap justify-between gap-x-3 gap-y-1 py-2 text-sm">
-                <span className="min-w-0 break-words">{linha.representante.nome}</span>
-                <span>
-                  <b className="font-semibold tabular-nums">{formatarMoeda(linha.vendas)}</b>
-                  <span className="ml-2 text-muted-foreground">{textoDasVisitas(linha.visitas)}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {detalhado ? (
+        <ResultadosDaCampanha campanha={campanha} gestor={gestor} />
+      ) : (
+        <div className="mt-4 border-t pt-4">
+          <h3 id={idVendas} className="mb-2 text-sm font-semibold">
+            {tituloVendas}
+          </h3>
+          {campanha.resultados.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum representante ativo.</p>
+          ) : (
+            <ul aria-labelledby={idVendas} className="divide-y">
+              {campanha.resultados.map((linha) => (
+                <li key={linha.representante.id} className="flex flex-wrap justify-between gap-x-3 gap-y-1 py-2 text-sm">
+                  <span className="min-w-0 break-words">{linha.representante.nome}</span>
+                  <span>
+                    <b className="font-semibold tabular-nums">{formatarMoeda(linha.vendas)}</b>
+                    <span className="ml-2 text-muted-foreground">{textoDasVisitas(linha.visitas)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <MetasPanel campanha={campanha} />
     </li>
@@ -456,6 +475,9 @@ export function CampanhasPage() {
   const { user } = useAuth();
   const gestor = user?.role === 'GESTOR';
   const { data: campanhas, isLoading, isError, error } = useCampanhas();
+  const [busca, setBusca] = useSearchParams();
+  // Um id que não está na lista (campanha excluída, link velho) vale como "Todas"
+  const escolhida = campanhas?.find((campanha) => campanha.id === busca.get(PARAMETRO_CAMPANHA)) ?? null;
   // `undefined`: fechado; `null`: campanha nova; uma campanha: editando
   const [emEdicao, setEmEdicao] = useState<Campanha | null | undefined>(undefined);
   const botaoNova = useRef<HTMLButtonElement>(null);
@@ -480,13 +502,52 @@ export function CampanhasPage() {
     setEmEdicao(undefined);
   }
 
+  // Preserva os outros parâmetros e não enche o histórico; "Todas" tira o parâmetro
+  function escolher(id: string): void {
+    setBusca(
+      (anterior) => {
+        const proxima = new URLSearchParams(anterior);
+        if (id === '') proxima.delete(PARAMETRO_CAMPANHA);
+        else proxima.set(PARAMETRO_CAMPANHA, id);
+        return proxima;
+      },
+      { replace: true },
+    );
+  }
+
+  const mostrarNova = gestor && emEdicao === undefined;
+
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      {gestor && emEdicao === undefined && (
-        <Button ref={botaoNova} className="w-full sm:w-auto" onClick={() => abrir(null)}>
-          <Plus aria-hidden="true" />
-          Nova campanha ou evento
-        </Button>
+      {((campanhas && campanhas.length > 0) || mostrarNova) && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          {campanhas && campanhas.length > 0 && (
+            <div className="flex min-w-0 flex-col gap-1.5 sm:w-80">
+              <label htmlFor="campanhas-filtro" className="text-sm font-medium">
+                Campanha
+              </label>
+              <select
+                id="campanhas-filtro"
+                value={escolhida?.id ?? ''}
+                onChange={(evento) => escolher(evento.target.value)}
+                className={cn(CLASSES_SELECT, 'w-full min-w-0')}
+              >
+                <option value="">Todas as campanhas</option>
+                {campanhas.map((campanha) => (
+                  <option key={campanha.id} value={campanha.id}>
+                    {campanha.nome} · {ROTULO_STATUS[campanha.status]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {mostrarNova && (
+            <Button ref={botaoNova} className="w-full sm:w-auto" onClick={() => abrir(null)}>
+              <Plus aria-hidden="true" />
+              Nova campanha ou evento
+            </Button>
+          )}
+        </div>
       )}
 
       {gestor && emEdicao !== undefined && (
@@ -507,8 +568,14 @@ export function CampanhasPage() {
 
       {campanhas && campanhas.length > 0 && (
         <ul aria-label="Campanhas e eventos" className="space-y-3">
-          {campanhas.map((campanha) => (
-            <CartaoCampanha key={campanha.id} campanha={campanha} gestor={gestor} aoEditar={abrir} />
+          {(escolhida ? [escolhida] : campanhas).map((campanha) => (
+            <CartaoCampanha
+              key={campanha.id}
+              campanha={campanha}
+              gestor={gestor}
+              detalhado={escolhida !== null}
+              aoEditar={abrir}
+            />
           ))}
         </ul>
       )}

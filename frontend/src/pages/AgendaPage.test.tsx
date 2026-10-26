@@ -379,6 +379,7 @@ describe('AgendaPage — campanhas em andamento (spec 7.6 e 7.7)', () => {
       produtos: [],
       status,
       resultados: [],
+      produtosMaisVendidos: [],
     };
   }
 

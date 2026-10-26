@@ -1,7 +1,8 @@
 /**
  * Acesso tipado às campanhas, promoções e eventos (spec 7.7). Espelha o
- * `CampanhaDTO` de `backend/src/services/campaign.service.ts`: o status e as
- * vendas vinculadas vêm calculados do backend (o front não recalcula regra).
+ * `CampanhaDTO` de `backend/src/services/campaign.service.ts`: o status, os
+ * resultados por representante e os produtos mais vendidos vêm calculados do
+ * backend (o front não recalcula regra).
  * Todos leem; criar, alterar e excluir é só do gestor no backend.
  */
 import { api } from './api';
@@ -23,11 +24,17 @@ export const ROTULO_STATUS: Record<StatusCampanha, string> = {
   ENCERRADA: 'Encerrada',
 };
 
-/** Vendas (R$) e visitas vinculadas à campanha de um representante. */
+/**
+ * Resultados de um representante na campanha: visitas vinculadas, clientes
+ * distintos atendidos, vendas (R$) e conversão (visitas com venda sobre as
+ * vinculadas; `percentual` nulo quando não há visita).
+ */
 export type ResultadoDaCampanha = {
   representante: { id: string; nome: string };
   vendas: number;
   visitas: number;
+  clientesAtendidos: number;
+  conversao: { numerador: number; denominador: number; percentual: number | null };
 };
 
 export type Campanha = {
@@ -45,6 +52,8 @@ export type Campanha = {
   status: StatusCampanha;
   /** O representante recebe só a própria linha; o gestor, uma por representante. */
   resultados: ResultadoDaCampanha[];
+  /** Top 5 dos pedidos das visitas vinculadas com venda, no escopo de quem pede. */
+  produtosMaisVendidos: { sku: string; nome: string; quantidade: number; total: number }[];
 };
 
 /** Corpo de criar e de alterar (o `PUT` troca a campanha inteira). */
