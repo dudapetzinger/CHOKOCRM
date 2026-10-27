@@ -504,7 +504,7 @@ export function CheckInPage() {
                       limparErro('descricao');
                     }}
                     rows={4}
-                    placeholder="Ex.: Reposição do mostruário e pedido de trufas para o fim de semana."
+                    placeholder="Registre o que aconteceu na visita"
                     required
                   />
                 </Campo>
@@ -598,7 +598,6 @@ export function CheckInPage() {
                         id="checkin-lembrete"
                         value={lembreteTexto}
                         maxLength={200}
-                        placeholder="Ex.: levar amostras de Natal"
                         onChange={(e) => {
                           setLembreteTexto(e.target.value);
                           limparErro('lembrete');

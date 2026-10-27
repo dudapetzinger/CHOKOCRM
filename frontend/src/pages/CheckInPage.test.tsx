@@ -384,6 +384,17 @@ describe('CheckInPage — passos', () => {
     expect(screen.getByRole('group', { name: 'Pedido' })).toBeInTheDocument();
   });
 
+  it('passo 3 orienta a descrição com o texto "Registre o que aconteceu na visita"', async () => {
+    renderizar();
+    await esperarCliente();
+    await continuar();
+    await continuar();
+
+    expect(screen.getByPlaceholderText('Registre o que aconteceu na visita')).toBe(
+      screen.getByLabelText('O que aconteceu na visita'),
+    );
+  });
+
   it('passo 3 não avança com descrição curta', async () => {
     renderizar();
     await esperarCliente();
@@ -484,6 +495,7 @@ describe('CheckInPage — passos', () => {
 
     await responder(PERGUNTA_LEMBRETE, 'Sim');
     expect(screen.getByLabelText('Lembrete')).toHaveAttribute('maxlength', '200');
+    expect(screen.getByLabelText('Lembrete')).not.toHaveAttribute('placeholder');
     const paraQuando = screen.getByLabelText('Para quando');
     expect(paraQuando).toHaveValue('2026-11-02');
     expect(paraQuando).toHaveAttribute('type', 'date');
