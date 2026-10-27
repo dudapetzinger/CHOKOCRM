@@ -1,8 +1,8 @@
 /**
  * Acesso tipado às campanhas, promoções e eventos (spec 7.7). Espelha o
  * `CampanhaDTO` de `backend/src/services/campaign.service.ts`: o status, os
- * resultados por representante e os produtos mais vendidos vêm calculados do
- * backend (o front não recalcula regra).
+ * resultados por representante, os produtos mais vendidos e as vendas
+ * vinculadas vêm calculados do backend (o front não recalcula regra).
  * Todos leem; criar, alterar e excluir é só do gestor no backend.
  */
 import { api } from './api';
@@ -37,6 +37,20 @@ export type ResultadoDaCampanha = {
   conversao: { numerador: number; denominador: number; percentual: number | null };
 };
 
+/**
+ * Uma venda vinculada à campanha: a visita com pedido, o cliente, o
+ * representante, os itens e o total (R$).
+ */
+export type VendaDaCampanha = {
+  visitaId: string;
+  /** `AAAA-MM-DD`. */
+  data: string;
+  cliente: { id: string; nomeFantasia: string; cidade: string };
+  representante: { id: string; nome: string };
+  itens: { sku: string; nome: string; quantidade: number; precoUnitario: number }[];
+  total: number;
+};
+
 export type Campanha = {
   id: string;
   nome: string;
@@ -54,6 +68,11 @@ export type Campanha = {
   resultados: ResultadoDaCampanha[];
   /** Top 5 dos pedidos das visitas vinculadas com venda, no escopo de quem pede. */
   produtosMaisVendidos: { sku: string; nome: string; quantidade: number; total: number }[];
+  /**
+   * Só as visitas vinculadas com Venda, da mais recente para a mais antiga,
+   * no escopo de quem pede.
+   */
+  vendas: VendaDaCampanha[];
 };
 
 /** Corpo de criar e de alterar (o `PUT` troca a campanha inteira). */

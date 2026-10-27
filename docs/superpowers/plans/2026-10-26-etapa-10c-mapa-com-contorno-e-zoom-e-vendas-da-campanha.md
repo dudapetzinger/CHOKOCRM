@@ -98,3 +98,19 @@
 - Modify: `docs/casos-de-uso.md` (UC14: contorno e zoom; UC18: vendas vinculadas), `docs/especificacao-tecnica.md` (API de campanhas: `vendas`), `docs/arquitetura.md` (nota no ADR-016: contorno estático do IBGE convertido por script, sem rede em tempo de execução), `README.md` (uma linha), `docs/guia-de-desenvolvimento.md` (como regenerar o contorno)
 
 - [ ] **Step 1: Escrever os trechos a partir da spec.** - [ ] **Step 2: `grep -n "contorno\|Aproximar\|Vendas vinculadas" docs/*.md README.md`.** - [ ] **Step 3: Entregar o diff e a mensagem** (`docs: mapa com contorno e zoom, vendas da campanha`).
+
+### Task 5: Etiqueta do resultado da visita com contorno colorido (front)
+
+**Estimativa:** 30–45 min com revisão. Entra depois da Task 3 e antes da Task 4 (docs), que a documenta no UC08. Spec: seção 9 (adendo).
+
+**Files:**
+- Modify: `frontend/src/components/crm/ui.tsx` (`Etiqueta`), `frontend/src/components/VisitTimeline.tsx`
+- Test: `frontend/src/components/crm/ui.test.tsx` (criar, se não existir), `frontend/src/components/VisitTimeline.test.tsx`
+
+**Interfaces:**
+- `Etiqueta` ganha `contorno?: boolean` (padrão `false`, nada muda para quem já usa). Com `contorno`, as classes do tom passam a ser: `verde` → `border border-st-green bg-card text-st-green-text`; `azul` → `border border-chart bg-card text-chart-text`; `vermelho` → `border border-st-red/50 bg-card text-st-red-text` (o "vermelho mais leve"); `laranja` → `border border-primary/60 bg-card text-brown`; `neutro` → `border border-border bg-card text-muted-foreground`. O `span` ganha `data-contorno` quando `contorno` for `true` (para o teste conferir sem olhar classe).
+- `VisitTimeline.tsx`: `TOM_RESULTADO` vira `{ VENDA: 'verde', NEGOCIACAO: 'azul', SEM_VENDA: 'vermelho' }` e a etiqueta do resultado passa `contorno`. A etiqueta da campanha (`EtiquetaCampanha`) e tudo o mais continuam iguais; comentário de topo atualizado.
+
+- [ ] **Step 1: Testes (falham):** `Etiqueta` com `contorno` tem `data-contorno` e o texto; sem `contorno`, não tem; no `VisitTimeline`, a etiqueta "Houve venda"/"Em negociação"/"Sem venda" tem `data-contorno` (um caso por resultado).
+- [ ] **Step 2: Ver falhar.** - [ ] **Step 3: Implementar.** - [ ] **Step 4: Verde; capturas 375 e 1280 da aba Visitas com os três resultados (o seed tem os três no Empório Pomerode / Café Blumenau / Doceria Jaraguá).**
+- [ ] **Step 5: Entregar o diff e a mensagem** (`feat: etiqueta do resultado da visita com contorno colorido`).

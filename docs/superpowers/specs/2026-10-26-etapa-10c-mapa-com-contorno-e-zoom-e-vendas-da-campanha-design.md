@@ -50,3 +50,7 @@ No Painel, o cartão "Mapa de clientes por cidade" mostra só bolhas num retâng
 - O grau de simplificação do contorno (alvo: `contornoSC.ts` abaixo de 60 KB) e o script de conversão.
 - A implementação da pinça (pode ficar só nos botões, documentado).
 - O visual dos botões de zoom nos tokens da etapa 8.
+
+## 9. Adendo (26/10, à noite) — etiqueta do resultado no histórico de visitas
+
+Pedido da parceira ao testar a aba Visitas no celular: a etiqueta do resultado de cada visita ("Houve venda", "Em negociação", "Sem venda") deixa de ser preenchida e passa a ter **só o contorno colorido**, com o fundo do cartão: **Venda** com contorno verde, **Negociação** com contorno azul e **Sem venda** com um vermelho mais leve. Decisão dela: "Venda com contorno verde, Negociação azul e Sem venda vermelho claro." Minha escolha: o texto fica na cor `*-text` do tom (os mesmos tons do app: verde `st-green`, azul `chart`, vermelho `st-red`), para o contraste sobre o cartão continuar ≥ 4,5:1; o `Etiqueta` de `components/crm/ui.tsx` ganha a variante de contorno em vez de uma etiqueta nova; a etiqueta de campanha (azul preenchida) e as de situação não mudam. Só visual, sem mudança de API.

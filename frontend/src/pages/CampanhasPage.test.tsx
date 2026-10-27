@@ -67,6 +67,7 @@ const PASCOA: Campanha = {
   status: 'ENCERRADA',
   resultados: [resultado('r1', 'Eduarda Fischer', 0, 0)],
   produtosMaisVendidos: [],
+  vendas: [],
 };
 
 const NATAL: Campanha = {
@@ -87,6 +88,7 @@ const NATAL: Campanha = {
     { sku: 'CX-PRESENTE', nome: 'Caixa presente sortida', quantidade: 12, total: 576 },
     { sku: 'BOMB-SORT', nome: 'Bombons sortidos', quantidade: 3, total: 126 },
   ],
+  vendas: [],
 };
 
 const FEIRA: Campanha = {
@@ -101,6 +103,7 @@ const FEIRA: Campanha = {
   status: 'PROGRAMADA',
   resultados: [],
   produtosMaisVendidos: [],
+  vendas: [],
 };
 
 const META_DO_NATAL: Meta = {
