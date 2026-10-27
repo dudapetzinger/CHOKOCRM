@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { Avatar, Aviso, Campo, Cartao } from './ui';
+import { Avatar, Aviso, Campo, Cartao, Etiqueta } from './ui';
 
 describe('Campo', () => {
   it('liga o rótulo, a ajuda e o erro ao controle', () => {
@@ -63,5 +63,23 @@ describe('Aviso', () => {
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent('Você está sem internet.');
+  });
+});
+
+describe('Etiqueta', () => {
+  it('com contorno, mostra o texto e marca o atributo data-contorno', () => {
+    render(
+      <Etiqueta tom="verde" contorno>
+        Houve venda
+      </Etiqueta>,
+    );
+
+    expect(screen.getByText('Houve venda')).toHaveAttribute('data-contorno');
+  });
+
+  it('sem contorno (padrão), mostra o texto e não tem data-contorno', () => {
+    render(<Etiqueta tom="azul">Natal</Etiqueta>);
+
+    expect(screen.getByText('Natal')).not.toHaveAttribute('data-contorno');
   });
 });

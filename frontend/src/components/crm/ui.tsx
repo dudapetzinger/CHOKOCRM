@@ -25,10 +25,41 @@ const CLASSES_TOM = {
   azul: 'bg-chart-soft text-chart-text',
 } as const;
 
-/** Etiqueta em pílula (`Tag` do protótipo); `azul` é a das campanhas. */
-export function Etiqueta({ tom = 'neutro', children }: { tom?: keyof typeof CLASSES_TOM; children: ReactNode }) {
+/**
+ * Variante só de contorno: borda colorida sobre fundo de cartão, com o texto
+ * nos tons `*-text` (contraste ≥ 4,5:1 sobre o branco). Marca o resultado da
+ * visita, para não competir com a etiqueta azul preenchida da campanha.
+ */
+const CLASSES_TOM_CONTORNO = {
+  neutro: 'border border-border bg-card text-muted-foreground',
+  verde: 'border border-st-green bg-card text-st-green-text',
+  laranja: 'border border-primary/60 bg-card text-brown',
+  vermelho: 'border border-st-red/50 bg-card text-st-red-text',
+  azul: 'border border-chart bg-card text-chart-text',
+} as const;
+
+/**
+ * Etiqueta em pílula (`Tag` do protótipo); `azul` é a das campanhas. Por
+ * padrão é preenchida com o fundo suave do tom; com `contorno`, fica só com a
+ * borda colorida (e o atributo `data-contorno`, que os testes conferem).
+ */
+export function Etiqueta({
+  tom = 'neutro',
+  contorno = false,
+  children,
+}: {
+  tom?: keyof typeof CLASSES_TOM;
+  contorno?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium', CLASSES_TOM[tom])}>
+    <span
+      data-contorno={contorno ? '' : undefined}
+      className={cn(
+        'inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium',
+        contorno ? CLASSES_TOM_CONTORNO[tom] : CLASSES_TOM[tom],
+      )}
+    >
       {children}
     </span>
   );

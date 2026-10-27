@@ -82,6 +82,24 @@ describe('VisitTimeline', () => {
     expect(semCampanha).not.toHaveTextContent('Campanha');
   });
 
+  it.each([
+    ['VENDA', 'Houve venda'],
+    ['NEGOCIACAO', 'Em negociação'],
+    ['SEM_VENDA', 'Sem venda'],
+  ] as const)('o resultado %s aparece numa etiqueta só de contorno', (resultado, rotulo) => {
+    renderizar([visita({ resultado })]);
+
+    expect(screen.getByText(rotulo)).toHaveAttribute('data-contorno');
+  });
+
+  it('a etiqueta da campanha continua preenchida (sem contorno)', () => {
+    renderizar([visita({ campanha: { id: 'cp2', nome: 'Natal Chokolaten' } })]);
+
+    // só a etiqueta do resultado tem contorno; a da campanha segue preenchida
+    expect(document.querySelectorAll('[data-contorno]')).toHaveLength(1);
+    expect(document.querySelector('[data-contorno]')).toHaveTextContent('Houve venda');
+  });
+
   it('visita sem itens não mostra pedido', () => {
     renderizar([visita({ resultado: 'NEGOCIACAO' })]);
 

@@ -8,10 +8,11 @@
  * na lista (os dois usam o mesmo `ItemDaVisita`).
  *
  * Visual do protótipo (Etapa 8): linha do tempo com um ponto por visita, a
- * data e o resultado numa etiqueta (venda em verde, negociação em laranja,
- * sem venda neutra), a etiqueta azul da campanha vinculada (spec 7.7), o
- * pedido da visita com venda ("Pedido · total" e uma
- * linha por item, com o preço gravado no check-in) e a foto em miniatura.
+ * data e o resultado numa etiqueta só de contorno (Etapa 10c: venda verde,
+ * negociação azul, sem venda vermelho claro), a etiqueta azul preenchida da
+ * campanha vinculada (spec 7.7), o pedido da visita com venda ("Pedido ·
+ * total" e uma linha por item, com o preço gravado no check-in) e a foto em
+ * miniatura.
  *
  * O filtro é estado local do componente, não vai para a URL (spec da Etapa
  * 10b, seção 6). Componente de apresentação: não chama a API: recebe os dados
@@ -31,10 +32,10 @@ import { FiltroPilulas, type Opcao } from './FiltroPilulas';
 import { Aviso, Etiqueta } from './crm/ui';
 import { EtiquetaCampanha } from './crm/EtiquetaCampanha';
 
-const TOM_RESULTADO: Record<ResultadoVisita, 'verde' | 'laranja' | 'neutro'> = {
+const TOM_RESULTADO: Record<ResultadoVisita, 'verde' | 'azul' | 'vermelho'> = {
   VENDA: 'verde',
-  NEGOCIACAO: 'laranja',
-  SEM_VENDA: 'neutro',
+  NEGOCIACAO: 'azul',
+  SEM_VENDA: 'vermelho',
 };
 
 /** Quantas visitas anteriores à última aparecem na linha do tempo. */
@@ -86,7 +87,9 @@ function ItemDaVisita({
     <div>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="text-sm font-medium">{formatarDataHora(visita.dataHora)}</span>
-        <Etiqueta tom={TOM_RESULTADO[visita.resultado]}>{ROTULO_RESULTADO[visita.resultado]}</Etiqueta>
+        <Etiqueta tom={TOM_RESULTADO[visita.resultado]} contorno>
+          {ROTULO_RESULTADO[visita.resultado]}
+        </Etiqueta>
         {visita.campanha && <EtiquetaCampanha nome={visita.campanha.nome} />}
         <span className="text-xs text-muted-foreground">
           {visita.contato ? `Contato: ${visita.contato.nome}` : 'Sem contato informado'} · por {visita.autor.nome}
