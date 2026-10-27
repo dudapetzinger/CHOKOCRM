@@ -283,8 +283,8 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check-in é feito em quatro passos na mesma tela, com o indicador "Passo N de 4" no topo; os mesmos campos e regras, só apresentados de outro jeito:
 - **Passo 1 — "A visita":** data e hora (padrão agora), contato atendido (com "+ Novo contato…" na própria tela) e campanha da visita, opcional.
 - **Passo 2 — "Resultado":** Venda, Negociação ou Sem venda; com Venda, o bloco "Pedido" aparece no mesmo passo.
-- **Passo 3 — "O que aconteceu":** a descrição, obrigatória, e a foto, opcional.
-- **Passo 4 — "Próximos passos":** duas perguntas de sim ou não, "Deseja marcar a data prevista da próxima visita?" (com sim, a data e a campanha da próxima visita) e "Deseja anotar um lembrete?" (com sim, o texto e "Para quando"). As duas começam em "não", exceto quando o cliente já tem data marcada ou campanha da próxima visita: aí a primeira começa em "sim", com os valores atuais.
+- **Passo 3 — "O que aconteceu":** a descrição, obrigatória, com o texto de apoio "Registre o que aconteceu na visita" (Etapa 10d), e a foto, opcional.
+- **Passo 4 — "Próximos passos":** duas perguntas de sim ou não, "Deseja marcar a data prevista da próxima visita?" (com sim, a data e a campanha da próxima visita) e "Deseja anotar um lembrete?" (com sim, o texto e "Para quando"; desde a Etapa 10d, o campo do lembrete abre vazio, sem exemplo escrito). As duas começam em "não", exceto quando o cliente já tem data marcada ou campanha da próxima visita: aí a primeira começa em "sim", com os valores atuais.
 - **Botões:** "Voltar" (do passo 2 em diante), "Continuar" (passos 1 a 3), "Salvar check-in" (passo 4) e "Cancelar", que volta à ficha sem salvar. O "Continuar" valida só o passo atual: data e hora não futuras, contato novo fechado (adicionado ou cancelado) e descrição com pelo menos 3 caracteres. Voltar não perde nada do que foi digitado.
 - O que o "Salvar check-in" envia não muda, inclusive a regra da Etapa 8: com "não" na próxima visita, vai `proximaVisita: null`; com "não" no lembrete, o lembrete não vai. Se a API devolver erro de validação de um campo, a tela volta ao passo desse campo com a mensagem nele.
 
@@ -386,7 +386,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - **A4** (passo 3, Etapa 9): havendo lembretes abertos com data até hoje, o sistema exibe, entre "Hoje" e "Próximos 7 dias" e na largura toda, a seção "Lembretes". Cada linha traz o avatar e o nome do cliente (link para a ficha, UC06), o texto, o prazo ("para hoje" ou "venceu há N dias (dd/mm)"), "Rep.: {nome}" para o gestor com o seletor em "Todos" e o botão "Concluir" (UC27). Sem lembretes, a seção não aparece.
 
 **Regras de negócio associadas:**
-- Próxima visita prevista = a data marcada no check-in (UC17), quando existe; senão, data da última visita (ou do cadastro) + recorrência (em dias) do cliente.
+- Próxima visita prevista = a data marcada no check-in (UC17), quando existe; senão, data da última visita (ou do cadastro) + recorrência (em dias) do cliente. Desde a Etapa 10d, a data marcada só vale enquanto não foi cumprida: com check-in no dia dela ou depois, a agenda volta à recorrência (UC17).
 - Desde a Etapa 8, a agenda ganha a seção "Próximos 7 dias" (data prevista de amanhã a 7 dias, em ordem de data), o roteiro do dia (UC25) e o calendário do mês (UC24), escolhido em "Agenda do dia | Calendário"; Atrasadas e Hoje ficam lado a lado a partir de 1024 px.
 - A agenda é sempre calculada em tempo de consulta, restrita à carteira do representante (`Client.representanteId`, atribuído automaticamente a quem cadastra o cliente; só o gestor transfere um cliente para outro representante); o gestor vê a agenda de todos os representantes ou, com `GET /agenda/today?representanteId=`, a de um só (para o representante o parâmetro é ignorado). Cada item da agenda traz o representante da carteira (`representante: { id, nome }`).
 - Um job diário (executado pelo Sistema/Agendador) roda o mesmo cálculo por representante e registra os alertas de visita atrasada/prevista em log estruturado, sem persistir nada; notificação por push ou e-mail fica fora do escopo desta etapa.
@@ -636,6 +636,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 **Regras de negócio associadas:**
 - Cada check-in regrava a próxima visita: um check-in sem data substitui a marcação anterior, e a agenda volta à recorrência.
+- **Visita marcada cumprida (Etapa 10d, [spec da parte 10d](superpowers/specs/2026-10-27-etapa-10d-visita-marcada-cumprida-e-textos-do-checkin-design.md)):** desde a Etapa 10, uma data marcada conta como cumprida quando há check-in no dia dela ou depois: a agenda, o calendário e a ficha voltam à recorrência e a campanha da próxima visita deixa de aparecer; a data no cadastro só muda no check-in. É regra de leitura (`proximaVisitaVigente`): `Client.proximaVisita` continua na coluna até o próximo check-in, e a classificação por cor segue pela última visita.
 - **Lembrete como tarefa (Etapa 9, [ADR-017](arquitetura.md#adr-017--lembrete-como-tarefa-própria-tabela-reminder)):** o lembrete é uma linha própria (`Reminder`, tabela `lembretes`) com texto de até 200 caracteres, data, autor, visita de origem e conclusão; o cliente pode ter vários abertos ao mesmo tempo. O check-in manda `lembrete?: { texto, data: 'AAAA-MM-DD' }` (no lugar do texto solto da Etapa 8), com `data` a partir de hoje em São Paulo. **O texto decide se há lembrete**: texto em branco é sem lembrete, qualquer que seja a data, e o formulário não envia o campo.
 - Um check-in novo **não** conclui lembretes abertos: eles só saem ao ser concluídos (UC27). Apagar a próxima visita ou mudar a recorrência também não os apaga. A ajuda do campo da próxima visita diz "Sem data, a agenda segue a recorrência.".
 - A data prevista é a marcada quando existe; senão, a última visita (ou o cadastro) + a recorrência. A cor de classificação (UC05) **não** muda por causa dela.
@@ -828,6 +829,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 **Regras de negócio associadas:**
 - Mesmo escopo da agenda do dia (UC10): o representante vê a própria carteira (`GET /agenda/calendario?mes=AAAA-MM`).
+- **Marcada cumprida (Etapa 10d):** a visita marcada vencida só aparece no calendário enquanto não foi cumprida; com check-in no dia marcado ou depois, ela sai (UC17).
 - **Só o que foi marcado (Etapa 9):** a visita entra só quando tem data marcada no check-in (`proximaVisita`), no dia marcado — inclusive se já passou, com o `detalhe` "Visita marcada venceu há N dias"; a visita prevista pela recorrência **não** entra no calendário (ela é da agenda do dia), nem as vencidas se empilham mais no dia de hoje (até a Etapa 8 entravam, com "Visita prevista pela recorrência" na legenda). O lembrete entra no dia da data dele e sai quando é concluído. `ItemCalendario` ganha o tipo `LEMBRETE`, com `lembreteId` e `texto`, e perde `origem` e `recorrenciaDias`, porque só há uma origem.
 
 ---

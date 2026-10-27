@@ -65,6 +65,7 @@ Na Etapa 10 (26/10/2026), a partir do uso da produção pela parceira ([spec da 
 - **Aba Visitas com a última visita em destaque:** as anteriores ficam atrás do filtro "Últimas 3", "Últimas 6" e "Todas", com a contagem total.
 - **Mapa com o contorno de Santa Catarina e zoom:** o mapa de clientes por cidade do Painel desenha o estado e os municípios atrás das bolhas, com botões para aproximar, afastar e ajustar, e arrastar para mover, sem depender de internet ([ADR-016](docs/arquitetura.md#adr-016--coordenadas-estáticas-dos-municípios-de-sc-no-roteiro-e-no-mapa)).
 - **Vendas vinculadas na campanha:** a campanha escolhida lista cada venda, com o cliente, os produtos e o total.
+- **Visita marcada cumprida pelo check-in:** uma data marcada deixa de aparecer como vencida na agenda, no calendário e na ficha quando já há check-in no dia dela ou depois, e o cliente volta à recorrência; no check-in, a descrição traz "Registre o que aconteceu na visita" e o lembrete abre sem exemplo ([spec da 10d](docs/superpowers/specs/2026-10-27-etapa-10d-visita-marcada-cumprida-e-textos-do-checkin-design.md)).
 
 Cada funcionalidade está especificada como caso de uso em [docs/casos-de-uso.md](docs/casos-de-uso.md), com as regras de negócio detalhadas na [seção 6 da especificação técnica](docs/especificacao-tecnica.md#6-regras-de-negócio-principais).
 
