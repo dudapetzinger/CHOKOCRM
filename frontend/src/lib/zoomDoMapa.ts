@@ -5,14 +5,22 @@
  * margem); o nível de zoom é a razão entre a largura inicial e a atual (1 =
  * inicial; 2 = o mapa aparece com o dobro do tamanho). Cada toque em
  * "Aproximar"/"Afastar" multiplica ou divide o nível por `FATOR_DO_ZOOM`,
- * sempre entre `NIVEL_MINIMO` (0,5×: o estado inteiro cabe) e
- * `NIVEL_MAXIMO` (6×), e mantém um ponto (`centro`, por padrão o centro do
- * que está visível) parado na tela: é o que faz a roda com Ctrl e a pinça
- * aproximarem do lugar apontado. `aplicarFator` aceita qualquer razão (a
- * pinça); `reenquadrar` mantém o nível e a posição relativa quando o cartão
- * muda de largura (girar o celular). Resultados arredondados a 3 casas.
+ * preso entre os `limites`: por padrão `NIVEL_MINIMO` (0,5×) e
+ * `NIVEL_MAXIMO` (6×). O mínimo de verdade é 0,5× ou o que for preciso para
+ * o estado inteiro caber, o que for menor — `nivelMinimoParaCaber` tira esse
+ * nível da caixa do contorno do estado, e `conterCaixa` encosta o viewBox
+ * nela quando o afastamento a deixou de fora. Cada toque mantém um ponto
+ * (`centro`, por padrão o centro do que está visível) parado na tela: é o
+ * que faz a roda com Ctrl e a pinça aproximarem do lugar apontado.
+ * `aplicarFator` aceita qualquer razão (a pinça); `reenquadrar` mantém o
+ * nível e a posição relativa quando o cartão muda de largura (girar o
+ * celular). Resultados arredondados a 3 casas.
  */
 export type ViewBox = { x: number; y: number; largura: number; altura: number };
+/** Um retângulo em unidades do viewBox inicial (a caixa do contorno do estado). */
+export type Caixa = { minX: number; minY: number; maxX: number; maxY: number };
+/** Os níveis extremos do zoom; o que faltar vale `NIVEL_MINIMO`/`NIVEL_MAXIMO`. */
+export type LimitesDoZoom = { minimo?: number; maximo?: number };
 
 export const FATOR_DO_ZOOM = 1.5;
 export const NIVEL_MINIMO = 0.5;
@@ -28,8 +36,46 @@ export function nivelDoZoom(atual: ViewBox, inicial: ViewBox): number {
 }
 
 /**
+ * O nível mínimo do zoom para a `caixa` (em unidades do viewBox `inicial`)
+ * caber inteira na tela: `NIVEL_MINIMO` quando ela já cabe em 0,5×, senão
+ * o nível menor em que a largura e a altura visíveis a cobrem. Truncado
+ * (não arredondado) a 3 casas, para a caixa caber de fato nesse nível.
+ */
+export function nivelMinimoParaCaber(inicial: ViewBox, caixa: Caixa): number {
+  const largura = caixa.maxX - caixa.minX;
+  const altura = caixa.maxY - caixa.minY;
+  const nivel = Math.min(
+    NIVEL_MINIMO,
+    largura > 0 ? inicial.largura / largura : NIVEL_MINIMO,
+    altura > 0 ? inicial.altura / altura : NIVEL_MINIMO,
+  );
+  // A folga de 1e-9 só desfaz o resíduo binário (0,29 × 100 dá 28,999…), não muda o truncamento.
+  return Math.floor(nivel * 1000 + 1e-9) / 1000;
+}
+
+/**
+ * Desloca o viewBox o mínimo para a `caixa` ficar inteira dentro dele (em
+ * cada eixo, encosta a borda que ficou de fora); se a caixa for maior que
+ * o viewBox naquele eixo, centraliza. Sem mudar o tamanho: quem garante que
+ * ela cabe é `nivelMinimoParaCaber`.
+ */
+export function conterCaixa(atual: ViewBox, caixa: Caixa): ViewBox {
+  function encostar(inicio: number, tamanho: number, minimo: number, maximo: number): number {
+    if (maximo - minimo > tamanho) return (minimo + maximo) / 2 - tamanho / 2;
+    if (inicio > minimo) return minimo;
+    if (inicio + tamanho < maximo) return maximo - tamanho;
+    return inicio;
+  }
+  return {
+    ...atual,
+    x: arredondar(encostar(atual.x, atual.largura, caixa.minX, caixa.maxX)),
+    y: arredondar(encostar(atual.y, atual.altura, caixa.minY, caixa.maxY)),
+  };
+}
+
+/**
  * Multiplica o nível pelo `fator` (> 1 aproxima, < 1 afasta), preso entre os
- * limites, mantendo `centro` (em unidades do viewBox) no mesmo lugar da
+ * `limites`, mantendo `centro` (em unidades do viewBox) no mesmo lugar da
  * tela. No limite, fixa exatamente o limite.
  */
 export function aplicarFator(
@@ -37,8 +83,11 @@ export function aplicarFator(
   inicial: ViewBox,
   fator: number,
   centro: { x: number; y: number } = { x: atual.x + atual.largura / 2, y: atual.y + atual.altura / 2 },
+  limites: LimitesDoZoom = {},
 ): ViewBox {
-  const nivelNovo = Math.min(NIVEL_MAXIMO, Math.max(NIVEL_MINIMO, nivelDoZoom(atual, inicial) * fator));
+  const minimo = limites.minimo ?? NIVEL_MINIMO;
+  const maximo = limites.maximo ?? NIVEL_MAXIMO;
+  const nivelNovo = Math.min(maximo, Math.max(minimo, nivelDoZoom(atual, inicial) * fator));
   const largura = inicial.largura / nivelNovo;
   const altura = inicial.altura / nivelNovo;
   // O ponto fica na mesma fração da largura e da altura visíveis.
@@ -51,12 +100,22 @@ export function aplicarFator(
   };
 }
 
-export function aproximar(atual: ViewBox, inicial: ViewBox, centro?: { x: number; y: number }): ViewBox {
-  return aplicarFator(atual, inicial, FATOR_DO_ZOOM, centro);
+export function aproximar(
+  atual: ViewBox,
+  inicial: ViewBox,
+  centro?: { x: number; y: number },
+  limites?: LimitesDoZoom,
+): ViewBox {
+  return aplicarFator(atual, inicial, FATOR_DO_ZOOM, centro, limites);
 }
 
-export function afastar(atual: ViewBox, inicial: ViewBox, centro?: { x: number; y: number }): ViewBox {
-  return aplicarFator(atual, inicial, 1 / FATOR_DO_ZOOM, centro);
+export function afastar(
+  atual: ViewBox,
+  inicial: ViewBox,
+  centro?: { x: number; y: number },
+  limites?: LimitesDoZoom,
+): ViewBox {
+  return aplicarFator(atual, inicial, 1 / FATOR_DO_ZOOM, centro, limites);
 }
 
 /** Move a origem do viewBox por `dx`/`dy` (unidades do viewBox): o mapa anda no sentido contrário. */

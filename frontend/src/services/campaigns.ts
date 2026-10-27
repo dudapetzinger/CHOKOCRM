@@ -38,8 +38,8 @@ export type ResultadoDaCampanha = {
 };
 
 /**
- * Uma venda vinculada à campanha: a visita com pedido, o cliente, o
- * representante, os itens e o total (R$).
+ * Uma venda vinculada à campanha: a visita com resultado Venda (com ou
+ * sem itens), o cliente, o representante, os itens e o total (R$).
  */
 export type VendaDaCampanha = {
   visitaId: string;

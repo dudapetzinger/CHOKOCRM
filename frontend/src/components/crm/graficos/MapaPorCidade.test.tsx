@@ -1,6 +1,10 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
+import { CONTORNO_SC } from '@/lib/contornoSC';
+import { calcularEnquadramento, projetarPonto } from '@/lib/mapa';
+import { coordenadaDaCidade } from '@/lib/roteiro';
+import { NIVEL_MINIMO, nivelMinimoParaCaber, type Caixa } from '@/lib/zoomDoMapa';
 import type { ClienteListItem, Cor } from '@/services/clients';
 import { removerSimulacaoDeLargura, simularLargura } from '@/test/simularLargura';
 import { MapaPorCidade } from './MapaPorCidade';
@@ -45,6 +49,28 @@ function mapa(): HTMLElement {
 
 function viewBox(): string {
   return mapa().getAttribute('viewBox')!;
+}
+
+/**
+ * A caixa do contorno do estado no sistema do viewBox inicial (520 × 300)
+ * das cidades da fixture (Joinville e Blumenau): o mesmo enquadramento do
+ * componente (margem = maior bolha, 7 + 3 × 3 = 16, mais 16 do nome).
+ */
+function caixaDoEstadoDaFixture(): Caixa {
+  const cidades = ['Joinville', 'Blumenau'].map((nome) => {
+    const [lat, lng] = coordenadaDaCidade(nome)!;
+    return { nome, lat, lng };
+  });
+  const enquadramento = calcularEnquadramento(cidades, 520, 300, 16 + 16);
+  const caixa = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  for (const [lng, lat] of CONTORNO_SC.estado.flat()) {
+    const { x, y } = projetarPonto(lng, lat, enquadramento);
+    caixa.minX = Math.min(caixa.minX, x);
+    caixa.minY = Math.min(caixa.minY, y);
+    caixa.maxX = Math.max(caixa.maxX, x);
+    caixa.maxY = Math.max(caixa.maxY, y);
+  }
+  return caixa;
 }
 
 /** Os caminhos do contorno (estado e municípios), pelo `d`. */
@@ -265,16 +291,64 @@ describe('MapaPorCidade', () => {
       expect(300 / altura!).toBeCloseTo(6, 2);
     });
 
-    it('"Afastar" alarga o viewBox e, no 0,5× (o estado inteiro), desabilita', () => {
+    it('"Afastar" alarga o viewBox 1,5× em torno do centro', () => {
       renderizar();
 
       fireEvent.click(afastar());
-      expect(viewBox()).toBe('-130 -75 780 450');
 
-      for (let i = 0; i < 10; i++) if (!afastar().hasAttribute('disabled')) fireEvent.click(afastar());
+      expect(viewBox()).toBe('-130 -75 780 450');
+      expect(afastar()).toBeEnabled();
+    });
+
+    it('"Afastar" até desabilitar passa de 0,5× e para no nível em que o estado inteiro cabe, com ele na tela', () => {
+      renderizar();
+      const caixa = caixaDoEstadoDaFixture();
+      // As duas cidades da fixture ficam a 60 km uma da outra: Santa Catarina inteira não cabe em 0,5×.
+      const nivelMinimo = nivelMinimoParaCaber({ x: 0, y: 0, largura: 520, altura: 300 }, caixa);
+      expect(nivelMinimo).toBeLessThan(NIVEL_MINIMO);
+
+      for (let i = 0; i < 20; i++) if (!afastar().hasAttribute('disabled')) fireEvent.click(afastar());
+
       expect(afastar()).toBeDisabled();
       expect(aproximar()).toBeEnabled();
-      expect(viewBox()).toBe('-260 -150 1040 600');
+      const [x, y, largura, altura] = viewBox().split(' ').map(Number) as [number, number, number, number];
+      expect(520 / largura).toBeCloseTo(nivelMinimo, 3);
+      expect(300 / altura).toBeCloseTo(nivelMinimo, 3);
+      // O estado inteiro está dentro do viewBox (o Oeste incluído).
+      expect(x).toBeLessThanOrEqual(caixa.minX);
+      expect(y).toBeLessThanOrEqual(caixa.minY);
+      expect(x + largura).toBeGreaterThanOrEqual(caixa.maxX);
+      expect(y + altura).toBeGreaterThanOrEqual(caixa.maxY);
+      // Mais um toque no botão desabilitado não mexe.
+      fireEvent.click(afastar());
+      expect(viewBox()).toBe(`${x} ${y} ${largura} ${altura}`);
+    });
+
+    it('"Ajustar" depois de afastar até o fim volta ao enquadramento inicial', () => {
+      renderizar();
+
+      for (let i = 0; i < 20; i++) if (!afastar().hasAttribute('disabled')) fireEvent.click(afastar());
+      fireEvent.click(ajustar());
+
+      expect(viewBox()).toBe('0 0 520 300');
+      expect(afastar()).toBeEnabled();
+    });
+
+    it('a roda com Ctrl também para no nível em que o estado cabe, com ele na tela', () => {
+      renderizar();
+      const caixa = caixaDoEstadoDaFixture();
+      const nivelMinimo = nivelMinimoParaCaber({ x: 0, y: 0, largura: 520, altura: 300 }, caixa);
+
+      // Afasta no canto superior esquerdo: o centro mantido deixaria o estado deslocado para fora.
+      for (let i = 0; i < 20; i++) fireEvent.wheel(mapa(), { deltaY: 100, ctrlKey: true, clientX: 0, clientY: 0 });
+
+      const [x, y, largura, altura] = viewBox().split(' ').map(Number) as [number, number, number, number];
+      expect(520 / largura).toBeCloseTo(nivelMinimo, 3);
+      expect(x).toBeLessThanOrEqual(caixa.minX);
+      expect(y).toBeLessThanOrEqual(caixa.minY);
+      expect(x + largura).toBeGreaterThanOrEqual(caixa.maxX);
+      expect(y + altura).toBeGreaterThanOrEqual(caixa.maxY);
+      expect(afastar()).toBeDisabled();
     });
 
     it('com zoom, bolhas, números e nomes mantêm o tamanho na tela: só as posições se afastam', () => {

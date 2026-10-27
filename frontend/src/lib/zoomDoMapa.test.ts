@@ -6,8 +6,10 @@ import {
   ajustar,
   aplicarFator,
   aproximar,
+  conterCaixa,
   deslocar,
   nivelDoZoom,
+  nivelMinimoParaCaber,
   reenquadrar,
   type ViewBox,
 } from './zoomDoMapa';
@@ -85,6 +87,80 @@ describe('afastar', () => {
     esperarViewBox(atual, { x: -260, y: -150, largura: 1040, altura: 600 });
     expect(afastar(atual, INICIAL)).toEqual(atual);
   });
+
+  it('com um mínimo menor nos limites, passa de 0,5× e para exatamente nele', () => {
+    const limites = { minimo: 0.2 };
+    let atual = INICIAL;
+    for (let i = 0; i < 10; i++) atual = afastar(atual, INICIAL, undefined, limites);
+
+    expect(nivelDoZoom(atual, INICIAL)).toBe(0.2);
+    esperarViewBox(atual, { x: -1040, y: -600, largura: 2600, altura: 1500 });
+    expect(afastar(atual, INICIAL, undefined, limites)).toEqual(atual);
+    // Sem os limites, o mesmo viewBox volta para 0,5× (o mínimo padrão).
+    expect(nivelDoZoom(afastar(atual, INICIAL), INICIAL)).toBe(NIVEL_MINIMO);
+  });
+});
+
+describe('nivelMinimoParaCaber', () => {
+  const INICIAL_DO_CELULAR: ViewBox = { x: 0, y: 0, largura: 311, altura: 220 };
+
+  it('é 0,5× quando a caixa já cabe em 0,5×', () => {
+    expect(nivelMinimoParaCaber(INICIAL, { minX: -200, minY: -100, maxX: 700, maxY: 400 })).toBe(NIVEL_MINIMO);
+    // A caixa do tamanho exato do 0,5× ainda cabe.
+    expect(nivelMinimoParaCaber(INICIAL, { minX: -260, minY: -150, maxX: 780, maxY: 450 })).toBe(NIVEL_MINIMO);
+    // Caixa sem extensão: cabe em qualquer nível.
+    expect(nivelMinimoParaCaber(INICIAL, { minX: 10, minY: 10, maxX: 10, maxY: 10 })).toBe(NIVEL_MINIMO);
+  });
+
+  it('é o nível em que a caixa cabe quando ela não cabe em 0,5× (pela largura ou pela altura)', () => {
+    // Largura 1500 em 311: 311 / 1500 ≈ 0,207 (a altura cabe em 0,5×).
+    expect(nivelMinimoParaCaber(INICIAL_DO_CELULAR, { minX: -600, minY: 0, maxX: 900, maxY: 220 })).toBe(0.207);
+    // Altura 880 em 220: 220 / 880 = 0,25, menor que o 0,5× da largura.
+    expect(nivelMinimoParaCaber(INICIAL_DO_CELULAR, { minX: 0, minY: -330, maxX: 311, maxY: 550 })).toBe(0.25);
+  });
+
+  it('trunca a 3 casas para baixo: no nível devolvido, a caixa cabe de fato', () => {
+    // 311 / 900 = 0,34555…: arredondar daria 0,346, e 311 / 0,346 = 898,8 < 900 (a caixa não caberia).
+    const larga = { minX: 0, minY: 0, maxX: 900, maxY: 100 };
+    const nivelLarga = nivelMinimoParaCaber(INICIAL_DO_CELULAR, larga);
+    expect(nivelLarga).toBe(0.345);
+    expect(311 / nivelLarga).toBeGreaterThanOrEqual(900);
+
+    const caixa = { minX: 0, minY: 0, maxX: 1000, maxY: 100 };
+    const nivel = nivelMinimoParaCaber({ x: 0, y: 0, largura: 310, altura: 220 }, caixa);
+
+    expect(nivel).toBe(0.31);
+    expect(310 / nivel).toBeGreaterThanOrEqual(1000);
+    expect(nivelMinimoParaCaber({ x: 0, y: 0, largura: 311, altura: 220 }, caixa)).toBe(0.311);
+  });
+});
+
+describe('conterCaixa', () => {
+  const CAIXA = { minX: 100, minY: 50, maxX: 400, maxY: 250 };
+
+  it('não mexe quando a caixa já está inteira dentro', () => {
+    expect(conterCaixa(INICIAL, CAIXA)).toEqual(INICIAL);
+  });
+
+  it('desloca o mínimo em cada eixo para a caixa entrar', () => {
+    // A caixa saiu pela esquerda e por cima: a borda do viewBox encosta nela.
+    expect(conterCaixa({ x: 150, y: 80, largura: 520, altura: 300 }, CAIXA)).toEqual({ x: 100, y: 50, largura: 520, altura: 300 });
+    // Saiu pela direita e por baixo.
+    expect(conterCaixa({ x: -300, y: -200, largura: 520, altura: 300 }, CAIXA)).toEqual({ x: -120, y: -50, largura: 520, altura: 300 });
+    // Só um eixo precisa.
+    expect(conterCaixa({ x: 150, y: 0, largura: 520, altura: 300 }, CAIXA)).toEqual({ x: 100, y: 0, largura: 520, altura: 300 });
+  });
+
+  it('caixa maior que o viewBox num eixo: centraliza nesse eixo', () => {
+    expect(conterCaixa({ x: 0, y: 0, largura: 200, altura: 300 }, CAIXA)).toEqual({ x: 150, y: 0, largura: 200, altura: 300 });
+  });
+
+  it('arredonda a 3 casas', () => {
+    const contido = conterCaixa({ x: 150, y: 80, largura: 520, altura: 300 }, { ...CAIXA, minX: 100.12345, minY: 50.98765 });
+
+    expect(contido.x).toBe(100.123);
+    expect(contido.y).toBe(50.988);
+  });
 });
 
 describe('aplicarFator', () => {
@@ -97,6 +173,13 @@ describe('aplicarFator', () => {
       altura: 300 / 6,
     });
     expect(nivelDoZoom(aplicarFator(INICIAL, INICIAL, 0.01), INICIAL)).toBe(NIVEL_MINIMO);
+  });
+
+  it('respeita os limites passados (mínimo e máximo)', () => {
+    const limites = { minimo: 0.25, maximo: 4 };
+    expect(nivelDoZoom(aplicarFator(INICIAL, INICIAL, 0.01, undefined, limites), INICIAL)).toBe(0.25);
+    expect(nivelDoZoom(aplicarFator(INICIAL, INICIAL, 100, undefined, limites), INICIAL)).toBe(4);
+    expect(nivelDoZoom(aproximar(INICIAL, INICIAL, undefined, { maximo: 1.2 }), INICIAL)).toBe(1.2);
   });
 });
 

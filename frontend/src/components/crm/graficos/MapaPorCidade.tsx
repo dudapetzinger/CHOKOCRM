@@ -18,12 +18,18 @@
  * Zoom e arrastar (Etapa 10c): o `viewBox` é estado (`lib/zoomDoMapa.ts`),
  * começando em `0 0 largura altura`. "Aproximar" (+), "Afastar" (−) e
  * "Ajustar" ficam no canto superior direito; o fator é 1,5 por toque, de
- * 0,5× (o estado inteiro aparece) a 6×, e os botões desabilitam nos
- * limites. Com o zoom, só as posições se afastam: bolhas, números, nomes e
- * traços mantêm o tamanho na tela (as medidas em unidades do viewBox são
- * divididas pelo nível) — é isso que separa o amontoado do Vale do Itajaí;
- * se crescessem junto, dois nomes sobrepostos continuariam sobrepostos, só
- * maiores, e no 0,5× a área de toque cairia abaixo dos 44 px (spec 6.4).
+ * 0,5× — ou menos, até o estado inteiro caber: o mínimo é
+ * `nivelMinimoParaCaber` sobre a caixa do contorno do estado projetado
+ * (`caixaDoEstado`), porque o enquadramento inicial cobre só as cidades da
+ * carteira e 0,5× dele raramente mostra Santa Catarina inteira — a 6×, e os
+ * botões desabilitam nos limites. Ao afastar até o fim, o estado inteiro
+ * aparece: no mínimo, `conterCaixa` encosta o viewBox na caixa quando o
+ * centro mantido a deixaria deslocada para fora. Com o zoom, só as posições
+ * se afastam: bolhas, números, nomes e traços mantêm o tamanho na tela (as
+ * medidas em unidades do viewBox são divididas pelo nível) — é isso que
+ * separa o amontoado do Vale do Itajaí; se crescessem junto, dois nomes
+ * sobrepostos continuariam sobrepostos, só maiores, e ao afastar a área de
+ * toque cairia abaixo dos 44 px (spec 6.4).
  * Arrastar com o mouse ou um dedo move o mapa
  * (`touch-none` para o dedo não rolar a página); um movimento de mais de
  * `LIMIAR_DO_ARRASTO` px vira arrasto: o SVG captura o ponteiro e o clique
@@ -72,14 +78,16 @@ import { useLarguraDoElemento } from '@/lib/useLarguraDoElemento';
 import { cn } from '@/lib/utils';
 import {
   NIVEL_MAXIMO,
-  NIVEL_MINIMO,
   afastar,
   ajustar,
   aplicarFator,
   aproximar,
+  conterCaixa,
   deslocar,
   nivelDoZoom,
+  nivelMinimoParaCaber,
   reenquadrar,
+  type Caixa,
   type ViewBox,
 } from '@/lib/zoomDoMapa';
 import { ROTULO_COR, type ClienteListItem, type Cor } from '@/services/clients';
@@ -159,6 +167,11 @@ function unidadesPorPixel(caixa: ViewBox, svg: SVGSVGElement | null, largura: nu
   return caixa.largura / (svg?.getBoundingClientRect().width || largura);
 }
 
+/** No nível mínimo, o estado inteiro tem de estar na tela: o viewBox encosta na caixa dele. */
+function noMinimo(caixa: ViewBox, inicial: ViewBox, nivelMinimo: number, caixaDoEstado: Caixa): ViewBox {
+  return nivelDoZoom(caixa, inicial) <= nivelMinimo ? conterCaixa(caixa, caixaDoEstado) : caixa;
+}
+
 export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
   const navigate = useNavigate();
   const desktop = useLarguraDesktop();
@@ -195,6 +208,22 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
     [cidades, largura, altura, maiorRaio],
   );
   const caminhoDoEstado = useMemo(() => caminhoDoContorno(CONTORNO_SC.estado, enquadramento), [enquadramento]);
+  // A caixa do contorno do estado no sistema do viewBox inicial: o mínimo do zoom é o nível em que ela cabe inteira.
+  const caixaDoEstado = useMemo<Caixa>(() => {
+    const caixa = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+    for (const anel of CONTORNO_SC.estado) {
+      for (const [lng, lat] of anel) {
+        const { x, y } = projetarPonto(lng, lat, enquadramento);
+        caixa.minX = Math.min(caixa.minX, x);
+        caixa.minY = Math.min(caixa.minY, y);
+        caixa.maxX = Math.max(caixa.maxX, x);
+        caixa.maxY = Math.max(caixa.maxY, y);
+      }
+    }
+    return caixa;
+  }, [enquadramento]);
+  const nivelMinimo = nivelMinimoParaCaber(inicial, caixaDoEstado);
+  const noLimite = (caixa: ViewBox): ViewBox => noMinimo(caixa, inicial, nivelMinimo, caixaDoEstado);
   const caminhosDosMunicipios = useMemo(
     () =>
       cidades.flatMap((cidade) => {
@@ -218,12 +247,19 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
       evento.preventDefault();
       const mudar = evento.deltaY < 0 ? aproximar : afastar;
       setViewBox((atual) =>
-        mudar(atual, inicial, paraOViewBox({ x: evento.clientX, y: evento.clientY }, atual, elemento, largura)),
+        noMinimo(
+          mudar(atual, inicial, paraOViewBox({ x: evento.clientX, y: evento.clientY }, atual, elemento, largura), {
+            minimo: nivelMinimo,
+          }),
+          inicial,
+          nivelMinimo,
+          caixaDoEstado,
+        ),
       );
     }
     elemento.addEventListener('wheel', aoRolar, { passive: false });
     return () => elemento.removeEventListener('wheel', aoRolar);
-  }, [inicial, largura, temMapa]);
+  }, [inicial, largura, nivelMinimo, caixaDoEstado, temMapa]);
 
   if (clientes.length === 0) {
     return <EstadoVazio icone="user">Nenhum cliente ativo para mostrar no mapa.</EstadoVazio>;
@@ -318,11 +354,13 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
       const [a, b] = [...ponteiros.current.values()] as [Ponto, Ponto];
       const fator = gesto.distancia > 0 ? distancia(a, b) / gesto.distancia : 1;
       const centro = paraOViewBox(gesto.meio, gesto.viewBox, evento.currentTarget, largura);
-      const ampliado = aplicarFator(gesto.viewBox, inicial, fator, centro);
+      const ampliado = aplicarFator(gesto.viewBox, inicial, fator, centro, { minimo: nivelMinimo });
       // O meio dos dedos andou: o mapa acompanha.
       const meioAtual = meio(a, b);
       const razao = unidadesPorPixel(ampliado, evento.currentTarget, largura);
-      setViewBox(deslocar(ampliado, -(meioAtual.x - gesto.meio.x) * razao, -(meioAtual.y - gesto.meio.y) * razao));
+      setViewBox(
+        noLimite(deslocar(ampliado, -(meioAtual.x - gesto.meio.x) * razao, -(meioAtual.y - gesto.meio.y) * razao)),
+      );
       return;
     }
     if (ponteiros.current.size !== 1) return;
@@ -473,7 +511,7 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
                 variant="outline"
                 aria-label="Aproximar"
                 disabled={nivel >= NIVEL_MAXIMO}
-                onClick={() => setViewBox((atual) => aproximar(atual, inicial))}
+                onClick={() => setViewBox((atual) => aproximar(atual, inicial, undefined, { minimo: nivelMinimo }))}
               >
                 <Plus aria-hidden="true" />
               </Button>
@@ -482,8 +520,8 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
                 size="icon"
                 variant="outline"
                 aria-label="Afastar"
-                disabled={nivel <= NIVEL_MINIMO}
-                onClick={() => setViewBox((atual) => afastar(atual, inicial))}
+                disabled={nivel <= nivelMinimo}
+                onClick={() => setViewBox((atual) => noLimite(afastar(atual, inicial, undefined, { minimo: nivelMinimo })))}
               >
                 <Minus aria-hidden="true" />
               </Button>
