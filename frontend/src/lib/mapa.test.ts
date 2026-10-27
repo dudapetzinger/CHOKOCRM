@@ -1,5 +1,5 @@
 import type { ClienteListItem, Cor } from '../services/clients';
-import { agruparPorCidade, projetarCidades } from './mapa';
+import { agruparPorCidade, calcularEnquadramento, caminhoDoContorno, projetarCidades, projetarPonto } from './mapa';
 
 const CIDADES = [
   { nome: 'Joinville', lat: -26.3045, lng: -48.8487 },
@@ -46,6 +46,73 @@ describe('projetarCidades', () => {
 
   it('sem cidades, nada', () => {
     expect(projetarCidades([], 520, 300)).toEqual([]);
+  });
+});
+
+describe('calcularEnquadramento e projetarPonto', () => {
+  it('projetarPonto com o enquadramento das cidades dá o mesmo ponto que projetarCidades', () => {
+    const enquadramento = calcularEnquadramento(CIDADES, 520, 300);
+    const pontos = projetarCidades(CIDADES, 520, 300);
+
+    for (const [indice, cidade] of CIDADES.entries()) {
+      const { x, y } = projetarPonto(cidade.lng, cidade.lat, enquadramento);
+      expect({ x, y }).toEqual({ x: pontos[indice]!.x, y: pontos[indice]!.y });
+    }
+  });
+
+  it('respeita a margem passada', () => {
+    const enquadramento = calcularEnquadramento(CIDADES, 520, 300, 40);
+    const chapeco = projetarPonto(CIDADES[2]!.lng, CIDADES[2]!.lat, enquadramento);
+
+    expect(chapeco.x).toBe(40);
+  });
+
+  it('um ponto fora das cidades sai da área, na direção certa (o contorno é cortado pelo viewBox)', () => {
+    const enquadramento = calcularEnquadramento(CIDADES, 520, 300);
+    // Mais a oeste e mais ao sul que qualquer cidade: à esquerda e abaixo da área.
+    const ponto = projetarPonto(-53.8, -29.3, enquadramento);
+
+    expect(ponto.x).toBeLessThan(0);
+    expect(ponto.y).toBeGreaterThan(300);
+  });
+
+  it('uma cidade só: escala zero, tudo no centro', () => {
+    const enquadramento = calcularEnquadramento([CIDADES[0]!], 520, 300);
+
+    expect(enquadramento.escala).toBe(0);
+    expect(projetarPonto(-50, -27, enquadramento)).toEqual({ x: 260, y: 150 });
+  });
+});
+
+describe('caminhoDoContorno', () => {
+  const ENQUADRAMENTO = calcularEnquadramento(CIDADES, 520, 300);
+
+  it('gera M … L … Z por anel, com 1 casa decimal', () => {
+    const anel: [number, number][] = [
+      [CIDADES[2]!.lng, CIDADES[2]!.lat],
+      [CIDADES[0]!.lng, CIDADES[0]!.lat],
+      [CIDADES[3]!.lng, CIDADES[3]!.lat],
+    ];
+    const pontos = projetarCidades(CIDADES, 520, 300);
+    const p = (nome: string) => pontos.find((ponto) => ponto.nome === nome)!;
+
+    expect(caminhoDoContorno([anel], ENQUADRAMENTO)).toBe(
+      `M ${p('Chapecó').x} ${p('Chapecó').y} L ${p('Joinville').x} ${p('Joinville').y} L ${p('Florianópolis').x} ${p('Florianópolis').y} Z`,
+    );
+    expect(caminhoDoContorno([anel], ENQUADRAMENTO)).toMatch(/^M -?\d+(\.\d)? -?\d+(\.\d)? L /);
+  });
+
+  it('vários anéis viram vários subcaminhos; anel vazio é ignorado', () => {
+    const anel: [number, number][] = [
+      [-50, -27],
+      [-49, -27],
+      [-49, -28],
+    ];
+    const caminho = caminhoDoContorno([anel, [], anel], ENQUADRAMENTO);
+
+    expect(caminho.match(/M /g)).toHaveLength(2);
+    expect(caminho.match(/Z/g)).toHaveLength(2);
+    expect(caminhoDoContorno([], ENQUADRAMENTO)).toBe('');
   });
 });
 
