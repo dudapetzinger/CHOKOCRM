@@ -242,6 +242,82 @@ describe('montarAgenda com a próxima visita marcada no check-in (spec 7.4)', ()
     expect(todasAsListas(agenda).map((item) => item.id)).not.toContain('oito');
   });
 
+  it('marcada para ontem e visitado hoje (Etapa 10d): cumprida, volta à recorrência, sem marcadaNoCheckIn nem campanha', () => {
+    const cliente = clienteFabricado({
+      id: 'cumprida',
+      recorrenciaDias: 15,
+      visits: [{ dataHora: diasAtras(0, '09:00:00'), resultado: 'VENDA' }],
+      proximaVisita: diasDepois(-1),
+      proximaCampanha: { id: 'cp1', nome: 'Natal' },
+    });
+
+    const agenda = montarAgenda([cliente], hoje);
+
+    expect(agenda.atrasadas).toEqual([]);
+    expect(agenda.hoje).toEqual([]);
+    // Pela recorrência: hoje + 15, fora dos próximos 7 dias
+    expect(todasAsListas(agenda)).toEqual([]);
+  });
+
+  it('marcada para hoje e check-in hoje às 9h: cumprida, o item segue a recorrência', () => {
+    const cliente = clienteFabricado({
+      id: 'cumprida-hoje',
+      recorrenciaDias: 7,
+      visits: [{ dataHora: diasAtras(0, '12:00:00'), resultado: 'NEGOCIACAO' }],
+      proximaVisita: diasDepois(0),
+      proximaCampanha: { id: 'cp1', nome: 'Natal' },
+    });
+
+    const agenda = montarAgenda([cliente], hoje);
+
+    expect(agenda.hoje).toEqual([]);
+    expect(agenda.proximos7Dias).toHaveLength(1);
+    expect(agenda.proximos7Dias[0]).toMatchObject({
+      id: 'cumprida-hoje',
+      proximaVisita: diasDepois(7),
+      diasAtraso: -7,
+      marcadaNoCheckIn: false,
+      proximaCampanha: null,
+    });
+  });
+
+  it('marcada para amanhã e visitado hoje: a marcada continua valendo, com a campanha', () => {
+    const cliente = clienteFabricado({
+      id: 'ainda-vale',
+      visits: [{ dataHora: diasAtras(0, '12:00:00'), resultado: 'VENDA' }],
+      proximaVisita: diasDepois(1),
+      proximaCampanha: { id: 'cp1', nome: 'Natal' },
+    });
+
+    const agenda = montarAgenda([cliente], hoje);
+
+    expect(agenda.proximos7Dias).toHaveLength(1);
+    expect(agenda.proximos7Dias[0]).toMatchObject({
+      id: 'ainda-vale',
+      proximaVisita: diasDepois(1),
+      diasAtraso: -1,
+      marcadaNoCheckIn: true,
+      proximaCampanha: { id: 'cp1', nome: 'Natal' },
+    });
+  });
+
+  it('nunca visitado com marcada no passado continua atrasado pela marcada (nada a cumprir)', () => {
+    const cliente = clienteFabricado({
+      id: 'nunca',
+      criadoEm: diasAtras(3),
+      visits: [],
+      proximaVisita: diasDepois(-2),
+      proximaCampanha: { id: 'cp1', nome: 'Natal' },
+    });
+
+    const agenda = montarAgenda([cliente], hoje);
+
+    expect(agenda.atrasadas.map((item) => [item.id, item.diasAtraso, item.marcadaNoCheckIn])).toEqual([
+      ['nunca', 2, true],
+    ]);
+    expect(agenda.atrasadas[0]?.proximaCampanha).toEqual({ id: 'cp1', nome: 'Natal' });
+  });
+
   it('sem data marcada, a regra da recorrência continua e marcadaNoCheckIn é false', () => {
     const atrasado = clienteFabricado({ id: 'atrasado', visits: [{ dataHora: diasAtras(20), resultado: 'VENDA' }] });
     const doDia = clienteFabricado({ id: 'hoje', visits: [{ dataHora: diasAtras(15), resultado: 'VENDA' }] });

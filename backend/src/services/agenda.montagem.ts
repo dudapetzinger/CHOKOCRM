@@ -7,6 +7,7 @@ import {
   dataDaColunaDate,
   diasEntre,
   ordemDeCor,
+  proximaVisitaVigente,
   type Cor,
   type DataCalendario,
 } from './classificacao.service';
@@ -73,8 +74,9 @@ function compararLembrete(a: LembreteDTO, b: LembreteDTO): number {
 /**
  * Monta a agenda do dia (UC10) a partir de clientes já carregados: para cada
  * um, calcula a data prevista da próxima visita (spec 7.4: a marcada no
- * check-in, quando existe; senão última visita + recorrência, ou `criadoEm`
- * + recorrência quando nunca visitado) e separa quem está atrasado
+ * check-in, quando existe e ainda vale — Etapa 10d, `proximaVisitaVigente`:
+ * um check-in no dia marcado ou depois a cumpre; senão última visita +
+ * recorrência, ou `criadoEm` + recorrência quando nunca visitado) e separa quem está atrasado
  * (`diasAtraso > 0`), quem vence hoje (`diasAtraso === 0`) e quem vence de
  * amanhã a hoje + 7 (`proximos7Dias`). Datas mais distantes ficam de fora. A
  * cor de classificação não muda com a data marcada: continua pela última
@@ -108,12 +110,10 @@ export function montarAgenda(
       hoje,
       ultimaVenda,
     );
-    const proximaVisita = calcularProximaVisita(
-      ultima,
-      cliente.criadoEm,
-      cliente.recorrenciaDias,
-      cliente.proximaVisita,
-    );
+    // Etapa 10d: a marcada só vale enquanto não há check-in no dia dela ou
+    // depois; cumprida, o item volta à recorrência e perde a campanha.
+    const vigente = proximaVisitaVigente(cliente.proximaVisita, ultima);
+    const proximaVisita = calcularProximaVisita(ultima, cliente.criadoEm, cliente.recorrenciaDias, vigente);
     const diasAtraso = diasEntre(proximaVisita, hojeCal);
 
     if (diasAtraso < -DIAS_DOS_PROXIMOS) {
@@ -129,8 +129,8 @@ export function montarAgenda(
       diasSemVisita,
       proximaVisita,
       diasAtraso,
-      marcadaNoCheckIn: cliente.proximaVisita !== null,
-      proximaCampanha: cliente.proximaCampanha,
+      marcadaNoCheckIn: vigente !== null,
+      proximaCampanha: vigente !== null ? cliente.proximaCampanha : null,
       rebaixadoPorVenda,
       representante: cliente.representante,
     };

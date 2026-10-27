@@ -131,6 +131,30 @@ describe('montarCalendario', () => {
     ]);
   });
 
+  it('visita marcada já cumprida (check-in no dia dela ou depois) não entra; antes dela, entra (Etapa 10d)', () => {
+    const cumpridaDepois = clienteFabricado({
+      id: 'cumprida-depois',
+      visits: [{ dataHora: diasAtras(3), resultado: 'VENDA' }],
+      proximaVisita: '2026-10-14',
+      proximaCampanha: { id: 'cp1', nome: 'Natal' },
+    });
+    const cumpridaNoDia = clienteFabricado({
+      id: 'cumprida-no-dia',
+      visits: [{ dataHora: diasAtras(5), resultado: 'SEM_VENDA' }],
+      proximaVisita: '2026-10-14',
+    });
+    const aindaVale = clienteFabricado({
+      id: 'ainda-vale',
+      visits: [{ dataHora: diasAtras(6), resultado: 'VENDA' }],
+      proximaVisita: '2026-10-14',
+    });
+
+    const itens = calendario({ clientes: [cumpridaDepois, cumpridaNoDia, aindaVale] }).itens;
+
+    expect(itens.map((item) => item.clienteId)).toEqual(['ainda-vale']);
+    expect(itens[0]?.detalhe).toBe('Visita marcada venceu há 5 dias');
+  });
+
   it('visita marcada de outro mês fica de fora, vencida ou não', () => {
     const setembro = clienteFabricado({ id: 'setembro', proximaVisita: '2026-09-28' });
     const novembro = clienteFabricado({ id: 'novembro', proximaVisita: '2026-11-03' });

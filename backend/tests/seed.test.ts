@@ -179,6 +179,13 @@ describe('seed de demonstração', () => {
       '2026-10-21',
       '2026-10-22',
     ]);
+    // A marcada vencida fica na Doceria Jaraguá (última visita há 20 dias, nenhuma depois); o
+    // Empório do Chocolate, visitado ontem, segue a recorrência (Etapa 10d)
+    const porEmail = new Map(comProximaVisita.map((cliente) => [cliente.email, dia(cliente.proximaVisita as Date)]));
+    expect(porEmail.get('contato@doceriajaragua.com.br')).toBe('2026-10-17');
+    expect(porEmail.get('contato@cafeblumenau.com.br')).toBe('2026-10-21');
+    expect(porEmail.get('contato@emporiodovalebrusque.com.br')).toBe('2026-10-22');
+    expect(porEmail.has('contato@emporiodochocolate.com.br')).toBe(false);
 
     // Lembretes: três abertos (um vencido há 3 dias), um concluído, todos do dono da carteira
     const lembretes = await prisma.reminder.findMany({ include: { client: true }, orderBy: { data: 'asc' } });

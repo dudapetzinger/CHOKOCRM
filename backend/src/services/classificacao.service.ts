@@ -166,10 +166,35 @@ export function classificacaoDoCliente(
 }
 
 /**
+ * Data marcada no check-in que ainda vale (Etapa 10d: "visita marcada
+ * cumprida"). A marcada só conta enquanto não há check-in no dia dela ou
+ * depois: se a última visita (dia de calendário em São Paulo, via
+ * `dataCalendario`) cai no dia marcado ou mais tarde, a marcação foi
+ * cumprida e a função devolve `null` — o cliente volta à recorrência. Sem
+ * visita alguma, a marcada vale mesmo no passado (não há o que cumprir).
+ * Regra só de leitura: `Client.proximaVisita` no banco não muda; o check-in
+ * continua sendo o único caminho de escrita. Usada pela agenda do dia, pelo
+ * calendário e pelo DTO do cliente, para a ficha não mostrar como vencida
+ * uma data que uma visita posterior já cobriu (dados fora do fluxo do
+ * check-in, como o seed, podem deixar a marcada antiga na coluna).
+ */
+export function proximaVisitaVigente(marcada: DataCalendario | null, ultima: UltimaVisita): DataCalendario | null {
+  if (marcada === null) {
+    return null;
+  }
+
+  if (ultima !== null && dataCalendario(ultima.dataHora) >= marcada) {
+    return null;
+  }
+
+  return marcada;
+}
+
+/**
  * Data prevista da próxima visita (spec 7.4): a marcada no check-in, quando
- * existe, ganha; senão, a recorrência somada à data da última visita ou, sem
- * visita, à de `criadoEm`. Só a agenda usa esta data — a cor de
- * classificação continua pela última visita.
+ * existe e ainda vale (`proximaVisitaVigente`), ganha; senão, a recorrência
+ * somada à data da última visita ou, sem visita, à de `criadoEm`. Só a
+ * agenda usa esta data — a cor de classificação continua pela última visita.
  */
 export function calcularProximaVisita(
   ultima: UltimaVisita,
@@ -177,8 +202,10 @@ export function calcularProximaVisita(
   recorrenciaDias: number,
   proximaVisitaAgendada: DataCalendario | null = null,
 ): DataCalendario {
-  if (proximaVisitaAgendada !== null) {
-    return proximaVisitaAgendada;
+  const vigente = proximaVisitaVigente(proximaVisitaAgendada, ultima);
+
+  if (vigente !== null) {
+    return vigente;
   }
 
   const base = ultima === null ? criadoEm : ultima.dataHora;

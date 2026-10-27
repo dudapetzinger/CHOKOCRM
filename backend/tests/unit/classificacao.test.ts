@@ -6,6 +6,7 @@ import {
   classificarCor,
   classificacaoDoCliente,
   calcularProximaVisita,
+  proximaVisitaVigente,
   ordemDeCor,
   diasSemCompra,
   aplicarRebaixamentoPorVenda,
@@ -187,6 +188,57 @@ describe('calcularProximaVisita', () => {
   it('com a data marcada nula, volta à recorrência', () => {
     const ultima = { dataHora: diasAtras(10), resultado: 'VENDA' as const };
     expect(calcularProximaVisita(ultima, diasAtras(100), 15, null)).toBe(somarDias(dataCalendario(hoje), 5));
+  });
+
+  it('a data marcada já cumprida (visita no dia dela ou depois) é ignorada: volta à recorrência', () => {
+    const ultima = { dataHora: diasAtras(10), resultado: 'VENDA' as const };
+    const criadoEm = diasAtras(100);
+
+    // Marcada há 12 dias, visitada há 10: cumprida
+    expect(calcularProximaVisita(ultima, criadoEm, 15, somarDias('2026-09-27', -12))).toBe(
+      somarDias(dataCalendario(hoje), 5),
+    );
+    // Marcada no mesmo dia da visita: cumprida
+    expect(calcularProximaVisita(ultima, criadoEm, 15, somarDias('2026-09-27', -10))).toBe(
+      somarDias(dataCalendario(hoje), 5),
+    );
+  });
+});
+
+describe('proximaVisitaVigente (Etapa 10d: marcada cumprida pelo check-in)', () => {
+  const ultimaEm = (dia: string, hora = '12:00:00'): { dataHora: Date; resultado: 'VENDA' } => ({
+    dataHora: new Date(`${dia}T${hora}Z`),
+    resultado: 'VENDA',
+  });
+
+  it('sem data marcada devolve null, com ou sem visita', () => {
+    expect(proximaVisitaVigente(null, null)).toBeNull();
+    expect(proximaVisitaVigente(null, ultimaEm('2026-09-20'))).toBeNull();
+  });
+
+  it('cliente nunca visitado: a marcada vale, mesmo no passado (nada a cumprir)', () => {
+    expect(proximaVisitaVigente('2026-09-20', null)).toBe('2026-09-20');
+    expect(proximaVisitaVigente('2026-10-05', null)).toBe('2026-10-05');
+  });
+
+  it('visita no dia anterior ao marcado: a marcada continua valendo', () => {
+    expect(proximaVisitaVigente('2026-09-28', ultimaEm('2026-09-27'))).toBe('2026-09-28');
+  });
+
+  it('visita no mesmo dia marcado, a qualquer hora: cumprida', () => {
+    expect(proximaVisitaVigente('2026-09-27', ultimaEm('2026-09-27', '09:00:00'))).toBeNull();
+    expect(proximaVisitaVigente('2026-09-27', ultimaEm('2026-09-27', '23:30:00'))).toBeNull();
+  });
+
+  it('visita depois do dia marcado: cumprida', () => {
+    expect(proximaVisitaVigente('2026-09-20', ultimaEm('2026-09-25'))).toBeNull();
+  });
+
+  it('compara pelo dia de calendário em São Paulo: 01:00Z do dia marcado ainda é o dia anterior', () => {
+    // 2026-09-28T01:00Z = 27/09 22:00 em São Paulo: a visita é do dia 27, a marcada (28) ainda vale
+    expect(proximaVisitaVigente('2026-09-28', ultimaEm('2026-09-28', '01:00:00'))).toBe('2026-09-28');
+    // 2026-09-28T03:00Z = 28/09 00:00 em São Paulo: cumprida
+    expect(proximaVisitaVigente('2026-09-28', ultimaEm('2026-09-28', '03:00:00'))).toBeNull();
   });
 });
 

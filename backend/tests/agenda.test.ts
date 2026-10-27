@@ -218,6 +218,48 @@ describe('GET /agenda/today', () => {
     expect(atrasado).toMatchObject({ endereco: 'Rua Hermann Weege, 100', marcadaNoCheckIn: false });
   });
 
+  it('marcada já cumprida pelo check-in volta à recorrência, sem marcadaNoCheckIn nem campanha (Etapa 10d)', async () => {
+    const hojeCal = dataCalendario(new Date());
+    const hojeColuna = new Date(`${hojeCal}T00:00:00.000Z`);
+    const campanha = await prisma.campaign.create({
+      data: { nome: 'Natal Chokolaten', tipo: 'CAMPANHA', inicio: hojeColuna, fim: hojeColuna, produtos: [] },
+    });
+    // clienteHoje: visitado há 15 dias, marcada há 20 (antes da visita): cumprida, fica em "hoje" pela recorrência
+    await prisma.client.update({
+      where: { id: clienteHojeId },
+      data: { proximaVisita: new Date(`${somarDias(hojeCal, -20)}T00:00:00.000Z`), proximaCampanhaId: campanha.id },
+    });
+    // clienteFuturo: visitado há 3 dias, marcada para ontem (depois da visita): a marcada ainda vale, atrasada
+    await prisma.client.update({
+      where: { id: clienteFuturoId },
+      data: { proximaVisita: new Date(`${somarDias(hojeCal, -1)}T00:00:00.000Z`), proximaCampanhaId: campanha.id },
+    });
+
+    const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.hoje).toEqual([
+      expect.objectContaining({
+        id: clienteHojeId,
+        proximaVisita: hojeCal,
+        diasAtraso: 0,
+        marcadaNoCheckIn: false,
+        proximaCampanha: null,
+      }),
+    ]);
+    expect(res.body.data.atrasadas).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: clienteFuturoId,
+          proximaVisita: somarDias(hojeCal, -1),
+          diasAtraso: 1,
+          marcadaNoCheckIn: true,
+          proximaCampanha: { id: campanha.id, nome: 'Natal Chokolaten' },
+        }),
+      ]),
+    );
+  });
+
   it('item traz cor, diasSemVisita, proximaVisita YYYY-MM-DD e diasAtraso', async () => {
     const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenA}`);
 
@@ -408,6 +450,23 @@ describe('GET /agenda/calendario', () => {
 
     expect(visitas(res)).toEqual([
       expect.objectContaining({ data: dia, clienteId: clienteAtrasadoId, detalhe: 'Visita marcada venceu há 1 dia' }),
+    ]);
+  });
+
+  it('visita marcada já cumprida pelo check-in não entra no calendário; a ainda válida entra (Etapa 10d)', async () => {
+    // clienteHoje foi visitado há 15 dias; clienteAtrasado, há 20. A marcada há 16 dias
+    // é anterior à visita do primeiro (cumprida) e posterior à do segundo (ainda vale).
+    const dia = await marcarVisita(clienteHojeId, -16);
+    await marcarVisita(clienteAtrasadoId, -16);
+
+    const res = await request(app)
+      .get('/agenda/calendario')
+      .query({ mes: dia.slice(0, 7) })
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    expect(visitas(res)).toEqual([
+      expect.objectContaining({ data: dia, clienteId: clienteAtrasadoId, detalhe: 'Visita marcada venceu há 16 dias' }),
     ]);
   });
 

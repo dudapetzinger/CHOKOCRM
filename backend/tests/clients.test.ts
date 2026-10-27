@@ -7,6 +7,7 @@ import { prisma } from '../src/lib/prisma';
 import { erpProvider } from '../src/providers/erp';
 import { ErpIndisponivelError } from '../src/providers/erp/ErpProvider';
 import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
+import { dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -764,6 +765,61 @@ describe('GET /clients/:id', () => {
     expect(res.body.diasSemVisita).toBe(3);
     expect(res.body.representante).toEqual({ id: representanteId, nome: REPRESENTANTE.nome });
     expect(res.body.recorrenciaChanges).toEqual([]);
+  });
+
+  describe('próxima visita marcada e já cumprida (Etapa 10d)', () => {
+    /** Data marcada (coluna `@db.Date`) `dias` a partir de hoje, com a campanha da próxima visita. */
+    async function marcarProximaVisita(id: string, dias: number): Promise<{ dia: string; campanhaId: string }> {
+      const dia = somarDias(dataCalendario(new Date()), dias);
+      const hojeColuna = new Date(`${dataCalendario(new Date())}T00:00:00.000Z`);
+      const campanha = await prisma.campaign.create({
+        data: { nome: 'Natal Chokolaten', tipo: 'CAMPANHA', inicio: hojeColuna, fim: hojeColuna, produtos: [] },
+      });
+      await prisma.client.update({
+        where: { id },
+        data: { proximaVisita: new Date(`${dia}T00:00:00.000Z`), proximaCampanhaId: campanha.id },
+      });
+      return { dia, campanhaId: campanha.id };
+    }
+
+    it('marcada para ontem e visitado hoje: a ficha devolve proximaVisita e proximaCampanha nulos', async () => {
+      const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+      await marcarProximaVisita(id, -1);
+      await criarVisita(id, 0, 'VENDA');
+
+      const res = await request(app).get(`/clients/${id}`).set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.proximaVisita).toBeNull();
+      expect(res.body.proximaCampanha).toBeNull();
+      // A coluna no banco não muda: a regra é só de leitura
+      const noBanco = await prisma.client.findUniqueOrThrow({ where: { id } });
+      expect(noBanco.proximaVisita).not.toBeNull();
+      expect(noBanco.proximaCampanhaId).not.toBeNull();
+    });
+
+    it('marcada para amanhã e visitado hoje: a ficha continua devolvendo a data e a campanha', async () => {
+      const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+      const { dia, campanhaId } = await marcarProximaVisita(id, 1);
+      await criarVisita(id, 0, 'VENDA');
+
+      const res = await request(app).get(`/clients/${id}`).set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.proximaVisita).toBe(dia);
+      expect(res.body.proximaCampanha).toEqual({ id: campanhaId, nome: 'Natal Chokolaten' });
+    });
+
+    it('nunca visitado com marcada no passado: a ficha continua devolvendo a data (nada a cumprir)', async () => {
+      const id = await idDoClientePorNomeFantasia('Empório Pomerode');
+      const { dia, campanhaId } = await marcarProximaVisita(id, -2);
+
+      const res = await request(app).get(`/clients/${id}`).set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.proximaVisita).toBe(dia);
+      expect(res.body.proximaCampanha).toEqual({ id: campanhaId, nome: 'Natal Chokolaten' });
+    });
   });
 
   it('ficha traz rebaixadoPorVenda e diasSemCompra', async () => {

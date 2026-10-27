@@ -469,14 +469,17 @@ type VisitasClienteSeed = {
  * - Empório Pomerode: VERDE (VENDA há 3 dias, vinculada ao Natal) —
  *   histórico original mantido.
  * - Café Blumenau: AMARELO (NEGOCIACAO há 10 dias, dentro dos 15 dias).
- * - Doceria Jaraguá: LARANJA e atrasada (SEM_VENDA há 20 dias; próxima
- *   visita vencida há 5 dias, pois a recorrência padrão é 15 dias).
+ * - Doceria Jaraguá: LARANJA e atrasada (SEM_VENDA há 20 dias; a próxima
+ *   visita marcada no check-in venceu há 2 dias — ver
+ *   `PROXIMAS_VISITAS_DEMO` —, sem visita depois dela, então ainda vale;
+ *   pela recorrência padrão de 15 dias estaria vencida há 5).
  * - Mercado Central Joinville: VERMELHO e mais atrasada ainda (VENDA há
  *   40 dias; próxima visita vencida há 25 dias).
  * - Armazém São Bento: VERDE pela visita (VENDA há 15 dias), rebaixado para
  *   LARANJA pelo ERP, e cai em "Hoje" na agenda (15 + recorrência de 15).
  * - Empório do Chocolate: VERDE (VENDA ontem, no primeiro dia da Feira
- *   Sabores do Vale, com a visita vinculada à feira).
+ *   Sabores do Vale, com a visita vinculada à feira); em dia, com a próxima
+ *   visita prevista pela recorrência (ontem + 15), sem data marcada.
  * - Carteira do Rafael (2 visitas nos últimos 30 dias, nenhuma com VENDA,
  *   então a conversão dele é 0 %, abaixo dos 50 % da Eduarda):
  *   - Empório do Vale Brusque: AMARELO (NEGOCIACAO há 6 dias, vinculada ao
@@ -661,12 +664,15 @@ type ProximaVisitaSeed = {
 /**
  * Próxima visita marcada no check-in em três clientes: duas em "Próximos 7
  * dias" na agenda (uma vinculada ao Natal) e uma marcada que já venceu há 2
- * dias. Nenhuma muda a cor.
+ * dias, na Doceria Jaraguá — cliente sem visita depois da data marcada, para
+ * a marcada ainda valer (Etapa 10d: um check-in no dia marcado ou depois a
+ * cumpre, e por isso ela não fica no Empório do Chocolate, visitado ontem).
+ * Nenhuma muda a cor.
  */
 const PROXIMAS_VISITAS_DEMO: ProximaVisitaSeed[] = [
   { emailCliente: 'contato@cafeblumenau.com.br', diasAFrente: 2 },
   { emailCliente: 'contato@emporiodovalebrusque.com.br', diasAFrente: 3, campanha: 'NATAL' },
-  { emailCliente: 'contato@emporiodochocolate.com.br', diasAFrente: -2 },
+  { emailCliente: 'contato@doceriajaragua.com.br', diasAFrente: -2 },
 ];
 
 type LembreteSeed = {

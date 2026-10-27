@@ -7,6 +7,7 @@ import {
   dataDaColunaDate,
   diasEntre,
   ordemDeCor,
+  proximaVisitaVigente,
   somarDias,
   type Cor,
   type DataCalendario,
@@ -91,7 +92,9 @@ function descreverVencimento(quem: string, diasAtraso: number): string {
  * Calendário de um mês da Agenda (spec 7.6): só o que foi marcado de fato.
  * Cada cliente com data marcada no check-in (`proximaVisita`) entra uma vez,
  * no dia marcado — mesmo que ele já tenha passado, com o detalhe "Visita
- * marcada venceu há N dias"; a data prevista pela recorrência não entra (ela
+ * marcada venceu há N dias" — desde que a marcada ainda valha (Etapa 10d,
+ * `proximaVisitaVigente`: um check-in no dia marcado ou depois a cumpre e
+ * ela sai do calendário); a data prevista pela recorrência não entra (ela
  * é da agenda do dia). Cada lembrete aberto entra no dia dele, com "Lembrete
  * venceu há N dias" quando já passou. Cada campanha entra em cada dia do
  * intervalo que cai no mês (`campanhas: null` para o representante, que não
@@ -118,7 +121,8 @@ export function montarCalendario(entrada: {
   const itens: { item: ItemCalendario; cor?: Cor }[] = [];
 
   for (const cliente of clientes) {
-    const marcada = cliente.proximaVisita;
+    // Etapa 10d: a marcada só entra enquanto vale (sem check-in no dia dela ou depois)
+    const marcada = proximaVisitaVigente(cliente.proximaVisita, cliente.visits[0] ?? null);
 
     if (marcada === null || !noMes(marcada)) {
       continue;

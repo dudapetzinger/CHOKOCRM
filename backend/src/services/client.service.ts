@@ -11,7 +11,7 @@ import {
   representanteEfetivo,
   type UsuarioAutenticado,
 } from './carteira';
-import { classificacaoDoCliente, dataDaColunaDate, type Cor } from './classificacao.service';
+import { classificacaoDoCliente, dataDaColunaDate, proximaVisitaVigente, type Cor } from './classificacao.service';
 import { consultarUltimasVendas } from './erp.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
@@ -79,9 +79,13 @@ export type ClienteCompletoDTO = {
   diasSemCompra: number | null;
   representante: { id: string; nome: string };
   recorrenciaChanges: RecorrenciaChangeDTO[];
-  /** Data marcada no check-in (`AAAA-MM-DD`, spec 7.4); `null` quando a agenda segue a recorrência. */
+  /**
+   * Data marcada no check-in (`AAAA-MM-DD`, spec 7.4); `null` quando a agenda
+   * segue a recorrência — inclusive quando a marcada já foi cumprida por um
+   * check-in no dia dela ou depois (Etapa 10d, `proximaVisitaVigente`).
+   */
   proximaVisita: string | null;
-  /** Campanha da próxima visita (spec 7.7); `null` sem campanha. */
+  /** Campanha da próxima visita (spec 7.7); `null` sem campanha ou com a marcada cumprida. */
   proximaCampanha: { id: string; nome: string } | null;
 };
 
@@ -105,10 +109,16 @@ function toListItemDTO(client: ClientComContatoPrincipal, hoje: Date, ultimaVend
 }
 
 function toClienteCompletoDTO(client: ClientComContatos, hoje: Date, ultimaVenda: Date | null): ClienteCompletoDTO {
-  const { cor, diasSemVisita, rebaixadoPorVenda, diasSemCompra } = classificacaoDoCliente(
+  const { ultima, cor, diasSemVisita, rebaixadoPorVenda, diasSemCompra } = classificacaoDoCliente(
     client.visits,
     hoje,
     ultimaVenda,
+  );
+  // Etapa 10d: a marcada já cumprida por um check-in no dia dela ou depois sai
+  // da ficha (e a campanha acompanha), sem mexer na coluna do banco.
+  const proximaVisita = proximaVisitaVigente(
+    client.proximaVisita ? dataDaColunaDate(client.proximaVisita) : null,
+    ultima,
   );
 
   return {
@@ -145,10 +155,11 @@ function toClienteCompletoDTO(client: ClientComContatos, hoje: Date, ultimaVenda
       autor: { id: change.user.id, nome: change.user.nome },
       data: change.data.toISOString(),
     })),
-    proximaVisita: client.proximaVisita ? dataDaColunaDate(client.proximaVisita) : null,
-    proximaCampanha: client.proximaCampanha
-      ? { id: client.proximaCampanha.id, nome: client.proximaCampanha.nome }
-      : null,
+    proximaVisita,
+    proximaCampanha:
+      proximaVisita !== null && client.proximaCampanha
+        ? { id: client.proximaCampanha.id, nome: client.proximaCampanha.nome }
+        : null,
   };
 }
 
