@@ -171,7 +171,7 @@ O que esperar, no Chrome ou no Edge (DevTools → Application):
 - **Sem rede:** em Network → Offline (ou com a API parada), recarregar continua abrindo a casca, com a faixa "Você está sem internet. Os dados mostrados podem estar desatualizados." no topo; as telas que dependem da API mostram "Você está sem internet.".
 - **Versão nova:** mude algo no frontend, rode `npm run build` de novo, reinicie o preview e recarregue a página — o service worker novo assume e aparece "Nova versão disponível", com o botão "Atualizar", sem recarregar a página sozinho.
 
-O service worker fica registrado só na origem do preview (porta 4173) e não interfere no `npm run dev`; para recomeçar do zero, use Application → Storage → "Clear site data" nessa origem. Os ícones em `frontend/public/` saem de `public/logo.svg`; se o logo mudar, `npm run icones` (script `frontend/scripts/gerar-icones.mjs`) gera os PNGs de novo.
+O service worker fica registrado só na origem do preview (porta 4173) e não interfere no `npm run dev`; para recomeçar do zero, use Application → Storage → "Clear site data" nessa origem. Os ícones em `frontend/public/` saem de `public/logo.svg`; se o logo mudar, `npm run icones` (script `frontend/scripts/gerar-icones.mjs`) gera os PNGs de novo. O contorno de Santa Catarina do mapa do Painel (`frontend/src/lib/contornoSC.ts`) é gerado por `npm run gerar:contorno` (script `frontend/scripts/gerar-contorno-sc.mjs`, a partir da malha do IBGE); rode só se a malha ou a lista de municípios (`municipiosSC.ts`) mudar. A execução precisa de internet, e o arquivo gerado é commitado.
 
 ## 6. Testes e lint
 

@@ -59,10 +59,12 @@ Na Etapa 9, a partir do que a parceira trouxe depois de validar o app com os dad
 - **Calendário só com o que foi marcado** (visitas marcadas no check-in e lembretes, mais campanhas e datas sazonais) e **roteiro do dia só com as visitas de hoje**.
 - **Ficha do cliente em abas** (Visitas, ERP e sugestões, Cadastro) e **Campanhas com filtro**, com os resultados por representante (visitas, clientes atendidos, vendas e conversão), os produtos mais vendidos e as metas de cada representante na campanha.
 
-Na Etapa 10 (26/10/2026), a partir do uso da produção pela parceira ([spec](docs/superpowers/specs/2026-10-26-etapa-10b-checkin-em-passos-e-filtro-de-visitas-design.md)), o app ganhou:
+Na Etapa 10 (26/10/2026), a partir do uso da produção pela parceira ([spec da 10b](docs/superpowers/specs/2026-10-26-etapa-10b-checkin-em-passos-e-filtro-de-visitas-design.md) e [spec da 10c](docs/superpowers/specs/2026-10-26-etapa-10c-mapa-com-contorno-e-zoom-e-vendas-da-campanha-design.md)), o app ganhou:
 
 - **Check-in em quatro passos:** A visita → Resultado → O que aconteceu → Próximos passos, com as perguntas sim/não "Deseja marcar a data prevista da próxima visita?" e "Deseja anotar um lembrete?"; os mesmos campos e regras de antes, só que um passo de cada vez.
 - **Aba Visitas com a última visita em destaque:** as anteriores ficam atrás do filtro "Últimas 3", "Últimas 6" e "Todas", com a contagem total.
+- **Mapa com o contorno de Santa Catarina e zoom:** o mapa de clientes por cidade do Painel desenha o estado e os municípios atrás das bolhas, com botões para aproximar, afastar e ajustar, e arrastar para mover, sem depender de internet ([ADR-016](docs/arquitetura.md#adr-016--coordenadas-estáticas-dos-municípios-de-sc-no-roteiro-e-no-mapa)).
+- **Vendas vinculadas na campanha:** a campanha escolhida lista cada venda, com o cliente, os produtos e o total.
 
 Cada funcionalidade está especificada como caso de uso em [docs/casos-de-uso.md](docs/casos-de-uso.md), com as regras de negócio detalhadas na [seção 6 da especificação técnica](docs/especificacao-tecnica.md#6-regras-de-negócio-principais).
 
