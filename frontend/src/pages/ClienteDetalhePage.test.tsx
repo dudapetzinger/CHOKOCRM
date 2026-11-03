@@ -1,10 +1,11 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { toast } from 'sonner';
 import { AuthContext } from '../auth/auth-context';
 import { ApiError } from '../services/api';
-import { getCliente, type ClienteCompleto } from '../services/clients';
+import { getCliente, updateCliente, type ClienteCompleto } from '../services/clients';
 import { buscarDadosErp } from '../services/erp';
 import { buscarInsights } from '../services/insights';
 import { listarLembretesDoCliente, type LembreteItem } from '../services/lembretes';
@@ -37,7 +38,9 @@ const FICHA: ClienteCompleto = {
 vi.mock('../services/clients', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/clients')>()),
   getCliente: vi.fn(),
+  updateCliente: vi.fn(),
 }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock('../services/visits', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/visits')>()),
   listarVisitas: vi.fn(async () => []),
@@ -73,15 +76,18 @@ beforeEach(() => {
   vi.mocked(buscarDadosErp).mockClear();
   vi.mocked(buscarInsights).mockClear();
   vi.mocked(listarLembretesDoCliente).mockReset().mockResolvedValue([]);
+  vi.mocked(updateCliente).mockReset();
+  vi.mocked(toast.success).mockClear();
+  vi.mocked(toast.info).mockClear();
 });
 
-function renderizar(entrada = '/clientes/c1', state?: unknown) {
+function renderizar(entrada = '/clientes/c1', state?: unknown, papel: 'REPRESENTANTE' | 'GESTOR' = 'REPRESENTANTE') {
   const auth = {
     user: {
       id: 'r1',
       nome: 'Eduarda Fischer',
       email: 'eduarda@exemplo.com',
-      role: 'REPRESENTANTE' as const,
+      role: papel,
       telefone: null,
       ativo: true,
     },
@@ -193,12 +199,91 @@ describe('ClienteDetalhePage', () => {
     ).toBeInTheDocument();
   });
 
-  it('sem data marcada nem lembrete, não há aviso', async () => {
+  it('sem data, o representante vê o botão "Marcar próxima visita"', async () => {
     vi.mocked(getCliente).mockResolvedValue(FICHA);
     renderizar();
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Doces da Vovó' })).toBeInTheDocument();
-    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Marcar próxima visita' })).toBeInTheDocument();
+  });
+
+  describe('próxima visita editável', () => {
+    // Relógio fixo: 2026-12-01 e as demais datas ficam sempre no futuro.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-03T15:00:00Z'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('o representante marca a data: chama updateCliente, avisa e a tela mostra a nova data', async () => {
+      vi.mocked(getCliente).mockResolvedValue(FICHA);
+      vi.mocked(updateCliente).mockResolvedValue({ ...FICHA, proximaVisita: '2026-12-01' });
+      const { queryClient } = renderizar();
+      const invalidar = vi.spyOn(queryClient, 'invalidateQueries');
+      const usuario = userEvent.setup({ delay: null });
+
+      await usuario.click(await screen.findByRole('button', { name: 'Marcar próxima visita' }));
+      await usuario.type(screen.getByLabelText('Próxima visita'), '2026-12-01');
+      await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      await waitFor(() => expect(updateCliente).toHaveBeenCalledWith('c1', { proximaVisita: '2026-12-01' }));
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Próxima visita marcada para 01/12/2026'));
+      await waitFor(() =>
+        expect(queryClient.getQueryData<ClienteCompleto>(['client', 'c1'])?.proximaVisita).toBe('2026-12-01'),
+      );
+      await waitFor(() => expect(screen.getByRole('note')).toHaveTextContent('Próxima visita: 01/12/2026'));
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: ['clients'] });
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: ['agenda'] });
+    });
+
+    it('o gestor, num cliente inativo, também vê "Marcar próxima visita"', async () => {
+      vi.mocked(getCliente).mockResolvedValue({ ...FICHA, ativo: false });
+      renderizar('/clientes/c1', undefined, 'GESTOR');
+
+      expect(await screen.findByRole('button', { name: 'Marcar próxima visita' })).toBeInTheDocument();
+    });
+
+    it('"Limpar data" chama updateCliente com null e avisa que desmarcou', async () => {
+      vi.mocked(getCliente).mockResolvedValue({ ...FICHA, proximaVisita: '2026-12-01' });
+      vi.mocked(updateCliente).mockResolvedValue({ ...FICHA, proximaVisita: null });
+      const { queryClient } = renderizar();
+      const invalidar = vi.spyOn(queryClient, 'invalidateQueries');
+      const usuario = userEvent.setup({ delay: null });
+
+      await usuario.click(await screen.findByRole('button', { name: 'Alterar data' }));
+      await usuario.click(screen.getByRole('button', { name: 'Limpar data' }));
+
+      await waitFor(() => expect(updateCliente).toHaveBeenCalledWith('c1', { proximaVisita: null }));
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Próxima visita desmarcada'));
+      await waitFor(() => expect(queryClient.getQueryData<ClienteCompleto>(['client', 'c1'])?.proximaVisita).toBeNull());
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: ['clients'] });
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: ['agenda'] });
+      expect(await screen.findByRole('button', { name: 'Marcar próxima visita' })).toBeInTheDocument();
+      expect(screen.queryByText(/Próxima visita:/)).not.toBeInTheDocument();
+    });
+
+    it('marcar hoje num cliente já visitado hoje: a API devolve null e o aviso explica, sem "marcada"', async () => {
+      vi.mocked(getCliente).mockResolvedValue(FICHA);
+      vi.mocked(updateCliente).mockResolvedValue({ ...FICHA, proximaVisita: null });
+      renderizar();
+      const usuario = userEvent.setup({ delay: null });
+
+      await usuario.click(await screen.findByRole('button', { name: 'Marcar próxima visita' }));
+      await usuario.type(screen.getByLabelText('Próxima visita'), '2026-11-03');
+      await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      await waitFor(() => expect(updateCliente).toHaveBeenCalledWith('c1', { proximaVisita: '2026-11-03' }));
+      await waitFor(() =>
+        expect(toast.info).toHaveBeenCalledWith(
+          'Este cliente já teve visita hoje: a data de hoje conta como cumprida e a agenda segue a recorrência.',
+        ),
+      );
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(await screen.findByRole('button', { name: 'Marcar próxima visita' })).toBeInTheDocument();
+    });
   });
 
   describe('abas da ficha', () => {

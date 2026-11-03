@@ -199,7 +199,7 @@ export function AgendaPage() {
       {visao === 'calendario' ? (
         <>
           <p className="text-sm text-muted-foreground">
-            As visitas marcadas no check-in e os lembretes, no dia de cada um, com as datas sazonais
+            As visitas marcadas e os lembretes, no dia de cada um, com as datas sazonais
             {user?.role === 'GESTOR' ? ', as campanhas e os eventos' : ''}.
           </p>
           <Calendario representanteId={representanteId} />

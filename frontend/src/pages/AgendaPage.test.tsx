@@ -569,7 +569,7 @@ describe('AgendaPage — calendário (spec 7.6)', () => {
     renderizarComo('REPRESENTANTE', {});
     await usuario.click(await screen.findByRole('radio', { name: 'Calendário' }));
     expect(
-      screen.getByText('As visitas marcadas no check-in e os lembretes, no dia de cada um, com as datas sazonais.'),
+      screen.getByText('As visitas marcadas e os lembretes, no dia de cada um, com as datas sazonais.'),
     ).toBeInTheDocument();
   });
 
@@ -579,7 +579,7 @@ describe('AgendaPage — calendário (spec 7.6)', () => {
     await usuario.click(await screen.findByRole('radio', { name: 'Calendário' }));
     expect(
       screen.getByText(
-        'As visitas marcadas no check-in e os lembretes, no dia de cada um, com as datas sazonais, as campanhas e os eventos.',
+        'As visitas marcadas e os lembretes, no dia de cada um, com as datas sazonais, as campanhas e os eventos.',
       ),
     ).toBeInTheDocument();
   });

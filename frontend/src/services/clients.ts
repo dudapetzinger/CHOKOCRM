@@ -75,7 +75,7 @@ export type ClienteCompleto = {
   recorrenciaChanges: RecorrenciaChange[];
   rebaixadoPorVenda: boolean;
   diasSemCompra: number | null;
-  /** Próxima visita marcada no check-in (`AAAA-MM-DD`); `null` quando a agenda segue a recorrência. */
+  /** Próxima visita marcada no check-in ou pela ficha (`AAAA-MM-DD`); `null` quando a agenda segue a recorrência. */
   proximaVisita: string | null;
   /** Campanha da próxima visita (spec 7.7). */
   proximaCampanha: { id: string; nome: string } | null;
@@ -113,6 +113,8 @@ export type UpdateClienteInput = Partial<{
   erpId: string;
   ativo: boolean;
   representanteId: string;
+  /** `AAAA-MM-DD` marca a próxima visita; `null` a desmarca (a agenda volta à recorrência). */
+  proximaVisita: string | null;
 }>;
 
 export type UpdateContatoInput = Partial<ContatoInput>;

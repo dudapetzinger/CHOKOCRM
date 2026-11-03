@@ -4,7 +4,7 @@
  * dia e "+N", hoje em círculo, dia selecionado com anel e dias de fora do
  * mês esmaecidos; legenda abaixo. Os itens vêm prontos de `GET
  * /agenda/calendario` (o front não recalcula datas) e são só o que foi
- * marcado de fato: a visita marcada no check-in e o lembrete aberto, cada
+ * marcado de fato: a visita marcada e o lembrete aberto, cada
  * um no dia que ficou marcado (o vencido continua nele, com "venceu há N
  * dias"), mais os dias de campanha (só para o gestor) e as datas sazonais.
  * A recorrência não põe nada aqui; ela vale só na agenda do dia.
@@ -85,7 +85,7 @@ const ROTULO_ESTILO: Record<Estilo, string> = {
 };
 
 const ROTULO_LEGENDA: Record<Estilo, string> = {
-  marcada: 'Visita marcada no check-in',
+  marcada: 'Visita marcada',
   lembrete: 'Lembrete',
   campanha: 'Campanha/evento',
   sazonal: 'Data sazonal',

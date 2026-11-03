@@ -1,8 +1,9 @@
 import { useId, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
-import { getCliente, mensagemErroApi } from '../services/clients';
+import { toast } from 'sonner';
+import { getCliente, mensagemErroApi, updateCliente } from '../services/clients';
 import { VisitTimeline } from '../components/VisitTimeline';
 import { CabecalhoCliente } from '../components/CabecalhoCliente';
 import { DadosCadastrais } from '../components/DadosCadastrais';
@@ -17,6 +18,7 @@ import { useAuth } from '../auth/useAuth';
 import { useLembretesDoCliente } from '../hooks/useLembretes';
 import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
+import { formatarDataCalendario } from '../lib/formatarData';
 import { useAbaNaUrl } from '../lib/useAbaNaUrl';
 import { useLarguraDesktop } from '../lib/useLarguraDesktop';
 
@@ -35,9 +37,12 @@ const ABAS: Aba<AbaDaFicha>[] = [
  * campo; na Etapa 8 (spec 7.2) tem o visual do protótipo (`crm/ficha.tsx`); na
  * Etapa 9 o conteúdo se divide em abas. No topo, sempre à vista: o cabeçalho
  * (com Ligar, WhatsApp, "Novo check-in", "Adicionar contato" e, para o gestor,
- * a transferência) e o aviso da próxima visita marcada no check-in, da
- * campanha dela e dos lembretes abertos do cliente (quando há algum; concluir
- * cabe ao representante e ao gestor). Abaixo, as abas "Visitas" (histórico e
+ * a transferência) e o aviso da próxima visita marcada no check-in ou pela ficha, da
+ * campanha dela e dos lembretes abertos do cliente (concluir cabe ao
+ * representante e ao gestor). Na Etapa 11b, os dois também marcam, mudam e
+ * limpam a data da próxima visita ali mesmo (cliente ativo ou inativo); a
+ * página grava (`PUT /clients/:id`), põe a resposta em `['client', id]` e
+ * invalida a lista de clientes e a agenda. Abaixo, as abas "Visitas" (histórico e
  * recorrência), "ERP e sugestões" (mensagem de estoque, insights e dados do
  * ERP) e "Cadastro" (`DadosCadastrais`), guardadas em `?aba=`; sem o
  * parâmetro, ou com um valor desconhecido, abre em Visitas, que é também onde
@@ -72,6 +77,25 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
   const { data: lembretes, isError: erroNosLembretes } = useLembretesDoCliente(id);
   const mutationEditarDescricao = useEditarDescricaoVisita(id);
   const mutationAnexarFoto = useAnexarFotoVisita(id);
+  const queryClient = useQueryClient();
+
+  /** Marca, muda (`AAAA-MM-DD`) ou limpa (`null`) a próxima visita pela ficha (Etapa 11b). */
+  const mutationProximaVisita = useMutation({
+    mutationFn: (proximaVisita: string | null) => updateCliente(id!, { proximaVisita }),
+    onSuccess: (atualizado, proximaVisita) => {
+      queryClient.setQueryData(['client', id], atualizado);
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['agenda'] });
+      if (proximaVisita !== null && atualizado.proximaVisita === null) {
+        // Marcou hoje num cliente já visitado hoje: a data conta como cumprida e a API devolve `null`.
+        toast.info('Este cliente já teve visita hoje: a data de hoje conta como cumprida e a agenda segue a recorrência.');
+        return;
+      }
+      toast.success(
+        proximaVisita ? `Próxima visita marcada para ${formatarDataCalendario(proximaVisita)}` : 'Próxima visita desmarcada',
+      );
+    },
+  });
 
   const {
     data: cliente,
@@ -146,12 +170,14 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
         </Aviso>
       )}
 
-      {/* Some sozinho sem data, lembrete nem campanha */}
+      {/* Quem edita sempre vê o aviso (marcar a data); os demais, só com data, lembrete ou campanha */}
       <AvisoProximaVisita
         data={cliente.proximaVisita}
         campanha={cliente.proximaCampanha?.nome ?? null}
         lembretes={lembretes ?? []}
         podeConcluir={ehRepresentante || ehGestor}
+        podeEditar={ehRepresentante || ehGestor}
+        onSalvarData={(data) => mutationProximaVisita.mutateAsync(data).then(() => undefined)}
       />
 
       <Abas idBase={idDasAbas} ariaLabel="Seções da ficha" abas={ABAS} valor={aba} onChange={trocarAba} />

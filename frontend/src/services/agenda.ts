@@ -18,7 +18,7 @@ export type AgendaItem = {
   endereco: string;
   cor: Cor;
   diasSemVisita: number | null;
-  /** Data prevista (`AAAA-MM-DD`): a marcada no check-in ou a da recorrência. */
+  /** Data prevista (`AAAA-MM-DD`): a marcada no check-in ou pela ficha, ou a da recorrência. */
   proximaVisita: string;
   /** Positivo em atrasadas, 0 hoje, negativo nos próximos dias (-1 = amanhã). */
   diasAtraso: number;
@@ -49,7 +49,7 @@ export function buscarAgendaDoDia(representanteId?: string): Promise<Agenda> {
 
 /**
  * Um item num dia do calendário (spec 7.6), como `ItemCalendario` de
- * `backend/src/services/agenda.calendario.ts`: a visita marcada no check-in
+ * `backend/src/services/agenda.calendario.ts`: a visita marcada no check-in ou pela ficha
  * para um cliente (no dia marcado, mesmo vencida), um lembrete aberto (no dia
  * dele), um dia de campanha (só para o gestor) ou uma data sazonal.
  */

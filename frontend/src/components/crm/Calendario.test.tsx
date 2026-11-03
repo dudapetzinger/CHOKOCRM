@@ -269,7 +269,7 @@ describe('Calendario', () => {
     renderizar('REPRESENTANTE');
     const legenda = screen.getByRole('list', { name: 'Legenda' });
     const itens = within(legenda).getAllByRole('listitem').map((item) => item.textContent);
-    expect(itens).toEqual(['Visita marcada no check-in', 'Lembrete', 'Data sazonal']);
+    expect(itens).toEqual(['Visita marcada', 'Lembrete', 'Data sazonal']);
     expect(legenda).not.toHaveTextContent(/prevista|recorrência/i);
   });
 
@@ -278,7 +278,7 @@ describe('Calendario', () => {
     const itens = within(screen.getByRole('list', { name: 'Legenda' }))
       .getAllByRole('listitem')
       .map((item) => item.textContent);
-    expect(itens).toEqual(['Visita marcada no check-in', 'Lembrete', 'Campanha/evento', 'Data sazonal']);
+    expect(itens).toEqual(['Visita marcada', 'Lembrete', 'Campanha/evento', 'Data sazonal']);
   });
 
   it('o representante não vê "Campanha/evento" na legenda', async () => {

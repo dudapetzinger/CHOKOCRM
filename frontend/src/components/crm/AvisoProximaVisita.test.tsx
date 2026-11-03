@@ -1,7 +1,8 @@
 import type { ComponentProps } from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ApiError } from '../../services/api';
 import { concluirLembrete, type LembreteItem } from '../../services/lembretes';
 import { AvisoProximaVisita } from './AvisoProximaVisita';
 
@@ -25,11 +26,20 @@ function renderizar({
   campanha = null,
   lembretes = [],
   podeConcluir = false,
+  podeEditar = false,
+  onSalvarData,
 }: Partial<ComponentProps<typeof AvisoProximaVisita>> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <AvisoProximaVisita data={data} campanha={campanha} lembretes={lembretes} podeConcluir={podeConcluir} />
+      <AvisoProximaVisita
+        data={data}
+        campanha={campanha}
+        lembretes={lembretes}
+        podeConcluir={podeConcluir}
+        podeEditar={podeEditar}
+        onSalvarData={onSalvarData}
+      />
     </QueryClientProvider>,
   );
 }
@@ -104,5 +114,150 @@ describe('AvisoProximaVisita', () => {
     await usuario.click(screen.getByRole('button', { name: 'Concluir lembrete: Cobrar o boleto' }));
 
     expect(concluirLembrete).toHaveBeenCalledWith('l2');
+  });
+
+  describe('edição da data', () => {
+    // Relógio fixo: as datas dos testes (2026-11-20, 2026-12-01) ficam sempre no futuro.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-03T15:00:00Z'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('com podeEditar e data, "Alterar data" abre o campo com a data e min de hoje', async () => {
+      const usuario = userEvent.setup({ delay: null });
+      renderizar({ data: '2026-11-20', podeEditar: true, onSalvarData: vi.fn() });
+
+      await usuario.click(screen.getByRole('button', { name: 'Alterar data' }));
+
+      const campo = screen.getByLabelText('Próxima visita');
+      expect(campo).toHaveValue('2026-11-20');
+      expect(campo).toHaveAttribute('type', 'date');
+      expect(campo).toHaveAttribute('min', '2026-11-03');
+      expect(screen.getByRole('button', { name: 'Limpar data' })).toBeInTheDocument();
+    });
+
+    it('sem data, mostra "Marcar próxima visita" mesmo sem campanha nem lembrete', async () => {
+      const usuario = userEvent.setup({ delay: null });
+      renderizar({ podeEditar: true, onSalvarData: vi.fn() });
+
+      expect(screen.getByRole('note')).toBeInTheDocument();
+      await usuario.click(screen.getByRole('button', { name: 'Marcar próxima visita' }));
+
+      expect(screen.getByLabelText('Próxima visita')).toHaveValue('');
+      expect(screen.queryByRole('button', { name: 'Limpar data' })).not.toBeInTheDocument();
+    });
+
+    it('sem podeEditar, não há botão de edição e sem data nada é desenhado', () => {
+      const { container, unmount } = renderizar({ onSalvarData: vi.fn() });
+      expect(container).toBeEmptyDOMElement();
+      unmount();
+
+      renderizar({ data: '2026-11-20', onSalvarData: vi.fn() });
+      expect(screen.getByRole('note')).toHaveTextContent('Próxima visita: 20/11/2026');
+      expect(screen.queryByRole('button', { name: 'Alterar data' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Marcar próxima visita' })).not.toBeInTheDocument();
+    });
+
+    it('Salvar chama onSalvarData com a data e fecha o campo', async () => {
+      const onSalvarData = vi.fn().mockResolvedValue(undefined);
+      const usuario = userEvent.setup({ delay: null });
+      renderizar({ data: '2026-11-20', podeEditar: true, onSalvarData });
+
+      await usuario.click(screen.getByRole('button', { name: 'Alterar data' }));
+      await usuario.clear(screen.getByLabelText('Próxima visita'));
+      await usuario.type(screen.getByLabelText('Próxima visita'), '2026-12-01');
+      await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      expect(onSalvarData).toHaveBeenCalledWith('2026-12-01');
+      await waitFor(() => expect(screen.queryByLabelText('Próxima visita')).not.toBeInTheDocument());
+    });
+
+    it('Limpar data chama onSalvarData(null) e fecha o campo', async () => {
+      const onSalvarData = vi.fn().mockResolvedValue(undefined);
+      const usuario = userEvent.setup({ delay: null });
+      renderizar({ data: '2026-11-20', podeEditar: true, onSalvarData });
+
+      await usuario.click(screen.getByRole('button', { name: 'Alterar data' }));
+      await usuario.click(screen.getByRole('button', { name: 'Limpar data' }));
+
+      expect(onSalvarData).toHaveBeenCalledWith(null);
+      await waitFor(() => expect(screen.queryByLabelText('Próxima visita')).not.toBeInTheDocument());
+    });
+
+    it('Salvar com o campo vazio não chama e mostra "Informe a data."', async () => {
+      const onSalvarData = vi.fn().mockResolvedValue(undefined);
+      const usuario = userEvent.setup({ delay: null });
+      renderizar({ podeEditar: true, onSalvarData });
+
+      await usuario.click(screen.getByRole('button', { name: 'Marcar próxima visita' }));
+      await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      expect(onSalvarData).not.toHaveBeenCalled();
+      expect(screen.getByText('Informe a data.')).toBeInTheDocument();
+      expect(screen.getByLabelText('Próxima visita')).toBeInTheDocument();
+    });
+
+    it('erro da API aparece no bloco e o campo continua aberto', async () => {
+      const onSalvarData = vi.fn().mockRejectedValue(new ApiError('VALIDATION', 'A data não pode ser passada.'));
+      const usuario = userEvent.setup({ delay: null });
+      renderizar({ data: '2026-11-20', podeEditar: true, onSalvarData });
+
+      await usuario.click(screen.getByRole('button', { name: 'Alterar data' }));
+      await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('A data não pode ser passada.');
+      expect(screen.getByLabelText('Próxima visita')).toBeInTheDocument();
+    });
+
+    it('data anterior a hoje, digitada à mão, não chama e mostra o aviso', async () => {
+      const onSalvarData = vi.fn().mockResolvedValue(undefined);
+      const usuario = userEvent.setup({ delay: null });
+      renderizar({ podeEditar: true, onSalvarData });
+
+      await usuario.click(screen.getByRole('button', { name: 'Marcar próxima visita' }));
+      await usuario.type(screen.getByLabelText('Próxima visita'), '2020-01-02');
+      await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      expect(onSalvarData).not.toHaveBeenCalled();
+      expect(screen.getByText('A próxima visita não pode ser antes de hoje.')).toBeInTheDocument();
+    });
+
+    it('o foco vai para o campo ao abrir e volta ao botão de edição ao cancelar', async () => {
+      const usuario = userEvent.setup({ delay: null });
+      renderizar({ data: '2026-11-20', podeEditar: true, onSalvarData: vi.fn() });
+
+      await usuario.click(screen.getByRole('button', { name: 'Alterar data' }));
+      expect(screen.getByLabelText('Próxima visita')).toHaveFocus();
+
+      await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
+      expect(screen.getByRole('button', { name: 'Alterar data' })).toHaveFocus();
+    });
+
+    it('o foco volta ao botão de edição depois de salvar', async () => {
+      const usuario = userEvent.setup({ delay: null });
+      renderizar({ data: '2026-11-20', podeEditar: true, onSalvarData: vi.fn().mockResolvedValue(undefined) });
+
+      await usuario.click(screen.getByRole('button', { name: 'Alterar data' }));
+      await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Alterar data' })).toHaveFocus());
+    });
+
+    it('Cancelar fecha sem chamar', async () => {
+      const onSalvarData = vi.fn().mockResolvedValue(undefined);
+      const usuario = userEvent.setup({ delay: null });
+      renderizar({ data: '2026-11-20', podeEditar: true, onSalvarData });
+
+      await usuario.click(screen.getByRole('button', { name: 'Alterar data' }));
+      await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+      expect(onSalvarData).not.toHaveBeenCalled();
+      expect(screen.queryByLabelText('Próxima visita')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Alterar data' })).toBeInTheDocument();
+    });
   });
 });
