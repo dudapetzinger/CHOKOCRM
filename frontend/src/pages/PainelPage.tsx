@@ -221,8 +221,8 @@ function CartaoClientesEsfriando({ periodo, representanteId, mostrarRepresentant
   );
 }
 
-function VendasMensaisDoCartao({ representanteId }: { representanteId?: string }) {
-  const { data, isLoading, isError, error } = useVendasMensais(representanteId);
+function VendasMensaisDoCartao({ periodo, representanteId }: { periodo: Periodo; representanteId?: string }) {
+  const { data, isLoading, isError, error } = useVendasMensais(periodo, representanteId);
 
   return (
     <div className="space-y-3">
@@ -236,7 +236,7 @@ function VendasMensaisDoCartao({ representanteId }: { representanteId?: string }
 
       {data &&
         (data.meses.every(({ total }) => total === 0) ? (
-          <EstadoVazio icone="bar-chart">Sem vendas nos últimos 12 meses.</EstadoVazio>
+          <EstadoVazio icone="bar-chart">Sem vendas no período.</EstadoVazio>
         ) : (
           <VendasMensais meses={data.meses} eventos={data.eventos} />
         ))}
@@ -251,18 +251,19 @@ function VendasMensaisDoCartao({ representanteId }: { representanteId?: string }
 }
 
 type CartaoEstoqueProps = {
+  periodo: Periodo;
   representanteId?: string;
   horizonteDias: number;
   onHorizonteChange: (dias: number) => void;
   consulta: ReturnType<typeof useAlertasDeProducao>;
 };
 
-function CartaoEstoque({ representanteId, horizonteDias, onHorizonteChange, consulta }: CartaoEstoqueProps) {
+function CartaoEstoque({ periodo, representanteId, horizonteDias, onHorizonteChange, consulta }: CartaoEstoqueProps) {
   const { data, isLoading, isError, error, isPlaceholderData } = consulta;
 
   return (
     <Cartao titulo="O próximo evento está chegando e o estoque acompanha?">
-      <VendasMensaisDoCartao representanteId={representanteId} />
+      <VendasMensaisDoCartao periodo={periodo} representanteId={representanteId} />
 
       <AlertasProducao
         horizonteDias={horizonteDias}
@@ -431,6 +432,7 @@ function AbaProducao({
   return (
     <>
       <CartaoEstoque
+        periodo={periodo}
         representanteId={representanteId}
         horizonteDias={horizonteDias}
         onHorizonteChange={onHorizonteChange}
@@ -469,7 +471,7 @@ export function PainelPage() {
   const consultaDeAlertas = useAlertasDeProducao(horizonteDias, representanteId);
   // As mesmas chaves dos cartões (o TanStack Query não repete a busca), só para uma faixa única de dados simulados.
   const { data: kpis } = useKpis(periodo, representanteId);
-  const { data: vendas } = useVendasMensais(representanteId);
+  const { data: vendas } = useVendasMensais(periodo, representanteId);
   const simulado = Boolean(kpis?.simulado || vendas?.simulado || consultaDeAlertas.data?.simulado);
 
   return (

@@ -1,5 +1,6 @@
 /**
- * Vendas mensais da carteira nos últimos 12 meses, no formato do gráfico de
+ * Vendas mensais da carteira nos meses do período do Painel (os meses
+ * inteiros que ele cobre, no mínimo três), no formato do gráfico de
  * sazonalidade do protótipo Lovable (Etapa 9, spec 6.4), com os dados de
  * `/dashboard/vendas-mensais`: linha com área, cada mês numa faixa do eixo X
  * com o ponto no meio dela. Uma linha tracejada marca o dia de cada evento
@@ -38,7 +39,6 @@ import type { EventoNoGrafico, VendaDoMes } from '@/services/dashboard';
 import { AreaComBalao, GatilhoDoBalao, type ConteudoDoBalao } from './BalaoDoGrafico';
 import { TabelaAcessivel } from './TabelaAcessivel';
 
-const LEGENDA = 'Vendas mensais dos últimos 12 meses (R$ mil)';
 const LARGURA_PADRAO = 360;
 const ALTURA = 230;
 /** O topo acomoda as duas linhas de nomes dos eventos (`Y_DO_ROTULO`); a esquerda, "R$ 100k". */
@@ -58,6 +58,15 @@ type Props = {
   meses: VendaDoMes[];
   eventos: EventoNoGrafico[];
 };
+
+/** "Vendas mensais de set/26 a nov/26 (R$ mil)": do primeiro ao último mês da série. */
+function legenda(meses: VendaDoMes[]): string {
+  const primeiro = meses[0];
+  const ultimo = meses[meses.length - 1];
+  return primeiro && ultimo
+    ? `Vendas mensais de ${formatarMesCurto(primeiro.mes)} a ${formatarMesCurto(ultimo.mes)} (R$ mil)`
+    : 'Vendas mensais (R$ mil)';
+}
 
 /** O menor valor "redondo" (1, 2, 2,5 ou 5 × 10ⁿ) que não fica abaixo de `bruto`. */
 function passoRedondo(bruto: number): number {
@@ -118,7 +127,7 @@ function balaoDoMes({ mes, total, clientes }: VendaDoMes, hoje: string): Conteud
 
 function resumir(meses: VendaDoMes[], marcados: Map<string, string>, hoje: string): string {
   if (meses.length === 0) {
-    return 'Sem vendas nos últimos 12 meses.';
+    return 'Sem vendas no período.';
   }
   const primeiro = meses[0];
   const ultimo = meses[meses.length - 1];
@@ -141,6 +150,7 @@ export function VendasMensais({ meses, eventos }: Props) {
   const idLegenda = useId();
   const [refArea, largura] = useLarguraDoElemento<HTMLDivElement>(LARGURA_PADRAO);
   const hoje = mesAtual();
+  const textoDaLegenda = legenda(meses);
   const marcados = eventosPorMes(meses, eventos);
 
   const larguraDoGrafico = largura - MARGEM.esquerda - MARGEM.direita;
@@ -183,7 +193,7 @@ export function VendasMensais({ meses, eventos }: Props) {
   return (
     <figure aria-labelledby={idLegenda}>
       <figcaption id={idLegenda} className="mb-2 text-xs text-muted-foreground">
-        {LEGENDA}
+        {textoDaLegenda}
       </figcaption>
 
       <AreaComBalao>
@@ -342,7 +352,7 @@ export function VendasMensais({ meses, eventos }: Props) {
       </AreaComBalao>
 
       <TabelaAcessivel
-        legenda={LEGENDA}
+        legenda={textoDaLegenda}
         colunas={['Mês', 'Vendas', 'Clientes', 'Clientes com dados', 'Evento']}
         linhas={meses.map(({ mes, total, clientes, clientesComDados }) => [
           rotuloDoMes(mes, hoje),

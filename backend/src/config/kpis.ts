@@ -15,3 +15,6 @@ export const CORES_INATIVAS: readonly Cor[] = ['LARANJA', 'VERMELHO'];
 
 /** Maior período, em dias, em que o ritmo de visitas do Painel é por semana; acima disso é por mês (13 semanas = 91 dias). */
 export const DIAS_MAXIMOS_DO_RITMO_SEMANAL = 91;
+
+/** Piso de meses do gráfico de vendas mensais: período curto (ex.: 30 dias) estende a janela para trás até este número de meses. */
+export const MESES_MINIMOS_DO_GRAFICO = 3;

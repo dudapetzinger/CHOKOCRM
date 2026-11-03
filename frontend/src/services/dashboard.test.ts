@@ -1,5 +1,5 @@
 import { api } from './api';
-import { buscarKpisPorRepresentante, buscarRelatorio } from './dashboard';
+import { buscarKpisPorRepresentante, buscarRelatorio, buscarVendasMensais } from './dashboard';
 import { listarMetas } from './goals';
 import { buscarKpis } from './kpis';
 
@@ -31,6 +31,17 @@ describe('serviços com período', () => {
 
     expect(api.get).toHaveBeenNthCalledWith(1, '/dashboard/kpis/por-representante?periodoDias=365&representanteId=u1');
     expect(api.get).toHaveBeenNthCalledWith(2, '/dashboard/relatorio?inicio=2025-01-01&fim=2026-10-25');
+  });
+
+  it('buscarVendasMensais: o período vai como nos KPIs, com o representante se houver', async () => {
+    await buscarVendasMensais({ dias: 30 });
+    await buscarVendasMensais({ inicio: '2026-01-01', fim: '2026-10-25' }, 'u1');
+
+    expect(api.get).toHaveBeenNthCalledWith(1, '/dashboard/vendas-mensais?periodoDias=30');
+    expect(api.get).toHaveBeenNthCalledWith(
+      2,
+      '/dashboard/vendas-mensais?inicio=2026-01-01&fim=2026-10-25&representanteId=u1',
+    );
   });
 
   it('listarMetas: sem período não manda nenhum; com período, o filtro certo', async () => {

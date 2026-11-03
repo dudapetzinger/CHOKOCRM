@@ -117,6 +117,7 @@ const POR_REPRESENTANTE: KpisPorRepresentante = {
 };
 
 const VENDAS: VendasMensais = {
+  periodo: { dias: 30, inicio: '2026-09-19', fim: '2026-10-18' },
   meses: [
     { mes: '2026-09', total: 1000, clientesComDados: 3, clientes: [] },
     { mes: '2026-10', total: 1500, clientesComDados: 3, clientes: [] },
@@ -395,7 +396,7 @@ describe('PainelPage (gestor)', () => {
 
     expect(useKpis).toHaveBeenCalledWith({ dias: 30 }, 'u1');
     expect(useKpisPorRepresentante).toHaveBeenCalledWith({ dias: 30 }, 'u1');
-    expect(useVendasMensais).toHaveBeenCalledWith('u1');
+    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, 'u1');
     expect(useAlertasDeProducao).toHaveBeenCalledWith(90, 'u1');
 
     await userEvent.click(screen.getByRole('tab', { name: 'Produção e sazonalidade' }));
@@ -480,6 +481,7 @@ describe('PainelPage (gestor)', () => {
 
     expect(useKpis).toHaveBeenLastCalledWith({ dias: 90 }, undefined);
     expect(useKpisPorRepresentante).toHaveBeenLastCalledWith({ dias: 90 }, undefined);
+    expect(useVendasMensais).toHaveBeenLastCalledWith({ dias: 90 }, undefined);
     expect(within(periodo).getByRole('radio', { name: '90 dias' })).toHaveAttribute('aria-checked', 'true');
   });
 
@@ -498,7 +500,7 @@ describe('PainelPage (gestor)', () => {
     renderizarComo('GESTOR', '/painel?aba=producao');
 
     const bloco = screen.getByRole('region', { name: 'O próximo evento está chegando e o estoque acompanha?' });
-    expect(within(bloco).getByRole('table', { name: 'Vendas mensais dos últimos 12 meses (R$ mil)' })).toBeInTheDocument();
+    expect(within(bloco).getByRole('table', { name: 'Vendas mensais de set/26 a out/26 (R$ mil)' })).toBeInTheDocument();
     expect(within(bloco).getByRole('heading', { level: 3, name: 'Alertas de produção' })).toBeInTheDocument();
     expect(within(bloco).getByRole('radiogroup', { name: 'Horizonte de eventos sazonais' })).toBeInTheDocument();
     expect(within(bloco).getByText('Nenhum alerta de produção para os próximos 90 dias.')).toBeInTheDocument();
@@ -515,7 +517,7 @@ describe('PainelPage (gestor)', () => {
     expect(itens[0]).toHaveTextContent('Produtos sugeridos: bombons sortidos e caixas presente.');
   });
 
-  it('com as vendas zeradas nos 12 meses, diz "Sem vendas nos últimos 12 meses."', () => {
+  it('com as vendas zeradas no período, diz "Sem vendas no período."', () => {
     vi.mocked(useVendasMensais).mockReturnValue(
       consulta({ ...VENDAS, meses: VENDAS.meses.map((mes) => ({ ...mes, total: 0 })) }) as unknown as Retorno<
         typeof useVendasMensais
@@ -523,7 +525,7 @@ describe('PainelPage (gestor)', () => {
     );
     renderizarComo('GESTOR', '/painel?aba=producao');
 
-    expect(screen.getByText('Sem vendas nos últimos 12 meses.')).toBeInTheDocument();
+    expect(screen.getByText('Sem vendas no período.')).toBeInTheDocument();
     expect(screen.queryByRole('figure', { name: /Vendas mensais/ })).not.toBeInTheDocument();
   });
 
@@ -577,7 +579,7 @@ describe('PainelPage (representante)', () => {
 
     expect(useKpis).toHaveBeenCalledWith({ dias: 30 }, undefined);
     expect(useKpisPorRepresentante).toHaveBeenCalledWith({ dias: 30 }, undefined);
-    expect(useVendasMensais).toHaveBeenCalledWith(undefined);
+    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, undefined);
     expect(useAlertasDeProducao).toHaveBeenCalledWith(90, undefined);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Produção e sazonalidade' }));

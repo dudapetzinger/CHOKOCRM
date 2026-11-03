@@ -8,30 +8,28 @@ function venda(dia: string, valor: number): Sale {
 }
 
 describe('mesesDaJanela', () => {
-  it("'2026-10-13' → 12 meses, de '2025-11' a '2026-10'", () => {
-    const meses = mesesDaJanela('2026-10-13');
-
-    expect(meses).toHaveLength(12);
-    expect(meses[0]).toBe('2025-11');
-    expect(meses[11]).toBe('2026-10');
-    expect(meses).toEqual([
-      '2025-11',
-      '2025-12',
-      '2026-01',
-      '2026-02',
-      '2026-03',
-      '2026-04',
-      '2026-05',
-      '2026-06',
-      '2026-07',
-      '2026-08',
-      '2026-09',
-      '2026-10',
-    ]);
+  it('do mês do início ao mês do fim', () => {
+    expect(mesesDaJanela({ inicio: '2026-03-01', fim: '2026-05-31' })).toEqual(['2026-03', '2026-04', '2026-05']);
   });
 
-  it('quantidade menor e virada de ano', () => {
-    expect(mesesDaJanela('2027-01-31', 3)).toEqual(['2026-11', '2026-12', '2027-01']);
+  it('estende para trás até o piso de 3 meses', () => {
+    expect(mesesDaJanela({ inicio: '2026-10-04', fim: '2026-11-02' })).toEqual(['2026-09', '2026-10', '2026-11']);
+  });
+
+  it('estende para trás cruzando a virada de ano', () => {
+    expect(mesesDaJanela({ inicio: '2027-01-02', fim: '2027-01-31' })).toEqual(['2026-11', '2026-12', '2027-01']);
+  });
+
+  it('piso configurável pelo segundo argumento', () => {
+    expect(mesesDaJanela({ inicio: '2026-10-04', fim: '2026-10-20' }, 1)).toEqual(['2026-10']);
+  });
+
+  it('365 dias cruzando o ano dão 13 meses', () => {
+    const meses = mesesDaJanela({ inicio: '2025-11-03', fim: '2026-11-02' });
+
+    expect(meses).toHaveLength(13);
+    expect(meses[0]).toBe('2025-11');
+    expect(meses[12]).toBe('2026-11');
   });
 });
 
@@ -124,12 +122,17 @@ describe('serieMensal', () => {
 });
 
 describe('marcadoresDeEventos', () => {
-  it("'2026-10-13': inclui Natal 2025 e Páscoa 2026, exclui Natal 2026; ordenados por data", () => {
-    const marcadores = marcadoresDeEventos('2026-10-13');
+  it('eventos dos anos cobertos, dentro dos meses', () => {
+    const marcadores = marcadoresDeEventos(['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04']);
 
-    expect(marcadores).toContainEqual({ chave: 'NATAL', nome: 'Natal', data: dataDoEvento('NATAL', 2025) });
-    expect(marcadores).toContainEqual({ chave: 'PASCOA', nome: 'Páscoa', data: dataDoEvento('PASCOA', 2026) });
-    expect(marcadores.map((m) => m.data)).not.toContain(dataDoEvento('NATAL', 2026));
+    expect(marcadores.map((m) => m.data)).toEqual([dataDoEvento('NATAL', 2025), dataDoEvento('PASCOA', 2026)]);
+    expect(marcadores[0]).toEqual({ chave: 'NATAL', nome: 'Natal', data: '2025-12-25' });
+  });
+
+  it('12 meses até outubro de 2026: ordenados por data, sem o Natal de 2026', () => {
+    const meses = mesesDaJanela({ inicio: '2025-11-03', fim: '2026-10-13' });
+    const marcadores = marcadoresDeEventos(meses);
+
     expect(marcadores.map((m) => m.data)).toEqual([
       '2025-12-25',
       dataDoEvento('PASCOA', 2026),
@@ -140,11 +143,10 @@ describe('marcadoresDeEventos', () => {
     expect(marcadores.every((m) => m.data >= '2025-11-01' && m.data <= '2026-10-31')).toBe(true);
   });
 
-  it('evento depois de hoje mas no mês corrente entra (Natal com hoje em 01/12)', () => {
-    const marcadores = marcadoresDeEventos('2026-12-01');
+  it('evento depois de hoje mas no mês corrente entra (Natal com o período terminando em 01/12)', () => {
+    const marcadores = marcadoresDeEventos(mesesDaJanela({ inicio: '2026-11-02', fim: '2026-12-01' }));
 
-    expect(marcadores.map((m) => m.chave)).toEqual(['PASCOA', 'DIA_DAS_MAES', 'NAMORADOS', 'DIA_DOS_PAIS', 'NATAL']);
-    expect(marcadores.at(-1)?.data).toBe('2026-12-25');
-    expect(marcadores.map((m) => m.data)).not.toContain('2025-12-25');
+    expect(marcadores.map((m) => m.chave)).toEqual(['NATAL']);
+    expect(marcadores[0]?.data).toBe('2026-12-25');
   });
 });

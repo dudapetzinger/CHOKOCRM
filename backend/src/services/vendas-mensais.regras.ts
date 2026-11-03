@@ -1,12 +1,15 @@
+import { MESES_MINIMOS_DO_GRAFICO } from '../config/kpis';
 import { dataDoEvento, EVENTOS_SAZONAIS, NOME_DO_EVENTO, type EventoSazonal } from '../config/sazonalidade';
 import type { Sale } from '../providers/erp/ErpProvider';
 import { dataCalendario, type DataCalendario } from './classificacao.service';
+import type { Janela } from './kpis.regras';
 
 /**
  * Regras puras do gráfico de vendas mensais da carteira (Etapa 7) — mesmo
  * papel de `kpis.regras.ts`: nenhuma dependência de banco nem de provider.
  * Quem busca as vendas (`vendas-mensais.service.ts`) importa daqui. Mês é
- * sempre `'AAAA-MM'` do dia de calendário no `FUSO_HORARIO`.
+ * sempre `'AAAA-MM'` do dia de calendário no `FUSO_HORARIO`. A janela de
+ * meses segue o período do painel (Etapa 11), com piso de `MESES_MINIMOS_DO_GRAFICO`.
  */
 export type TotalDoMes = { mes: string; total: number };
 
@@ -33,13 +36,22 @@ function emCentavos(valor: number): number {
   return Math.round(valor * 100) / 100;
 }
 
-/** Os `quantidade` meses terminando no mês de `hoje`, do mais antigo ao atual (12 → de 11 meses atrás até o atual). */
-export function mesesDaJanela(hoje: DataCalendario, quantidade = 12): string[] {
-  const ano = Number(hoje.slice(0, 4));
-  const mes = Number(hoje.slice(5, 7));
+/**
+ * Os meses ('AAAA-MM') da janela, do mês do início ao mês do fim, do mais
+ * antigo ao mais recente. Janela curta é estendida para trás até `minimo`
+ * meses (o último mês continua sendo o do fim), para o gráfico não ficar
+ * com um ou dois pontos.
+ */
+export function mesesDaJanela(janela: Pick<Janela, 'inicio' | 'fim'>, minimo = MESES_MINIMOS_DO_GRAFICO): string[] {
+  const anoDoInicio = Number(janela.inicio.slice(0, 4));
+  const mesDoInicio = Number(janela.inicio.slice(5, 7));
+  const anoDoFim = Number(janela.fim.slice(0, 4));
+  const mesDoFim = Number(janela.fim.slice(5, 7));
+
+  const quantidade = Math.max((anoDoFim - anoDoInicio) * 12 + (mesDoFim - mesDoInicio) + 1, minimo);
 
   return Array.from({ length: quantidade }, (_, i) => {
-    const primeiroDia = new Date(Date.UTC(ano, mes - 1 - (quantidade - 1 - i), 1));
+    const primeiroDia = new Date(Date.UTC(anoDoFim, mesDoFim - 1 - (quantidade - 1 - i), 1));
     return `${primeiroDia.getUTCFullYear()}-${pad2(primeiroDia.getUTCMonth() + 1)}`;
   });
 }
@@ -88,23 +100,26 @@ export function serieMensal(vendasPorCliente: VendasDeUmCliente[], meses: string
 }
 
 /** Último dia (`'AAAA-MM-DD'`) do mês `'AAAA-MM'`. */
-function ultimoDiaDoMes(mes: string): DataCalendario {
+export function ultimoDiaDoMes(mes: string): DataCalendario {
   const ultimo = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0));
   return ultimo.toISOString().slice(0, 10);
 }
 
 /**
- * Eventos sazonais que caem na janela de `mesesDaJanela(hoje)` — do primeiro
- * dia do mês mais antigo ao último dia do mês atual —, considerando o ano de
- * `hoje` e o anterior; ordenados por data.
+ * Eventos sazonais que caem nos `meses` (de `mesesDaJanela`) — do primeiro
+ * dia do mês mais antigo ao último dia do mais recente —, em todos os anos
+ * que os meses cobrem; ordenados por data.
  */
-export function marcadoresDeEventos(hoje: DataCalendario): MarcadorDeEvento[] {
-  const meses = mesesDaJanela(hoje);
-  const inicio = `${meses[0]}-01`;
-  const fim = ultimoDiaDoMes(meses[meses.length - 1] as string);
-  const ano = Number(hoje.slice(0, 4));
+export function marcadoresDeEventos(meses: string[]): MarcadorDeEvento[] {
+  const primeiro = meses[0] as string;
+  const ultimo = meses[meses.length - 1] as string;
+  const inicio = `${primeiro}-01`;
+  const fim = ultimoDiaDoMes(ultimo);
+  const anoInicial = Number(primeiro.slice(0, 4));
+  const anoFinal = Number(ultimo.slice(0, 4));
+  const anos = Array.from({ length: anoFinal - anoInicial + 1 }, (_, i) => anoInicial + i);
 
-  return [ano - 1, ano]
+  return anos
     .flatMap((anoDoEvento) =>
       EVENTOS_SAZONAIS.map((chave) => ({ chave, nome: NOME_DO_EVENTO[chave], data: dataDoEvento(chave, anoDoEvento) })),
     )

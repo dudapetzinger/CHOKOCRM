@@ -18,9 +18,7 @@ export const periodoQuerySchema = z
 export type PeriodoQuery = z.infer<typeof periodoQuerySchema>;
 
 /**
- * Query das vendas mensais da carteira: só `?representanteId=` (a janela é
- * fixa, 12 meses). Parâmetros desconhecidos são ignorados.
+ * Query das vendas mensais da carteira: o mesmo período do Painel (dias ou
+ * datas) e `?representanteId=`; a janela de meses segue o período (Etapa 11).
  */
-export const vendasMensaisQuerySchema = z.object({
-  representanteId: representanteIdFiltroSchema,
-});
+export const vendasMensaisQuerySchema = periodoQuerySchema;

@@ -3,7 +3,7 @@
  * resultado, ritmo e relatório da planilha na Etapa 8; período personalizado
  * e detalhe por cliente na Etapa 9): o comparativo por representante, o ritmo
  * de visitas (por semana ou por mês, conforme o período), as vendas mensais da
- * carteira e as linhas do CSV. Espelha `KpisPorRepresentanteDTO` de
+ * carteira (os meses inteiros do período, no mínimo três) e as linhas do CSV. Espelha `KpisPorRepresentanteDTO` de
  * `backend/src/services/kpis.service.ts`, `KpiRepresentante`, `Ritmo` e
  * `FaixaDoRitmo` de `kpis.regras.ts`, `VendasMensaisDTO` de
  * `vendas-mensais.service.ts` e `LinhaDoRelatorioDTO` de
@@ -77,11 +77,12 @@ export type EventoNoGrafico = {
 };
 
 export type VendasMensais = {
-  /** 12 meses, do mais antigo ao atual. */
+  /** Os meses inteiros do período (no mínimo três), do mais antigo ao mais recente. */
   meses: VendaDoMes[];
-  /** Eventos sazonais que caem na janela dos 12 meses. */
+  /** Eventos sazonais que caem na janela dos meses da série. */
   eventos: EventoNoGrafico[];
   simulado: boolean;
+  periodo: Kpis['periodo'];
   /** Clientes ativos com `erpId`. */
   clientesConsultados: number;
   /** Dos consultados, quantos o ERP não conseguiu responder. */
@@ -103,9 +104,9 @@ export function buscarKpisPorRepresentante(
   return api.get<KpisPorRepresentante>(`/dashboard/kpis/por-representante?${query}`);
 }
 
-export function buscarVendasMensais(representanteId?: string): Promise<VendasMensais> {
-  const query = comRepresentante(new URLSearchParams(), representanteId).toString();
-  return api.get<VendasMensais>(`/dashboard/vendas-mensais${query ? `?${query}` : ''}`);
+export function buscarVendasMensais(periodo: Periodo, representanteId?: string): Promise<VendasMensais> {
+  const query = comRepresentante(queryDoPeriodo(periodo), representanteId);
+  return api.get<VendasMensais>(`/dashboard/vendas-mensais?${query}`);
 }
 
 /** Uma linha da planilha do Painel (spec 7.12), já em ordem de urgência. */

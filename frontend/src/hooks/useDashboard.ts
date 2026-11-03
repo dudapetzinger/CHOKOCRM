@@ -24,13 +24,18 @@ export function useKpisPorRepresentante(periodo: Periodo, representanteId?: stri
   });
 }
 
-/** Doze meses de vendas mudam pouco durante o uso: um minuto de cache poupa o ERP. */
-export function useVendasMensais(representanteId?: string) {
+/**
+ * Os meses de vendas do período mudam pouco durante o uso: um minuto de cache
+ * poupa o ERP. `keepPreviousData`, como `useKpisPorRepresentante`: trocar o
+ * período mantém o gráfico anterior até o novo chegar.
+ */
+export function useVendasMensais(periodo: Periodo, representanteId?: string) {
   return useQuery({
-    queryKey: ['dashboard', 'vendas-mensais', representanteId ?? 'todos'],
-    queryFn: () => buscarVendasMensais(representanteId),
+    queryKey: ['dashboard', 'vendas-mensais', chaveDoPeriodo(periodo), representanteId ?? 'todos'],
+    queryFn: () => buscarVendasMensais(periodo, representanteId),
     retry: false,
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 

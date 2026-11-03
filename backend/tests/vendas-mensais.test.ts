@@ -59,9 +59,14 @@ function getVendasMensais(query: Record<string, string> = {}, token = tokenGesto
   return request(app).get('/dashboard/vendas-mensais').query(query).set('Authorization', `Bearer ${token}`);
 }
 
+/** Hoje ('AAAA-MM-DD') em America/Sao_Paulo. */
+function hojeEmSaoPaulo(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
+
 /** Mês atual ('AAAA-MM') em America/Sao_Paulo. */
 function mesAtual(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7);
+  return hojeEmSaoPaulo().slice(0, 7);
 }
 
 beforeEach(async () => {
@@ -122,8 +127,8 @@ describe('GET /dashboard/vendas-mensais', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('gestor recebe 12 meses até o atual, eventos e o ERP simulado', async () => {
-    const res = await getVendasMensais();
+  it('gestor recebe os meses de um ano até o atual, eventos e o ERP simulado', async () => {
+    const res = await getVendasMensais({ periodoDias: '365' });
 
     expect(res.status).toBe(200);
     expect(res.body.simulado).toBe(true);
@@ -132,8 +137,9 @@ describe('GET /dashboard/vendas-mensais', () => {
     expect(res.body.clientesIndisponiveis).toBe(0);
 
     const meses: PontoMensal[] = res.body.meses;
-    expect(meses).toHaveLength(12);
-    expect(meses[11]!.mes).toBe(mesAtual());
+    expect(meses.length).toBeGreaterThanOrEqual(12);
+    expect(meses.length).toBeLessThanOrEqual(13);
+    expect(meses.at(-1)!.mes).toBe(mesAtual());
     expect(meses.some((ponto) => ponto.total > 0)).toBe(true);
     expect(meses.every((ponto) => ponto.clientesComDados >= 0 && ponto.clientesComDados <= 3)).toBe(true);
 
@@ -179,11 +185,11 @@ describe('GET /dashboard/vendas-mensais', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.clientesIndisponiveis).toBe(1);
-    const doMesAtual: PontoMensal = res.body.meses[11];
-    expect(doMesAtual.clientes).toEqual([
+    const meses: PontoMensal[] = res.body.meses;
+    expect(meses.at(-1)!.clientes).toEqual([
       { id: expect.any(String), nomeFantasia: 'Cliente 11222333000181', total: 40 },
     ]);
-    expect(res.body.meses[10].clientes).toEqual([]);
+    expect(meses.at(-2)!.clientes).toEqual([]);
   });
 
   it('?representanteId= filtra: A + B somam a empresa, mês a mês', async () => {
@@ -206,13 +212,13 @@ describe('GET /dashboard/vendas-mensais', () => {
     });
   });
 
-  it('carteira sem erpId: 12 meses zerados e nenhum cliente consultado', async () => {
+  it('carteira sem erpId: meses zerados e nenhum cliente consultado', async () => {
     const getSales = jest.spyOn(erpProvider, 'getSales');
 
-    const res = await getVendasMensais({ representanteId: representanteSemErpId });
+    const res = await getVendasMensais({ representanteId: representanteSemErpId, periodoDias: '365' });
 
     expect(res.status).toBe(200);
-    expect(res.body.meses).toHaveLength(12);
+    expect(res.body.meses.length).toBeGreaterThanOrEqual(12);
     expect(
       res.body.meses.every(
         (ponto: PontoMensal) => ponto.total === 0 && ponto.clientesComDados === 0 && ponto.clientes.length === 0,
@@ -232,12 +238,72 @@ describe('GET /dashboard/vendas-mensais', () => {
     expect(res.status).toBe(200);
     expect(res.body.clientesConsultados).toBe(3);
     expect(res.body.clientesIndisponiveis).toBe(res.body.clientesConsultados);
-    expect(res.body.meses).toHaveLength(12);
+    expect(res.body.meses).toHaveLength(3);
     expect(
       res.body.meses.every(
         (ponto: PontoMensal) => ponto.total === 0 && ponto.clientesComDados === 0 && ponto.clientes.length === 0,
       ),
     ).toBe(true);
+  });
+
+  it('sem parâmetro, 3 meses terminando no atual e periodo de 30 dias', async () => {
+    const res = await getVendasMensais();
+
+    expect(res.status).toBe(200);
+    const meses: PontoMensal[] = res.body.meses;
+    expect(meses).toHaveLength(3);
+    expect(meses[2]!.mes).toBe(mesAtual());
+    expect(res.body.periodo.dias).toBe(30);
+    expect(res.body.periodo.fim).toBe(hojeEmSaoPaulo());
+  });
+
+  it('periodoDias=365 devolve 12 ou 13 meses', async () => {
+    const res = await getVendasMensais({ periodoDias: '365' });
+
+    expect(res.status).toBe(200);
+    expect([12, 13]).toContain(res.body.meses.length);
+    expect(res.body.periodo.dias).toBe(365);
+  });
+
+  it('inicio e fim de meses passados devolvem só esses meses, sem o atual', async () => {
+    const anoAtual = Number(hojeEmSaoPaulo().slice(0, 4));
+    // Maio já acabou se hoje é de junho em diante; senão, usa o ano anterior.
+    const ano = hojeEmSaoPaulo() > `${anoAtual}-05-31` ? anoAtual : anoAtual - 1;
+
+    const getSales = jest.spyOn(erpProvider, 'getSales');
+
+    const res = await getVendasMensais({ inicio: `${ano}-03-01`, fim: `${ano}-05-31` });
+
+    expect(res.status).toBe(200);
+    expect(res.body.meses.map((ponto: PontoMensal) => ponto.mes)).toEqual([`${ano}-03`, `${ano}-04`, `${ano}-05`]);
+    expect(res.body.periodo).toEqual({ dias: 92, inicio: `${ano}-03-01`, fim: `${ano}-05-31` });
+    // O ERP também é consultado só até o fim do período pedido, não até hoje.
+    expect(getSales).toHaveBeenCalled();
+    for (const [, periodo] of getSales.mock.calls) {
+      expect(periodo.inicio.getTime()).toBe(new Date(`${ano}-03-01T00:00:00-03:00`).getTime());
+      expect(periodo.fim.getTime()).toBe(new Date(`${ano}-05-31T23:59:59.999-03:00`).getTime());
+    }
+  });
+
+  it('dias e datas juntos → 400', async () => {
+    const res = await getVendasMensais({ periodoDias: '30', inicio: '2026-01-01', fim: '2026-01-31' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details.map((d: { message: string }) => d.message)).toContain(
+      'Informe o período em dias ou por datas, não os dois.',
+    );
+  });
+
+  it('mais de 365 dias → 400', async () => {
+    const hoje = hojeEmSaoPaulo();
+    const inicio = new Date(Date.parse(`${hoje}T12:00:00Z`) - 365 * 86_400_000).toISOString().slice(0, 10);
+
+    const res = await getVendasMensais({ inicio, fim: hoje });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toContain('365 dias');
   });
 
   it('consulta o ERP do primeiro dia do mês mais antigo ao fim de hoje', async () => {
@@ -250,7 +316,7 @@ describe('GET /dashboard/vendas-mensais', () => {
     const [erpId, periodo] = getSales.mock.calls[0]!;
     expect(erpId).toBe('ERP-1003');
     expect(periodo.inicio).toEqual(new Date(`${res.body.meses[0].mes}-01T00:00:00.000-03:00`));
-    const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const hoje = hojeEmSaoPaulo();
     expect(periodo.fim).toEqual(new Date(`${hoje}T23:59:59.999-03:00`));
   });
 });

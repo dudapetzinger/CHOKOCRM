@@ -2,7 +2,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import type { EventoNoGrafico, VendaDoMes } from '@/services/dashboard';
 import { VendasMensais } from './VendasMensais';
 
-const LEGENDA = 'Vendas mensais dos últimos 12 meses (R$ mil)';
+const LEGENDA = 'Vendas mensais de mar/26 a jun/26 (R$ mil)';
 
 function mes(aaaaMm: string, total: number, clientes: VendaDoMes['clientes'] = []): VendaDoMes {
   return { mes: aaaaMm, total, clientesComDados: 3, clientes };
@@ -77,6 +77,15 @@ describe('VendasMensais', () => {
     expect(resumo).toContain('Vendas de mar/26 a jun/26');
     expect(resumo).toContain('maior em abr/26');
     expect(resumo).toContain('eventos: Páscoa em abr/26, Dia das Mães em mai/26');
+  });
+
+  it('a legenda diz do primeiro ao último mês da série, qualquer que seja o período', () => {
+    render(<VendasMensais meses={[mes('2026-09', 1000), mes('2026-10', 2000), mes('2026-11', 1500)]} eventos={[]} />);
+
+    const legenda = 'Vendas mensais de set/26 a nov/26 (R$ mil)';
+    // A legenda visível e a da tabela acessível são a mesma.
+    expect(screen.getByRole('figure', { name: legenda })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: legenda })).toBeInTheDocument();
   });
 
   it('o eixo Y parte do zero e mostra os valores em "R$ Nk"', () => {
