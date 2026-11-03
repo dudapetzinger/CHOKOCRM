@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -182,6 +182,114 @@ describe('ClientesPage', () => {
 
     expect(await screen.findByText('Padaria Estrela')).toBeInTheDocument();
     expect(screen.queryByText('Nenhum cliente nesta aba.')).not.toBeInTheDocument();
+  });
+
+  describe('filtro por cidade', () => {
+    const CARTEIRA: ClienteListItem[] = [
+      { ...CLIENTE, id: 'c1', nomeFantasia: 'Doces da Vovó', cidade: 'Blumenau' },
+      { ...CLIENTE, id: 'c2', nomeFantasia: 'Padaria Estrela', cidade: 'blumenau ', cor: 'VERDE', diasSemVisita: 3 },
+      { ...CLIENTE, id: 'c3', nomeFantasia: 'Café Pomerano', cidade: 'Pomerode', cor: 'VERDE', diasSemVisita: 5 },
+    ];
+
+    it('o select de cidade lista só as cidades da carteira, sem repetir grafias', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockResolvedValue(CARTEIRA);
+      renderizar();
+
+      const select = await screen.findByRole('combobox', { name: 'Cidade' });
+      await screen.findByText('Doces da Vovó');
+      expect(within(select).getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
+        'Todas as cidades',
+        'Blumenau',
+        'Pomerode',
+      ]);
+    });
+
+    it('escolher uma cidade filtra as linhas e as contagens das abas', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockResolvedValue(CARTEIRA);
+      renderizar();
+
+      expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /^Todos · / }));
+      expect(screen.getByText('Café Pomerano')).toBeInTheDocument();
+
+      await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Cidade' }), 'Pomerode');
+
+      expect(screen.getByText('Café Pomerano')).toBeInTheDocument();
+      expect(screen.queryByText('Doces da Vovó')).not.toBeInTheDocument();
+      expect(screen.queryByText('Padaria Estrela')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Todos · 1' })).toBeInTheDocument();
+    });
+
+    it('com a cidade escolhida e a busca sem resultado na cidade, a mensagem fala em busca ou filtro', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockImplementation(async ({ search } = {}) =>
+        CARTEIRA.filter((cliente) => !search || cliente.nomeFantasia.includes(search)),
+      );
+      renderizar();
+
+      expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
+      await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Cidade' }), 'Pomerode');
+      await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar cliente' }), 'Doces');
+
+      expect(await screen.findByText('Nenhum cliente encontrado para esta busca ou filtro.')).toBeInTheDocument();
+      // O select mantém as cidades da carteira inteira, não só as da busca
+      expect(within(screen.getByRole('combobox', { name: 'Cidade' })).getAllByRole('option')).toHaveLength(3);
+    });
+
+    it('escolher a opção de uma cidade com duas grafias mostra as linhas das duas', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockResolvedValue(CARTEIRA);
+      renderizar();
+
+      expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /^Todos · / }));
+      await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Cidade' }), 'Blumenau');
+
+      expect(screen.getByText('Doces da Vovó')).toBeInTheDocument();
+      expect(screen.getByText('Padaria Estrela')).toBeInTheDocument();
+      expect(screen.queryByText('Café Pomerano')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Todos · 2' })).toBeInTheDocument();
+    });
+
+    it('a cidade escolhida some da carteira num refetch: volta para "Todas as cidades" e mostra a lista inteira', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockResolvedValue(CARTEIRA);
+      const { queryClient } = renderizar();
+
+      expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /^Todos · / }));
+      await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Cidade' }), 'Pomerode');
+      expect(screen.getByRole('combobox', { name: 'Cidade' })).toHaveValue('pomerode');
+      expect(screen.queryByText('Doces da Vovó')).not.toBeInTheDocument();
+
+      // O cliente de Pomerode foi transferido: a cidade deixa de existir na carteira.
+      vi.mocked(listClients).mockResolvedValue(CARTEIRA.filter((cliente) => cliente.cidade !== 'Pomerode'));
+      await act(() => queryClient.refetchQueries({ queryKey: ['clients'] }));
+
+      await waitFor(() => expect(screen.getByRole('combobox', { name: 'Cidade' })).toHaveValue(''));
+      expect(screen.getByText('Doces da Vovó')).toBeInTheDocument();
+      expect(screen.getByText('Padaria Estrela')).toBeInTheDocument();
+      expect(within(screen.getByRole('combobox', { name: 'Cidade' })).getAllByRole('option').map((o) => o.textContent)).toEqual([
+        'Todas as cidades',
+        'Blumenau',
+      ]);
+    });
+
+    it('trocar o representante volta para "Todas as cidades"', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockResolvedValue(CARTEIRA);
+      const { renderizarDeNovo } = renderizar('GESTOR');
+      expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
+      await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Cidade' }), 'Pomerode');
+      expect(screen.getByRole('combobox', { name: 'Cidade' })).toHaveValue('pomerode');
+
+      vi.mocked(useRepresentanteSelecionado).mockImplementation(() => 'r2');
+      renderizarDeNovo();
+
+      await waitFor(() => expect(screen.getByRole('combobox', { name: 'Cidade' })).toHaveValue(''));
+    });
   });
 
   it('com a lista já carregada, um refetch que falha por rede mantém as linhas e mostra o aviso acima', async () => {

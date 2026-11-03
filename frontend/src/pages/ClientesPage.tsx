@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../auth/useAuth';
+import { useClientesDaCarteira } from '../hooks/useDashboard';
 import { listClients, mensagemErroApi, type ClienteListItem } from '../services/clients';
 import { AbasSituacao, CORES_DA_ABA, type Aba } from '../components/AbasSituacao';
 import { BarraDeFerramentas } from '../components/BarraDeFerramentas';
 import { ItemListaCliente } from '../components/ItemListaCliente';
 import { LegendaSituacao } from '../components/LegendaSituacao';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
-import { Aviso } from '../components/crm/ui';
+import { Aviso, CLASSES_SELECT } from '../components/crm/ui';
+import { cidadesDaCarteira, filtrarPorCidade } from '../lib/cidadesDaCarteira';
 import { ordenarPorUrgencia } from '../lib/ordenarPorUrgencia';
 import { useLarguraDesktop, useLarguraDuasColunas } from '../lib/useLarguraDesktop';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
@@ -38,6 +40,9 @@ function contarPorAba(clientes: readonly ClienteListItem[]): Record<Aba, number>
  * escolher um). Abaixo de 1024, `/clientes/:id` abre só a ficha (ver
  * `ClientesOuFicha` em App.tsx). "Novo cliente" do representante fica na
  * barra de ferramentas a partir de 768 px e, no celular, no botão flutuante.
+ * O select "Cidade" (Etapa 11) filtra a lista e as contagens das abas pelas
+ * cidades da carteira do representante (a carteira toda, sem a busca); se a
+ * cidade escolhida deixar de existir na carteira, volta a "Todas as cidades".
  */
 export function ClientesPage() {
   const { user } = useAuth();
@@ -53,12 +58,15 @@ export function ClientesPage() {
   const representante = representanteId ?? 'todos';
   const ehGestor = user?.role === 'GESTOR';
   const [representanteDaAba, setRepresentanteDaAba] = useState(representante);
+  // Chave normalizada da cidade escolhida; '' = todas as cidades.
+  const [cidade, setCidade] = useState('');
 
   // Outro representante no seletor: a aba padrão é escolhida de novo com a
   // carteira dele (ajuste de estado no render, como no RepresentanteProvider).
   if (representante !== representanteDaAba) {
     setRepresentanteDaAba(representante);
     setAba(null);
+    setCidade('');
   }
 
   useEffect(() => {
@@ -83,7 +91,20 @@ export function ClientesPage() {
       consultaAnterior?.queryKey[2] === representante ? dadosAnteriores : undefined,
   });
 
-  const contagens = useMemo(() => (data ? contarPorAba(data) : null), [data]);
+  // Cidades da carteira inteira (sem a busca), para o select não encolher
+  // enquanto o usuário digita; compartilha o cache com o Painel.
+  const { data: carteira } = useClientesDaCarteira(representanteId);
+  const cidades = useMemo(() => cidadesDaCarteira(carteira ?? []), [carteira]);
+
+  // A cidade escolhida pode sumir da carteira (cliente transferido, cidade
+  // corrigida): o valor efetivo volta a "todas" em vez de esvaziar a lista.
+  const cidadeEfetiva = cidades.some((opcao) => opcao.chave === cidade) ? cidade : '';
+
+  const filtrados = useMemo(
+    () => (data ? filtrarPorCidade(data, cidadeEfetiva) : undefined),
+    [data, cidadeEfetiva],
+  );
+  const contagens = useMemo(() => (filtrados ? contarPorAba(filtrados) : null), [filtrados]);
 
   // Aba inicial decidida quando os dados chegam (e de novo a cada troca de
   // representante): Prioridade se houver alguém nela, senão Todos. Depois
@@ -93,17 +114,17 @@ export function ClientesPage() {
   }
 
   const visiveis = useMemo(() => {
-    if (!data || aba === null) {
+    if (!filtrados || aba === null) {
       return [];
     }
-    return ordenarPorUrgencia(data.filter((cliente) => CORES_DA_ABA[aba].includes(cliente.cor)));
-  }, [data, aba]);
+    return ordenarPorUrgencia(filtrados.filter((cliente) => CORES_DA_ABA[aba].includes(cliente.cor)));
+  }, [filtrados, aba]);
 
   function mensagemVazia(): string {
-    if (data && data.length > 0) {
+    if (filtrados && filtrados.length > 0) {
       return 'Nenhum cliente nesta aba.';
     }
-    return buscaAtrasada
+    return buscaAtrasada || cidadeEfetiva
       ? 'Nenhum cliente encontrado para esta busca ou filtro.'
       : 'Nenhum cliente cadastrado ainda.';
   }
@@ -135,6 +156,19 @@ export function ClientesPage() {
             onChange={(event) => setBusca(event.target.value)}
           />
         </div>
+        <select
+          aria-label="Cidade"
+          className={cn(CLASSES_SELECT, 'w-full @[26rem]:w-auto')}
+          value={cidadeEfetiva}
+          onChange={(event) => setCidade(event.target.value)}
+        >
+          <option value="">Todas as cidades</option>
+          {cidades.map((opcao) => (
+            <option key={opcao.chave} value={opcao.chave}>
+              {opcao.nome}
+            </option>
+          ))}
+        </select>
         <LegendaSituacao />
         {desktop && podeCriarCliente && (
           <Button asChild className="shrink-0">
