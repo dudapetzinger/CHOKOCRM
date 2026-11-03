@@ -41,7 +41,7 @@ Na Etapa 7, o representante passou a ver e alterar só a própria carteira, e o 
 Na Etapa 8, o app passou à interface do protótipo aprovado pela Chokolaten (Tailwind e shadcn — [ADR-013](docs/arquitetura.md#adr-013--base-de-interface-do-protótipo-lovable-tailwind--shadcn)) e ganhou:
 
 - **Pedido no check-in:** com resultado "Venda", os produtos do catálogo do ERP com quantidade e total; o pedido aparece no histórico e soma nas metas, nas campanhas e na planilha.
-- **Próxima visita e lembrete:** marcadas no check-in, usadas pela agenda, que ganhou "Próximos 7 dias".
+- **Próxima visita e lembrete:** marcadas no check-in (a data, desde a Etapa 11b, também pela ficha), usadas pela agenda, que ganhou "Próximos 7 dias".
 - **Campanhas e eventos:** criados pelo gestor, com status, desconto, produtos em destaque, visitas vinculadas no check-in e vendas vinculadas por representante.
 - **Metas de visitas e vendas:** semanais, mensais, livres ou de campanha, com o realizado calculado das visitas e dos pedidos.
 - **Calendário do mês e roteiro do dia** na agenda, com o trajeto aberto no Google Maps ([ADR-016](docs/arquitetura.md#adr-016--coordenadas-estáticas-dos-municípios-de-sc-no-roteiro-e-no-mapa)).
@@ -73,6 +73,7 @@ Na Etapa 11 (02/11/2026), a partir do uso em campo ([spec da etapa](docs/superpo
 - **Vendas mensais pelo período:** o gráfico de sazonalidade do Painel mostra os meses do período escolhido, no mínimo três, em vez de 12 meses fixos.
 - **Filtro de cidade na lista de clientes:** um select com as cidades onde a carteira já tem clientes, sem digitar.
 - **Foto obrigatória no check-in**, apagada do disco 90 dias depois da visita por um job diário; a ficha passa a mostrar "Foto removida após 90 dias." ([ADR-010](docs/arquitetura.md#adr-010--armazenamento-de-arquivos-atrás-de-interface-com-driver-em-disco-na-etapa-3)).
+- **Próxima visita pela ficha (Etapa 11b, 03/11/2026):** o representante dono da carteira e o gestor marcam, alteram ou limpam a data da próxima visita direto no aviso da ficha ("Alterar data"), de hoje em diante, sem precisar de check-in; a agenda e a lista de clientes acompanham ([spec](docs/superpowers/specs/2026-11-03-etapa-11b-editar-proxima-visita-na-ficha-design.md)).
 
 Cada funcionalidade está especificada como caso de uso em [docs/casos-de-uso.md](docs/casos-de-uso.md), com as regras de negócio detalhadas na [seção 6 da especificação técnica](docs/especificacao-tecnica.md#6-regras-de-negócio-principais).
 

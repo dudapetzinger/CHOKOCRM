@@ -51,7 +51,7 @@ O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator
 | UC14 | Visualizar painel de KPIs (Gestor) | Gestor; Representante (própria carteira, desde a Etapa 8) |
 | UC15 | Receber alertas de produção (Gestor) | Gestor; Representante (própria carteira, desde a Etapa 8) |
 | UC16 | Registrar pedido no check-in | Representante |
-| UC17 | Prever a próxima visita | Representante; Gestor (só consulta); Sistema (Agendador) |
+| UC17 | Prever a próxima visita | Representante; Gestor (consulta e, desde a Etapa 11b, marca pela ficha); Sistema (Agendador) |
 | UC18 | Gerenciar campanhas e eventos | Gestor; Representante (consulta e vínculo no check-in) |
 | UC19 | Gerenciar metas de visitas e vendas | Gestor; Representante (só as próprias, consulta) |
 | UC20 | Gerenciar usuários | Gestor |
@@ -240,7 +240,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 1. O representante seleciona um cliente na lista (UC05) ou na agenda do dia (UC10); o gestor também pode abri-la pela lista de clientes esfriando do painel (UC14).
 2. O sistema exibe o cabeçalho da ficha: nome fantasia, cidade, selo de cor, etiqueta de situação (UC05), o telefone do contato principal (ou, sem ele, o do cliente) com os atalhos "Ligar" (link `tel:`) e "WhatsApp" (link `wa.me`, que desde a Etapa 11 já leva a mensagem de estoque sugerida quando o representante abre um cliente ativo da própria carteira — UC12) e, para o gestor, o representante da carteira ("Rep.: {nome}").
 3. Para o representante, o sistema exibe o botão "Novo check-in" (UC07), a ação principal da tela.
-4. Abaixo do cabeçalho, o sistema exibe o aviso da próxima visita — a data marcada no check-in e a campanha dela, quando há — e a lista "Lembretes" com os lembretes abertos do cliente, cada um com o texto, o prazo e "Concluir" (UC17 e UC27). Sem data marcada e sem lembrete aberto, o aviso não aparece.
+4. Abaixo do cabeçalho, o sistema exibe o aviso da próxima visita — a data marcada no check-in ou pela ficha e a campanha dela, quando há — e a lista "Lembretes" com os lembretes abertos do cliente, cada um com o texto, o prazo e "Concluir" (UC17 e UC27). Desde a Etapa 11b, o representante dono da carteira e o gestor veem no aviso o botão "Alterar data" (ou "Marcar próxima visita", quando não há data), que abre a edição da data (UC17, A3); o aviso passa a aparecer mesmo sem data nem lembrete. Para quem não pode editar, sem data marcada e sem lembrete aberto, o aviso não aparece.
 5. Abaixo do aviso, o sistema divide a ficha em três abas, guardadas na URL (`?aba=`; sem o parâmetro, abre em "Visitas"):
    - **Visitas**: o histórico de visitas em ordem cronológica reversa (UC08) e a recorrência de visitas com o histórico de alterações dela (UC09);
    - **ERP e sugestões** (`?aba=erp`): o card "Mensagem de estoque" (UC12), o card "Insights e sugestões", com as sugestões do cliente para os eventos sazonais próximos (UC13), e os dados de venda e estoque obtidos do ERP (UC11);
@@ -390,7 +390,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - **A4** (passo 3, Etapa 9): havendo lembretes abertos com data até hoje, o sistema exibe, entre "Hoje" e "Próximos 7 dias" e na largura toda, a seção "Lembretes". Cada linha traz o avatar e o nome do cliente (link para a ficha, UC06), o texto, o prazo ("para hoje" ou "venceu há N dias (dd/mm)"), "Rep.: {nome}" para o gestor com o seletor em "Todos" e o botão "Concluir" (UC27). Sem lembretes, a seção não aparece.
 
 **Regras de negócio associadas:**
-- Próxima visita prevista = a data marcada no check-in (UC17), quando existe; senão, data da última visita (ou do cadastro) + recorrência (em dias) do cliente. Desde a Etapa 10d, a data marcada só vale enquanto não foi cumprida: com check-in no dia dela ou depois, a agenda volta à recorrência (UC17).
+- Próxima visita prevista = a data marcada no check-in ou, desde a Etapa 11b, pela ficha (UC17), quando existe; senão, data da última visita (ou do cadastro) + recorrência (em dias) do cliente. Desde a Etapa 10d, a data marcada só vale enquanto não foi cumprida: com check-in no dia dela ou depois, a agenda volta à recorrência (UC17).
 - Desde a Etapa 8, a agenda ganha a seção "Próximos 7 dias" (data prevista de amanhã a 7 dias, em ordem de data), o roteiro do dia (UC25) e o calendário do mês (UC24), escolhido em "Agenda do dia | Calendário"; Atrasadas e Hoje ficam lado a lado a partir de 1024 px.
 - A agenda é sempre calculada em tempo de consulta, restrita à carteira do representante (`Client.representanteId`, atribuído automaticamente a quem cadastra o cliente; só o gestor transfere um cliente para outro representante); o gestor vê a agenda de todos os representantes ou, com `GET /agenda/today?representanteId=`, a de um só (para o representante o parâmetro é ignorado). Cada item da agenda traz o representante da carteira (`representante: { id, nome }`).
 - Um job diário (executado pelo Sistema/Agendador) roda o mesmo cálculo por representante e registra os alertas de visita atrasada/prevista em log estruturado, sem persistir nada; notificação por push ou e-mail fica fora do escopo desta etapa.
@@ -622,9 +622,9 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 ### UC17 — Prever a próxima visita
 
-**Ator principal:** Representante Comercial. **Ator secundário:** Gestor (somente consulta) e Sistema (Agendador).
+**Ator principal:** Representante Comercial. **Ator secundário:** Gestor (somente consulta e, desde a Etapa 11b, marca a data pela ficha) e Sistema (Agendador).
 
-**Pré-condições:** o representante está fazendo o check-in (UC07) de um cliente da própria carteira.
+**Pré-condições:** o representante está fazendo o check-in (UC07) de um cliente da própria carteira. Desde a Etapa 11b, a data também pode ser marcada, alterada ou limpa pela ficha do cliente (A3), pelo representante dono da carteira ou pelo gestor.
 
 **Fluxo principal:**
 1. O sistema sugere, no campo "Próxima visita", a data da visita + a recorrência do cliente (UC09).
@@ -636,13 +636,15 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 **Fluxos alternativos:**
 - **A1** (passo 2): o representante apaga a data — o cliente volta à data prevista pela recorrência (última visita + recorrência) e a campanha da próxima visita é apagada; os lembretes não são tocados.
 - **A2** (UC09): a recorrência do cliente é alterada — a data marcada é apagada e a data prevista volta a ser calculada pela recorrência nova; a campanha da próxima visita continua e os lembretes não são tocados.
+- **A3** (Etapa 11b, marcar ou alterar pela ficha — [spec da etapa](superpowers/specs/2026-11-03-etapa-11b-editar-proxima-visita-na-ficha-design.md)): na ficha (UC06), o representante dono da carteira ou o gestor clica em "Alterar data" no aviso da próxima visita (ou em "Marcar próxima visita", quando não há data) e o sistema mostra um campo de data, que não aceita dia anterior a hoje, com o apoio "A agenda passa a usar esta data em vez da recorrência.", "Salvar", "Cancelar" e, havendo data, "Limpar data". Ao salvar, o sistema grava a data no cliente (`PUT /clients/:id` com `proximaVisita`), avisa "Próxima visita marcada para dd/mm/aaaa" e atualiza a ficha, a agenda (UC10), o calendário (UC24) e a lista de clientes; a campanha da próxima visita **continua** como estava, e a data nova vale no lugar da recorrência. Com "Limpar data", o sistema apaga a data **e a campanha da próxima visita**, avisa "Próxima visita desmarcada" e a agenda volta à recorrência; os lembretes não são tocados. Vale para cliente ativo ou inativo (a agenda só lista os ativos; a data de um inativo fica guardada até ele ser reativado). Com o campo vazio, "Salvar" não chama a API e o aviso mostra "Informe a data.". Se a data escolhida é hoje e o cliente já teve visita hoje, a marcação conta como cumprida (regra da 10d): a API devolve a data nula e o aviso mostra "Este cliente já teve visita hoje: a data de hoje conta como cumprida e a agenda segue a recorrência." no lugar de "marcada", e "Marcar próxima visita" volta.
 
 **Fluxo de exceção:**
 - **E1** (passo 4): lembrete com texto e sem data — o formulário mostra "Informe a data do lembrete." junto do campo e a API responde 400 com a mesma mensagem; data anterior a hoje, 400 "A data do lembrete não pode ser antes de hoje.".
+- **E2** (A3, Etapa 11b): a data é anterior a hoje ou inválida — o campo não deixa escolher e, se a API receber assim, responde 400 "A próxima visita não pode ser antes de hoje." ou "Data da próxima visita inválida.", que a ficha mostra no próprio aviso, e a data anterior fica como estava. Cliente de outra carteira: o representante recebe 403 "Cliente de outra carteira.".
 
 **Regras de negócio associadas:**
-- Cada check-in regrava a próxima visita: um check-in sem data substitui a marcação anterior, e a agenda volta à recorrência.
-- **Visita marcada cumprida (Etapa 10d, [spec da parte 10d](superpowers/specs/2026-10-27-etapa-10d-visita-marcada-cumprida-e-textos-do-checkin-design.md)):** desde a Etapa 10, uma data marcada conta como cumprida quando há check-in no dia dela ou depois: a agenda, o calendário e a ficha voltam à recorrência e a campanha da próxima visita deixa de aparecer; a data no cadastro só muda no check-in. É regra de leitura (`proximaVisitaVigente`): `Client.proximaVisita` continua na coluna até o próximo check-in, e a classificação por cor segue pela última visita.
+- Cada check-in regrava a próxima visita: um check-in sem data substitui a marcação anterior, e a agenda volta à recorrência. Desde a Etapa 11b, a ficha (A3) também grava a data, com a mesma regra de só hoje em diante; o check-in não é mais o único caminho de escrita.
+- **Visita marcada cumprida (Etapa 10d, [spec da parte 10d](superpowers/specs/2026-10-27-etapa-10d-visita-marcada-cumprida-e-textos-do-checkin-design.md)):** desde a Etapa 10, uma data marcada conta como cumprida quando há check-in no dia dela ou depois: a agenda, o calendário e a ficha voltam à recorrência e a campanha da próxima visita deixa de aparecer; a data no cadastro só muda num novo check-in ou na edição pela ficha (A3). É regra de leitura (`proximaVisitaVigente`): `Client.proximaVisita` continua na coluna até o próximo check-in ou até ser alterada ou limpa pela ficha, e a classificação por cor segue pela última visita.
 - **Lembrete como tarefa (Etapa 9, [ADR-017](arquitetura.md#adr-017--lembrete-como-tarefa-própria-tabela-reminder)):** o lembrete é uma linha própria (`Reminder`, tabela `lembretes`) com texto de até 200 caracteres, data, autor, visita de origem e conclusão; o cliente pode ter vários abertos ao mesmo tempo. O check-in manda `lembrete?: { texto, data: 'AAAA-MM-DD' }` (no lugar do texto solto da Etapa 8), com `data` a partir de hoje em São Paulo. **O texto decide se há lembrete**: texto em branco é sem lembrete, qualquer que seja a data, e o formulário não envia o campo.
 - Um check-in novo **não** conclui lembretes abertos: eles só saem ao ser concluídos (UC27). Apagar a próxima visita ou mudar a recorrência também não os apaga. A ajuda do campo da próxima visita diz "Sem data, a agenda segue a recorrência.".
 - A data prevista é a marcada quando existe; senão, a última visita (ou o cadastro) + a recorrência. A cor de classificação (UC05) **não** muda por causa dela.
@@ -958,6 +960,8 @@ A Etapa 9 (ajustes pós-validação, 25/10/2026 — seção 11 da [especificaç�
 A Etapa 10 (26/10/2026 — [spec da parte 10b](superpowers/specs/2026-10-26-etapa-10b-checkin-em-passos-e-filtro-de-visitas-design.md)) não cria caso de uso novo; revisa o UC07 (check-in em quatro passos) e o UC08 (última visita em destaque e filtro de quantidade). A parte 10c ([spec](superpowers/specs/2026-10-26-etapa-10c-mapa-com-contorno-e-zoom-e-vendas-da-campanha-design.md)) revisa o UC14 (contorno e zoom do mapa de clientes, A12) e o UC18 (vendas vinculadas na campanha, A5) e dá ao resultado da visita no UC08 a etiqueta só com contorno.
 
 A Etapa 11 (02/11/2026 — [spec da etapa](superpowers/specs/2026-11-02-etapa-11-whatsapp-sazonalidade-cidades-foto-design.md)) não cria caso de uso novo; revisa o UC05 (select de cidade na lista de clientes), o UC06 e o UC12 (o botão "WhatsApp" do cabeçalho e o card abrem a conversa com a mensagem já no texto, no primeiro toque), o UC07 (foto obrigatória no check-in; a exceção E2 continua), o UC08 (foto removida após 90 dias, A4) e o UC14 (vendas mensais seguem o período, A13).
+
+A Etapa 11b (03/11/2026 — [spec da etapa](superpowers/specs/2026-11-03-etapa-11b-editar-proxima-visita-na-ficha-design.md)) não cria caso de uso novo; revisa o UC17 (novo fluxo alternativo A3 e exceção E2: marcar, alterar ou limpar a data da próxima visita pela ficha) e o UC06 (o aviso da próxima visita ganha "Alterar data" e "Marcar próxima visita").
 
 ## 6. Cobertura das regras de negócio da especificação (seção 6)
 
