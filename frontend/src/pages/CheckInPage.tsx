@@ -4,7 +4,7 @@
  *
  * 1. A visita — data e hora, contato atendido e campanha da visita;
  * 2. Resultado — Venda · Negociação · Sem venda e, com Venda, o pedido;
- * 3. O que aconteceu — a descrição (obrigatória) e a foto;
+ * 3. O que aconteceu — a descrição e a foto, as duas obrigatórias;
  * 4. Próximos passos — "Deseja marcar a data prevista da próxima visita?"
  *    (data e campanha da próxima visita) e "Deseja anotar um lembrete?"
  *    (texto e "Para quando").
@@ -47,9 +47,10 @@
  * A data/hora vem preenchida com o agora e admite ajuste para lançar visita
  * já ocorrida (não no futuro). "+ Novo contato…" no select do contato abre o
  * `NovoContato` em linha; o contato criado fica selecionado. A foto é
- * opcional: o check-in é salvo primeiro e a foto enviada em seguida,
- * comprimida, então uma falha no upload não perde o registro — a ficha avisa
- * e a timeline oferece anexar depois. Sucesso: aviso "Check-in salvo" e volta
+ * obrigatória (Etapa 11: registra que a representante esteve no cliente; o
+ * passo 3 não avança sem ela): o check-in é salvo primeiro e a foto enviada
+ * em seguida, comprimida, então uma falha no upload não perde o registro — a
+ * ficha avisa e a timeline oferece anexar depois. Sucesso: aviso "Check-in salvo" e volta
  * à ficha. O erro da API aparece num aviso abaixo do indicador, sem perder
  * o que foi digitado, e sai ao avançar de passo ou reenviar; o erro de um
  * campo de outro passo (ex.: data no futuro pelo relógio do servidor) leva a
@@ -279,6 +280,7 @@ export function CheckInPage() {
       agora,
       novoContatoAberto,
       descricao,
+      temFoto: foto !== null,
       proximaVisita,
       marcarProximaVisita,
       lembreteTexto,
@@ -510,7 +512,12 @@ export function CheckInPage() {
                 </Campo>
 
                 <div className="space-y-2">
-                  <Campo rotulo="Foto (opcional)" htmlFor="checkin-foto" ajuda="Registra que você esteve no cliente.">
+                  <Campo
+                    rotulo="Foto"
+                    htmlFor="checkin-foto"
+                    ajuda="Obrigatória: registra que você esteve no cliente."
+                    erro={erros.foto}
+                  >
                     <Input
                       ref={campoFoto}
                       id="checkin-foto"
@@ -518,7 +525,11 @@ export function CheckInPage() {
                       accept="image/*"
                       capture="environment"
                       className="cursor-pointer file:mr-3 file:cursor-pointer max-md:py-2.5"
-                      onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
+                      onChange={(e) => {
+                        setFoto(e.target.files?.[0] ?? null);
+                        limparErro('foto');
+                      }}
+                      required
                     />
                   </Campo>
                   {previa && (

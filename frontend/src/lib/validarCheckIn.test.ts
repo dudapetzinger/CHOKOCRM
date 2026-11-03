@@ -6,6 +6,7 @@ const VALIDO: DadosDoCheckIn = {
   agora: '2026-10-18T13:30',
   novoContatoAberto: false,
   descricao: 'Reposição do mostruário.',
+  temFoto: true,
   proximaVisita: '2026-11-02',
   marcarProximaVisita: true,
   lembreteTexto: 'Levar amostras',
@@ -51,16 +52,31 @@ describe('validarCheckIn', () => {
     expect(validarPasso(3, { ...VALIDO, descricao: 'ok!' })).toEqual({});
   });
 
+  it('passo 3: sem foto (a foto é obrigatória)', () => {
+    expect(validarPasso(3, { ...VALIDO, descricao: 'Tudo certo', temFoto: false })).toEqual({
+      foto: 'Tire uma foto da visita.',
+    });
+    expect(validarPasso(3, { ...VALIDO, descricao: 'Tudo certo', temFoto: true })).toEqual({});
+  });
+
+  it('passo 3: descrição curta e sem foto dão os dois erros', () => {
+    expect(validarPasso(3, { ...VALIDO, descricao: '', temFoto: false })).toEqual({
+      descricao: 'Descreva a visita com pelo menos 3 caracteres.',
+      foto: 'Tire uma foto da visita.',
+    });
+  });
+
   it('cada passo confere só os seus campos', () => {
     const tudoErrado: DadosDoCheckIn = {
       ...VALIDO,
       dataHora: '',
       descricao: '',
+      temFoto: false,
       proximaVisita: '2026-10-17',
       lembreteData: '',
     };
     expect(Object.keys(validarPasso(1, tudoErrado))).toEqual(['dataHora']);
-    expect(Object.keys(validarPasso(3, tudoErrado))).toEqual(['descricao']);
+    expect(Object.keys(validarPasso(3, tudoErrado))).toEqual(['descricao', 'foto']);
     expect(Object.keys(validarPasso(4, tudoErrado))).toEqual(['proximaVisita', 'lembrete']);
   });
 
@@ -95,6 +111,7 @@ describe('validarCheckIn', () => {
     expect(passoDoCampo('dataHora')).toBe(1);
     expect(passoDoCampo('contato')).toBe(1);
     expect(passoDoCampo('descricao')).toBe(3);
+    expect(passoDoCampo('foto')).toBe(3);
     expect(passoDoCampo('proximaVisita')).toBe(4);
     expect(passoDoCampo('lembrete')).toBe(4);
   });

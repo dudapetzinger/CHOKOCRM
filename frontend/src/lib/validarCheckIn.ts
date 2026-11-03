@@ -19,7 +19,7 @@ export const TITULO_DO_PASSO: Record<Passo, string> = {
   4: 'Próximos passos',
 };
 
-export type Erros = Partial<Record<'dataHora' | 'contato' | 'descricao' | 'proximaVisita' | 'lembrete', string>>;
+export type Erros = Partial<Record<'dataHora' | 'contato' | 'descricao' | 'foto' | 'proximaVisita' | 'lembrete', string>>;
 
 /**
  * O que a validação precisa do formulário. Datas como nos campos:
@@ -32,6 +32,8 @@ export type DadosDoCheckIn = {
   agora: string;
   novoContatoAberto: boolean;
   descricao: string;
+  /** Há foto escolhida (Etapa 11: a foto é obrigatória, ela registra que a pessoa esteve no cliente). */
+  temFoto: boolean;
   proximaVisita: string;
   marcarProximaVisita: boolean;
   lembreteTexto: string;
@@ -50,8 +52,10 @@ export function validarPasso(passo: Passo, dados: DadosDoCheckIn): Erros {
     if (dados.novoContatoAberto) erros.contato = 'Adicione ou cancele o contato novo antes de salvar.';
   }
 
-  if (passo === 3 && dados.descricao.trim().length < 3) {
-    erros.descricao = 'Descreva a visita com pelo menos 3 caracteres.';
+  if (passo === 3) {
+    if (dados.descricao.trim().length < 3) erros.descricao = 'Descreva a visita com pelo menos 3 caracteres.';
+    // Só no app: o backend não recebe a foto junto da visita (ela sobe depois)
+    if (!dados.temFoto) erros.foto = 'Tire uma foto da visita.';
   }
 
   if (passo === 4) {
@@ -72,6 +76,7 @@ const PASSO_DO_CAMPO: Record<keyof Erros, Passo> = {
   dataHora: 1,
   contato: 1,
   descricao: 3,
+  foto: 3,
   proximaVisita: 4,
   lembrete: 4,
 };

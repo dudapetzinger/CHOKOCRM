@@ -102,6 +102,7 @@ const VISITA: Visita = {
   contato: { id: 'ct1', nome: 'Marta Hoffmann' },
   autor: { id: 'r1', nome: 'Eduarda Petzinger' },
   temFoto: false,
+  fotoApagadaEm: null,
   criadoEm: '2026-10-18T13:00:00.000Z',
   editadoEm: null,
   itens: [],
@@ -196,9 +197,12 @@ async function salvar() {
   await usuario.click(screen.getByRole('button', { name: 'Salvar check-in' }));
 }
 
-/** Do passo 3 ao 4, com uma descrição válida. */
-async function descreverEContinuar(descricao = 'Reposição do mostruário.') {
+const FOTO_DA_VITRINE = () => new File(['foto'], 'vitrine.jpg', { type: 'image/jpeg' });
+
+/** Do passo 3 ao 4, com uma descrição válida e a foto (obrigatória, Etapa 11). */
+async function descreverEContinuar(descricao = 'Reposição do mostruário.', foto = FOTO_DA_VITRINE()) {
   preencher(screen.getByLabelText('O que aconteceu na visita'), descricao);
+  await usuario.upload(screen.getByLabelText('Foto'), foto);
   await continuar();
 }
 
@@ -257,7 +261,7 @@ describe('CheckInPage — passos', () => {
 
     await continuar();
     expect(titulo('O que aconteceu')).toHaveFocus();
-    expect(screen.getByLabelText('Foto (opcional)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Foto')).toBeInTheDocument();
 
     await descreverEContinuar();
     expect(screen.getByText('Passo 4 de 4')).toBeInTheDocument();
@@ -411,6 +415,28 @@ describe('CheckInPage — passos', () => {
     expect(descricao).toHaveFocus();
   });
 
+  it('sem foto, não avança do passo 3', async () => {
+    renderizar();
+    await esperarCliente();
+    await continuar();
+    await continuar();
+
+    preencher(screen.getByLabelText('O que aconteceu na visita'), 'Reposição do mostruário.');
+    await continuar();
+
+    const foto = screen.getByLabelText('Foto');
+    expect(screen.getByText('Tire uma foto da visita.')).toBeInTheDocument();
+    expect(foto).toHaveAttribute('aria-invalid', 'true');
+    expect(foto).toHaveAccessibleDescription(/Tire uma foto da visita\./);
+    expect(foto).toHaveFocus();
+    expect(screen.queryByText('Passo 4 de 4')).not.toBeInTheDocument();
+
+    await usuario.upload(foto, FOTO_DA_VITRINE());
+    expect(screen.queryByText('Tire uma foto da visita.')).not.toBeInTheDocument();
+    await continuar();
+    expect(screen.getByText('Passo 4 de 4')).toBeInTheDocument();
+  });
+
   it('Voltar preserva os campos (descrição digitada continua ao voltar ao 2 e avançar de novo)', async () => {
     renderizar();
     await esperarCliente();
@@ -420,10 +446,7 @@ describe('CheckInPage — passos', () => {
     await usuario.click(screen.getByRole('radio', { name: 'Negociação' }));
     await continuar();
     preencher(screen.getByLabelText('O que aconteceu na visita'), 'Cliente vai pensar até sexta.');
-    await usuario.upload(
-      screen.getByLabelText('Foto (opcional)'),
-      new File(['foto'], 'vitrine.jpg', { type: 'image/jpeg' }),
-    );
+    await usuario.upload(screen.getByLabelText('Foto'), FOTO_DA_VITRINE());
 
     await voltar();
     expect(titulo('Resultado')).toHaveFocus();
@@ -477,7 +500,7 @@ describe('CheckInPage — passos', () => {
     // O aviso aparece antes de a navegação terminar: espera a ficha, depois confere o aviso
     expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
     expect(await screen.findByText('Check-in salvo')).toBeInTheDocument();
-    expect(enviarFoto).not.toHaveBeenCalled();
+    expect(enviarFoto).toHaveBeenCalledWith('v1', expect.any(Blob));
   });
 
   it('"sim" na próxima visita mostra data sugerida e campanha; "sim" no lembrete mostra texto e Para quando (sugerido pela próxima visita)', async () => {
@@ -743,12 +766,12 @@ describe('CheckInPage — passos', () => {
     await esperarCliente();
     await continuar();
     await continuar();
-    const foto = new File(['foto'], 'vitrine.jpg', { type: 'image/jpeg' });
+    const foto = FOTO_DA_VITRINE();
 
-    await usuario.upload(screen.getByLabelText('Foto (opcional)'), foto);
+    await usuario.upload(screen.getByLabelText('Foto'), foto);
     expect(screen.getByRole('img', { name: 'Prévia da foto do check-in' })).toHaveAttribute('src', 'blob:previa');
-    expect(screen.getByText('Registra que você esteve no cliente.')).toBeInTheDocument();
-    await descreverEContinuar('Vitrine montada.');
+    expect(screen.getByText('Obrigatória: registra que você esteve no cliente.')).toBeInTheDocument();
+    await descreverEContinuar('Vitrine montada.', foto);
     await salvar();
 
     expect(await screen.findByText('Ficha do cliente')).toBeInTheDocument();
@@ -764,10 +787,6 @@ describe('CheckInPage — passos', () => {
     await continuar();
     await continuar();
 
-    await usuario.upload(
-      screen.getByLabelText('Foto (opcional)'),
-      new File(['foto'], 'vitrine.jpg', { type: 'image/jpeg' }),
-    );
     await descreverEContinuar('Vitrine montada.');
     await salvar();
 
