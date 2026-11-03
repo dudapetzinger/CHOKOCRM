@@ -50,6 +50,14 @@ Duas outras controlam o job diário de alertas da agenda (UC10 — ver `backend/
 | `AGENDA_JOB_ENABLED` | `true` | Liga/desliga o agendamento. O CI define `"false"`, já que o pipeline não precisa de um job recorrente rodando. |
 | `AGENDA_JOB_CRON` | `0 6 * * *` | Expressão cron (formato node-cron) de quando o job roda, interpretada no fuso `America/Sao_Paulo`. |
 
+Desde a Etapa 11, mais três controlam o job diário de limpeza das fotos de check-in (UC07/UC08 — ver `backend/src/jobs/limpezaDeFotos.job.ts`), que apaga do disco a foto das visitas com mais de 90 dias e marca a visita com `fotoApagadaEm`:
+
+| Variável | Padrão | Para quê |
+|----------|--------|----------|
+| `FOTOS_JOB_ENABLED` | `true` | Liga/desliga o agendamento. O CI define `"false"`, como no job da agenda. |
+| `FOTOS_JOB_CRON` | `30 3 * * *` | Expressão cron (formato node-cron) de quando o job roda, no fuso `America/Sao_Paulo`; uma expressão inválida impede a API de subir. |
+| `FOTOS_RETENCAO_DIAS` | `90` | Idade, em dias, a partir da qual a foto da visita é apagada (inteiro positivo). |
+
 Mais duas controlam o provedor de ERP simulado da Etapa 5 (ver `backend/src/providers/erp/`):
 
 | Variável | Padrão | Para quê |
@@ -127,6 +135,8 @@ São contas fictícias de demonstração, definidas em `backend/src/seed/demonst
 **Etapa 10 (deploy da Etapa 9 em produção).** A migration `lembretes_como_tarefa` é aplicada no start do App Service (`prisma migrate deploy`, [9.3](#93-como-o-deploy-acontece)); como ela converte dados, conferir depois do primeiro deploy, por SSH ou pelo cliente do Postgres: `SELECT count(*) FROM lembretes` tem de bater com a quantidade de `clients.lembrete` não nulos que havia antes (anote o número antes do deploy: `SELECT count(*) FROM clients WHERE lembrete IS NOT NULL`). Depois, **pedir que todos recarreguem o PWA** (tocar em "Atualizar" quando o aviso aparecer, ou fechar e abrir o app): o app antigo, ainda em cache, manda `lembrete: null` em todo check-in (hoje aceito, e tratado como "sem lembrete") e lê `ritmoSemanal` no Painel, que não existe mais na API — enquanto não atualizar, o Painel dele fica sem o ritmo de visitas. Sem variável de ambiente nova. O seed ganhou cinco vendas antigas (6 a 12 meses): só chegam à produção com `npm run db:seed:reset -- --confirmar` ([9.8](#98-desligar-e-religar-entre-janelas)).
 
 **Etapa 10d (visita marcada cumprida e textos do check-in).** Sem migration nem variável de ambiente nova: a regra "marcada cumprida" é de leitura (`proximaVisitaVigente`) e os textos são do frontend ([spec da parte 10d](superpowers/specs/2026-10-27-etapa-10d-visita-marcada-cumprida-e-textos-do-checkin-design.md)). Rodar o seed é opcional. `npm run db:seed` (sem reset) em produção **não** apaga a marcada antiga do Empório do Chocolate, porque `seedProximasVisitas` só grava onde `proximaVisita` é nulo; mesmo assim a ficha e a agenda já saem certas pela regra de leitura. O cenário novo (Doceria Jaraguá com "Visita marcada venceu há 2 dias") entra com `npm run db:seed` se a Doceria estiver sem data marcada, e `npm run db:seed:reset -- --confirmar` recria a demonstração inteira.
+
+**Etapa 11 (WhatsApp com a mensagem, sazonalidade por período, cidades da carteira e foto obrigatória).** Uma migration, `foto_apagada_em`, aditiva (coluna `visits.foto_apagada_em`, nula), aplicada com `npm run db:migrate` e, em produção, no start do App Service (`prisma migrate deploy`, [9.3](#93-como-o-deploy-acontece)); nenhum dado existente muda. Três variáveis opcionais, `FOTOS_JOB_ENABLED`, `FOTOS_JOB_CRON` e `FOTOS_RETENCAO_DIAS` ([seção 2](#2-variáveis-de-ambiente)): sem variável obrigatória, os padrões valem em produção. **Primeira rodada do job:** na primeira execução depois do deploy (3h30 de São Paulo), o job de limpeza apaga do disco `/home/uploads` as fotos de todas as visitas com mais de 90 dias que existirem e marca cada uma com `fotoApagadaEm` — a ficha passa a mostrar "Foto removida após 90 dias."; para desligar de vez ou adiar, defina `FOTOS_JOB_ENABLED=false` ou aumente `FOTOS_RETENCAO_DIAS` antes do deploy. Em desenvolvimento, o seed de demonstração tem visitas antigas, e com o job ligado ele marca toda visita antiga com `foto_path` preenchido, exista o arquivo ou não (arquivo ausente é ignorado). Depois, **pedir que todos toquem em "Atualizar" no PWA** (ou fechem e abram o app): o app antigo em cache ainda mostra "Foto (opcional)", lê as vendas mensais como 12 meses fixos e não traz o filtro de cidade. [Spec da etapa](superpowers/specs/2026-11-02-etapa-11-whatsapp-sazonalidade-cidades-foto-design.md).
 
 ## 5. Executando sem Docker
 
@@ -259,6 +269,9 @@ Ficam em Configurações → Variáveis de ambiente → Configurações de aplic
 | `UPLOADS_DIR` | `/home/uploads` | Fotos de check-in no disco persistente do App Service ([ADR-010](arquitetura.md#adr-010--armazenamento-de-arquivos-atrás-de-interface-com-driver-em-disco-na-etapa-3)). |
 | `AGENDA_JOB_ENABLED` | `true` | Liga o job diário de alertas da agenda. |
 | `AGENDA_JOB_CRON` | `0 6 * * *` | Horário do job, no fuso `America/Sao_Paulo`. |
+| `FOTOS_JOB_ENABLED` | `true` | Liga o job diário que apaga as fotos de check-in com mais de 90 dias (Etapa 11). Opcional: o padrão já vale. |
+| `FOTOS_JOB_CRON` | `30 3 * * *` | Horário do job de limpeza das fotos, no fuso `America/Sao_Paulo`. Opcional. |
+| `FOTOS_RETENCAO_DIAS` | `90` | Dias de retenção das fotos. Opcional. |
 | `ERP_PROVIDER` | `mock` | Provedor de ERP simulado. |
 | `ERP_MOCK_FALHAR` | `false` | Mock respondendo normalmente. |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Connection string do `ai-chokocrm` | Liga a telemetria (`backend/src/telemetria.ts`); vazia, a API sobe sem ela. |
