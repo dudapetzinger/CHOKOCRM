@@ -1013,4 +1013,154 @@ describe('PUT /clients/:id', () => {
     expect(resInexistente.status).toBe(400);
     expect(resInexistente.body.error.code).toBe('VALIDATION_ERROR');
   });
+
+  describe('proximaVisita', () => {
+    const hojeSP = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const ontem = somarDias(hojeSP, -1);
+    const amanha = somarDias(hojeSP, 1);
+
+    function colunaDoDia(dia: string): Date {
+      return new Date(`${dia}T00:00:00.000Z`);
+    }
+
+    function put(clienteId: string, corpo: Record<string, unknown>, tokenUsado: string) {
+      return request(app).put(`/clients/${clienteId}`).set('Authorization', `Bearer ${tokenUsado}`).send(corpo);
+    }
+
+    it('marca a próxima visita com a data de hoje e a devolve', async () => {
+      const clienteId = await idDoClientePorNomeFantasia('Café Blumenau');
+
+      const resposta = await put(clienteId, { proximaVisita: hojeSP }, token);
+
+      expect(resposta.status).toBe(200);
+      expect(resposta.body.proximaVisita).toBe(hojeSP);
+      const noBanco = await prisma.client.findUnique({ where: { id: clienteId } });
+      expect(noBanco?.proximaVisita).not.toBeNull();
+    });
+
+    it('data passada responde 400 "A próxima visita não pode ser antes de hoje."', async () => {
+      const clienteId = await idDoClientePorNomeFantasia('Café Blumenau');
+
+      const resposta = await put(clienteId, { proximaVisita: ontem }, token);
+
+      expect(resposta.status).toBe(400);
+      expect(resposta.body.error.code).toBe('VALIDATION_ERROR');
+      expect(resposta.body.error.details.map((detalhe: { message: string }) => detalhe.message)).toContain(
+        'A próxima visita não pode ser antes de hoje.',
+      );
+      const noBanco = await prisma.client.findUniqueOrThrow({ where: { id: clienteId } });
+      expect(noBanco.proximaVisita).toBeNull();
+    });
+
+    it('data inválida responde 400 "Data da próxima visita inválida."', async () => {
+      const clienteId = await idDoClientePorNomeFantasia('Café Blumenau');
+
+      const resposta = await put(clienteId, { proximaVisita: '2026-13-40' }, token);
+
+      expect(resposta.status).toBe(400);
+      expect(resposta.body.error.code).toBe('VALIDATION_ERROR');
+      expect(resposta.body.error.details.map((detalhe: { message: string }) => detalhe.message)).toContain(
+        'Data da próxima visita inválida.',
+      );
+    });
+
+    it('uma data nova mantém a campanha da próxima visita', async () => {
+      const clienteId = await idDoClientePorNomeFantasia('Café Blumenau');
+      const campanha = await prisma.campaign.create({
+        data: {
+          nome: 'Natal Chokolaten',
+          tipo: 'CAMPANHA',
+          inicio: colunaDoDia(hojeSP),
+          fim: colunaDoDia(somarDias(hojeSP, 30)),
+          produtos: [],
+        },
+      });
+      await prisma.client.update({
+        where: { id: clienteId },
+        data: { proximaVisita: colunaDoDia(amanha), proximaCampanhaId: campanha.id },
+      });
+
+      const resposta = await put(clienteId, { proximaVisita: somarDias(hojeSP, 3) }, token);
+
+      expect(resposta.status).toBe(200);
+      expect(resposta.body.proximaVisita).toBe(somarDias(hojeSP, 3));
+      expect(resposta.body.proximaCampanha).toEqual({ id: campanha.id, nome: 'Natal Chokolaten' });
+    });
+
+    it('null limpa a data e a campanha da próxima visita', async () => {
+      const clienteId = await idDoClientePorNomeFantasia('Café Blumenau');
+      const campanha = await prisma.campaign.create({
+        data: {
+          nome: 'Natal Chokolaten',
+          tipo: 'CAMPANHA',
+          inicio: colunaDoDia(hojeSP),
+          fim: colunaDoDia(somarDias(hojeSP, 30)),
+          produtos: [],
+        },
+      });
+      await prisma.client.update({
+        where: { id: clienteId },
+        data: { proximaVisita: colunaDoDia(amanha), proximaCampanhaId: campanha.id },
+      });
+
+      const resposta = await put(clienteId, { proximaVisita: null }, token);
+
+      expect(resposta.status).toBe(200);
+      expect(resposta.body.proximaVisita).toBeNull();
+      expect(resposta.body.proximaCampanha).toBeNull();
+      const noBanco = await prisma.client.findUniqueOrThrow({ where: { id: clienteId } });
+      expect(noBanco.proximaVisita).toBeNull();
+      expect(noBanco.proximaCampanhaId).toBeNull();
+    });
+
+    it('null em cliente sem data nem campanha responde 200', async () => {
+      const clienteId = await idDoClientePorNomeFantasia('Café Blumenau');
+
+      const resposta = await put(clienteId, { proximaVisita: null }, token);
+
+      expect(resposta.status).toBe(200);
+      expect(resposta.body.proximaVisita).toBeNull();
+    });
+
+    it('sem o campo, a data marcada não muda', async () => {
+      const clienteId = await idDoClientePorNomeFantasia('Café Blumenau');
+      await prisma.client.update({ where: { id: clienteId }, data: { proximaVisita: colunaDoDia(amanha) } });
+
+      const resposta = await put(clienteId, { telefone: '(47) 3000-2222' }, token);
+
+      expect(resposta.status).toBe(200);
+      expect(resposta.body.proximaVisita).toBe(amanha);
+    });
+
+    it('gestor marca a data em cliente inativo', async () => {
+      const clienteId = await idDoClientePorNomeFantasia('Doceria Jaraguá');
+
+      const resposta = await put(clienteId, { proximaVisita: amanha }, tokenGestor);
+
+      expect(resposta.status).toBe(200);
+      expect(resposta.body.ativo).toBe(false);
+      expect(resposta.body.proximaVisita).toBe(amanha);
+    });
+
+    it('representante em cliente de outra carteira responde 403 "Cliente de outra carteira."', async () => {
+      const { clienteOutroId } = await criarOutraCarteira();
+
+      const resposta = await put(clienteOutroId, { proximaVisita: amanha }, token);
+
+      expect(resposta.status).toBe(403);
+      expect(resposta.body.error.message).toBe('Cliente de outra carteira.');
+      const noBanco = await prisma.client.findUniqueOrThrow({ where: { id: clienteOutroId } });
+      expect(noBanco.proximaVisita).toBeNull();
+    });
+
+    it('data de hoje com última visita hoje responde 200 e proximaVisita null (cumprida)', async () => {
+      const clienteId = await idDoClientePorNomeFantasia('Café Blumenau');
+      await criarVisita(clienteId, 0, 'SEM_VENDA');
+
+      const resposta = await put(clienteId, { proximaVisita: hojeSP }, token);
+
+      expect(resposta.status).toBe(200);
+      expect(resposta.body.proximaVisita).toBeNull();
+    });
+  });
 });

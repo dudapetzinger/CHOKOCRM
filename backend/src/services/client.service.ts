@@ -2,7 +2,11 @@ import { Prisma } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import * as clientRepository from '../repositories/client.repository';
-import type { ClientComContatoPrincipal, ClientComContatos } from '../repositories/client.repository';
+import type {
+  ClientComContatoPrincipal,
+  ClientComContatos,
+  UpdateClientData,
+} from '../repositories/client.repository';
 import * as userRepository from '../repositories/user.repository';
 import type { CreateClientInput, ListClientsQuery, UpdateClientInput } from '../schemas/client.schema';
 import {
@@ -11,7 +15,13 @@ import {
   representanteEfetivo,
   type UsuarioAutenticado,
 } from './carteira';
-import { classificacaoDoCliente, dataDaColunaDate, proximaVisitaVigente, type Cor } from './classificacao.service';
+import {
+  classificacaoDoCliente,
+  colunaDateDaData,
+  dataDaColunaDate,
+  proximaVisitaVigente,
+  type Cor,
+} from './classificacao.service';
 import { consultarUltimasVendas } from './erp.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
@@ -281,8 +291,18 @@ export async function updateClient(
     }
   }
 
+  // A data da próxima visita vira a coluna `@db.Date`; `null` apaga também a
+  // campanha da próxima visita, que só existe junto com a data. Ausente, não mexe.
+  const { proximaVisita, ...resto } = input;
+  const data: UpdateClientData =
+    proximaVisita === undefined
+      ? resto
+      : proximaVisita === null
+        ? { ...resto, proximaVisita: null, proximaCampanhaId: null }
+        : { ...resto, proximaVisita: colunaDateDaData(proximaVisita) };
+
   try {
-    await clientRepository.update(id, input);
+    await clientRepository.update(id, data);
   } catch (err) {
     throw mapPrismaUniqueError(err);
   }

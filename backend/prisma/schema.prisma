@@ -86,11 +86,13 @@ model Client {
   email             String
   erpId             String?               @map("erp_id")
   recorrenciaDias   Int                   @default(15) @map("recorrencia_dias")
-  /// Data prevista da próxima visita, marcada no check-in (spec 7.4). Nula:
-  /// a agenda usa a última visita (ou o cadastro) + a recorrência.
+  /// Data prevista da próxima visita, marcada no check-in ou pela ficha
+  /// (spec 7.4, Etapa 11b). Nula: a agenda usa a última visita (ou o
+  /// cadastro) + a recorrência.
   proximaVisita     DateTime?             @map("proxima_visita") @db.Date
-  /// Campanha da próxima visita (spec 7.7): gravada e apagada com a data a
-  /// cada check-in. Excluir a campanha só desvincula.
+  /// Campanha da próxima visita (spec 7.7): gravada no check-in e apagada no
+  /// check-in seguinte ou ao limpar a data pela ficha. Excluir a campanha só
+  /// desvincula.
   proximaCampanhaId String?               @map("proxima_campanha_id")
   proximaCampanha   Campaign?             @relation(fields: [proximaCampanhaId], references: [id], onDelete: SetNull)
   ativo             Boolean               @default(true)

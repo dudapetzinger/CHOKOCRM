@@ -59,8 +59,8 @@ const itemDoPedidoSchema = z
   })
   .strict();
 
-const MENSAGEM_PROXIMA_VISITA_INVALIDA = 'Data da próxima visita inválida.';
-const MENSAGEM_PROXIMA_VISITA_PASSADA = 'A próxima visita não pode ser antes de hoje.';
+export const MENSAGEM_PROXIMA_VISITA_INVALIDA = 'Data da próxima visita inválida.';
+export const MENSAGEM_PROXIMA_VISITA_PASSADA = 'A próxima visita não pode ser antes de hoje.';
 const MAXIMO_LEMBRETE = 200;
 
 /**
@@ -68,9 +68,10 @@ const MAXIMO_LEMBRETE = 200;
  * (data que não existe, como 30/02, é recusada), hoje ou depois. "Hoje" é o
  * de São Paulo no momento da requisição — `refine`, pelo mesmo motivo da
  * data/hora da visita acima. `abort` no formato: data inválida não ganha
- * também a mensagem de data passada.
+ * também a mensagem de data passada. Exportada porque a ficha do cliente
+ * (`PUT /clients/:id`, Etapa 11b) aceita a mesma data, com as mesmas regras.
  */
-const proximaVisitaSchema = z.iso
+export const proximaVisitaSchema = z.iso
   .date({ error: MENSAGEM_PROXIMA_VISITA_INVALIDA, abort: true })
   .refine((data) => data >= dataCalendario(new Date()), { message: MENSAGEM_PROXIMA_VISITA_PASSADA });
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CORES } from '../services/classificacao.service';
+import { proximaVisitaSchema } from './visit.schema';
 
 /**
  * Validação de clientes e contatos (UC02/UC03/UC04). O schema Prisma
@@ -60,6 +61,10 @@ export type CreateClientInput = z.infer<typeof createClientSchema>;
  * com justificativa obrigatória (Etapa 4, fora do escopo desta task).
  * `representanteId`, quando presente, só pode ser enviado por um GESTOR
  * (regra aplicada em client.service.ts) e transfere a carteira do cliente.
+ * `proximaVisita` (Etapa 11b) marca, troca ou limpa a próxima visita pela
+ * ficha, com a mesma regra do check-in (`AAAA-MM-DD`, hoje ou depois); `null`
+ * apaga a data e a campanha da próxima visita (aplicado em client.service.ts).
+ * Ausente, a data marcada não muda.
  */
 export const updateClientSchema = z
   .object({
@@ -73,6 +78,7 @@ export const updateClientSchema = z
     erpId: z.string().min(1, 'Identificador de ERP não pode ser vazio.').optional(),
     ativo: z.boolean().optional(),
     representanteId: z.string().uuid('Identificador do representante inválido.').optional(),
+    proximaVisita: proximaVisitaSchema.nullable().optional(),
   })
   .strict();
 

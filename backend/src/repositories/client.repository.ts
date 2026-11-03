@@ -165,7 +165,17 @@ export async function createWithContacts(input: CreateClientInput, representante
   });
 }
 
-export async function update(id: string, data: UpdateClientInput): Promise<Client> {
+/**
+ * Dados da atualização do cliente: como o input da API, mas com a próxima
+ * visita já convertida para a coluna `@db.Date`; `null` limpa a data e vem
+ * junto com `proximaCampanhaId: null` (a campanha só vale com a data).
+ */
+export type UpdateClientData = Omit<UpdateClientInput, 'proximaVisita'> & {
+  proximaVisita?: Date | null;
+  proximaCampanhaId?: null;
+};
+
+export async function update(id: string, data: UpdateClientData): Promise<Client> {
   return prisma.client.update({ where: { id }, data });
 }
 

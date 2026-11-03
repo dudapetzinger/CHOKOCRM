@@ -218,6 +218,27 @@ describe('GET /agenda/today', () => {
     expect(atrasado).toMatchObject({ endereco: 'Rua Hermann Weege, 100', marcadaNoCheckIn: false });
   });
 
+  it('data marcada pela ficha (PUT /clients/:id) leva o cliente para "hoje" na agenda (Etapa 11b)', async () => {
+    const hojeSP = dataCalendario(new Date());
+    // Sem visita e recorrência de 15 dias: pela recorrência, só daqui a 15 dias (não entraria em "hoje")
+    const clienteNovoId = await criarCliente('11222333000686', 'Mercearia Gaspar', representanteAId);
+
+    const antes = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenA}`);
+    expect(antes.body.data.hoje.map((item: { id: string }) => item.id)).not.toContain(clienteNovoId);
+
+    const put = await request(app)
+      .put(`/clients/${clienteNovoId}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ proximaVisita: hojeSP });
+    expect(put.status).toBe(200);
+
+    const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    const noHoje = res.body.data.hoje.find((item: { id: string }) => item.id === clienteNovoId);
+    expect(noHoje).toMatchObject({ id: clienteNovoId, proximaVisita: hojeSP });
+  });
+
   it('marcada já cumprida pelo check-in volta à recorrência, sem marcadaNoCheckIn nem campanha (Etapa 10d)', async () => {
     const hojeCal = dataCalendario(new Date());
     const hojeColuna = new Date(`${hojeCal}T00:00:00.000Z`);
