@@ -12,7 +12,8 @@
  * negociação azul, sem venda vermelho claro), a etiqueta azul preenchida da
  * campanha vinculada (spec 7.7), o pedido da visita com venda ("Pedido ·
  * total" e uma linha por item, com o preço gravado no check-in) e a foto em
- * miniatura.
+ * miniatura — ou, depois da limpeza dos 90 dias, o aviso "Foto removida após
+ * 90 dias." no lugar da foto e do botão de anexar.
  *
  * O filtro é estado local do componente, não vai para a URL (spec da Etapa
  * 10b, seção 6). Componente de apresentação: não chama a API: recebe os dados
@@ -158,6 +159,10 @@ function ItemDaVisita({
 
       {visita.temFoto ? (
         <VisitaFoto visitaId={visita.id} />
+      ) : visita.fotoApagadaEm !== null ? (
+        // A limpeza dos 90 dias já apagou a foto: ninguém anexa outra (o
+        // backend responde 409), então nem o autor vê o botão.
+        <p className="mt-2 text-xs text-muted-foreground">Foto removida após 90 dias.</p>
       ) : (
         souAutor && (
           <div className="mt-2 space-y-1.5">

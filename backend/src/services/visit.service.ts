@@ -26,6 +26,7 @@ const MENSAGEM_PRODUTO_DESCONHECIDO = 'Produto não encontrado no catálogo.';
 const MENSAGEM_VISITA_NAO_ENCONTRADA = 'Visita não encontrada.';
 const MENSAGEM_APENAS_AUTOR = 'Apenas o autor do check-in pode alterá-lo.';
 const MENSAGEM_FOTO_JA_EXISTE = 'Esta visita já tem foto de comprovação.';
+const MENSAGEM_FOTO_REMOVIDA = 'A foto desta visita foi removida após 90 dias.';
 const MENSAGEM_FOTO_INVALIDA = 'O arquivo enviado não é uma imagem JPEG, PNG ou WebP.';
 const MENSAGEM_SEM_FOTO = 'Esta visita não tem foto de comprovação.';
 
@@ -44,6 +45,8 @@ export type VisitaDTO = {
   contato: { id: string; nome: string } | null;
   autor: { id: string; nome: string };
   temFoto: boolean;
+  /** Quando a limpeza dos 90 dias apagou a foto; `null` se a foto nunca foi removida. */
+  fotoApagadaEm: string | null;
   criadoEm: string;
   editadoEm: string | null;
   /** Pedido da visita (vazio sem pedido), com o preço gravado no check-in. */
@@ -70,6 +73,7 @@ export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
     contato: visit.contact ? { id: visit.contact.id, nome: visit.contact.nome } : null,
     autor: { id: visit.user.id, nome: visit.user.nome },
     temFoto: visit.fotoPath !== null,
+    fotoApagadaEm: visit.fotoApagadaEm ? visit.fotoApagadaEm.toISOString() : null,
     criadoEm: visit.criadoEm.toISOString(),
     editadoEm: visit.editadoEm ? visit.editadoEm.toISOString() : null,
     itens: visit.itens.map((item) => ({
@@ -240,6 +244,11 @@ export async function updateDescricao(
 
 export async function anexarFoto(visitId: string, usuario: UsuarioAutenticado, conteudo: Buffer): Promise<VisitaDTO> {
   const visita = await exigirVisitaDoAutor(visitId, usuario);
+
+  // A foto removida aos 90 dias não pode ser substituída: a visita já passou da retenção.
+  if (visita.fotoApagadaEm !== null) {
+    throw new AppError(ErrorCode.CONFLICT, MENSAGEM_FOTO_REMOVIDA, 409);
+  }
 
   if (visita.fotoPath !== null) {
     throw new AppError(ErrorCode.CONFLICT, MENSAGEM_FOTO_JA_EXISTE, 409);

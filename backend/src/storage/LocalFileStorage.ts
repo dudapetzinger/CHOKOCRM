@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
@@ -58,6 +58,18 @@ export class LocalFileStorage implements FileStorage {
       return { conteudo, contentType: CONTENT_TYPE_POR_EXTENSAO[extensao] };
     } catch {
       throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_ARQUIVO_AUSENTE, 404);
+    }
+  }
+
+  async delete(chave: string): Promise<void> {
+    const caminho = this.caminhoDe(chave);
+
+    try {
+      await unlink(caminho);
+    } catch (err) {
+      // Arquivo já ausente (volume novo, remoção anterior interrompida) não
+      // é falha: o objetivo, o arquivo não existir mais, já foi atingido.
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
     }
   }
 }

@@ -67,3 +67,32 @@ describe('envSchema — APP_URL', () => {
     }
   });
 });
+
+describe('envSchema — limpeza das fotos', () => {
+  const OBRIGATORIAS = { DATABASE_URL: 'x', JWT_SECRET: 'y' };
+
+  it('padrões: job ligado, 3h30 e retenção de 90 dias', () => {
+    const parsed = envSchema.parse(OBRIGATORIAS);
+
+    expect(parsed.FOTOS_JOB_ENABLED).toBe(true);
+    expect(parsed.FOTOS_JOB_CRON).toBe('30 3 * * *');
+    expect(parsed.FOTOS_RETENCAO_DIAS).toBe(90);
+  });
+
+  it('aceita desligar o job e trocar a retenção', () => {
+    const parsed = envSchema.parse({ ...OBRIGATORIAS, FOTOS_JOB_ENABLED: 'false', FOTOS_RETENCAO_DIAS: '30' });
+
+    expect(parsed.FOTOS_JOB_ENABLED).toBe(false);
+    expect(parsed.FOTOS_RETENCAO_DIAS).toBe(30);
+  });
+
+  it('FOTOS_JOB_CRON inválida falha', () => {
+    expect(envSchema.safeParse({ ...OBRIGATORIAS, FOTOS_JOB_CRON: 'abc' }).success).toBe(false);
+  });
+
+  it('FOTOS_RETENCAO_DIAS não positiva ou não inteira falha', () => {
+    expect(envSchema.safeParse({ ...OBRIGATORIAS, FOTOS_RETENCAO_DIAS: '0' }).success).toBe(false);
+    expect(envSchema.safeParse({ ...OBRIGATORIAS, FOTOS_RETENCAO_DIAS: '-5' }).success).toBe(false);
+    expect(envSchema.safeParse({ ...OBRIGATORIAS, FOTOS_RETENCAO_DIAS: '1.5' }).success).toBe(false);
+  });
+});

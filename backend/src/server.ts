@@ -7,6 +7,7 @@ const telemetriaAtiva = iniciarTelemetria(env.APPLICATIONINSIGHTS_CONNECTION_STR
 
 import { app } from './app';
 import { iniciarAgendaDiaria } from './jobs/agendaDiaria.job';
+import { iniciarLimpezaDeFotos } from './jobs/limpezaDeFotos.job';
 import { logger } from './lib/logger';
 
 logger.info(
@@ -18,4 +19,5 @@ logger.info(
 app.listen(env.PORT, () => {
   logger.info(`API do ChokoCRM disponível em http://localhost:${env.PORT}`);
   iniciarAgendaDiaria();
+  iniciarLimpezaDeFotos();
 });

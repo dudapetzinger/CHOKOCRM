@@ -18,6 +18,7 @@ jobs:
       DATABASE_URL: postgresql://chokocrm:chokocrm@localhost:5432/chokocrm_test
       JWT_SECRET: ci-secret
       AGENDA_JOB_ENABLED: "false"
+      FOTOS_JOB_ENABLED: "false"
     defaults: { run: { working-directory: backend } }
     steps:
       - uses: actions/checkout@v4

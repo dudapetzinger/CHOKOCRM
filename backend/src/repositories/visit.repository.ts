@@ -113,6 +113,25 @@ export async function setFotoPath(id: string, fotoPath: string): Promise<VisitCo
   return prisma.visit.update({ where: { id }, data: { fotoPath }, include: INCLUDE_RELACOES });
 }
 
+/**
+ * Visitas com foto no disco feitas antes de `limite` (a limpeza dos 90
+ * dias): só o que o job precisa, a visita e a chave do arquivo.
+ */
+export async function listComFotoAntesDe(limite: Date): Promise<{ id: string; fotoPath: string }[]> {
+  const visitas = await prisma.visit.findMany({
+    where: { fotoPath: { not: null }, dataHora: { lt: limite } },
+    select: { id: true, fotoPath: true },
+    orderBy: { dataHora: 'asc' },
+  });
+
+  return visitas.flatMap(({ id, fotoPath }) => (fotoPath === null ? [] : [{ id, fotoPath }]));
+}
+
+/** Depois de o arquivo sair do disco: zera o caminho e guarda quando foi (impede anexar outra foto). */
+export async function marcarFotoApagada(id: string, quando: Date): Promise<void> {
+  await prisma.visit.update({ where: { id }, data: { fotoPath: null, fotoApagadaEm: quando } });
+}
+
 export async function contatoPertenceAoCliente(contactId: string, clientId: string): Promise<boolean> {
   const contato = await prisma.contact.findFirst({ where: { id: contactId, clientId }, select: { id: true } });
   return contato !== null;

@@ -32,6 +32,8 @@ export type Visita = {
   contato: { id: string; nome: string } | null;
   autor: { id: string; nome: string };
   temFoto: boolean;
+  /** Quando a limpeza dos 90 dias apagou a foto; `null` se a foto nunca foi removida. */
+  fotoApagadaEm: string | null;
   criadoEm: string;
   editadoEm: string | null;
   /** Vazio quando a visita não tem pedido. */

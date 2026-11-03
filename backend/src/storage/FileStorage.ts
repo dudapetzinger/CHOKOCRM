@@ -5,10 +5,13 @@
  * a mesma interface, sem alterar service nem controller — mesmo padrão
  * Adapter adotado para o ERP (ver ADR-004 em docs/arquitetura.md).
  *
+ * O contrato tem `save`, `read` e `delete` (a limpeza das fotos aos 90 dias).
  * A `chave` é o identificador lógico do arquivo (ex.: `visits/<id>.jpg`),
  * nunca um caminho absoluto: quem implementa decide onde isso mora.
  */
 export interface FileStorage {
   save(chave: string, conteudo: Buffer, contentType: string): Promise<void>;
   read(chave: string): Promise<{ conteudo: Buffer; contentType: string }>;
+  /** Apaga o arquivo; arquivo já ausente não é falha, chave fora do desenho é 400. */
+  delete(chave: string): Promise<void>;
 }

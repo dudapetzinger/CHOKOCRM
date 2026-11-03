@@ -122,24 +122,26 @@ model Contact {
 }
 
 model Visit {
-  id         String          @id @default(uuid())
-  clientId   String          @map("client_id")
-  client     Client          @relation(fields: [clientId], references: [id])
-  userId     String          @map("user_id")
-  user       User            @relation(fields: [userId], references: [id])
-  contactId  String?         @map("contact_id")
-  contact    Contact?        @relation(fields: [contactId], references: [id])
-  dataHora   DateTime        @map("data_hora")
-  descricao  String
-  resultado  ResultadoVisita
-  fotoPath   String?         @map("foto_path")
-  criadoEm   DateTime        @default(now()) @map("criado_em")
-  editadoEm  DateTime?       @map("editado_em")
+  id            String          @id @default(uuid())
+  clientId      String          @map("client_id")
+  client        Client          @relation(fields: [clientId], references: [id])
+  userId        String          @map("user_id")
+  user          User            @relation(fields: [userId], references: [id])
+  contactId     String?         @map("contact_id")
+  contact       Contact?        @relation(fields: [contactId], references: [id])
+  dataHora      DateTime        @map("data_hora")
+  descricao     String
+  resultado     ResultadoVisita
+  fotoPath      String?         @map("foto_path")
+  /// Quando a limpeza dos 90 dias apagou a foto do disco (`fotoPath` volta a null); impede anexar outra.
+  fotoApagadaEm DateTime?       @map("foto_apagada_em")
+  criadoEm      DateTime        @default(now()) @map("criado_em")
+  editadoEm     DateTime?       @map("editado_em")
   /// Campanha da visita (spec 7.7). Excluir a campanha só desvincula.
-  campanhaId String?         @map("campanha_id")
-  campanha   Campaign?       @relation(fields: [campanhaId], references: [id], onDelete: SetNull)
-  itens      VisitItem[]
-  lembretes  Reminder[]
+  campanhaId    String?         @map("campanha_id")
+  campanha      Campaign?       @relation(fields: [campanhaId], references: [id], onDelete: SetNull)
+  itens         VisitItem[]
+  lembretes     Reminder[]
 
   @@index([clientId, dataHora(sort: Desc)])
   @@index([campanhaId])

@@ -26,6 +26,18 @@ export const envSchema = z.object({
     .refine((v) => cron.validate(v), {
       message: 'AGENDA_JOB_CRON deve ser uma expressão cron válida.',
     }),
+  FOTOS_JOB_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  FOTOS_JOB_CRON: z
+    .string()
+    .min(1)
+    .default('30 3 * * *')
+    .refine((v) => cron.validate(v), {
+      message: 'FOTOS_JOB_CRON deve ser uma expressão cron válida.',
+    }),
+  FOTOS_RETENCAO_DIAS: z.coerce.number().int().positive().default(90),
   ERP_PROVIDER: z.enum(['mock']).default('mock'),
   ERP_MOCK_FALHAR: z
     .enum(['true', 'false'])

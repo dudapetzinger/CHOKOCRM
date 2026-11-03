@@ -59,4 +59,22 @@ describe('LocalFileStorage', () => {
       statusCode: 404,
     });
   });
+
+  it('delete apaga o arquivo gravado', async () => {
+    await storage.save(CHAVE, CONTEUDO, 'image/jpeg');
+
+    await storage.delete(CHAVE);
+
+    await expect(readFile(path.join(diretorio, CHAVE))).rejects.toThrow();
+    await expect(storage.read(CHAVE)).rejects.toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+  });
+
+  it('delete de chave inexistente resolve sem falhar', async () => {
+    await expect(storage.delete('visits/55555555-5555-5555-5555-555555555555.jpg')).resolves.toBeUndefined();
+  });
+
+  it('delete rejeita chave que tenta sair do diretório base', async () => {
+    await expect(storage.delete('../x.jpg')).rejects.toBeInstanceOf(AppError);
+    await expect(storage.delete('../x.jpg')).rejects.toMatchObject({ statusCode: 400 });
+  });
 });

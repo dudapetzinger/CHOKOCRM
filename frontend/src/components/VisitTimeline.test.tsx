@@ -12,6 +12,7 @@ function visita(sobrescrever: Partial<Visita>): Visita {
     contato: null,
     autor: { id: 'r1', nome: 'Eduarda Petzinger' },
     temFoto: false,
+    fotoApagadaEm: null,
     criadoEm: '2026-10-18T13:00:00.000Z',
     editadoEm: null,
     itens: [],
@@ -49,6 +50,16 @@ function descricoesDaLista(): string[] {
 }
 
 describe('VisitTimeline', () => {
+  it('visita com a foto removida aos 90 dias avisa e não oferece anexar outra', () => {
+    renderizar([visita({ id: 'v1', temFoto: false, fotoApagadaEm: '2026-11-02T06:30:00.000Z' })], {
+      usuarioId: 'r1',
+    });
+
+    expect(screen.getByText('Foto removida após 90 dias.')).toBeInTheDocument();
+    expect(screen.queryByText('Anexar foto')).not.toBeInTheDocument();
+    expect(screen.queryByText('Esta visita não tem foto de comprovação.')).not.toBeInTheDocument();
+  });
+
   it('mostra o pedido da visita com o total e uma linha por item', () => {
     renderizar([
       visita({
