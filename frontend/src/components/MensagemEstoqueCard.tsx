@@ -2,7 +2,10 @@
  * Card "Mensagem de estoque" na ficha do cliente (UC12, Etapa 6A): o
  * representante gera uma mensagem de consulta de estoque com texto proposto
  * pelo sistema (evento sazonal vigente, se houver), revisa e abre no
- * WhatsApp via link `wa.me`; o histórico de mensagens geradas fica visível
+ * WhatsApp via link `wa.me` montado no próprio toque de "Confirmar e abrir no
+ * WhatsApp" (Etapa 11; o registro da mensagem vai ao backend em paralelo,
+ * sem bloquear a abertura; com telefone que não serve para o WhatsApp o link
+ * vem vazio, nada abre e o backend recusa o registro com a explicação); o histórico de mensagens geradas fica visível
  * para todos os papéis (só a geração é exclusiva do representante com
  * cliente ativo, ver `podeGerar` em `ClienteDetalhePage`). Visual do
  * protótipo (Etapa 8): "Gerar mensagem" na ação do cartão e cada mensagem
@@ -18,10 +21,12 @@ import { useMensagensEstoque, useGerarMensagemEstoque } from '../hooks/useMensag
 import { buscarProposta } from '../services/stockMessages';
 import { mensagemErroApi } from '../services/clients';
 import { formatarDataHora } from '../lib/formatarData';
+import { linkWhatsapp } from '../lib/telefone';
 import { EstadoVazio } from './EstadoVazio';
 import { Aviso, Campo, Cartao, CLASSES_SELECT } from './crm/ui';
 
 const MENSAGEM_ERRO_GERAR = 'Não foi possível gerar a mensagem.';
+const MENSAGEM_ERRO_REGISTRAR = 'A mensagem abriu no WhatsApp, mas não ficou registrada.';
 const CONTATO_TELEFONE_CLIENTE = '';
 
 type Props = {
@@ -34,6 +39,8 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
   const [texto, setTexto] = useState('');
   const [ultimoTextoSugerido, setUltimoTextoSugerido] = useState('');
   const [erroTexto, setErroTexto] = useState<string | null>(null);
+  // Se a última tentativa chegou a abrir o WhatsApp (muda o aviso de erro do registro).
+  const [abriuWhatsapp, setAbriuWhatsapp] = useState(false);
 
   const { data: mensagens, isLoading: mensagensCarregando, isError: mensagensComErro, error: erroMensagens } =
     useMensagensEstoque(clienteId);
@@ -50,6 +57,8 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
     },
   });
 
+  const proposta = mutationProposta.data;
+
   function iniciarGeracao(): void {
     mutationGerar.reset();
     mutationProposta.mutate();
@@ -59,6 +68,7 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
     mutationProposta.reset();
     mutationGerar.reset();
     setErroTexto(null);
+    setAbriuWhatsapp(false);
     setContactId(CONTATO_TELEFONE_CLIENTE);
     setTexto('');
     setUltimoTextoSugerido('');
@@ -74,7 +84,7 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
   function handleContactChange(novoContactId: string): void {
     setContactId(novoContactId);
 
-    const novaSugestao = mutationProposta.data?.textosSugeridos.find(
+    const novaSugestao = proposta?.textosSugeridos.find(
       (item) => item.contactId === (novoContactId || null),
     )?.texto;
 
@@ -94,17 +104,21 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
     }
     setErroTexto(null);
 
-    mutationGerar.mutate(
-      { texto: textoTratado, contactId: contactId || undefined },
-      {
-        onSuccess: (geracao) => {
-          window.open(geracao.link, '_blank', 'noopener');
-        },
-      },
-    );
+    // O WhatsApp abre no próprio toque (um popup aberto só depois da
+    // resposta é bloqueado no celular); o backend segue guardando a mensagem.
+    const telefone =
+      proposta?.contatos.find((contato) => contato.id === contactId)?.telefone ?? proposta?.telefoneCliente ?? '';
+    // Telefone que não serve (sem DDD, 0800...) dá link vazio: não abre nada, e o
+    // backend recusa o registro com "Telefone inválido para gerar o link do WhatsApp."
+    const link = linkWhatsapp(telefone, textoTratado);
+    if (link) {
+      window.open(link, '_blank', 'noopener');
+    }
+    setAbriuWhatsapp(link !== '');
+
+    mutationGerar.mutate({ texto: textoTratado, contactId: contactId || undefined });
   }
 
-  const proposta = mutationProposta.data;
   const geracao = mutationGerar.data;
   const podeIniciar = podeGerar && !mutationGerar.isSuccess && !proposta;
 
@@ -140,7 +154,7 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
         <form onSubmit={handleSubmit} noValidate className="mb-4 space-y-4">
           {mutationGerar.isError && (
             <Aviso tom="erro" role="alert">
-              {mensagemErroApi(mutationGerar.error, MENSAGEM_ERRO_GERAR)}
+              {mensagemErroApi(mutationGerar.error, abriuWhatsapp ? MENSAGEM_ERRO_REGISTRAR : MENSAGEM_ERRO_GERAR)}
             </Aviso>
           )}
 

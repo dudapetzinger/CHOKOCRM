@@ -5,6 +5,14 @@
  * contato" e as ações Ligar, WhatsApp e, com `podeCheckIn` (representante
  * dono, cliente ativo), "Novo check-in".
  *
+ * Com `podeCheckIn`, o WhatsApp abre já com a mensagem sugerida de estoque
+ * (UC12, Etapa 11): o link leva o texto e o toque no botão também registra a
+ * mensagem no histórico (se o registro falhar, só avisa; o WhatsApp já
+ * abriu). Sem `podeCheckIn` (gestor, cliente inativo), o link vai só com o
+ * número. O botão WhatsApp só aparece quando o telefone serve para o
+ * WhatsApp (mesmas regras do backend: com DDD, sem 0800 etc.); sem isso, só
+ * "Ligar", e a proposta nem é buscada.
+ *
  * Com `podeTransferir` (gestor), o nome do representante vira um select que
  * transfere o cliente na hora (`PUT /clients/:id { representanteId }`), com
  * os representantes da lista e o atual, se não estiver nela (ex.: inativo).
@@ -21,16 +29,18 @@ import { Check, MessageCircle, Phone, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useGerarMensagemEstoque, usePropostaDeMensagem } from '../hooks/useMensagensEstoque';
 import { useRepresentantes } from '../hooks/useRepresentantes';
 import { descreverSituacao } from '../lib/descreverSituacao';
 import { useDevolverFoco } from '../lib/useFoco';
-import { telefoneParaWaMe } from '../lib/telefone';
+import { linkWhatsapp, telefoneParaWaMe } from '../lib/telefone';
 import { mensagemErroApi, updateCliente, type ClienteCompleto } from '../services/clients';
 import { EtiquetaSituacao } from './EtiquetaSituacao';
 import { Avatar, CLASSES_SELECT, Etiqueta } from './crm/ui';
 import { NovoContato } from './crm/NovoContato';
 
 const MENSAGEM_ERRO_TRANSFERIR = 'Não foi possível transferir o cliente.';
+const MENSAGEM_ERRO_REGISTRAR = 'A mensagem abriu no WhatsApp, mas não ficou registrada.';
 
 function primeiroNome(nome: string): string {
   return nome.trim().split(/\s+/)[0] ?? nome;
@@ -106,6 +116,21 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
   const contatoPrincipal = cliente.contatos.find((contato) => contato.principal);
   const telefone = contatoPrincipal?.telefone ?? cliente.telefone;
   const numeroInternacional = telefoneParaWaMe(telefone);
+  const linkSemTexto = linkWhatsapp(telefone);
+
+  const { data: proposta } = usePropostaDeMensagem(cliente.id, podeCheckIn && linkSemTexto !== '');
+  const registrar = useGerarMensagemEstoque(cliente.id);
+  const textoSugerido = proposta?.textoSugerido;
+  const hrefWhatsapp = textoSugerido ? linkWhatsapp(telefone, textoSugerido) : linkSemTexto;
+
+  /** O link abre no próprio toque; o registro vai em paralelo e não o bloqueia. */
+  function registrarMensagem(): void {
+    if (!textoSugerido) return;
+    registrar.mutate(
+      { texto: textoSugerido, contactId: contatoPrincipal?.id },
+      { onError: () => toast.error(MENSAGEM_ERRO_REGISTRAR) },
+    );
+  }
 
   return (
     <section className="@container rounded-xl border bg-card p-5" aria-labelledby={idTitulo}>
@@ -164,17 +189,20 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
                     Ligar
                   </a>
                 </Button>
-                <Button variant="outline" asChild>
-                  <a
-                    href={`https://wa.me/${numeroInternacional}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="WhatsApp"
-                  >
-                    <MessageCircle aria-hidden="true" />
-                    WhatsApp
-                  </a>
-                </Button>
+                {linkSemTexto && (
+                  <Button variant="outline" asChild>
+                    <a
+                      href={hrefWhatsapp}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={registrarMensagem}
+                      aria-label="WhatsApp"
+                    >
+                      <MessageCircle aria-hidden="true" />
+                      WhatsApp
+                    </a>
+                  </Button>
+                )}
               </>
             )}
             {podeCheckIn && (

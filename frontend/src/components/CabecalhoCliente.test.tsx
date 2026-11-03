@@ -1,16 +1,22 @@
 import type { ReactElement } from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthContext, type Role } from '../auth/auth-context';
 import { Toaster } from './ui/sonner';
 import { updateCliente, type ClienteCompleto, type Contato } from '../services/clients';
+import { buscarProposta, gerarMensagem, type Geracao, type Proposta } from '../services/stockMessages';
 import { CabecalhoCliente } from './CabecalhoCliente';
 
 vi.mock('../services/clients', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/clients')>()),
   updateCliente: vi.fn(),
+}));
+
+vi.mock('../services/stockMessages', () => ({
+  buscarProposta: vi.fn(),
+  gerarMensagem: vi.fn(),
 }));
 
 vi.mock('../services/users', () => ({
@@ -65,12 +71,40 @@ function cliente(sobrescrever: Partial<ClienteCompleto> = {}): ClienteCompleto {
   };
 }
 
+function proposta(sobrescrever: Partial<Proposta> = {}): Proposta {
+  return {
+    evento: null,
+    contatos: [{ id: 'ct1', nome: 'Marta Hoffmann', telefone: '(47) 99900-8080', principal: true }],
+    telefoneCliente: '(47) 3633-1234',
+    textoSugerido: 'Olá, Marta! Aqui é Eduarda.',
+    textosSugeridos: [],
+    ...sobrescrever,
+  };
+}
+
+function geracao(sobrescrever: Partial<Geracao> = {}): Geracao {
+  return {
+    id: 'm1',
+    dataGeracao: '2026-11-02T12:00:00.000Z',
+    textoFinal: 'Olá, Marta! Aqui é Eduarda.',
+    autor: { id: 'u1', nome: 'Eduarda Petzinger' },
+    evento: null,
+    cliente: { id: 'c1', nomeFantasia: 'Armazém São Bento' },
+    contato: { id: 'ct1', nome: 'Marta Hoffmann' },
+    telefone: '(47) 99900-8080',
+    link: 'https://wa.me/5547999008080',
+    ...sobrescrever,
+  };
+}
+
 // Sem atraso entre as teclas: o teste não depende da velocidade da máquina.
 let usuario: ReturnType<typeof userEvent.setup>;
 
 beforeEach(() => {
   usuario = userEvent.setup({ delay: null });
   vi.mocked(updateCliente).mockReset();
+  vi.mocked(buscarProposta).mockReset().mockResolvedValue(proposta());
+  vi.mocked(gerarMensagem).mockReset().mockResolvedValue(geracao());
 });
 
 function renderizar(elemento: ReactElement, role: Role = 'REPRESENTANTE') {
@@ -186,5 +220,68 @@ describe('CabecalhoCliente', () => {
     expect(screen.queryByRole('group', { name: 'Novo contato' })).not.toBeInTheDocument();
     // O foco volta para quem abriu o formulário
     expect(screen.getByRole('button', { name: 'Adicionar contato' })).toHaveFocus();
+  });
+
+  it('com podeCheckIn, o WhatsApp abre com a mensagem sugerida e registra ao clicar', async () => {
+    vi.mocked(buscarProposta).mockResolvedValue(proposta({ textoSugerido: 'Olá, Marta! Aqui é Eduarda.' }));
+    vi.mocked(gerarMensagem).mockResolvedValue(geracao());
+    renderizar(<CabecalhoCliente cliente={cliente()} podeCheckIn podeTransferir={false} />);
+
+    const whatsapp = await screen.findByRole('link', { name: 'WhatsApp' });
+    await waitFor(() =>
+      expect(whatsapp).toHaveAttribute(
+        'href',
+        'https://wa.me/5547999008080?text=Ol%C3%A1%2C%20Marta!%20Aqui%20%C3%A9%20Eduarda.',
+      ),
+    );
+    // O clique não navega no jsdom; o que importa é o registro da mensagem.
+    await usuario.click(whatsapp);
+
+    expect(gerarMensagem).toHaveBeenCalledWith('c1', { texto: 'Olá, Marta! Aqui é Eduarda.', contactId: 'ct1' });
+  });
+
+  it('sem podeCheckIn, não busca a proposta e o link vai só com o número', async () => {
+    renderizar(<CabecalhoCliente cliente={cliente()} podeCheckIn={false} podeTransferir={false} />);
+
+    const whatsapp = screen.getByRole('link', { name: 'WhatsApp' });
+    expect(whatsapp).toHaveAttribute('href', 'https://wa.me/5547999008080');
+    await usuario.click(whatsapp);
+
+    expect(buscarProposta).not.toHaveBeenCalled();
+    expect(gerarMensagem).not.toHaveBeenCalled();
+  });
+
+  it('registro que falha avisa sem bloquear o link', async () => {
+    vi.mocked(gerarMensagem).mockRejectedValue(new Error('falhou'));
+    renderizar(<CabecalhoCliente cliente={cliente()} podeCheckIn podeTransferir={false} />);
+
+    const whatsapp = await screen.findByRole('link', { name: 'WhatsApp' });
+    await waitFor(() => expect(whatsapp.getAttribute('href')).toContain('?text='));
+    await usuario.click(whatsapp);
+
+    expect(await screen.findByText('A mensagem abriu no WhatsApp, mas não ficou registrada.')).toBeInTheDocument();
+  });
+
+  it('telefone sem dígitos: sem botão de WhatsApp e sem buscar a proposta', async () => {
+    renderizar(<CabecalhoCliente cliente={cliente({ telefone: '', contatos: [] })} podeCheckIn podeTransferir={false} />);
+
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument();
+    expect(buscarProposta).not.toHaveBeenCalled();
+    expect(gerarMensagem).not.toHaveBeenCalled();
+  });
+
+  it('telefone 0800: sem botão de WhatsApp, sem buscar a proposta nem registrar; "Ligar" continua', async () => {
+    const principal0800: Contato = { ...contatoPrincipal, telefone: '0800 123 4567' };
+    renderizar(
+      <CabecalhoCliente cliente={cliente({ contatos: [principal0800] })} podeCheckIn podeTransferir={false} />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Ligar' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Novo check-in' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument();
+    // Dá tempo de uma busca indevida aparecer antes de afirmar que não houve.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(buscarProposta).not.toHaveBeenCalled();
+    expect(gerarMensagem).not.toHaveBeenCalled();
   });
 });

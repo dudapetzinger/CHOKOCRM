@@ -1,4 +1,4 @@
-import { somenteDigitos, telefoneParaWaMe } from './telefone';
+import { linkWhatsapp, somenteDigitos, telefoneParaWaMe } from './telefone';
 
 describe('somenteDigitos', () => {
   it('tira tudo que não é dígito', () => {
@@ -33,5 +33,40 @@ describe('telefoneParaWaMe', () => {
   it('devolve vazio quando não há dígitos', () => {
     expect(telefoneParaWaMe('')).toBe('');
     expect(telefoneParaWaMe('sem telefone')).toBe('');
+  });
+});
+
+describe('linkWhatsapp', () => {
+  it('monta o link com o texto codificado', () => {
+    expect(linkWhatsapp('(47) 99900-8080', 'Olá, Marta! 🍫')).toBe(
+      'https://wa.me/5547999008080?text=Ol%C3%A1%2C%20Marta!%20%F0%9F%8D%AB',
+    );
+  });
+
+  it('sem texto, só o número', () => {
+    expect(linkWhatsapp('(47) 99900-8080')).toBe('https://wa.me/5547999008080');
+  });
+
+  it('sem dígitos, vazio', () => {
+    expect(linkWhatsapp('')).toBe('');
+  });
+
+  it('prefixo não geográfico (0800, 0300, 0500, 0900), vazio', () => {
+    expect(linkWhatsapp('0800 123 4567', 'Oi')).toBe('');
+    expect(linkWhatsapp('0300 313 1234')).toBe('');
+  });
+
+  it('sem DDD (8–9 dígitos), vazio', () => {
+    expect(linkWhatsapp('3333-4444')).toBe('');
+    expect(linkWhatsapp('99900-8080')).toBe('');
+  });
+
+  it('tamanho fora de 10–13 dígitos, ou 12–13 sem o 55, vazio', () => {
+    expect(linkWhatsapp('+55 47 99900-80801')).toBe('');
+    expect(linkWhatsapp('11 4733334444')).toBe('');
+  });
+
+  it('com zero de tronco, monta o link normalmente', () => {
+    expect(linkWhatsapp('047 99900-8080', 'Oi')).toBe('https://wa.me/5547999008080?text=Oi');
   });
 });
