@@ -57,7 +57,7 @@ Na Etapa 9, a partir do que a parceira trouxe depois de validar o app com os dad
 - **Ranking dos representantes (só o gestor):** visitas, conversão em vendas e receita por representante no período.
 - **Lembrete como tarefa:** o check-in cria um lembrete com data própria ("Para quando"), que aparece na agenda do dia ("Lembretes"), no calendário e na ficha, sobrevive a novos check-ins e só sai quando o representante (ou o gestor) o conclui ([ADR-017](docs/arquitetura.md#adr-017--lembrete-como-tarefa-própria-tabela-reminder)).
 - **Calendário só com o que foi marcado** (visitas marcadas no check-in e lembretes, mais campanhas e datas sazonais) e **roteiro do dia só com as visitas de hoje**.
-- **Ficha do cliente em abas** (Visitas, ERP e sugestões, Cadastro) e **Campanhas com filtro**, com os resultados por representante (visitas, clientes atendidos, vendas e conversão), os produtos mais vendidos e as metas de cada representante na campanha.
+- **Ficha do cliente em abas** (desde a Etapa 12 na ordem ERP e sugestões, Visitas, Cadastro) e **Campanhas com filtro**, com os resultados por representante (visitas, clientes atendidos, vendas e conversão), os produtos mais vendidos e as metas de cada representante na campanha.
 
 Na Etapa 10 (26/10/2026), a partir do uso da produção pela parceira ([spec da 10b](docs/superpowers/specs/2026-10-26-etapa-10b-checkin-em-passos-e-filtro-de-visitas-design.md) e [spec da 10c](docs/superpowers/specs/2026-10-26-etapa-10c-mapa-com-contorno-e-zoom-e-vendas-da-campanha-design.md)), o app ganhou:
 
@@ -74,6 +74,11 @@ Na Etapa 11 (02/11/2026), a partir do uso em campo ([spec da etapa](docs/superpo
 - **Filtro de cidade na lista de clientes:** um select com as cidades onde a carteira já tem clientes, sem digitar.
 - **Foto obrigatória no check-in**, apagada do disco 90 dias depois da visita por um job diário; a ficha passa a mostrar "Foto removida após 90 dias." ([ADR-010](docs/arquitetura.md#adr-010--armazenamento-de-arquivos-atrás-de-interface-com-driver-em-disco-na-etapa-3)).
 - **Próxima visita pela ficha (Etapa 11b, 03/11/2026):** o representante dono da carteira e o gestor marcam, alteram ou limpam a data da próxima visita direto no aviso da ficha ("Alterar data"), de hoje em diante, sem precisar de check-in; a agenda e a lista de clientes acompanham ([spec](docs/superpowers/specs/2026-11-03-etapa-11b-editar-proxima-visita-na-ficha-design.md)).
+
+Na Etapa 12 (05/11/2026, [spec da etapa](docs/superpowers/specs/2026-11-04-etapa-12-ficha-e-importacao-de-notas-fiscais-design.md)), a partir de novos pedidos da parceira, o app ganhou:
+
+- **Importação das notas fiscais (DANFE em PDF):** o gestor sobe um ou vários PDFs em "Importar notas"; o sistema casa cada nota com o cliente pelo CNPJ, vincula pedido e itens à última visita quando a data é a mesma (ou pergunta, quando é outra) e mostra por arquivo o que entrou, o que ficou pendente e os CNPJs sem cliente. Com `ERP_PROVIDER=importado`, as vendas da ficha, a cor, as vendas mensais e os insights passam a vir dessas notas; o estoque não existe nesse provedor ("O ERP não informa o estoque do cliente."). O desenvolvimento e o seed continuam no provedor simulado.
+- **Ficha reorganizada:** abas na ordem "ERP e sugestões" (a que abre primeiro), "Visitas" e "Cadastro", "Adicionar contato" pela aba Cadastro, pedido recolhido no histórico ("Ver itens") e, com nota vinculada, "Pedido conforme NF 2455" e "Total da nota".
 
 Cada funcionalidade está especificada como caso de uso em [docs/casos-de-uso.md](docs/casos-de-uso.md), com as regras de negócio detalhadas na [seção 6 da especificação técnica](docs/especificacao-tecnica.md#6-regras-de-negócio-principais).
 
@@ -111,7 +116,7 @@ Protótipo estático das telas principais — login, lista de clientes com as co
 
 React 19 com Vite e TypeScript no frontend, com Tailwind CSS 4, componentes shadcn (Radix), ícones lucide e `vite-plugin-pwa` no app instalável; Node.js 22 com Express 5 e TypeScript no backend; PostgreSQL 16 com Prisma como ORM; autenticação por JWT; e-mail por SMTP (`nodemailer`) para o link de redefinição de senha; Docker Compose no ambiente de desenvolvimento; GitHub Actions na integração e na entrega contínuas; Azure na produção.
 
-A integração com o ERP da Senior é feita por trás de uma interface substituível (`ErpProvider`), com implementação simulada enquanto a API real não é consumida. As mensagens de consulta de estoque **não** usam a API oficial do WhatsApp: o sistema gera o texto e o link `wa.me`, e o envio é feito manualmente pelo representante — a justificativa está no [ADR-005](docs/arquitetura.md#adr-005--mensagem-de-estoque-via-link-wame).
+A integração com o ERP da Senior é feita por trás de uma interface substituível (`ErpProvider`), com duas implementações — a simulada, de desenvolvimento, e a das notas fiscais importadas em PDF, de produção desde a Etapa 12 — enquanto a API real não é consumida. As mensagens de consulta de estoque **não** usam a API oficial do WhatsApp: o sistema gera o texto e o link `wa.me`, e o envio é feito manualmente pelo representante — a justificativa está no [ADR-005](docs/arquitetura.md#adr-005--mensagem-de-estoque-via-link-wame).
 
 ## 9. Como executar localmente
 
@@ -149,7 +154,7 @@ Análise estática de código pelo SonarCloud, executada como job do pipeline de
 
 ## 13. Cronograma de entregas
 
-O projeto é entregue em seis etapas, da documentação e protótipo até o deploy em produção e os testes com os representantes, mais uma Etapa 7 de refino de UX, gráficos e PWA, uma Etapa 8 de revisão pelo protótipo do Lovable e uma Etapa 9 de ajustes pós-validação (25/10/2026), antes dos testes de campo.
+O projeto é entregue em seis etapas, da documentação e protótipo até o deploy em produção e os testes com os representantes, mais uma Etapa 7 de refino de UX, gráficos e PWA, uma Etapa 8 de revisão pelo protótipo do Lovable e uma Etapa 9 de ajustes pós-validação (25/10/2026) e as etapas de polimento seguintes (10 a 12, com a importação das notas fiscais), antes dos testes de campo.
 
 → [seção 11 da especificação técnica](docs/especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)
 

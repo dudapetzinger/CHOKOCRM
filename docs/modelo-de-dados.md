@@ -4,11 +4,11 @@ Este documento descreve o modelo de dados do ChokoCRM. Complementa a [especifica
 
 ## 1. Visão geral
 
-Este documento descreve o modelo de dados do ChokoCRM: o diagrama entidade-relacionamento (ER) das doze entidades persistidas e o dicionário de dados correspondente, campo a campo. Os nomes de entidades e campos aqui definidos são canônicos e foram implementados literalmente no `schema.prisma` a partir da Etapa 2 (Fundação). As sete primeiras vêm da proposta; a Etapa 8 (revisão pelo protótipo) acrescentou `PasswordResetToken`, `VisitItem`, `Campaign` e `Goal` (seções 3.8 a 3.11) e campos novos em `User`, `Client` e `Visit`; a Etapa 9 (ajustes pós-validação) acrescentou `Reminder` (seção 3.12), o lembrete como tarefa própria, e tirou `Client.lembrete`.
+Este documento descreve o modelo de dados do ChokoCRM: o diagrama entidade-relacionamento (ER) das dezesseis entidades persistidas e o dicionário de dados correspondente, campo a campo. Os nomes de entidades e campos aqui definidos são canônicos e foram implementados literalmente no `schema.prisma` a partir da Etapa 2 (Fundação). As sete primeiras vêm da proposta; a Etapa 8 (revisão pelo protótipo) acrescentou `PasswordResetToken`, `VisitItem`, `Campaign` e `Goal` (seções 3.8 a 3.11) e campos novos em `User`, `Client` e `Visit`; a Etapa 9 (ajustes pós-validação) acrescentou `Reminder` (seção 3.12), o lembrete como tarefa própria, e tirou `Client.lembrete`; a Etapa 12 (notas fiscais importadas) acrescentou `ErpImport`, `ErpSale`, `ErpSaleItem` e `ErpProduct` (seções 3.13 a 3.16) e a coluna `Visit.erp_sale_id`.
 
 Duas classes de informação relevantes ao domínio **não são modeladas como entidade persistida** neste documento, por decisão explícita da especificação técnica:
 
-- **Dados de venda e estoque**, obtidos sob demanda do ERP da Senior Sistemas por meio da interface `ErpProvider` (seção 4).
+- **Dados de venda e estoque**, obtidos sob demanda por meio da interface `ErpProvider` (seção 4). No provedor simulado (`mock`) nada é gravado; no provedor `importado` (Etapa 12) as vendas vêm das notas fiscais gravadas em `ErpSale` e `ErpSaleItem` (seções 3.14 e 3.15), e o estoque não existe.
 - **Cor do cliente**, calculada em tempo de consulta a partir do histórico de visitas (e, futuramente, de vendas) — nunca armazenada em coluna própria (seção 5).
 
 ## 2. Diagrama entidade-relacionamento
@@ -34,6 +34,11 @@ erDiagram
   CLIENT ||--o{ REMINDER : "tem lembretes"
   USER ||--o{ REMINDER : cria
   VISIT |o--o{ REMINDER : origina
+  USER ||--o{ ERP_IMPORT : importa
+  ERP_IMPORT ||--o{ ERP_SALE : grava
+  ERP_SALE ||--o{ ERP_SALE_ITEM : tem
+  CLIENT |o--o{ ERP_SALE : "recebe notas pelo CNPJ"
+  ERP_SALE |o--o| VISIT : "é vinculada a"
 ```
 
 Leitura das cardinalidades:
@@ -47,8 +52,9 @@ Leitura das cardinalidades:
 - Uma **Visit** com resultado `VENDA` pode ter vários `VisitItem` (o pedido do check-in); cada item pertence a exatamente uma visita e é apagado com ela.
 - Uma **Campaign** pode estar vinculada a zero ou várias `Visit` (`campanha_id`), a zero ou vários `Client` pela próxima visita (`proxima_campanha_id`) e a zero ou várias `Goal` (metas da campanha). Excluir a campanha desvincula visitas e clientes e apaga as metas dela.
 - Um **Client** tem zero ou vários `Reminder` (lembretes, Etapa 9); cada lembrete pertence a exatamente um cliente e é apagado com ele. Um **User** cria vários `Reminder` (`criado_por_id`) e uma **Visit** pode ser a origem de zero ou vários (`visit_id`, opcional: apagar a visita só solta o vínculo).
+- Um **User** (gestor) importa vários `ErpImport` (Etapa 12); cada importação grava várias `ErpSale` e cada `ErpSale` tem vários `ErpSaleItem`, apagados com ela. Uma `ErpSale` pode apontar para um `Client` (o dono do CNPJ do destinatário, nulo se ainda não cadastrado) e liga a no máximo uma `Visit`, pela coluna `Visit.erp_sale_id`. `ErpProduct` não tem relação com as outras: é o catálogo de produtos visto nas notas.
 
-As entidades do diagrama (em maiúsculas, convenção do Mermaid) correspondem uma a uma às entidades do dicionário de dados da seção 3: `USER` → `User`, `CLIENT` → `Client`, `CONTACT` → `Contact`, `VISIT` → `Visit`, `VISIT_SCHEDULE_CHANGE` → `VisitScheduleChange`, `STOCK_MESSAGE` → `StockMessage`, `SEASONAL_EVENT` → `SeasonalEvent`, `PASSWORD_RESET_TOKEN` → `PasswordResetToken`, `VISIT_ITEM` → `VisitItem`, `CAMPAIGN` → `Campaign`, `GOAL` → `Goal`, `REMINDER` → `Reminder`.
+As entidades do diagrama (em maiúsculas, convenção do Mermaid) correspondem uma a uma às entidades do dicionário de dados da seção 3: `USER` → `User`, `CLIENT` → `Client`, `CONTACT` → `Contact`, `VISIT` → `Visit`, `VISIT_SCHEDULE_CHANGE` → `VisitScheduleChange`, `STOCK_MESSAGE` → `StockMessage`, `SEASONAL_EVENT` → `SeasonalEvent`, `PASSWORD_RESET_TOKEN` → `PasswordResetToken`, `VISIT_ITEM` → `VisitItem`, `CAMPAIGN` → `Campaign`, `GOAL` → `Goal`, `REMINDER` → `Reminder`, `ERP_IMPORT` → `ErpImport`, `ERP_SALE` → `ErpSale` e `ERP_SALE_ITEM` → `ErpSaleItem`. A décima sexta, `ErpProduct` (seção 3.16), não tem relação com as outras e por isso não aparece no diagrama.
 
 ## 3. Dicionário de dados
 
@@ -122,6 +128,7 @@ Convenções adotadas nas tabelas abaixo:
 | criado_em | Data/hora | Sim | Momento em que o check-in foi **registrado** no sistema. Distinto de `data_hora`, que é quando a visita **ocorreu** (o representante pode lançar visita retroativa). |
 | editado_em | Data/hora | Não | Momento da última edição da descrição. Nulo enquanto a descrição nunca foi editada. Somente a descrição é editável, e somente pelo autor (UC08). |
 | campanha_id | Chave estrangeira → `Campaign.id` | Não | Campanha a que a visita foi vinculada no check-in (Etapa 8, UC18); só entram campanhas não encerradas. Excluir a campanha só desvincula (`ON DELETE SET NULL`). |
+| erp_sale_id | Chave estrangeira → `ErpSale.id` | Não | Nota fiscal vinculada à visita (Etapa 12, UC28); **única** (`UNIQUE`): uma nota liga uma visita só. Nulo na visita sem nota. Apagar a nota só solta o vínculo (`ON DELETE SET NULL`). Com a nota vinculada, os `VisitItem` da visita são os itens dela. |
 
 O pedido da visita fica em `VisitItem` (seção 3.9); o total do pedido (soma de quantidade × preço unitário) é calculado na leitura, nunca gravado.
 
@@ -248,25 +255,102 @@ Lembrete do cliente como tarefa própria (Etapa 9, UC17 e UC27): nasce no check-
 
 **Migração (Etapa 9):** a migration `20261025232841_lembretes_como_tarefa` cria a tabela e, em SQL escrito à mão, copia cada `Client.lembrete` não nulo para um `Reminder` aberto, criado pelo dono da carteira (`criado_por_id = representante_id`), com `data` igual à `proxima_visita` do cliente ou, sem ela, ao dia da migração; depois remove a coluna `clients.lembrete`.
 
+### 3.13 ErpImport
+
+Um PDF de DANFE importado pelo gestor (Etapa 12, UC28), com os totais do resultado. Tabela `erp_imports`.
+
+| Campo | Tipo | Obrigatório | Descrição / Regra |
+|---|---|---|---|
+| id | Identificador único (UUID) | Sim | Chave primária. |
+| user_id | Chave estrangeira → `User.id` | Sim | Gestor que importou o arquivo. |
+| nome_arquivo | Texto | Sim | Nome do PDF, como veio em `?nome=`. |
+| criado_em | Data/hora | Sim | Momento da importação; a maior data entre as importações é a `ultimaImportacaoEm` de `GET /erp/situacao`. |
+| notas_importadas | Número inteiro | Sim | Quantas notas do arquivo foram gravadas (novas ou atualizadas). |
+| notas_ignoradas | Número inteiro | Sim | Quantas notas foram lidas e deixadas de fora (não são venda, sem protocolo, totais que não fecham). Só a contagem fica no banco; o motivo de cada uma vai na resposta do `POST`. |
+| vinculadas_automaticamente | Número inteiro | Sim | Quantas notas foram vinculadas sozinhas à visita da mesma data. |
+| pendentes | Número inteiro | Sim | Quantas ficaram à espera da resposta do gestor (data diferente da última visita). |
+| cnpjs_sem_cliente | JSON | Sim | Lista `[{ cnpj, razaoSocial }]` dos destinatários sem cliente com aquele CNPJ. |
+
+### 3.14 ErpSale
+
+Nota fiscal de venda lida de uma DANFE (Etapa 12, UC28). Tabela `erp_sales`. É a fonte das vendas do provedor `importado` (seção 4).
+
+| Campo | Tipo | Obrigatório | Descrição / Regra |
+|---|---|---|---|
+| id | Identificador único (UUID) | Sim | Chave primária. |
+| chave_acesso | Texto (44 dígitos) | Sim | Chave de acesso da NF-e; **única** (`UNIQUE`), é o que evita duplicar a nota ao reimportar. |
+| numero | Texto | Sim | Número da nota. |
+| serie | Texto | Sim | Série da nota. |
+| data_emissao | Data | Sim | Dia da emissão (`DATE`, sem hora); é a `data` da venda para o ERP. |
+| natureza_operacao | Texto | Sim | Natureza da operação ("Venda Produção do Estabelecimento", por exemplo). |
+| destinatario_cnpj | Texto (14 dígitos) | Sim | CNPJ do destinatário, só dígitos; é por ele que o provedor `importado` acha as notas de um cliente. Índice em (`destinatario_cnpj`, `data_emissao`). |
+| destinatario_nome | Texto | Sim | Razão social do destinatário na nota. |
+| client_id | Chave estrangeira → `Client.id` | Não | Cliente com aquele CNPJ no momento da importação; nulo se ainda não existia. Apagar o cliente só solta o vínculo (`ON DELETE SET NULL`). |
+| valor_produtos | Decimal (12,2) | Sim | Valor total dos produtos. |
+| desconto | Decimal (12,2) | Sim | Desconto da nota. |
+| valor_total | Decimal (12,2) | Sim | Valor total da nota (`VALOR TOTAL DA NOTA`); é o `valor` de `Sale`. |
+| import_id | Chave estrangeira → `ErpImport.id` | Sim | Importação mais recente que gravou a nota (reimportar move a nota para a importação nova). |
+| vinculo_status | Enumeração (`AUTOMATICO`, `PENDENTE`, `VINCULADA`, `RECUSADA`, `SEM_VISITA`, `SEM_CLIENTE`) | Sim | Situação do vínculo com a visita: `AUTOMATICO` (mesma data da última visita), `PENDENTE` (data diferente, aguardando o gestor), `VINCULADA` (o gestor aceitou), `RECUSADA` (o gestor deixou só no ERP ou desvinculou; a reimportação nunca a religa), `SEM_VISITA` (cliente sem visita) e `SEM_CLIENTE` (nenhum cliente com o CNPJ). Índice em `vinculo_status`. |
+| visita_sugerida_id | Texto | Não | Visita sugerida enquanto a nota está `PENDENTE` (a última do cliente); não é chave estrangeira. |
+| atualizado_em | Data/hora | Sim | Última gravação da nota. |
+
+A visita que recebe a nota guarda a ligação em `Visit.erp_sale_id` (seção 3.4), de modo que uma nota liga a no máximo uma visita e vice-versa.
+
+### 3.15 ErpSaleItem
+
+Linha de produto de uma nota importada (Etapa 12). Tabela `erp_sale_items`.
+
+| Campo | Tipo | Obrigatório | Descrição / Regra |
+|---|---|---|---|
+| id | Identificador único (UUID) | Sim | Chave primária. |
+| sale_id | Chave estrangeira → `ErpSale.id` | Sim | Nota do item; apagar a nota apaga os itens (`ON DELETE CASCADE`). Reimportar recria os itens. |
+| produto_codigo | Texto | Sim | Código do produto na nota (por exemplo `BAR0019`); é o SKU do catálogo importado. |
+| produto_nome | Texto | Sim | Descrição do produto na nota. |
+| quantidade | Decimal (12,4) | Sim | Quantidade faturada, com decimais (ao vincular, o `VisitItem` recebe a quantidade arredondada, no mínimo 1). |
+| preco_unitario | Decimal (12,4) | Sim | Valor unitário na nota. |
+| valor_total | Decimal (12,2) | Sim | Valor total da linha. |
+| ordem | Número inteiro | Sim | Posição do item na nota. |
+
+Índice em `sale_id`.
+
+### 3.16 ErpProduct
+
+Catálogo de produtos aprendido das notas importadas (Etapa 12). Tabela `erp_products`. Sob o provedor `importado`, é o que `GET /erp/produtos` devolve (nome, preço e SKU = `codigo`).
+
+| Campo | Tipo | Obrigatório | Descrição / Regra |
+|---|---|---|---|
+| id | Identificador único (UUID) | Sim | Chave primária. |
+| codigo | Texto | Sim | Código do produto; **único**. É o SKU do pedido. |
+| nome | Texto | Sim | Descrição do produto; atualizada a cada nota que o traz. |
+| preco_unitario | Decimal (10,2) | Sim | Último preço visto nas notas. |
+| atualizado_em | Data/hora | Sim | Última gravação. |
+
+O seed de demonstração grava o catálogo do mock (`providers/erp/mock/catalogo.ts`) nesta tabela, com qualquer provedor, e sobrescreve nome e preço de um produto importado com o mesmo código; os produtos de outros códigos ficam como estão.
+
+**Migração (Etapa 12):** a migration `20261105120000_notas_fiscais_importadas` é aditiva: cria o tipo `VinculoNota`, as quatro tabelas acima e a coluna `visits.erp_sale_id` (única, com chave estrangeira para `erp_sales` e `ON DELETE SET NULL`); não altera nem apaga nada que já existia.
+
 ## 4. Dados externos (ERP)
 
-Dados de **venda e estoque não são persistidos** no banco de dados do ChokoCRM. Eles são obtidos sob demanda a partir do ERP da Senior Sistemas, por meio da interface `ErpProvider` (padrão Adapter, seção 4.3 da especificação):
+Dados de **venda e estoque** chegam por meio da interface `ErpProvider` (padrão Adapter, seção 4.3 da especificação). Com o provedor simulado (`mock`) nada é persistido: os dados são gerados sob demanda. Com o provedor `importado` (Etapa 12, `ERP_PROVIDER=importado`) as vendas são lidas das notas fiscais que o gestor importou (`ErpSale` e `ErpSaleItem`, seções 3.14 e 3.15), pelo CNPJ do cliente, e o estoque não existe. Em nenhum dos dois a cor, as vendas mensais ou os insights são gravados.
 
 ```ts
 interface ErpProvider {
-  getLastSale(clientErpId: string): Promise<Sale | null>;
-  getSales(clientErpId: string, period: Period): Promise<Sale[]>;
-  getPurchaseVolume(clientErpId: string, period: Period): Promise<Volume>;
-  getStockHistory(clientErpId: string): Promise<StockSnapshot[]>;
+  readonly estoqueDisponivel: boolean;
+  getLastSale(chave: string): Promise<Sale | null>;
+  getRecentSales(chave: string, limite: number): Promise<Sale[]>;
+  getSales(chave: string, period: Period): Promise<Sale[]>;
+  getPurchaseVolume(chave: string, period: Period): Promise<Volume>;
+  getStockHistory(chave: string): Promise<StockSnapshot[]>;
 }
 ```
 
-- A chave de consulta é `Client.erp_id` (seção 3.2), que identifica o cliente no ERP da Senior.
+- A chave de consulta é `Client.erp_id` (seção 3.2) no `mock` e o `Client.cnpj` (14 dígitos, seção 3.2) no `importado`; quem escolhe é `erp.service`.
+- **Provedor `importado` (Etapa 12):** `ImportadoErpProvider` lê `ErpSale` por `destinatario_cnpj` na hora da consulta (por CNPJ, não por `client_id`, para que as notas valham assim que o cliente for cadastrado); `Sale.valor` é o `valor_total` da nota e `Sale.data` é o dia da emissão; `getStockHistory` devolve `[]` e `estoqueDisponivel` é falso ("O ERP não informa o estoque do cliente."). Cliente sem nota responde `OK` sem venda; não existem `SEM_ERP_ID` nem `NAO_ENCONTRADO`. Notas do mesmo dia saem da mais recente para a mais antiga pela chave de acesso.
 - Enquanto a API real da Senior não estiver disponível, a interface é implementada por `MockErpProvider`, cujos dados **não vêm de nenhuma tabela nem de seed do Prisma**: são gerados em memória, a cada chamada, por um gerador determinístico (`providers/erp/mock/gerador.ts`) — um hash do `erp_id` (FNV-1a) alimenta um PRNG (mulberry32) que produz 24 meses de histórico de vendas e 12 snapshots quinzenais de estoque, aplicando o calendário sazonal (picos de venda nos 30 dias antes de Páscoa, Dia das Mães, Dia dos Namorados, Dia dos Pais e Natal) como multiplicador de valor. O mesmo `erp_id`, consultado no mesmo dia de calendário, sempre reproduz o mesmo histórico — determinismo que serve de base estável ao módulo de insights (seção 6.4 da especificação) e aos testes automatizados.
 - Um `erp_id` terminado em `-0` é a convenção do mock para "cliente desconhecido no ERP": o gerador devolve vendas e estoque vazios, e `obterDadosErp` responde `NAO_ENCONTRADO` (UC11, `docs/casos-de-uso.md`).
 - A futura substituição por uma implementação real (`SeniorErpProvider`) troca apenas a classe que implementa `ErpProvider`; nenhuma outra camada do sistema (services, controllers, repositories, frontend) precisa ser alterada — este é exatamente o propósito do padrão Adapter adotado (seções 4.1 e 4.3 da especificação).
-- O catálogo de produtos (SKU, nome e, desde a Etapa 8, preço unitário) também vem do provedor simulado (`providers/erp/mock/catalogo.ts`, exposto em `GET /erp/produtos`); o check-in copia nome e preço para `VisitItem` (seção 3.9).
-- Não havendo persistência local, `Sale`, `Period`, `Volume` e `StockSnapshot` são tipos de dados **de integração** (contrato do `ErpProvider`), e não entidades do banco de dados do ChokoCRM — por isso não constam do dicionário de dados da seção 3.
+- O catálogo de produtos (SKU, nome e, desde a Etapa 8, preço unitário) vem do provedor em uso e é exposto em `GET /erp/produtos`: no `mock`, de `providers/erp/mock/catalogo.ts`; no `importado` (Etapa 12), da tabela `ErpProduct` (seção 3.16). O check-in copia nome e preço para `VisitItem` (seção 3.9).
+- `Sale`, `Period`, `Volume` e `StockSnapshot` são tipos de dados **de integração** (contrato do `ErpProvider`), e não entidades do banco de dados do ChokoCRM — por isso não constam do dicionário de dados da seção 3; no provedor `importado`, `Sale` é montada a partir de `ErpSale` e `ErpSaleItem`.
 
 ## 5. Cor do cliente
 

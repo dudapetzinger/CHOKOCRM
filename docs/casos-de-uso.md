@@ -8,7 +8,7 @@ Este documento descreve os casos de uso do ChokoCRM. Complementa a [especificaç
 
 Este documento especifica os casos de uso do ChokoCRM, cobrindo os fluxos de cadastro e gestão de clientes, registro de visitas, classificação por cores, cruzamento com dados de ERP, geração de mensagens de consulta de estoque, insights de sazonalidade e indicadores gerenciais, conforme descrito nos objetivos do produto e nas regras de negócio da especificação técnica (seções 2 e 6).
 
-Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protótipo navegável (`docs/prototipo/`) e pela matriz de rastreabilidade das etapas 2 a 7 do cronograma da disciplina. Os **UC16 a UC26** nasceram na Etapa 8, com a revisão pelo protótipo do Lovable aprovado pela parceira: pedido, próxima visita, campanhas, metas, usuários e senhas, calendário, roteiro e exportação. O **UC27** nasceu na Etapa 9, com os ajustes que a parceira trouxe depois de validar o app ([spec da etapa](superpowers/specs/2026-10-25-etapa-9-ajustes-pos-validacao-design.md)): o lembrete passou a ser uma tarefa que o representante conclui.
+Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protótipo navegável (`docs/prototipo/`) e pela matriz de rastreabilidade das etapas 2 a 7 do cronograma da disciplina. Os **UC16 a UC26** nasceram na Etapa 8, com a revisão pelo protótipo do Lovable aprovado pela parceira: pedido, próxima visita, campanhas, metas, usuários e senhas, calendário, roteiro e exportação. O **UC27** nasceu na Etapa 9, com os ajustes que a parceira trouxe depois de validar o app ([spec da etapa](superpowers/specs/2026-10-25-etapa-9-ajustes-pos-validacao-design.md)): o lembrete passou a ser uma tarefa que o representante conclui. O **UC28** nasceu na Etapa 12 (importação das notas fiscais em PDF, [spec da etapa](superpowers/specs/2026-11-04-etapa-12-ficha-e-importacao-de-notas-fiscais-design.md)).
 
 ## 2. Atores
 
@@ -27,11 +27,11 @@ Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protó
 ```mermaid
 graph LR
   R[Representante] --> UC05 & UC07 & UC10 & UC12 & UC13 & UC16 & UC17 & UC25 & UC27
-  G[Gestor] --> UC14 & UC15 & UC18 & UC19 & UC20 & UC27
+  G[Gestor] --> UC14 & UC15 & UC18 & UC19 & UC20 & UC27 & UC28
   S[Agendador] --> UC10
 ```
 
-O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator no uso cotidiano do sistema. A tabela a seguir complementa a visão geral, associando **todos** os 27 casos de uso ao(s) ator(es) principal(is), para fins de rastreabilidade:
+O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator no uso cotidiano do sistema. A tabela a seguir complementa a visão geral, associando **todos** os 28 casos de uso ao(s) ator(es) principal(is), para fins de rastreabilidade:
 
 | UC | Nome | Ator(es) |
 |---|---|---|
@@ -62,6 +62,7 @@ O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator
 | UC25 | Ver o roteiro do dia | Representante; Gestor (com um representante escolhido) |
 | UC26 | Exportar o relatório do Painel | Gestor; Representante (própria carteira) |
 | UC27 | Concluir lembrete | Representante (própria carteira); Gestor |
+| UC28 | Importar notas fiscais | Gestor |
 
 ## 4. Especificação dos casos de uso
 
@@ -157,7 +158,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Fluxo principal:**
 1. O representante acessa a seção de contatos na ficha do cliente (UC06).
-2. O representante adiciona um novo contato, informando nome, cargo, telefone e e-mail.
+2. O representante adiciona um novo contato, informando nome, cargo, telefone e e-mail (desde a Etapa 12, pelo botão "Adicionar contato" no fim da lista de contatos da aba "Cadastro" da ficha).
 3. O sistema persiste o contato associado ao cliente.
 4. O representante marca um dos contatos do cliente como principal.
 5. O sistema garante que exatamente um contato permaneça marcado como principal, desmarcando automaticamente qualquer outro contato anteriormente definido como tal.
@@ -241,10 +242,10 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 2. O sistema exibe o cabeçalho da ficha: nome fantasia, cidade, selo de cor, etiqueta de situação (UC05), o telefone do contato principal (ou, sem ele, o do cliente) com os atalhos "Ligar" (link `tel:`) e "WhatsApp" (link `wa.me`, que desde a Etapa 11 já leva a mensagem de estoque sugerida quando o representante abre um cliente ativo da própria carteira — UC12) e, para o gestor, o representante da carteira ("Rep.: {nome}").
 3. Para o representante, o sistema exibe o botão "Novo check-in" (UC07), a ação principal da tela.
 4. Abaixo do cabeçalho, o sistema exibe o aviso da próxima visita — a data marcada no check-in ou pela ficha e a campanha dela, quando há — e a lista "Lembretes" com os lembretes abertos do cliente, cada um com o texto, o prazo e "Concluir" (UC17 e UC27). Desde a Etapa 11b, o representante dono da carteira e o gestor veem no aviso o botão "Alterar data" (ou "Marcar próxima visita", quando não há data), que abre a edição da data (UC17, A3); o aviso passa a aparecer mesmo sem data nem lembrete. Para quem não pode editar, sem data marcada e sem lembrete aberto, o aviso não aparece.
-5. Abaixo do aviso, o sistema divide a ficha em três abas, guardadas na URL (`?aba=`; sem o parâmetro, abre em "Visitas"):
-   - **Visitas**: o histórico de visitas em ordem cronológica reversa (UC08) e a recorrência de visitas com o histórico de alterações dela (UC09);
-   - **ERP e sugestões** (`?aba=erp`): o card "Mensagem de estoque" (UC12), o card "Insights e sugestões", com as sugestões do cliente para os eventos sazonais próximos (UC13), e os dados de venda e estoque obtidos do ERP (UC11);
-   - **Cadastro** (`?aba=cadastro`): os dados do cliente (razão social, CNPJ, endereço, telefone, e-mail, identificador no ERP), com "Editar dados" e "Inativar cliente" (UC03), e os contatos (UC04).
+5. Abaixo do aviso, o sistema divide a ficha em três abas, nesta ordem, guardadas na URL (`?aba=`; sem o parâmetro, abre em "ERP e sugestões" desde a Etapa 12):
+   - **ERP e sugestões** (`?aba=erp`): o card "Insights e sugestões", com as sugestões do cliente para os eventos sazonais próximos (UC13), os dados de venda e estoque obtidos do ERP, com as "Últimas vendas" (UC11), e o card "Mensagem de estoque" (UC12);
+   - **Visitas** (`?aba=visitas`): o histórico de visitas em ordem cronológica reversa (UC08) e a recorrência de visitas com o histórico de alterações dela (UC09);
+   - **Cadastro** (`?aba=cadastro`): os dados do cliente (razão social, CNPJ, endereço, telefone, e-mail, identificador no ERP), com "Editar dados" e "Inativar cliente" (UC03), e os contatos, com "Adicionar contato" (UC04).
 6. O ator troca de aba e o sistema mostra só o painel dela.
 
 **Fluxos alternativos:**
@@ -258,7 +259,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Regras de negócio associadas:**
 - A ficha do cliente consolida dados próprios do cliente e informações provenientes de UC04 (contatos), UC08 (histórico), UC09 (recorrência), UC11 (ERP), UC12 (mensagem de estoque) e UC13 (insights).
 - Este caso de uso é **evolutivo**: a seção de contatos e dados básicos é entregue na Etapa 2, a timeline de visitas na Etapa 3, a cor de classificação na Etapa 4, a seção de ERP na Etapa 5, a mensagem de consulta de estoque (UC12) na Etapa 6A e a seção de insights na Etapa 6B. Na Etapa 7, a ficha foi reorganizada para abrir pelo que se usa em campo — cabeçalho com atalhos de contato, check-in, mensagem, insights e ERP — e os dados cadastrais foram recolhidos num `<details>` no fim; nada foi removido, só reordenado e agrupado. Na Etapa 9, a ficha ganhou as três abas do fluxo principal, para facilitar a visualização (decisão da parceira): o `<details>` recolhido saiu, porque a aba "Cadastro" já isola o conteúdo, e os dados do cliente e os contatos abrem expandidos. Só o painel da aba aberta é montado: as consultas de ERP e de insights só rodam quando a aba "ERP e sugestões" é aberta, e o cache do TanStack Query guarda o resultado ao trocar de aba. Voltar do check-in cai na aba "Visitas". No celular, as três abas dividem a largura, com 44 px de altura.
-- O card de insights fica na ficha entre a mensagem de estoque e os dados do ERP e é visível a qualquer papel (representante ou gestor).
+- O card de insights fica na ficha, desde a Etapa 12, no alto da aba "ERP e sugestões", antes dos dados do ERP e da mensagem de estoque, e é visível a qualquer papel (representante ou gestor).
 - Desde a Etapa 7, o representante só abre fichas de clientes da própria carteira; o gestor abre qualquer ficha.
 
 ---
@@ -318,7 +319,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 **Fluxo principal:**
 1. O representante acessa a timeline de visitas na ficha do cliente (UC06).
 2. O sistema lista as visitas do cliente em ordem cronológica reversa (mais recente primeiro). Desde a Etapa 10, a última visita aparece em destaque, com o rótulo "Última visita", e as anteriores ficam atrás do filtro "Mostrar", com as opções "Últimas 3", "Últimas 6" e "Todas" (padrão "Últimas 3" = o destaque mais as 3 anteriores), com a contagem "N visitas no total". A escolha do filtro não vai para a URL.
-3. Para cada visita, o sistema exibe data, hora, descrição, contato atendido (quando informado), autor do check-in, resultado e a foto de comprovação, quando houver. Desde a Etapa 10, a etiqueta do resultado tem só o contorno colorido — verde ("Houve venda"), azul ("Em negociação") e vermelho claro ("Sem venda") — sobre o fundo do cartão.
+3. Para cada visita, o sistema exibe data, hora, descrição, contato atendido (quando informado), autor do check-in, resultado e a foto de comprovação, quando houver. Desde a Etapa 12, o pedido da visita vem recolhido — "Pedido · R$ 1.634,00" com o botão "Ver itens"/"Ocultar itens", fechado por padrão — e, quando a visita tem nota fiscal vinculada (UC28), o rótulo passa a "Pedido conforme NF 2455 · R$ 1.634,00" e, abaixo, "Total da nota R$ 1.529,98" aparece só quando há desconto e o total difere da soma dos itens. Desde a Etapa 10, a etiqueta do resultado tem só o contorno colorido — verde ("Houve venda"), azul ("Em negociação") e vermelho claro ("Sem venda") — sobre o fundo do cartão.
 4. O autor de uma visita pode corrigir a descrição dela no próprio item da timeline.
 5. O sistema grava a data/hora da edição e passa a exibi-la junto da descrição.
 
@@ -408,20 +409,20 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 **Fluxo principal:**
 1. O ator acessa a seção "Dados do ERP" na ficha do cliente (UC06).
-2. O sistema consulta o provedor de ERP (`GET /clients/:id/erp`; provedor simulado, enquanto a integração real não estiver disponível) utilizando o identificador de ERP do cliente.
-3. Encontrado dado no provedor, o sistema exibe a última venda (data e valor), o volume de compras dos últimos 90 dias e o nível de estoque estimado do cliente, com os itens em falta quando o nível for baixo.
-4. O sistema exibe um aviso informando que os dados apresentados são simulados sempre que o provedor sinalizar isso (campo `simulado` do `ErpProvider`, verdadeiro no provedor simulado atual).
+2. O sistema consulta o provedor de ERP (`GET /clients/:id/erp`) utilizando a chave do cliente conforme o provedor: o identificador de ERP no provedor simulado (`mock`, o de desenvolvimento) e o CNPJ do cliente no provedor `importado` (Etapa 12, o de produção), que lê as notas fiscais importadas (UC28).
+3. Encontrado dado no provedor, o sistema exibe a última venda (data e valor), o volume de compras dos últimos 90 dias e o nível de estoque estimado do cliente, com os itens em falta quando o nível for baixo. Sob o provedor importado, exibe também as "Últimas vendas" — as 5 notas mais recentes, com data, valor e os itens (por exemplo "16× BARRA AO LEITE 35% 500 G") — e, no lugar do estoque, a frase "O ERP não informa o estoque do cliente.".
+4. O sistema exibe, em todas as telas que mostram dados do ERP, o aviso da situação da fonte (`GET /erp/situacao`): com o provedor simulado, que os dados são simulados; com o importado, "Vendas do ERP importadas até dd/mm/aaaa" (a data da última nota) ou "Nenhuma nota importada ainda.".
 
 **Fluxo de exceção:**
-- **E1** (passo 2): cliente sem identificador de ERP cadastrado (`status: SEM_ERP_ID`) — o sistema exibe mensagem orientando a preencher o identificador em "Editar dados", sem impedir a visualização do restante da ficha.
-- **E2** (passo 2): identificador de ERP cadastrado, mas desconhecido pelo provedor (`status: NAO_ENCONTRADO`) — o sistema exibe mensagem informando que o identificador não foi encontrado no ERP.
+- **E1** (passo 2, provedor simulado): cliente sem identificador de ERP cadastrado (`status: SEM_ERP_ID`) — o sistema exibe mensagem orientando a preencher o identificador em "Editar dados", sem impedir a visualização do restante da ficha. No provedor importado não existe este estado: o cliente é achado pelo CNPJ.
+- **E2** (passo 2, provedor simulado): identificador de ERP cadastrado, mas desconhecido pelo provedor (`status: NAO_ENCONTRADO`) — o sistema exibe mensagem informando que o identificador não foi encontrado no ERP. No provedor importado, cliente sem nota é `OK` sem venda: última venda vazia, volume zerado e nenhuma "Últimas vendas".
 - **E3** (passo 2): provedor de ERP indisponível (`status: INDISPONIVEL`) — o sistema exibe mensagem de indisponibilidade, sem impedir a visualização do restante da ficha do cliente.
 
 **Regras de negócio associadas:**
 - O acesso a dados de ERP é sempre realizado por meio de uma interface de integração (provedor de ERP), permitindo a substituição futura do provedor simulado pela integração real sem alterar as demais camadas do sistema.
 - A consulta responde em quatro estados, conforme os fluxos acima: `OK`, `SEM_ERP_ID`, `NAO_ENCONTRADO` e `INDISPONIVEL`.
-- Os dados de venda e estoque não são persistidos no banco do ChokoCRM; são consultados sob demanda a cada acesso.
-- O aviso "dados simulados" não é um texto fixo da tela: é exibido sempre que o campo `simulado`, informado pelo próprio provedor, for verdadeiro, e desaparece automaticamente quando uma integração real for adotada.
+- Com o provedor simulado, os dados de venda e estoque não são persistidos: são gerados sob demanda a cada acesso. Com o provedor importado (Etapa 12), as vendas vêm das notas que o gestor importou e ficam no banco (UC28), mas nada derivado delas é persistido; o estoque não existe.
+- O aviso de situação do ERP não é um texto fixo da tela: vem de `GET /erp/situacao` (campos `simulado`, `estoqueDisponivel`, `ultimaVendaEm` e `ultimaImportacaoEm`, de qualquer papel) e some ou muda conforme o provedor em uso.
 - A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel; desde a Etapa 7, o representante só consulta clientes da própria carteira — para um cliente de outra carteira, `GET /clients/:id/erp` responde 404, como para um cliente inexistente.
 - **A partir da Etapa 5**, a última venda consultada aqui alimenta a regra de classificação por cor composta descrita em UC05: clientes visitados recentemente mas sem venda registrada há mais de 60 dias são rebaixados na classificação.
 
@@ -491,7 +492,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - **Variação:** média do cliente na janela = compras no período de base × 31 ÷ 365; variação = compras na janela ÷ média − 1. A variação é exibida como percentual inteiro arredondado, e a ação é decidida sobre esse inteiro, para o número exibido e a ação nunca discordarem.
 - **Ações sugeridas:** variação de +20% ou mais → *Aumentar oferta*; de −20% ou menos → *Ofertar desconto*; entre os dois limiares → *Criar promoção* (texto "as compras … ficaram na média"). Os produtos mais comprados na janela (os três de maior quantidade) entram no texto da sugestão. Os limiares ficam em `config/sazonalidade.ts` (`LIMIAR_VARIACAO_ALTA` e `LIMIAR_VARIACAO_BAIXA`), para ajuste fino junto à empresa, e não são editáveis na tela.
 - A consulta responde em três estados — `OK`, `SEM_ERP_ID` e `INDISPONIVEL` — e, diferentemente de UC11, não há `NAO_ENCONTRADO`: o identificador desconhecido no provedor cai em A1.
-- Os dados vêm do provedor de ERP; o aviso "dados simulados" aparece sempre que a consulta traz dados e o provedor o sinalizar (como em UC11).
+- Os dados vêm do provedor de ERP; o aviso da situação do ERP ("dados simulados" no mock; desde a Etapa 12, "Vendas do ERP importadas até dd/mm/aaaa" no importado) aparece como em UC11.
 - A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel; desde a Etapa 7, o representante só consulta clientes da própria carteira — para um cliente de outra carteira, `GET /clients/:id/insights` responde 404, como para um cliente inexistente.
 - Premissa: o período de base precisa de cerca de 26 meses de histórico antes do evento (≈ 760 dias; até ≈ 795 para a Páscoa). O provedor simulado gera 24 meses e só cobre a base por inteiro para eventos a mais de ~2 meses de distância; para eventos mais próximos a base fica truncada, a média é subestimada e a variação, inflada. Um ERP real com 26 meses ou mais de histórico não tem esse limite. Sem nenhuma compra no período de base a sugestão não é gerada.
 
@@ -550,7 +551,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - **Vendas mensais** (`GET /dashboard/vendas-mensais`): soma do valor das vendas no ERP dos clientes ativos com identificador de ERP, mês a mês ('AAAA-MM'), nos meses inteiros do período (do mês de `inicio` ao mês de `fim`, com piso de 3 meses; até a Etapa 10, nos 12 meses que terminam no mês atual), com quantos clientes compraram em cada mês — e, desde a Etapa 9, quais (`meses[].clientes: { id, nomeFantasia, total }[]`, em ordem de valor, só os que compraram no mês), para o balão do gráfico; os marcadores de evento são as datas de `dataDoEvento` (`config/sazonalidade.ts`) dos anos cobertos pelos meses, que caem na janela. Desde a Etapa 11 a rota aceita o mesmo período das demais rotas do Painel (`?periodoDias=` ou `?inicio=&fim=`, nunca os dois; padrão 30 dias; até 365) e devolve `periodo: { dias, inicio, fim }`; o ERP é consultado do primeiro dia do primeiro mês ao último dia do último, limitado a hoje. Cliente cujo ERP não responde fica fora da soma e é contado em `clientesIndisponiveis`, sem derrubar a resposta.
 - A pergunta é o título (h2) de cada bloco; dentro dele, cada gráfico tem uma legenda (figcaption) que descreve o que ele mostra, rótulos nos próprios dados e, para leitores de tela, um resumo dos números e uma tabela visualmente oculta com os mesmos valores.
 - Até a Etapa 7 os indicadores eram exclusivos do Gestor. Desde a Etapa 8, `GET /dashboard/kpis`, `GET /dashboard/kpis/por-representante`, `GET /dashboard/vendas-mensais` e `GET /dashboard/relatorio` servem os dois papéis: o representante recebe sempre só a própria carteira, e o `?representanteId=` que ele mandar é ignorado (ADR-015 do documento de arquitetura).
-- O aviso "dados simulados" aparece sempre que a consulta traz dados e o provedor o sinalizar (como em UC11), pois a cor composta e as vendas mensais consultam o ERP.
+- O aviso da situação do ERP ("dados simulados" no mock; "Vendas do ERP importadas até dd/mm/aaaa" no importado, Etapa 12) aparece como em UC11, pois a cor composta e as vendas mensais consultam o ERP.
 - **Sazonalidade (Etapa 9):** o gráfico de vendas mensais segue o formato do protótipo — subtítulo "Vendas mensais dos últimos 12 meses (R$ mil)" (desde a Etapa 11, "Vendas mensais de set/26 a nov/26 (R$ mil)", do primeiro ao último mês da série), eixo em valores compactos que parte do zero, marcas tracejadas com o nome do evento na horizontal no topo (o seguinte desce para uma segunda linha quando o nome anterior o invade; no celular o nome é encurtado, com o inteiro no balão) e a linha laranja "Hoje" com o rótulo junto da base. O mês em curso continua vazado e "(em curso)".
 - Fora do escopo: comparação com o período anterior e a evolução dos inativos ao longo do tempo (a "redução de inativos" da especificação entra aqui como a contagem atual por cor). Os indicadores por representante, fora do escopo na Etapa 6C, entraram na Etapa 7, a exportação, na Etapa 8 (UC26), e o intervalo livre de até 365 dias, na Etapa 9 (A8). Os gráficos novos que a parceira vai discutir com o Maicon ficam fora da Etapa 9.
 
@@ -586,7 +587,8 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - Os alertas refletem o estoque do cliente (a loja), não o da fábrica: "produção" aqui é a leitura do gestor sobre a demanda de reposição que vem.
 - Os alertas de produção apoiam as decisões do Gestor sobre a produção; desde a Etapa 8, `GET /insights/manager-alerts` serve também o representante, limitado à própria carteira, para ele ver quais clientes dele estão com estoque baixo antes do evento.
 - Os alertas são calculados a cada consulta, sem persistir nada, e aparecem apenas na tela do painel: notificação por push ou e-mail e alertas no job diário (UC10) ficam fora do escopo desta etapa.
-- O aviso "dados simulados" aparece sempre que a consulta traz dados e o provedor o sinalizar (como em UC11).
+- O aviso da situação do ERP (como em UC11) aparece nesta tela também.
+- **Estoque indisponível (Etapa 12):** sob o provedor importado não existe estoque de cliente; `GET /insights/manager-alerts` devolve os eventos do horizonte, nenhum alerta, `clientesConsultados` e `clientesIndisponiveis` zerados e `estoqueIndisponivel: true`, sem consultar clientes nem ERP, e o bloco de alertas diz "O ERP não informa o estoque do cliente." em vez de "Nenhum alerta de produção…".
 
 ---
 
@@ -919,6 +921,44 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 ---
 
+### UC28 — Importar notas fiscais
+
+**Ator principal:** Gestor.
+
+**Pré-condições:** o gestor está autenticado (UC01); ele tem em mãos os PDFs das DANFEs (nota fiscal eletrônica de venda), exportados do ERP da Senior; o provedor de ERP em uso é o `importado` para que as notas alimentem as telas (com o `mock` as notas são gravadas, mas a ficha continua mostrando os dados simulados).
+
+**Fluxo principal:**
+1. O gestor abre "Importar notas" no menu (`/importacoes`) e escolhe um ou mais arquivos PDF.
+2. O gestor aciona "Importar". O sistema envia os arquivos um a um (`POST /erp/importacoes?nome=`, corpo `application/pdf`, até 10 MB cada) e mostra o progresso por arquivo.
+3. Para cada arquivo, o sistema lê o texto da DANFE (uma nota por página, ou uma nota em mais de uma folha, agrupada pela chave de acesso de 44 dígitos) e reconhece número, série, chave, natureza da operação, protocolo de autorização, data de emissão, destinatário (razão social e CNPJ), totais e os itens (código, descrição, quantidade, valor unitário e total).
+4. O sistema grava cada nota pela chave de acesso, junto dos itens e dos produtos vistos (o catálogo do pedido e das campanhas) e procura o cliente pelo CNPJ do destinatário (14 dígitos = `Client.cnpj`).
+5. Havendo cliente, o sistema compara a data da nota com a da última visita dele (a mais recente, de qualquer resultado, no calendário de São Paulo): se for a mesma, vincula a nota à visita sozinho — os itens do pedido da visita passam a ser os da nota e o resultado vira "Venda" (UC16); se for outra, deixa a nota pendente.
+6. O sistema mostra, por arquivo, o resumo "N notas · V vinculadas · P pendentes · S só no ERP · I ignoradas", as notas ignoradas com o motivo e os "CNPJs sem cliente no CRM".
+7. O gestor responde às pendências, no resultado ou no bloco "Pendências (N)" da página: "Vincular à visita de dd/mm (Resultado)" faz o mesmo que o vínculo automático; "Deixar só no ERP" mantém a nota fora da visita.
+
+**Fluxos alternativos:**
+- **A1** (passo 5): o cliente não tem visita — a nota fica só no ERP (`SEM_VISITA`), sem pergunta.
+- **A2** (passo 4): nenhum cliente tem aquele CNPJ — a nota fica gravada sem cliente (`SEM_CLIENTE`) e o CNPJ aparece em "CNPJs sem cliente no CRM", com "Copiar CNPJ", para o representante da carteira cadastrar o cliente (o gestor não cadastra cliente, UC02). Cadastrado o cliente, as notas aparecem na ficha dele, porque o provedor lê pelo CNPJ; o vínculo com a visita só é feito ao reimportar a nota.
+- **A3** (passo 3): a nota já foi importada — o sistema atualiza a nota e os itens pela chave de acesso, sem duplicar, e mantém o vínculo (refazendo os itens da visita); uma nota que o gestor recusou não volta a ser vinculada.
+- **A4** (passo 7): o gestor desfaz um vínculo (pelo botão "Desvincular" em "Importações anteriores", nas notas vinculadas ou automáticas; `DELETE /erp/vendas/:id/vinculo`) — os itens da visita ficam vazios e a nota passa a "recusada"; o resultado da visita não volta ao valor anterior.
+- **A5** (passo 5): a visita da mesma data já tem outra nota — a nova fica pendente, porque uma visita só recebe uma nota.
+
+**Fluxos de exceção:**
+- **E1** (passo 3): o PDF não é uma DANFE legível (digitalização em imagem, outro documento, arquivo corrompido) — o sistema responde 400 "Não encontrei uma DANFE legível neste PDF." para aquele arquivo e segue com os demais.
+- **E2** (passo 3): a nota não é de venda (devolução, bonificação, remessa), não tem protocolo de autorização ou tem totais que não fecham com os itens — o sistema não a grava e a lista entre as ignoradas, com o motivo.
+- **E3** (passo 2): arquivo que não é PDF (415), vazio (400) ou acima de 10 MB (413) — o sistema recusa o arquivo e informa o erro.
+- **E4** (passo 1): usuário que não é gestor — a página mostra o aviso de acesso exclusivo do gestor e a API responde 403.
+
+**Regras de negócio associadas:**
+- Só o gestor importa, vincula e desvincula notas; o representante não acessa a página nem as rotas `/erp/importacoes`, `/erp/pendencias` e `/erp/vendas/:id/vinculo`.
+- Só entram DANFEs de venda com protocolo: natureza da operação começando por "Venda" ou todos os CFOPs em 5101–5125, 5401–5405, 6101–6125 ou 6401–6405.
+- Vincular substitui os itens da visita pelos da nota (quantidade arredondada, no mínimo 1; a nota guarda o decimal) e põe o resultado em "Venda"; por isso campanhas, metas e KPIs passam a contar o pedido faturado. A ficha (UC08) mostra "Pedido conforme NF 2455 · R$ 1.634,00" e, havendo desconto, "Total da nota R$ 1.529,98".
+- Desvincular (botão "Desvincular" em "Importações anteriores", só para notas `VINCULADA` ou `AUTOMATICO`) zera os itens da visita e marca a nota como recusada, sempre; a reimportação nunca a religa.
+- Importar não cria visitas, clientes nem representantes: a DANFE não traz representante, e uma nota nunca inventa uma visita que não aconteceu.
+- O catálogo do check-in e das campanhas, sob o provedor importado, é o dos produtos vistos nas notas (mais os do seed de demonstração).
+
+---
+
 ## 5. Matriz de rastreabilidade (UC × Etapa de entrega)
 
 | UC | Nome | Etapa de entrega |
@@ -950,6 +990,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 | UC25 | Ver o roteiro do dia | Etapa 8 |
 | UC26 | Exportar o relatório do Painel | Etapa 8 |
 | UC27 | Concluir lembrete | Etapa 9 |
+| UC28 | Importar notas fiscais | Etapa 12 |
 
 A Etapa 7 (refino de UX, gráficos e PWA — seção 11 da [especificação técnica](especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)) não cria caso de uso novo; revisa os existentes: a regra de carteira do representante vale para UC03 a UC09 e UC11 a UC13; a lista (UC05) ganha abas por ação, etiqueta de situação e ordem por urgência; a ficha (UC06) é reordenada; o check-in (UC07) e a recorrência (UC09) ganham controles de toque; a agenda (UC10), o painel (UC14) e os alertas (UC15) ganham o seletor de representante do gestor; e o painel (UC14) ganha os gráficos.
 
@@ -963,6 +1004,8 @@ A Etapa 11 (02/11/2026 — [spec da etapa](superpowers/specs/2026-11-02-etapa-11
 
 A Etapa 11b (03/11/2026 — [spec da etapa](superpowers/specs/2026-11-03-etapa-11b-editar-proxima-visita-na-ficha-design.md)) não cria caso de uso novo; revisa o UC17 (novo fluxo alternativo A3 e exceção E2: marcar, alterar ou limpar a data da próxima visita pela ficha) e o UC06 (o aviso da próxima visita ganha "Alterar data" e "Marcar próxima visita").
 
+A Etapa 12 (05/11/2026 — [spec da etapa](superpowers/specs/2026-11-04-etapa-12-ficha-e-importacao-de-notas-fiscais-design.md)) cria o UC28 (importação das notas fiscais em PDF, com o provedor de ERP `importado`) e revisa: o UC04 ("Adicionar contato" pela aba "Cadastro"), o UC06 (abas na ordem "ERP e sugestões", "Visitas" e "Cadastro", abrindo pela primeira), o UC08 (pedido recolhido e "Pedido conforme NF"), o UC11 (chave do cliente por provedor, "Últimas vendas", estoque indisponível e o aviso da situação do ERP) e o UC15 (alertas sem estoque).
+
 ## 6. Cobertura das regras de negócio da especificação (seção 6)
 
 Esta seção verifica que cada regra de negócio principal descrita na seção 6 da especificação técnica está coberta por ao menos um caso de uso deste documento.
@@ -975,5 +1018,6 @@ Esta seção verifica que cada regra de negócio principal descrita na seção 6
 | 6.4 | Módulo de insights (sugestões ao representante, alertas ao gestor, painel de KPIs e, na Etapa 7, gráficos por representante e de vendas mensais) | UC13 (sugestões), UC15 (alertas), UC14 (painel de KPIs e gráficos) |
 | 6.5 | Carteira do representante (Etapa 7: leitura e escrita restritas à própria carteira; gestor vê todas e filtra por representante) | UC03 a UC09, UC11 a UC13 (restrição do representante), UC05, UC10, UC14 e UC15 (filtro do gestor; desde a Etapa 8, painel e alertas do representante limitados à própria carteira), UC24 a UC27 |
 | 6.6 | Usuários, pedido, campanhas e metas (Etapa 8) | UC20 a UC23 (usuários e senhas), UC16 (pedido), UC17 (próxima visita), UC18 (campanhas), UC19 (metas) |
+| 6.8 | Importação de notas fiscais (Etapa 12: DANFE em PDF, casamento por CNPJ, vínculo com a visita, provedor importado) | UC28 (importação e vínculo), UC11 (dados do ERP e estoque indisponível), UC08 (pedido conforme a nota), UC15 (alertas sem estoque) |
 
 Todas as regras de negócio da seção 6 possuem caso de uso correspondente; não foram identificadas lacunas de cobertura.
