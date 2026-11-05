@@ -31,10 +31,13 @@ import { obterAlertasDeProducao, obterInsights, type InsightsDTO } from '../src/
 
 /**
  * Testes do orquestrador de insights/alertas sem banco: todo repositório e
- * toda função de `erp.service` usados pelo service são substituídos por
+ * toda consulta de `erp.service` usados pelo service são substituídos por
  * `jest.spyOn` (mesmo mecanismo de `agenda-job.test.ts`). Por padrão cada spy
- * rejeita, para que uma chamada não prevista falhe alto em vez de cair no
- * banco ou no ERP de verdade; cada teste stuba só o que o cenário precisa.
+ * de consulta rejeita, para que uma chamada não prevista falhe alto em vez de
+ * cair no banco ou no ERP de verdade; cada teste stuba só o que o cenário
+ * precisa. `erpSimulado` e `estoqueDisponivel` são spies com valor padrão
+ * (`true`); `chaveDoCliente` roda de verdade — os testes rodam no mock, onde
+ * a chave é o `erpId`.
  */
 
 const HOJE = new Date('2026-10-07T12:00:00Z');
@@ -72,6 +75,7 @@ function clienteAtivo(id: string, erpId: string | null): ClienteParaAgenda {
     criadoEm: new Date('2026-01-01T12:00:00Z'),
     recorrenciaDias: 15,
     erpId,
+    cnpj: '11222333000181',
     visits: [],
     representante: { id: 'rep-1', nome: 'Representante' },
     proximaVisita: null,
@@ -129,6 +133,7 @@ let findNoIntervalo: jest.SpiedFunction<typeof seasonalEventRepository.findNoInt
 let consultarVendas: jest.SpiedFunction<typeof erpService.consultarVendas>;
 let consultarItensBaixosEmLote: jest.SpiedFunction<typeof erpService.consultarItensBaixosEmLote>;
 let erpSimulado: jest.SpiedFunction<typeof erpService.erpSimulado>;
+let estoqueDisponivel: jest.SpiedFunction<typeof erpService.estoqueDisponivel>;
 
 /** `consultarVendas` respondendo como o `MockErpProvider`: histórico do gerador filtrado pelo período recebido. */
 function vendasDoMock(hoje: Date): void {
@@ -152,6 +157,7 @@ beforeEach(() => {
     .spyOn(erpService, 'consultarItensBaixosEmLote')
     .mockRejectedValue(naoStubado('consultarItensBaixosEmLote'));
   erpSimulado = jest.spyOn(erpService, 'erpSimulado').mockReturnValue(true);
+  estoqueDisponivel = jest.spyOn(erpService, 'estoqueDisponivel').mockReturnValue(true);
 });
 
 afterEach(() => {
@@ -345,6 +351,7 @@ describe('obterAlertasDeProducao', () => {
       alertas: [],
       clientesConsultados: 0,
       clientesIndisponiveis: 0,
+      estoqueIndisponivel: false,
     });
     expect(findNoIntervalo).toHaveBeenCalledWith('2026-10-07', '2027-01-05');
     expect(listAtivosParaAgenda).not.toHaveBeenCalled();
@@ -362,7 +369,7 @@ describe('obterAlertasDeProducao', () => {
       clienteAtivo('e', 'ERP-1002'),
     ]);
     consultarItensBaixosEmLote.mockResolvedValue({
-      itensPorErpId: new Map([
+      itensPorChave: new Map([
         ['ERP-1001', [cx(4)]],
         ['ERP-1003', []],
       ]),
@@ -383,7 +390,7 @@ describe('obterAlertasDeProducao', () => {
     findNoIntervalo.mockResolvedValue([NATAL_2026]);
     listAtivosParaAgenda.mockResolvedValue([clienteAtivo('a', 'ERP-1001'), clienteAtivo('b', 'ERP-1002')]);
     consultarItensBaixosEmLote.mockResolvedValue({
-      itensPorErpId: new Map([
+      itensPorChave: new Map([
         ['ERP-1001', [cx(4), paoDeMel(2)]],
         ['ERP-1002', [cx(2)]],
       ]),
@@ -405,10 +412,38 @@ describe('obterAlertasDeProducao', () => {
     ]);
   });
 
+  it('ERP sem estoque (importado): devolve os eventos, nenhum alerta e estoqueIndisponivel, sem consultar clientes nem estoque', async () => {
+    findNoIntervalo.mockResolvedValue([NATAL_2026]);
+    estoqueDisponivel.mockReturnValue(false);
+    erpSimulado.mockReturnValue(false);
+
+    const resultado = await obterAlertasDeProducao(90, HOJE);
+
+    expect(resultado).toEqual({
+      simulado: false,
+      horizonteDias: 90,
+      eventos: [
+        {
+          id: 'natal-2026',
+          nome: 'Natal 2026',
+          dataEvento: '2026-12-25',
+          diasAteEvento: 79,
+          produtosSugeridos: PRODUTOS_SUGERIDOS.NATAL,
+        },
+      ],
+      alertas: [],
+      clientesConsultados: 0,
+      clientesIndisponiveis: 0,
+      estoqueIndisponivel: true,
+    });
+    expect(listAtivosParaAgenda).not.toHaveBeenCalled();
+    expect(consultarItensBaixosEmLote).not.toHaveBeenCalled();
+  });
+
   it('com representanteId lista só os clientes ativos daquela carteira', async () => {
     findNoIntervalo.mockResolvedValue([NATAL_2026]);
     listAtivosParaAgenda.mockResolvedValue([]);
-    consultarItensBaixosEmLote.mockResolvedValue({ itensPorErpId: new Map(), indisponiveis: [] });
+    consultarItensBaixosEmLote.mockResolvedValue({ itensPorChave: new Map(), indisponiveis: [] });
 
     await obterAlertasDeProducao(90, HOJE, 'rep-b');
 
@@ -418,7 +453,7 @@ describe('obterAlertasDeProducao', () => {
   it('eventos do horizonte vêm com produtosSugeridos e dataEvento AAAA-MM-DD', async () => {
     findNoIntervalo.mockResolvedValue([PASCOA_2027, NATAL_2026]);
     listAtivosParaAgenda.mockResolvedValue([]);
-    consultarItensBaixosEmLote.mockResolvedValue({ itensPorErpId: new Map(), indisponiveis: [] });
+    consultarItensBaixosEmLote.mockResolvedValue({ itensPorChave: new Map(), indisponiveis: [] });
 
     const resultado = await obterAlertasDeProducao(180, HOJE);
 

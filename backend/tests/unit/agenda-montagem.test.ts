@@ -15,6 +15,7 @@ function clienteFabricado(overrides: Partial<ClienteParaAgenda> & { id: string }
     criadoEm: diasAtras(100),
     recorrenciaDias: 15,
     erpId: null,
+    cnpj: '11222333000181',
     visits: [],
     representante: { id: 'rep-1', nome: 'Representante' },
     proximaVisita: null,
@@ -145,7 +146,7 @@ describe('montarAgenda', () => {
       visits: [{ dataHora: diasAtras(3), resultado: 'VENDA' }],
     });
 
-    const ultimasVendas = new Map([['ERP-9001', diasAtras(90)]]);
+    const ultimasVendas = new Map([['rebaixado', diasAtras(90)]]);
 
     const agenda = montarAgenda([doDia], hoje, ultimasVendas);
 

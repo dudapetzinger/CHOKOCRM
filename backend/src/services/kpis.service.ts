@@ -3,7 +3,7 @@ import * as stockMessageRepository from '../repositories/stock-message.repositor
 import * as userRepository from '../repositories/user.repository';
 import * as visitRepository from '../repositories/visit.repository';
 import { classificacaoDoCliente, fimDoDia, inicioDoDia } from './classificacao.service';
-import { consultarUltimasVendas, erpSimulado } from './erp.service';
+import { chaveDoCliente, consultarUltimasVendas, erpSimulado } from './erp.service';
 import {
   agruparPorRepresentante,
   contarInativos,
@@ -69,11 +69,12 @@ export async function obterKpis(
     clientRepository.listAtivosParaAgenda(representanteId),
   ]);
 
-  const ultimasVendas = await consultarUltimasVendas(ativos.map((cliente) => cliente.erpId));
+  const ultimasVendas = await consultarUltimasVendas(ativos.map(chaveDoCliente));
 
   const distribuicao = distribuicaoPorCor(
     ativos.map(
-      (cliente) => classificacaoDoCliente(cliente.visits, hoje, ultimasVendas.get(cliente.erpId ?? '') ?? null).cor,
+      (cliente) =>
+        classificacaoDoCliente(cliente.visits, hoje, ultimasVendas.get(chaveDoCliente(cliente) ?? '') ?? null).cor,
     ),
   );
 

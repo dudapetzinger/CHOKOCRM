@@ -22,7 +22,7 @@ import {
   proximaVisitaVigente,
   type Cor,
 } from './classificacao.service';
-import { consultarUltimasVendas } from './erp.service';
+import { consultarUltimasVendasPorCliente } from './erp.service';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CNPJ_DUPLICADO = 'Já existe um cliente cadastrado com este CNPJ.';
@@ -211,10 +211,8 @@ export async function listClients(query: ListClientsQuery, usuario: UsuarioAuten
   const representanteId = representanteEfetivo(usuario, query.representanteId);
   const hoje = new Date();
   const clientes = await clientRepository.list({ search: query.search, ativoFiltro, representanteId });
-  const ultimasVendas = await consultarUltimasVendas(clientes.map((cliente) => cliente.erpId));
-  const itens = clientes.map((cliente) =>
-    toListItemDTO(cliente, hoje, ultimasVendas.get(cliente.erpId ?? '') ?? null),
-  );
+  const ultimasVendas = await consultarUltimasVendasPorCliente(clientes);
+  const itens = clientes.map((cliente) => toListItemDTO(cliente, hoje, ultimasVendas.get(cliente.id) ?? null));
 
   return query.color ? itens.filter((item) => item.cor === query.color) : itens;
 }
@@ -228,8 +226,8 @@ export async function getClientById(id: string, usuario: UsuarioAutenticado): Pr
   const hoje = new Date();
   const cliente = exigirClienteVisivel(await clientRepository.findById(id), usuario);
 
-  const ultimasVendas = await consultarUltimasVendas([cliente.erpId]);
-  const ultimaVenda = ultimasVendas.get(cliente.erpId ?? '') ?? null;
+  const ultimasVendas = await consultarUltimasVendasPorCliente([cliente]);
+  const ultimaVenda = ultimasVendas.get(cliente.id) ?? null;
 
   return toClienteCompletoDTO(cliente, hoje, ultimaVenda);
 }

@@ -5,13 +5,16 @@ import type { Prisma, PrismaClient, ResultadoVisita, TipoCampanha } from '@prism
 // em config/erpIdsDemonstracao.ts.
 import { ERP_IDS_DEMONSTRACAO } from '../config/erpIdsDemonstracao';
 import { eventosSazonaisParaSeed } from '../config/eventosSazonaisSeed';
+// O seed usa o catálogo de demonstração direto, seja qual for o provedor de
+// ERP, e o grava em `ErpProduct`: em produção (`importado`) o catálogo do ERP
+// é o aprendido das notas, que não teria os SKUs da demonstração.
+import { CATALOGO } from '../providers/erp/mock/catalogo';
 import {
   colunaDateDaData,
   dataCalendario,
   somarDias,
   type DataCalendario,
 } from '../services/classificacao.service';
-import { buscarProduto } from '../services/erp.service';
 import { periodoDaMeta } from '../services/goal.regras';
 
 /**
@@ -22,7 +25,10 @@ import { periodoDaMeta } from '../services/goal.regras';
  * `tests`, e `tests/seed.test.ts` chama as duas funções direto, como
  * `config/eventosSazonaisSeed.ts`. Todas as datas são relativas ao `hoje`
  * recebido, para a demonstração nascer com cores, agenda, campanhas e metas
- * do dia em que roda.
+ * do dia em que roda. Os pedidos usam o catálogo de demonstração direto
+ * (`CATALOGO`), seja qual for o `ERP_PROVIDER`: o seed roda igual no mock e
+ * no importado (produção). O mesmo catálogo vai para `ErpProduct`, para que,
+ * no importado, as campanhas e o check-in da demonstração achem os produtos.
  */
 
 /** Senha das três contas de demonstração (publicada no guia de desenvolvimento). */
@@ -801,13 +807,31 @@ async function seedCampanhas(
   return ids;
 }
 
+/**
+ * Produtos de demonstração no catálogo do ERP importado (`ErpProduct`), por
+ * upsert do código: nome e preço voltam aos do `CATALOGO`. Os produtos das
+ * notas importadas (outros códigos) ficam como estão.
+ */
+async function seedProdutos(prisma: Banco): Promise<void> {
+  for (const { sku, nome, precoUnitario } of CATALOGO) {
+    await prisma.erpProduct.upsert({
+      where: { codigo: sku },
+      update: { nome, precoUnitario },
+      create: { codigo: sku, nome, precoUnitario },
+    });
+  }
+}
+
 type ItemDoPedidoSeed = { sku: string; produtoNome: string; quantidade: number; precoUnitario: number };
 
-/** Nome e preço do catálogo do ERP, como o check-in grava. */
+/**
+ * Nome e preço do catálogo de demonstração, como o check-in grava. Lido de
+ * `CATALOGO` direto (não de `erp.service`), seja qual for o provedor.
+ */
 function itensDoPedido(itens: ItemSeed[]): ItemDoPedidoSeed[] {
   return itens.map(({ sku, quantidade }) => {
-    const produto = buscarProduto(sku);
-    if (!produto) throw new Error(`SKU ${sku} do seed não existe no catálogo do ERP.`);
+    const produto = CATALOGO.find((candidato) => candidato.sku === sku);
+    if (!produto) throw new Error(`SKU ${sku} do seed não existe no catálogo de demonstração.`);
     return { sku, produtoNome: produto.nome, quantidade, precoUnitario: produto.precoUnitario };
   });
 }
@@ -917,7 +941,8 @@ async function seedMetas(prisma: Banco, hoje: DataCalendario, campanhas: Map<str
  * Carga de demonstração que só acrescenta (`npm run db:seed`): devolve às
  * contas, clientes e contatos de demonstração os valores do seed (as contas
  * voltam à senha de demonstração e ficam ativas) e cria o que falta —
- * eventos sazonais, campanhas pelo nome, visitas em cliente ainda sem visita,
+ * eventos sazonais, produtos de demonstração no catálogo importado
+ * (`ErpProduct`, upsert pelo código), campanhas pelo nome, visitas em cliente ainda sem visita,
  * próxima visita em cliente sem uma, lembretes e metas que não existem. Não
  * apaga nada.
  */
@@ -929,6 +954,7 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
     await seedCliente(prisma, cliente);
   }
   await seedEventosSazonais(prisma, dia);
+  await seedProdutos(prisma);
   const campanhas = await seedCampanhas(prisma, dia);
   await seedVisitas(prisma, hoje, campanhas);
   await seedProximasVisitas(prisma, dia, campanhas);
@@ -945,7 +971,9 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
  * e recria tudo com `semear`, com datas relativas a `hoje`. As contas de
  * demonstração voltam à senha de demonstração e ficam ativas; os demais
  * usuários (criados pelo app) ficam intactos, com a senha deles. Os eventos
- * sazonais não são apagados (o upsert os mantém em dia).
+ * sazonais não são apagados (o upsert os mantém em dia). Nada do ERP
+ * importado é apagado — notas, importações e produtos (`ErpProduct`) ficam;
+ * os produtos de demonstração voltam ao nome e preço do catálogo pelo upsert.
  */
 export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): Promise<void> {
   await prisma.$transaction(

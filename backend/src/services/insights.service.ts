@@ -11,7 +11,13 @@ import {
   type DataCalendario,
 } from './classificacao.service';
 import { exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
-import { consultarItensBaixosEmLote, consultarVendas, erpSimulado } from './erp.service';
+import {
+  chaveDoCliente,
+  consultarItensBaixosEmLote,
+  consultarVendas,
+  erpSimulado,
+  estoqueDisponivel,
+} from './erp.service';
 import {
   acaoPorVariacao,
   calcularVariacao,
@@ -37,7 +43,9 @@ import {
  * puras de `insights.regras.ts` e projeta os DTOs — mesmo papel de
  * `agenda.service.ts` sobre `agenda.montagem.ts`. Não fala com o provedor de
  * ERP diretamente: indisponibilidade chega como `null` (vendas) ou em
- * `indisponiveis` (estoque), já registrada por `erp.service`.
+ * `indisponiveis` (estoque), já registrada por `erp.service`; a chave do
+ * cliente no ERP (`erpId` no mock, CNPJ no importado) vem de
+ * `erp.service.chaveDoCliente`.
  */
 export type SugestaoDTO = {
   /** `dataEvento` em 'AAAA-MM-DD'. */
@@ -75,10 +83,12 @@ export type AlertasDTO = {
   horizonteDias: number;
   eventos: { id: string; nome: string; dataEvento: string; diasAteEvento: number; produtosSugeridos: string[] }[];
   alertas: AlertaProducaoDTO[];
-  /** Clientes ativos com `erpId`. */
+  /** Clientes ativos com chave no ERP (no mock, os com `erpId`). */
   clientesConsultados: number;
   /** Dentre os consultados, os que ficaram sem resposta do ERP. */
   clientesIndisponiveis: number;
+  /** O ERP em uso não informa estoque (importado): não há alertas a calcular. */
+  estoqueIndisponivel: boolean;
 };
 
 /** Eventos com `dataFim` em `[hoje, hoje + horizonteDias]`, do mais próximo ao mais distante. */
@@ -112,7 +122,7 @@ function arredondarCentavos(valor: number): number {
  * compara as compras na janela do mesmo evento no ano anterior com a média do
  * cliente no período de base. Todas as janelas e bases saem de uma única
  * consulta de vendas ao ERP; evento sem base ou sem compra na janela vai para
- * `eventosSemHistorico`. `erpId` desconhecido no ERP (vendas vazias) cai aí
+ * `eventosSemHistorico`. Chave desconhecida no ERP (vendas vazias) cai aí
  * para todos os eventos — não há status `NAO_ENCONTRADO`, porque a
  * pré-condição do UC13 é "histórico disponível". Cliente de outra carteira
  * responde ao representante como inexistente (404). `hoje` é parametrizável
@@ -125,8 +135,9 @@ export async function obterInsights(
   hoje: Date = new Date(),
 ): Promise<InsightsDTO> {
   const cliente = exigirClienteVisivel(await clientRepository.findById(clientId), usuario);
+  const chave = chaveDoCliente(cliente);
 
-  if (!cliente.erpId) {
+  if (!chave) {
     return { status: 'SEM_ERP_ID' };
   }
 
@@ -142,7 +153,7 @@ export async function obterInsights(
     return { evento, janela, base: periodoBase(janela) };
   });
 
-  const vendas = await consultarVendas(cliente.erpId, periodoDaConsulta(comparacoes));
+  const vendas = await consultarVendas(chave, periodoDaConsulta(comparacoes));
 
   if (vendas === null) {
     return { status: 'INDISPONIVEL' };
@@ -192,12 +203,13 @@ export async function obterInsights(
 
 /**
  * Alertas de produção do gestor (UC15): itens em estoque BAIXO, nos clientes
- * ativos com `erpId`, dos SKUs sugeridos para os eventos do horizonte. Sem
- * evento no horizonte não há o que cruzar, e nem clientes nem ERP são
- * consultados. Clientes cujo `erpId` o ERP não respondeu ficam fora do
- * cruzamento (não se sabe o estoque deles) e entram em
- * `clientesIndisponiveis`, para a tela avisar que a lista pode estar
- * incompleta. Com `representanteId`, só os clientes da carteira dele.
+ * ativos com chave no ERP, dos SKUs sugeridos para os eventos do horizonte.
+ * Sem evento no horizonte não há o que cruzar, e nem clientes nem ERP são
+ * consultados; com o ERP sem estoque (importado, Etapa 12b), também não:
+ * vão os eventos, nenhum alerta e `estoqueIndisponivel`. Clientes que o ERP
+ * não respondeu ficam fora do cruzamento (não se sabe o estoque deles) e
+ * entram em `clientesIndisponiveis`, para a tela avisar que a lista pode
+ * estar incompleta. Com `representanteId`, só os clientes da carteira dele.
  */
 export async function obterAlertasDeProducao(
   horizonteDias: number,
@@ -214,37 +226,56 @@ export async function obterAlertasDeProducao(
       alertas: [],
       clientesConsultados: 0,
       clientesIndisponiveis: 0,
+      estoqueIndisponivel: !estoqueDisponivel(),
     };
   }
 
-  const clientes = (await clientRepository.listAtivosParaAgenda(representanteId)).filter(
-    (cliente): cliente is ClienteParaAgenda & { erpId: string } => Boolean(cliente.erpId),
+  const eventosDTO = eventos.map(({ id, nome, dataEvento, diasAteEvento, produtosSugeridos }) => ({
+    id,
+    nome,
+    dataEvento,
+    diasAteEvento,
+    produtosSugeridos,
+  }));
+
+  if (!estoqueDisponivel()) {
+    return {
+      simulado: erpSimulado(),
+      horizonteDias,
+      eventos: eventosDTO,
+      alertas: [],
+      clientesConsultados: 0,
+      clientesIndisponiveis: 0,
+      estoqueIndisponivel: true,
+    };
+  }
+
+  const clientes = (await clientRepository.listAtivosParaAgenda(representanteId)).flatMap(
+    (cliente): (ClienteParaAgenda & { chave: string })[] => {
+      const chave = chaveDoCliente(cliente);
+      return chave ? [{ ...cliente, chave }] : [];
+    },
   );
-  const { itensPorErpId, indisponiveis } = await consultarItensBaixosEmLote(clientes.map((cliente) => cliente.erpId));
-  const erpIdsIndisponiveis = new Set(indisponiveis);
+  const { itensPorChave, indisponiveis } = await consultarItensBaixosEmLote(clientes.map((cliente) => cliente.chave));
+  const chavesIndisponiveis = new Set(indisponiveis);
 
   const clientesComEstoque: ClienteComEstoque[] = clientes
-    .filter((cliente) => !erpIdsIndisponiveis.has(cliente.erpId))
+    .filter((cliente) => !chavesIndisponiveis.has(cliente.chave))
     .map((cliente) => ({
       id: cliente.id,
       nomeFantasia: cliente.nomeFantasia,
       cidade: cliente.cidade,
-      itensBaixos: itensPorErpId.get(cliente.erpId) ?? [],
+      itensBaixos: itensPorChave.get(cliente.chave) ?? [],
     }));
 
   return {
     simulado: erpSimulado(),
     horizonteDias,
-    eventos: eventos.map(({ id, nome, dataEvento, diasAteEvento, produtosSugeridos }) => ({
-      id,
-      nome,
-      dataEvento,
-      diasAteEvento,
-      produtosSugeridos,
-    })),
+    eventos: eventosDTO,
     alertas: cruzarEstoqueComEventos(clientesComEstoque, eventos),
     clientesConsultados: clientes.length,
-    // Conta clientes, não `erpId`s: dois clientes com o mesmo `erpId` sem resposta são dois indisponíveis.
+    // Conta clientes, não chaves: dois clientes com a mesma chave sem resposta são dois indisponíveis.
     clientesIndisponiveis: clientes.length - clientesComEstoque.length,
+    estoqueIndisponivel: false,
   };
 }

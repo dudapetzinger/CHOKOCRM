@@ -22,6 +22,7 @@ function clienteFabricado(overrides: Partial<ClienteParaAgenda> & { id: string }
     criadoEm: diasAtras(200),
     recorrenciaDias: 15,
     erpId: null,
+    cnpj: '11222333000181',
     visits: [],
     representante: { id: 'rep-1', nome: 'Eduarda Fischer' },
     proximaVisita: null,

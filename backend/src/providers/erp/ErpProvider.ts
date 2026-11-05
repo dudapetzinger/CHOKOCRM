@@ -1,9 +1,11 @@
 /**
- * Contrato do provedor de ERP (Adapter) da Etapa 5. `MockErpProvider`
- * (Task 2) implementa esta interface simulando um ERP para demonstração;
- * um adapter real (ex.: integração com um ERP de verdade) implementaria a
- * mesma interface sem alterar services nem controllers — mesmo padrão
- * Adapter já usado por `FileStorage` (ver `storage/FileStorage.ts`).
+ * Contrato do provedor de ERP (Adapter) da Etapa 5. Duas implementações:
+ * `MockErpProvider` simula um ERP para demonstração (chave = `erpId` do
+ * cliente) e `ImportadoErpProvider` (Etapa 12b) lê as notas fiscais
+ * importadas (chave = CNPJ do cliente). Quem escolhe a chave é
+ * `erp.service.chaveDoCliente`; services e controllers não mudam com o
+ * provedor — mesmo padrão Adapter de `FileStorage` (ver
+ * `storage/FileStorage.ts`).
  */
 export type Sale = {
   data: Date;
@@ -33,12 +35,21 @@ export type StockSnapshot = {
   nivel: NivelEstoque;
 };
 
+/**
+ * `chave` é o identificador do cliente no provedor (`erpId` no mock, CNPJ
+ * no importado). `getSales` devolve as vendas da mais recente para a mais
+ * antiga. Sem estoque (`estoqueDisponivel = false`), `getStockHistory`
+ * devolve sempre `[]`.
+ */
 export interface ErpProvider {
   readonly simulado: boolean;
-  getLastSale(clientErpId: string): Promise<Sale | null>;
-  getSales(clientErpId: string, period: Period): Promise<Sale[]>;
-  getPurchaseVolume(clientErpId: string, period: Period): Promise<Volume>;
-  getStockHistory(clientErpId: string): Promise<StockSnapshot[]>;
+  readonly estoqueDisponivel: boolean;
+  getLastSale(chave: string): Promise<Sale | null>;
+  /** As `limite` vendas mais recentes (sem período), da mais recente para a mais antiga. */
+  getRecentSales(chave: string, limite: number): Promise<Sale[]>;
+  getSales(chave: string, period: Period): Promise<Sale[]>;
+  getPurchaseVolume(chave: string, period: Period): Promise<Volume>;
+  getStockHistory(chave: string): Promise<StockSnapshot[]>;
 }
 
 /** Lançado pelo provedor de ERP quando a integração não pode responder. */

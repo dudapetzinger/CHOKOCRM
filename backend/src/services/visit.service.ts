@@ -92,10 +92,10 @@ export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
  * requisição (spec 7.5). Pedido só em visita com venda; linhas do mesmo SKU
  * viram uma só, com as quantidades somadas. Lista vazia é "sem pedido".
  */
-function montarItensDoPedido(
+async function montarItensDoPedido(
   itens: CreateVisitInput['itens'],
   resultado: ResultadoVisita,
-): ItemDoPedidoData[] {
+): Promise<ItemDoPedidoData[]> {
   if (!itens || itens.length === 0) return [];
 
   if (resultado !== 'VENDA') {
@@ -107,8 +107,10 @@ function montarItensDoPedido(
     quantidadePorSku.set(item.sku, (quantidadePorSku.get(item.sku) ?? 0) + item.quantidade);
   }
 
-  return [...quantidadePorSku].map(([sku, quantidade]) => {
-    const produto = buscarProduto(sku);
+  const produtos = await Promise.all([...quantidadePorSku.keys()].map((sku) => buscarProduto(sku)));
+
+  return [...quantidadePorSku].map(([sku, quantidade], indice) => {
+    const produto = produtos[indice];
     if (!produto) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_PRODUTO_DESCONHECIDO, 400);
     }
@@ -182,7 +184,7 @@ export async function createVisit(
     }
   }
 
-  const itens = montarItensDoPedido(input.itens, input.resultado);
+  const itens = await montarItensDoPedido(input.itens, input.resultado);
   const proximaVisitaDoCliente = montarProximaVisitaDoCliente(input);
   const campanhaId = input.campanhaId ?? null;
 

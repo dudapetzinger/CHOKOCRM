@@ -6,7 +6,7 @@ import { representanteEfetivo, type UsuarioAutenticado } from './carteira';
 import { limitesDoMes, montarCalendario, type CalendarioDTO, type MesCalendario } from './agenda.calendario';
 import { montarAgenda, type Agenda } from './agenda.montagem';
 import { colunaDateDaData, dataCalendario } from './classificacao.service';
-import { consultarUltimasVendas } from './erp.service';
+import { consultarUltimasVendasPorCliente } from './erp.service';
 
 export type { AgendaItem, Agenda } from './agenda.montagem';
 export type { CalendarioDTO, ItemCalendario } from './agenda.calendario';
@@ -18,7 +18,7 @@ export type { CalendarioDTO, ItemCalendario } from './agenda.calendario';
  * reuso futuro (ex.: job diário) com uma data fixa. A montagem em si
  * (`montarAgenda`) é pura e vive em `agenda.montagem.ts`, sem acesso a
  * banco — este módulo é o único ponto que fala com os repositórios e com o
- * ERP (via `erp.service.consultarUltimasVendas`, Etapa 5) para a cor
+ * ERP (via `erp.service.consultarUltimasVendasPorCliente`, Etapa 5) para a cor
  * composta. Os lembretes abertos com data até hoje, da mesma carteira e só
  * de cliente ativo, vêm na lista `lembretes`.
  */
@@ -37,7 +37,7 @@ export async function getAgendaDoDia(
     }),
   ]);
 
-  const ultimasVendas = await consultarUltimasVendas(clientes.map((cliente) => cliente.erpId));
+  const ultimasVendas = await consultarUltimasVendasPorCliente(clientes);
 
   return montarAgenda(clientes, hoje, ultimasVendas, lembretes);
 }
@@ -70,7 +70,7 @@ export async function getCalendario(
     seasonalEventRepository.findNoIntervalo(primeiro, ultimo),
   ]);
 
-  const ultimasVendas = await consultarUltimasVendas(clientes.map((cliente) => cliente.erpId));
+  const ultimasVendas = await consultarUltimasVendasPorCliente(clientes);
 
   return montarCalendario({ clientes, lembretes, campanhas, eventos, mes, hoje, ultimasVendas });
 }

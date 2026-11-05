@@ -39,6 +39,8 @@ export type ClienteParaAgenda = {
   criadoEm: Date;
   recorrenciaDias: number;
   erpId: string | null;
+  /** Só dígitos; a chave do cliente no ERP importado (ver `erp.service.chaveDoCliente`). */
+  cnpj: string;
   visits: { dataHora: Date; resultado: ResultadoVisita }[];
   /** Dono da carteira, exibido nos itens da agenda. */
   representante: { id: string; nome: string };
@@ -66,6 +68,7 @@ export async function listAtivosParaAgenda(representanteId?: string): Promise<Cl
       criadoEm: true,
       recorrenciaDias: true,
       erpId: true,
+      cnpj: true,
       proximaVisita: true,
       proximaCampanha: { select: { id: true, nome: true } },
       visits: SELECT_ULTIMA_VISITA,

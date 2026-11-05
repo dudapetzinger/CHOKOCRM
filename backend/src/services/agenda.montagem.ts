@@ -88,8 +88,9 @@ function compararLembrete(a: LembreteDTO, b: LembreteDTO): number {
  * recebido — isolada num módulo próprio (sem `client.repository`, só o tipo,
  * importado com `import type` para não puxar `lib/prisma`/`config/env`) para
  * que o teste unitário não precise de `DATABASE_URL`. `ultimasVendas` (Etapa
- * 5) é o mapa `erpId -> última venda`, já resolvido por quem chama
- * (`agenda.service.ts`) via `erp.service.consultarUltimasVendas` — este
+ * 5) é o mapa `id do cliente -> última venda`, já resolvido por quem chama
+ * (`agenda.service.ts`) via `erp.service.consultarUltimasVendasPorCliente`
+ * (que sabe se a chave no ERP é o `erpId` ou o CNPJ) — este
  * módulo permanece livre de I/O e só aplica a cor composta a partir do mapa.
  */
 export function montarAgenda(
@@ -104,7 +105,7 @@ export function montarAgenda(
   const proximos7Dias: AgendaItem[] = [];
 
   for (const cliente of clientes) {
-    const ultimaVenda = ultimasVendas.get(cliente.erpId ?? '') ?? null;
+    const ultimaVenda = ultimasVendas.get(cliente.id) ?? null;
     const { ultima, cor, diasSemVisita, rebaixadoPorVenda } = classificacaoDoCliente(
       cliente.visits,
       hoje,

@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
-import { buscarProduto } from '../src/services/erp.service';
+import { CATALOGO } from '../src/providers/erp/mock/catalogo';
 import { reiniciarDemonstracao, semear } from '../src/seed/demonstracao';
 import { truncateAllTables } from './helpers/db';
 
@@ -134,13 +134,13 @@ describe('seed de demonstração', () => {
       expect(maisRecente?.id).not.toBe(antiga.id);
     }
 
-    // Todas as visitas de venda têm pedido de 2 itens do catálogo, com o preço do catálogo
+    // Todas as visitas de venda têm pedido de 2 itens do catálogo de demonstração, com o preço dele
     const visitas = await prisma.visit.findMany({ include: { itens: true } });
     for (const visita of visitas) {
       expect(visita.itens).toHaveLength(visita.resultado === 'VENDA' ? 2 : 0);
       for (const item of visita.itens) {
-        const produto = buscarProduto(item.sku);
-        expect(produto).not.toBeNull();
+        const produto = CATALOGO.find((candidato) => candidato.sku === item.sku);
+        expect(produto).toBeDefined();
         expect(item.produtoNome).toBe(produto?.nome);
         expect(item.precoUnitario.toNumber()).toBe(produto?.precoUnitario);
         expect(item.quantidade).toBeGreaterThan(0);
@@ -155,7 +155,7 @@ describe('seed de demonstração', () => {
     ]);
     for (const campanha of campanhas) {
       expect(campanha.produtos.length).toBeGreaterThan(0);
-      expect(campanha.produtos.every((sku) => buscarProduto(sku) !== null)).toBe(true);
+      expect(campanha.produtos.every((sku) => CATALOGO.some((produto) => produto.sku === sku))).toBe(true);
     }
     expect(campanhas.some((campanha) => (campanha.desconto ?? 0) > 0)).toBe(true);
 

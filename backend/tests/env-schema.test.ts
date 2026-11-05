@@ -96,3 +96,16 @@ describe('envSchema — limpeza das fotos', () => {
     expect(envSchema.safeParse({ ...OBRIGATORIAS, FOTOS_RETENCAO_DIAS: '1.5' }).success).toBe(false);
   });
 });
+
+describe('envSchema — provedor de ERP', () => {
+  const OBRIGATORIAS = { DATABASE_URL: 'x', JWT_SECRET: 'y' };
+
+  it('padrão mock; aceita importado (notas fiscais importadas, Etapa 12b)', () => {
+    expect(envSchema.parse(OBRIGATORIAS).ERP_PROVIDER).toBe('mock');
+    expect(envSchema.parse({ ...OBRIGATORIAS, ERP_PROVIDER: 'importado' }).ERP_PROVIDER).toBe('importado');
+  });
+
+  it('provedor desconhecido falha', () => {
+    expect(envSchema.safeParse({ ...OBRIGATORIAS, ERP_PROVIDER: 'senior' }).success).toBe(false);
+  });
+});

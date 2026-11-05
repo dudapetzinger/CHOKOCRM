@@ -170,6 +170,9 @@ describe('GET /clients/:id/erp', () => {
     expect(['BAIXO', 'NORMAL', 'ALTO']).toContain(res.body.estoque.nivel);
     expect(new Date(res.body.estoque.atualizadoEm).toString()).not.toBe('Invalid Date');
     expect(Array.isArray(res.body.estoque.itensBaixos)).toBe(true);
+    // Etapa 12b: no mock o estoque existe e as últimas vendas não são listadas.
+    expect(res.body.estoqueIndisponivel).toBe(false);
+    expect(res.body.ultimasVendas).toEqual([]);
   });
 
   it('cliente sem compras há 4 meses: OK com volume90Dias zerado e ultimaVenda antiga', async () => {
@@ -256,14 +259,54 @@ describe('GET /erp/produtos', () => {
   });
 });
 
-describe('erp.service.buscarProduto', () => {
-  it('acha o produto do catálogo pelo SKU, com o preço do dia', () => {
-    expect(erpService.buscarProduto('PAO-MEL')).toEqual({ sku: 'PAO-MEL', nome: 'Pães de mel', precoUnitario: 27.9 });
+describe('GET /erp/situacao', () => {
+  it('sem token responde 401', async () => {
+    const res = await request(app).get('/erp/situacao');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
 
-  it('SKU fora do catálogo dá null', () => {
-    expect(erpService.buscarProduto('NAO-EXISTE')).toBeNull();
-    expect(erpService.buscarProduto('pao-mel')).toBeNull();
+  it('no mock: simulado, com estoque e sem data de venda importada, para representante e gestor', async () => {
+    const [doRepresentante, doGestor] = await Promise.all([
+      request(app).get('/erp/situacao').set('Authorization', `Bearer ${token}`),
+      request(app).get('/erp/situacao').set('Authorization', `Bearer ${tokenGestor}`),
+    ]);
+
+    const esperado = {
+      provedor: 'mock',
+      simulado: true,
+      estoqueDisponivel: true,
+      ultimaVendaEm: null,
+      ultimaImportacaoEm: null,
+    };
+    expect(doRepresentante.status).toBe(200);
+    expect(doRepresentante.body).toEqual(esperado);
+    expect(doGestor.status).toBe(200);
+    expect(doGestor.body).toEqual(esperado);
+  });
+});
+
+describe('erp.service.buscarProduto', () => {
+  it('acha o produto do catálogo pelo SKU, com o preço do dia', async () => {
+    await expect(erpService.buscarProduto('PAO-MEL')).resolves.toEqual({
+      sku: 'PAO-MEL',
+      nome: 'Pães de mel',
+      precoUnitario: 27.9,
+    });
+  });
+
+  it('SKU fora do catálogo dá null', async () => {
+    await expect(erpService.buscarProduto('NAO-EXISTE')).resolves.toBeNull();
+    await expect(erpService.buscarProduto('pao-mel')).resolves.toBeNull();
+  });
+});
+
+describe('erp.service — chave do cliente no mock', () => {
+  it('é o erpId (null sem ele), e o estoque está disponível', () => {
+    expect(erpService.chaveDoCliente({ erpId: 'ERP-1001', cnpj: '11222333000181' })).toBe('ERP-1001');
+    expect(erpService.chaveDoCliente({ erpId: null, cnpj: '11222333000181' })).toBeNull();
+    expect(erpService.estoqueDisponivel()).toBe(true);
   });
 });
 
@@ -326,7 +369,7 @@ describe('erp.service — consultas para insights', () => {
     const erpIdComItemBaixo = await encontrarErpIdComItemBaixo();
     const espiaoEstoque = jest.spyOn(erpProvider, 'getStockHistory');
 
-    const { itensPorErpId, indisponiveis } = await erpService.consultarItensBaixosEmLote([
+    const { itensPorChave, indisponiveis } = await erpService.consultarItensBaixosEmLote([
       'ERP-1001',
       null,
       erpIdComItemBaixo,
@@ -337,18 +380,18 @@ describe('erp.service — consultas para insights', () => {
     ]);
 
     expect(indisponiveis).toEqual([]);
-    expect([...itensPorErpId.keys()]).toEqual(['ERP-1001', erpIdComItemBaixo, 'ERP-1001-0']);
+    expect([...itensPorChave.keys()]).toEqual(['ERP-1001', erpIdComItemBaixo, 'ERP-1001-0']);
     expect(espiaoEstoque).toHaveBeenCalledTimes(3);
 
     for (const erpId of ['ERP-1001', erpIdComItemBaixo]) {
       const esperados = itensBaixosDaDataMaisRecente(await erpProvider.getStockHistory(erpId));
-      expect(itensPorErpId.get(erpId)).toEqual(esperados);
+      expect(itensPorChave.get(erpId)).toEqual(esperados);
     }
 
-    const itensComBaixo = itensPorErpId.get(erpIdComItemBaixo)!;
+    const itensComBaixo = itensPorChave.get(erpIdComItemBaixo)!;
     expect(itensComBaixo.length).toBeGreaterThan(0);
     expect(itensComBaixo.every((item) => item.quantidade < 10 && item.atualizadoEm instanceof Date)).toBe(true);
-    expect(itensPorErpId.get('ERP-1001-0')).toEqual([]);
+    expect(itensPorChave.get('ERP-1001-0')).toEqual([]);
   });
 
   it('consultarItensBaixosEmLote: erpId cujo getStockHistory rejeita com ErpIndisponivelError vai para indisponiveis e os demais seguem', async () => {
@@ -358,15 +401,15 @@ describe('erp.service — consultas para insights', () => {
       .mockRejectedValueOnce(new ErpIndisponivelError())
       .mockRejectedValueOnce(new ErpIndisponivelError());
 
-    const { itensPorErpId, indisponiveis } = await erpService.consultarItensBaixosEmLote([
+    const { itensPorChave, indisponiveis } = await erpService.consultarItensBaixosEmLote([
       'ERP-1001',
       'ERP-1002',
       'ERP-1003',
     ]);
 
     expect(indisponiveis).toEqual(['ERP-1001', 'ERP-1002']);
-    expect([...itensPorErpId.keys()]).toEqual(['ERP-1003']);
-    expect(itensPorErpId.get('ERP-1003')).toEqual(
+    expect([...itensPorChave.keys()]).toEqual(['ERP-1003']);
+    expect(itensPorChave.get('ERP-1003')).toEqual(
       itensBaixosDaDataMaisRecente(await erpProvider.getStockHistory('ERP-1003')),
     );
     expect(avisoSpy).toHaveBeenCalledTimes(1);

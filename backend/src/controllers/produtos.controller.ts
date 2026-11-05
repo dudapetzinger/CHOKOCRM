@@ -3,7 +3,7 @@ import * as erpService from '../services/erp.service';
 
 export async function getProdutos(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.status(200).json({ data: erpService.listarProdutos() });
+    res.status(200).json({ data: await erpService.listarProdutos() });
   } catch (err) {
     next(err);
   }

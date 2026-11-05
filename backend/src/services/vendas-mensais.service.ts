@@ -1,6 +1,6 @@
 import * as clientRepository from '../repositories/client.repository';
 import { dataCalendario, fimDoDia, inicioDoDia, type DataCalendario } from './classificacao.service';
-import { consultarVendasEmLote, erpSimulado } from './erp.service';
+import { chaveDoCliente, consultarVendasEmLote, erpSimulado } from './erp.service';
 import type { Janela } from './kpis.regras';
 import {
   marcadoresDeEventos,
@@ -27,7 +27,7 @@ export type VendasMensaisDTO = {
   /** Eventos sazonais que caem nesses meses, por data. */
   eventos: MarcadorDeEvento[];
   simulado: boolean;
-  /** Clientes ativos com `erpId` (os que o ERP pode responder). */
+  /** Clientes ativos com chave no ERP (os que ele pode responder: no mock, os com `erpId`; no importado, todos). */
   clientesConsultados: number;
   /** Dos consultados, quantos o ERP não conseguiu responder. */
   clientesIndisponiveis: number;
@@ -48,16 +48,20 @@ export async function obterVendasMensais(
   const ultimoDia = ultimoDiaDoMes(meses[meses.length - 1] as string);
 
   const ativos = await clientRepository.listAtivosParaAgenda(representanteId);
-  const erpIds = ativos.flatMap((cliente) => (cliente.erpId ? [cliente.erpId] : []));
+  const consultados = ativos.flatMap((cliente) => {
+    const chave = chaveDoCliente(cliente);
+    return chave ? [{ cliente, chave }] : [];
+  });
+  const chaves = consultados.map(({ chave }) => chave);
 
-  const { vendasPorErpId, indisponiveis } = await consultarVendasEmLote(erpIds, {
+  const { vendasPorChave, indisponiveis } = await consultarVendasEmLote(chaves, {
     inicio: inicioDoDia(`${meses[0]}-01`),
     fim: fimDoDia(ultimoDia < hojeCal ? ultimoDia : hojeCal),
   });
 
-  // Liga as vendas de cada erpId ao cliente; quem o ERP não respondeu fica fora.
-  const vendasPorCliente: VendasDeUmCliente[] = ativos.flatMap(({ id, nomeFantasia, erpId }) => {
-    const vendas = erpId ? vendasPorErpId.get(erpId) : undefined;
+  // Liga as vendas de cada chave ao cliente; quem o ERP não respondeu fica fora.
+  const vendasPorCliente: VendasDeUmCliente[] = consultados.flatMap(({ cliente: { id, nomeFantasia }, chave }) => {
+    const vendas = vendasPorChave.get(chave);
     return vendas ? [{ cliente: { id, nomeFantasia }, vendas }] : [];
   });
 
@@ -66,7 +70,7 @@ export async function obterVendasMensais(
     meses: serieMensal(vendasPorCliente, meses),
     eventos: marcadoresDeEventos(meses),
     simulado: erpSimulado(),
-    clientesConsultados: erpIds.length,
-    clientesIndisponiveis: erpIds.filter((erpId) => indisponiveis.includes(erpId)).length,
+    clientesConsultados: chaves.length,
+    clientesIndisponiveis: chaves.filter((chave) => indisponiveis.includes(chave)).length,
   };
 }

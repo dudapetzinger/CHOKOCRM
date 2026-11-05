@@ -149,10 +149,102 @@ export async function listarImportacoes(limite: number): Promise<ImportacaoComRe
   });
 }
 
+/**
+ * Da nota mais recente para a mais antiga. No mesmo dia, desempata pela chave
+ * de acesso (44 dígitos de tamanho fixo, com o número da nota zerado à
+ * esquerda): entre notas do mesmo emitente e série, a de número maior vem
+ * antes — `numero` é texto e poria '999' acima de '1000'. `ErpSale` não tem
+ * `criadoEm`, e `atualizadoEm` muda a cada vínculo.
+ */
+const ORDEM_MAIS_RECENTE = [
+  { dataEmissao: 'desc' },
+  { chaveAcesso: 'desc' },
+] satisfies Prisma.ErpSaleOrderByWithRelationInput[];
+
 export async function listarPendentes(): Promise<NotaComRelacoes[]> {
   return prisma.erpSale.findMany({
     where: { vinculoStatus: 'PENDENTE' },
-    orderBy: [{ dataEmissao: 'desc' }, { numero: 'desc' }],
+    orderBy: ORDEM_MAIS_RECENTE,
     include: INCLUDE_NOTA,
+  });
+}
+
+// --- Leitura das notas pelo provedor `importado` (Etapa 12b) ---------------
+// Sempre pelo CNPJ do destinatário, nunca por `clientId`: uma nota importada
+// antes de o cliente existir passa a contar assim que ele é cadastrado.
+
+const SELECT_VENDA = {
+  dataEmissao: true,
+  valorTotal: true,
+  itens: {
+    orderBy: { ordem: 'asc' },
+    select: { produtoCodigo: true, produtoNome: true, quantidade: true },
+  },
+} satisfies Prisma.ErpSaleSelect;
+
+export type NotaParaVenda = Prisma.ErpSaleGetPayload<{ select: typeof SELECT_VENDA }>;
+
+/** Filtro de `dataEmissao` (coluna `@db.Date`) com os dois dias inclusivos; sem dia, sem limite. */
+function filtroDeEmissao(de?: Date, ate?: Date): Prisma.ErpSaleWhereInput['dataEmissao'] {
+  return { ...(de ? { gte: de } : {}), ...(ate ? { lte: ate } : {}) };
+}
+
+/**
+ * Notas do CNPJ emitidas entre os dias `de` e `ate` (colunas `@db.Date`,
+ * inclusivos), da mais recente para a mais antiga; `limite` corta a lista.
+ */
+export async function listarNotasDoCnpj(
+  cnpj: string,
+  { de, ate, limite }: { de?: Date; ate?: Date; limite?: number } = {},
+): Promise<NotaParaVenda[]> {
+  return prisma.erpSale.findMany({
+    where: { destinatarioCnpj: cnpj, dataEmissao: filtroDeEmissao(de, ate) },
+    orderBy: ORDEM_MAIS_RECENTE,
+    take: limite,
+    select: SELECT_VENDA,
+  });
+}
+
+/** Soma do valor total e quantidade de notas do CNPJ entre os dias `de` e `ate` (inclusivos). */
+export async function somarNotasDoCnpj(
+  cnpj: string,
+  de: Date,
+  ate: Date,
+): Promise<{ total: Prisma.Decimal | null; quantidade: number }> {
+  const resultado = await prisma.erpSale.aggregate({
+    where: { destinatarioCnpj: cnpj, dataEmissao: filtroDeEmissao(de, ate) },
+    _sum: { valorTotal: true },
+    _count: { _all: true },
+  });
+  return { total: resultado._sum.valorTotal, quantidade: resultado._count._all };
+}
+
+/** Data de emissão da nota mais recente (de qualquer cliente); `null` sem notas. */
+export async function ultimaDataDeEmissao(): Promise<Date | null> {
+  const nota = await prisma.erpSale.findFirst({ orderBy: { dataEmissao: 'desc' }, select: { dataEmissao: true } });
+  return nota?.dataEmissao ?? null;
+}
+
+/** Instante da importação mais recente; `null` se nunca houve. */
+export async function ultimaImportacaoEm(): Promise<Date | null> {
+  const importacao = await prisma.erpImport.findFirst({ orderBy: { criadoEm: 'desc' }, select: { criadoEm: true } });
+  return importacao?.criadoEm ?? null;
+}
+
+/** Catálogo aprendido das notas (`ErpProduct`), por nome. */
+export async function listarProdutos(): Promise<{ codigo: string; nome: string; precoUnitario: Prisma.Decimal }[]> {
+  return prisma.erpProduct.findMany({
+    orderBy: [{ nome: 'asc' }, { codigo: 'asc' }],
+    select: { codigo: true, nome: true, precoUnitario: true },
+  });
+}
+
+/** Um produto do catálogo aprendido pelo código; `null` se não existe. */
+export async function findProdutoPorCodigo(
+  codigo: string,
+): Promise<{ codigo: string; nome: string; precoUnitario: Prisma.Decimal } | null> {
+  return prisma.erpProduct.findUnique({
+    where: { codigo },
+    select: { codigo: true, nome: true, precoUnitario: true },
   });
 }

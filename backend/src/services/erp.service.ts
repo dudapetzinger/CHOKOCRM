@@ -1,3 +1,4 @@
+import { env, type Env } from '../config/env';
 import { erpProvider } from '../providers/erp';
 import {
   ErpIndisponivelError,
@@ -9,18 +10,29 @@ import {
 } from '../providers/erp/ErpProvider';
 import { CATALOGO } from '../providers/erp/mock/catalogo';
 import * as clientRepository from '../repositories/client.repository';
+import * as erpSaleRepository from '../repositories/erp-sale.repository';
 import { logger } from '../lib/logger';
 // De `carteira`, não de `client.service`: este depende daqui (`consultarUltimasVendas`).
 import { exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
-import { dataCalendario, fimDoDia, inicioDoDia, somarDias } from './classificacao.service';
+import { dataCalendario, dataDaColunaDate, fimDoDia, inicioDoDia, somarDias } from './classificacao.service';
 
 const DIAS_DE_VOLUME = 90;
+/** Quantas vendas a ficha lista em `ultimasVendas` (só no provedor importado). */
+const QUANTIDADE_DE_ULTIMAS_VENDAS = 5;
 
 /**
  * Único módulo do sistema que fala com `erpProvider` (Task 4 do plano de
  * design da Etapa 5) e com o catálogo do ERP: services e controllers de
  * cliente/agenda consomem `consultarUltimasVendas` daqui; o check-in e as
- * campanhas, `buscarProduto`. Nunca o provider diretamente.
+ * campanhas, `buscarProduto`. Nunca o provider diretamente. Exceção
+ * autorizada: o seed de demonstração (`seed/demonstracao.ts`) lê o catálogo
+ * de demonstração (`CATALOGO`) direto, seja qual for o provedor, e o grava
+ * em `ErpProduct` para o importado também o oferecer. Dois provedores
+ * (`ERP_PROVIDER`): `mock`, que identifica o cliente pelo `erpId` e tem o
+ * catálogo fixo de demonstração, e `importado` (Etapa 12b), que identifica o
+ * cliente pelo CNPJ, lê as notas fiscais importadas e o catálogo aprendido
+ * delas (`ErpProduct`), sem estoque. Quem chama nunca escolhe a chave: passa
+ * o cliente a `chaveDoCliente`.
  */
 export type DadosErpDTO =
   | {
@@ -33,10 +45,31 @@ export type DadosErpDTO =
         atualizadoEm: string;
         itensBaixos: { sku: string; nome: string; quantidade: number }[];
       } | null;
+      /** O provedor não informa estoque (importado): `estoque` é sempre `null`. */
+      estoqueIndisponivel: boolean;
+      /** As vendas mais recentes, `data` em 'AAAA-MM-DD'; só no importado (`[]` no mock). */
+      ultimasVendas: VendaDTO[];
     }
   | { status: 'SEM_ERP_ID' }
   | { status: 'NAO_ENCONTRADO' }
   | { status: 'INDISPONIVEL' };
+
+/** Uma venda (nota) já serializável, com a data em 'AAAA-MM-DD'. */
+export type VendaDTO = Omit<Sale, 'data'> & { data: string };
+
+/** Situação da fonte de vendas (`GET /erp/situacao`). */
+export type SituacaoErpDTO = {
+  provedor: Env['ERP_PROVIDER'];
+  simulado: boolean;
+  estoqueDisponivel: boolean;
+  /** Emissão da nota mais recente, 'AAAA-MM-DD'; `null` sem notas ou no mock. */
+  ultimaVendaEm: string | null;
+  /** Instante (ISO) da importação mais recente; `null` se nunca houve. */
+  ultimaImportacaoEm: string | null;
+};
+
+/** O que o ERP precisa do cliente para identificá-lo: `erpId` (mock) ou CNPJ (importado). */
+export type ClienteDoErp = { erpId: string | null; cnpj: string };
 
 /** Item de estoque em nível BAIXO; `atualizadoEm` é a data do snapshot de onde veio. */
 export type ItemBaixo = { sku: string; nome: string; quantidade: number; atualizadoEm: Date };
@@ -51,27 +84,27 @@ const ORDEM_DE_GRAVIDADE: Record<NivelEstoque, number> = {
   ALTO: 2,
 };
 
-type RespostaDoLote<T> = { erpId: string; disponivel: true; resultado: T } | { erpId: string; disponivel: false };
+type RespostaDoLote<T> = { chave: string; disponivel: true; resultado: T } | { chave: string; disponivel: false };
 
 /**
- * Consulta o ERP uma vez por `erpId` distinto (ignora `null`/vazio e
- * repetidos), em paralelo. Se o ERP estiver indisponível para algum id,
- * registra um único warn para o lote inteiro (não um por cliente) e o devolve
- * em `indisponiveis`, na ordem de `erpIds`; os demais seguem. Outros erros
+ * Consulta o ERP uma vez por chave distinta (ignora `null`/vazia e
+ * repetidas), em paralelo. Se o ERP estiver indisponível para alguma chave,
+ * registra um único warn para o lote inteiro (não um por cliente) e a devolve
+ * em `indisponiveis`, na ordem de `chaves`; as demais seguem. Outros erros
  * propagam.
  */
 async function consultarEmLote<T>(
-  erpIds: (string | null)[],
-  consultar: (erpId: string) => Promise<T>,
+  chaves: (string | null)[],
+  consultar: (chave: string) => Promise<T>,
   mensagemDeIndisponibilidade: string,
 ): Promise<{ resultados: Map<string, T>; indisponiveis: string[] }> {
-  const idsUnicos = [...new Set(erpIds.filter((erpId): erpId is string => Boolean(erpId)))];
+  const chavesUnicas = [...new Set(chaves.filter((chave): chave is string => Boolean(chave)))];
   let indisponivelJaLogado = false;
 
   const respostas = await Promise.all(
-    idsUnicos.map(async (erpId): Promise<RespostaDoLote<T>> => {
+    chavesUnicas.map(async (chave): Promise<RespostaDoLote<T>> => {
       try {
-        return { erpId, disponivel: true, resultado: await consultar(erpId) };
+        return { chave, disponivel: true, resultado: await consultar(chave) };
       } catch (err) {
         if (err instanceof ErpIndisponivelError) {
           if (!indisponivelJaLogado) {
@@ -79,7 +112,7 @@ async function consultarEmLote<T>(
             logger.warn({ err }, mensagemDeIndisponibilidade);
           }
 
-          return { erpId, disponivel: false };
+          return { chave, disponivel: false };
         }
 
         throw err;
@@ -92,13 +125,32 @@ async function consultarEmLote<T>(
 
   for (const resposta of respostas) {
     if (resposta.disponivel) {
-      resultados.set(resposta.erpId, resposta.resultado);
+      resultados.set(resposta.chave, resposta.resultado);
     } else {
-      indisponiveis.push(resposta.erpId);
+      indisponiveis.push(resposta.chave);
     }
   }
 
   return { resultados, indisponiveis };
+}
+
+/** O provedor em uso é o das notas fiscais importadas (Etapa 12b)? */
+function provedorImportado(): boolean {
+  return env.ERP_PROVIDER === 'importado';
+}
+
+/**
+ * Identificador do cliente no provedor em uso: o `erpId` no mock (`null`
+ * sem ele: o cliente não está no ERP simulado) e o CNPJ, só dígitos, no
+ * importado (todo cliente tem). Todo chamador que consulta o ERP por cliente
+ * resolve a chave aqui.
+ */
+export function chaveDoCliente(cliente: ClienteDoErp): string | null {
+  if (provedorImportado()) {
+    return cliente.cnpj.replace(/\D/g, '');
+  }
+
+  return cliente.erpId || null;
 }
 
 /** Indica se o ERP em uso é o simulado (mock de demonstração), para telas e insights sinalizarem isso. */
@@ -106,57 +158,112 @@ export function erpSimulado(): boolean {
   return erpProvider.simulado;
 }
 
+/** Indica se o ERP em uso informa estoque (o mock sim; as notas importadas não). */
+export function estoqueDisponivel(): boolean {
+  return erpProvider.estoqueDisponivel;
+}
+
+/**
+ * Situação da fonte de vendas para os avisos das telas (`GET /erp/situacao`):
+ * o provedor e, no importado, até que dia há notas. A última importação vem
+ * do banco em qualquer provedor.
+ */
+export async function obterSituacao(): Promise<SituacaoErpDTO> {
+  const [ultimaEmissao, ultimaImportacao] = await Promise.all([
+    provedorImportado() ? erpSaleRepository.ultimaDataDeEmissao() : Promise.resolve(null),
+    erpSaleRepository.ultimaImportacaoEm(),
+  ]);
+
+  return {
+    provedor: env.ERP_PROVIDER,
+    simulado: erpProvider.simulado,
+    estoqueDisponivel: erpProvider.estoqueDisponivel,
+    ultimaVendaEm: ultimaEmissao ? dataDaColunaDate(ultimaEmissao) : null,
+    ultimaImportacaoEm: ultimaImportacao ? ultimaImportacao.toISOString() : null,
+  };
+}
+
 export type ProdutoDTO = { sku: string; nome: string; precoUnitario: number };
 
 /**
- * Produtos que o check-in oferece no pedido (spec 7.5), na ordem do
- * catálogo: os mesmos do histórico do ERP simulado, com o preço do dia.
+ * Produtos que o check-in oferece no pedido (spec 7.5), com o preço do dia:
+ * no mock, o catálogo fixo de demonstração, na ordem dele; no importado, o
+ * catálogo aprendido das notas (`ErpProduct`), por nome.
  */
-export function listarProdutos(): ProdutoDTO[] {
+export async function listarProdutos(): Promise<ProdutoDTO[]> {
+  if (provedorImportado()) {
+    const produtos = await erpSaleRepository.listarProdutos();
+    return produtos.map(({ codigo, nome, precoUnitario }) => ({
+      sku: codigo,
+      nome,
+      precoUnitario: precoUnitario.toNumber(),
+    }));
+  }
+
   return CATALOGO.map(({ sku, nome, precoUnitario }) => ({ sku, nome, precoUnitario }));
 }
 
 /**
- * Um produto do catálogo pelo SKU, com o preço do dia; `null` se o SKU não
- * existe. É por aqui que o pedido do check-in e as campanhas validam os
- * SKUs: nenhum outro módulo lê o catálogo do ERP direto.
+ * Um produto do catálogo pelo SKU (no importado, o código do produto na
+ * nota), com o preço do dia; `null` se o SKU não existe. É por aqui que o
+ * pedido do check-in e as campanhas validam os SKUs: nenhum outro módulo lê
+ * o catálogo do ERP direto.
  */
-export function buscarProduto(sku: string): ProdutoDTO | null {
+export async function buscarProduto(sku: string): Promise<ProdutoDTO | null> {
+  if (provedorImportado()) {
+    const produto = await erpSaleRepository.findProdutoPorCodigo(sku);
+    return produto
+      ? { sku: produto.codigo, nome: produto.nome, precoUnitario: produto.precoUnitario.toNumber() }
+      : null;
+  }
+
   const produto = CATALOGO.find((candidato) => candidato.sku === sku);
   return produto ? { sku: produto.sku, nome: produto.nome, precoUnitario: produto.precoUnitario } : null;
 }
 
 /**
- * Última venda de cada `erpId`, para telas que listam vários clientes de
- * uma vez (lista de clientes, ficha do cliente, agenda). Se o ERP estiver
- * indisponível, devolve `null` para o cliente afetado — quem chama não
- * precisa saber que o ERP está fora do ar.
+ * Última venda de cada chave (de `chaveDoCliente`), para telas que listam
+ * vários clientes de uma vez (lista de clientes, ficha do cliente, agenda).
+ * Se o ERP estiver indisponível, devolve `null` para o cliente afetado — quem
+ * chama não precisa saber que o ERP está fora do ar.
  */
-export async function consultarUltimasVendas(erpIds: (string | null)[]): Promise<Map<string, Date | null>> {
+export async function consultarUltimasVendas(chaves: (string | null)[]): Promise<Map<string, Date | null>> {
   const { resultados, indisponiveis } = await consultarEmLote(
-    erpIds,
-    async (erpId) => (await erpProvider.getLastSale(erpId))?.data ?? null,
+    chaves,
+    async (chave) => (await erpProvider.getLastSale(chave))?.data ?? null,
     'ERP indisponível ao consultar últimas vendas em lote',
   );
 
-  for (const erpId of indisponiveis) {
-    resultados.set(erpId, null);
+  for (const chave of indisponiveis) {
+    resultados.set(chave, null);
   }
 
   return resultados;
 }
 
 /**
- * Vendas de um cliente no período (para os insights sazonais). `null` quando
- * o ERP está indisponível — o warn é registrado aqui e quem chama decide como
- * degradar; qualquer outro erro propaga.
+ * Última venda de cada cliente indexada pelo `id` do cliente (e não pela
+ * chave do ERP), para as montagens puras da agenda, que não conhecem o
+ * provedor. Mesma degradação de `consultarUltimasVendas`.
  */
-export async function consultarVendas(erpId: string, periodo: Period): Promise<Sale[] | null> {
+export async function consultarUltimasVendasPorCliente(
+  clientes: (ClienteDoErp & { id: string })[],
+): Promise<Map<string, Date | null>> {
+  const porChave = await consultarUltimasVendas(clientes.map(chaveDoCliente));
+  return new Map(clientes.map((cliente) => [cliente.id, porChave.get(chaveDoCliente(cliente) ?? '') ?? null]));
+}
+
+/**
+ * Vendas de um cliente (pela chave) no período (para os insights sazonais).
+ * `null` quando o ERP está indisponível — o warn é registrado aqui e quem
+ * chama decide como degradar; qualquer outro erro propaga.
+ */
+export async function consultarVendas(chave: string, periodo: Period): Promise<Sale[] | null> {
   try {
-    return await erpProvider.getSales(erpId, periodo);
+    return await erpProvider.getSales(chave, periodo);
   } catch (err) {
     if (err instanceof ErpIndisponivelError) {
-      logger.warn({ erpId, err }, 'ERP indisponível ao consultar vendas do período');
+      logger.warn({ chave, err }, 'ERP indisponível ao consultar vendas do período');
       return null;
     }
 
@@ -165,41 +272,41 @@ export async function consultarVendas(erpId: string, periodo: Period): Promise<S
 }
 
 /**
- * Vendas de cada `erpId` no período (para o gráfico de vendas mensais). O que
+ * Vendas de cada chave no período (para o gráfico de vendas mensais). O que
  * o ERP não conseguiu responder vai para `indisponiveis` e fica fora do mapa
  * — um único warn para o lote —, para quem chama distinguir "sem venda" de
  * "não sei".
  */
 export async function consultarVendasEmLote(
-  erpIds: (string | null)[],
+  chaves: (string | null)[],
   periodo: Period,
-): Promise<{ vendasPorErpId: Map<string, Sale[]>; indisponiveis: string[] }> {
+): Promise<{ vendasPorChave: Map<string, Sale[]>; indisponiveis: string[] }> {
   const { resultados, indisponiveis } = await consultarEmLote(
-    erpIds,
-    (erpId) => erpProvider.getSales(erpId, periodo),
+    chaves,
+    (chave) => erpProvider.getSales(chave, periodo),
     'ERP indisponível ao consultar vendas em lote',
   );
 
-  return { vendasPorErpId: resultados, indisponiveis };
+  return { vendasPorChave: resultados, indisponiveis };
 }
 
 /**
- * Itens em nível BAIXO no snapshot de estoque mais recente de cada `erpId`
- * (para os alertas de produção). `erpId` sem histórico (desconhecido no ERP)
+ * Itens em nível BAIXO no snapshot de estoque mais recente de cada chave
+ * (para os alertas de produção). Chave sem histórico (desconhecida no ERP)
  * fica com lista vazia; o que o ERP não conseguiu responder vai para
  * `indisponiveis` e fica fora do mapa, para quem chama distinguir "sem item
  * baixo" de "não sei".
  */
 export async function consultarItensBaixosEmLote(
-  erpIds: (string | null)[],
-): Promise<{ itensPorErpId: Map<string, ItemBaixo[]>; indisponiveis: string[] }> {
+  chaves: (string | null)[],
+): Promise<{ itensPorChave: Map<string, ItemBaixo[]>; indisponiveis: string[] }> {
   const { resultados, indisponiveis } = await consultarEmLote(
-    erpIds,
-    async (erpId) => resumirEstoque(await erpProvider.getStockHistory(erpId))?.itensBaixos ?? [],
+    chaves,
+    async (chave) => resumirEstoque(await erpProvider.getStockHistory(chave))?.itensBaixos ?? [],
     'ERP indisponível ao consultar estoque em lote',
   );
 
-  return { itensPorErpId: resultados, indisponiveis };
+  return { itensPorChave: resultados, indisponiveis };
 }
 
 /** Snapshot de estoque mais recente (por `data`), com o pior nível entre os itens dessa data. */
@@ -227,11 +334,19 @@ export function resumirEstoque(historico: StockSnapshot[]): ResumoEstoque | null
   return { nivel, atualizadoEm: dataMaisRecente.toISOString(), itensBaixos };
 }
 
+/** Venda serializável: a data como o dia de calendário da venda. */
+function paraVendaDTO(venda: Sale): VendaDTO {
+  return { data: dataCalendario(venda.data), valor: venda.valor, produtos: venda.produtos };
+}
+
 /**
  * Dados de venda/estoque do cliente no ERP (UC11): busca o cliente, resolve
- * o `erpId` e consulta o provedor. Cliente de outra carteira responde ao
- * representante como inexistente (404). Qualquer `ErpIndisponivelError` vira
- * `{ status: 'INDISPONIVEL' }` — outros erros propagam para o errorHandler.
+ * a chave (`chaveDoCliente`) e consulta o provedor. Cliente de outra
+ * carteira responde ao representante como inexistente (404). Qualquer
+ * `ErpIndisponivelError` vira `{ status: 'INDISPONIVEL' }` — outros erros
+ * propagam para o errorHandler. No importado a chave é o CNPJ, que todo
+ * cliente tem: nunca há `SEM_ERP_ID` nem `NAO_ENCONTRADO` (cliente sem nota
+ * é `OK` sem última venda), e a ficha recebe as últimas vendas.
  */
 export async function obterDadosErp(
   clientId: string,
@@ -239,12 +354,13 @@ export async function obterDadosErp(
   hoje: Date = new Date(),
 ): Promise<DadosErpDTO> {
   const cliente = exigirClienteVisivel(await clientRepository.findById(clientId), usuario);
+  const chave = chaveDoCliente(cliente);
 
-  if (!cliente.erpId) {
+  if (!chave) {
     return { status: 'SEM_ERP_ID' };
   }
 
-  const { erpId } = cliente;
+  const importado = provedorImportado();
   const hojeCal = dataCalendario(hoje);
   const periodo = {
     inicio: inicioDoDia(somarDias(hojeCal, -DIAS_DE_VOLUME)),
@@ -252,13 +368,18 @@ export async function obterDadosErp(
   };
 
   try {
-    const [ultimaVenda, historicoDeEstoque, volume90Dias] = await Promise.all([
-      erpProvider.getLastSale(erpId),
-      erpProvider.getStockHistory(erpId),
-      erpProvider.getPurchaseVolume(erpId, periodo),
+    // No importado, uma consulta só traz as últimas vendas, e a primeira é a
+    // última venda; no mock, só a última venda (a ficha não lista vendas).
+    const [recentes, historicoDeEstoque, volume90Dias] = await Promise.all([
+      importado
+        ? erpProvider.getRecentSales(chave, QUANTIDADE_DE_ULTIMAS_VENDAS)
+        : erpProvider.getLastSale(chave).then((venda) => (venda ? [venda] : [])),
+      erpProvider.getStockHistory(chave),
+      erpProvider.getPurchaseVolume(chave, periodo),
     ]);
+    const ultimaVenda = recentes[0] ?? null;
 
-    if (ultimaVenda === null && historicoDeEstoque.length === 0) {
+    if (!importado && ultimaVenda === null && historicoDeEstoque.length === 0) {
       return { status: 'NAO_ENCONTRADO' };
     }
 
@@ -274,10 +395,12 @@ export async function obterDadosErp(
         ...resumoDeEstoque,
         itensBaixos: resumoDeEstoque.itensBaixos.map(({ sku, nome, quantidade }) => ({ sku, nome, quantidade })),
       },
+      estoqueIndisponivel: !erpProvider.estoqueDisponivel,
+      ultimasVendas: importado ? recentes.map(paraVendaDTO) : [],
     };
   } catch (err) {
     if (err instanceof ErpIndisponivelError) {
-      logger.warn({ clientId, erpId, err }, 'ERP indisponível ao consultar dados do cliente');
+      logger.warn({ clientId, chave, err }, 'ERP indisponível ao consultar dados do cliente');
       return { status: 'INDISPONIVEL' };
     }
 

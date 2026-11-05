@@ -102,8 +102,8 @@ function descreverVencimento(quem: string, diasAtraso: number): string {
  * dia; no mesmo dia, data sazonal, campanha, visitas da cor mais urgente para
  * a menos (a composta, com `ultimasVendas`, como na agenda do dia) e por
  * nome, e por fim os lembretes por nome.
- * Função pura, como `montarAgenda`: o `hoje` e o mapa `erpId -> última
- * venda` vêm de quem chama.
+ * Função pura, como `montarAgenda`: o `hoje` e o mapa `id do cliente ->
+ * última venda` vêm de quem chama.
  */
 export function montarCalendario(entrada: {
   clientes: ClienteParaAgenda[];
@@ -128,7 +128,7 @@ export function montarCalendario(entrada: {
       continue;
     }
 
-    const ultimaVenda = ultimasVendas.get(cliente.erpId ?? '') ?? null;
+    const ultimaVenda = ultimasVendas.get(cliente.id) ?? null;
     const { cor } = classificacaoDoCliente(cliente.visits, hoje, ultimaVenda);
     const diasAtraso = diasEntre(marcada, hojeCal);
 

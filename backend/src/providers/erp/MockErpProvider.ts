@@ -10,13 +10,15 @@ import { gerarHistoricoErp } from './mock/gerador';
 
 /**
  * Implementação de demonstração de `ErpProvider`: gera um histórico
- * determinístico (ver `mock/gerador.ts`) a partir do `erpId`, sem tocar
+ * determinístico (ver `mock/gerador.ts`) a partir do `erpId` (a chave do
+ * cliente no mock, ver `erp.service.chaveDoCliente`), sem tocar
  * banco de dados nem serviço externo. `falhar` simula a indisponibilidade
  * do ERP (UC11 E3); `hoje` é injetado para os testes controlarem "agora"
  * sem mockar `Date` globalmente.
  */
 export class MockErpProvider implements ErpProvider {
   readonly simulado = true;
+  readonly estoqueDisponivel = true;
 
   private readonly falhar: boolean;
   private readonly hoje: () => Date;
@@ -30,6 +32,12 @@ export class MockErpProvider implements ErpProvider {
     this.verificarDisponibilidade();
     const { vendas } = gerarHistoricoErp(clientErpId, this.hoje());
     return vendas[0] ?? null;
+  }
+
+  async getRecentSales(clientErpId: string, limite: number): Promise<Sale[]> {
+    this.verificarDisponibilidade();
+    const { vendas } = gerarHistoricoErp(clientErpId, this.hoje());
+    return vendas.slice(0, limite);
   }
 
   async getSales(clientErpId: string, period: Period): Promise<Sale[]> {

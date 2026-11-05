@@ -19,7 +19,7 @@ import {
   type VisitaVinculada,
 } from './campaign.regras';
 import { colunaDateDaData, dataCalendario, dataDaColunaDate } from './classificacao.service';
-import { buscarProduto } from './erp.service';
+import { buscarProduto, listarProdutos } from './erp.service';
 
 /**
  * Campanhas, promoções e eventos (spec 7.7). Todos leem; só o gestor cria,
@@ -63,11 +63,17 @@ export type CampanhaDTO = {
   vendas: VendaDaCampanha[];
 };
 
+/** Nome de cada SKU do catálogo do ERP, para exibir os produtos das campanhas. */
+async function nomesDoCatalogo(): Promise<Map<string, string>> {
+  return new Map((await listarProdutos()).map(({ sku, nome }) => [sku, nome]));
+}
+
 function toCampanhaDTO(
   campanha: Campaign,
   hoje: Date,
   visitas: VisitaVinculada[],
   base: Pessoa[],
+  catalogo: Map<string, string>,
 ): CampanhaDTO {
   const inicio = dataDaColunaDate(campanha.inicio);
   const fim = dataDaColunaDate(campanha.fim);
@@ -80,7 +86,7 @@ function toCampanhaDTO(
     fim,
     descricao: campanha.descricao,
     desconto: campanha.desconto,
-    produtos: campanha.produtos.map((sku) => ({ sku, nome: buscarProduto(sku)?.nome ?? sku })),
+    produtos: campanha.produtos.map((sku) => ({ sku, nome: catalogo.get(sku) ?? sku })),
     status: statusDaCampanha({ inicio, fim }, dataCalendario(hoje)),
     resultados: resultadosDaCampanha(visitas, base),
     produtosMaisVendidos: produtosMaisVendidos(visitas),
@@ -107,14 +113,17 @@ async function escopoDosResultados(
 /** Uma campanha com as vendas vinculadas no escopo de quem pede. */
 async function montarDTO(campanha: Campaign, usuario: UsuarioAutenticado, hoje: Date): Promise<CampanhaDTO> {
   const { base, autorId } = await escopoDosResultados(usuario);
-  const visitas = await campaignRepository.listarVisitasVinculadas({ campanhaId: campanha.id, autorId });
-  return toCampanhaDTO(campanha, hoje, visitas, base);
+  const [visitas, catalogo] = await Promise.all([
+    campaignRepository.listarVisitasVinculadas({ campanhaId: campanha.id, autorId }),
+    nomesDoCatalogo(),
+  ]);
+  return toCampanhaDTO(campanha, hoje, visitas, base, catalogo);
 }
 
 /** SKUs do catálogo do ERP (400 no primeiro desconhecido) e datas como colunas `@db.Date`. */
-function dadosDaCampanha(input: CampanhaInput): CampanhaData {
+async function dadosDaCampanha(input: CampanhaInput): Promise<CampanhaData> {
   for (const sku of input.produtos) {
-    if (!buscarProduto(sku)) {
+    if (!(await buscarProduto(sku))) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_PRODUTO_DESCONHECIDO, 400);
     }
   }
@@ -141,9 +150,10 @@ async function exigirCampanha(id: string): Promise<Campaign> {
 /** Todas, em ordem de início, com status e vendas vinculadas no escopo de quem pede. */
 export async function listarCampanhas(usuario: UsuarioAutenticado, hoje: Date = new Date()): Promise<CampanhaDTO[]> {
   const { base, autorId } = await escopoDosResultados(usuario);
-  const [campanhas, visitas] = await Promise.all([
+  const [campanhas, visitas, catalogo] = await Promise.all([
     campaignRepository.listar(),
     campaignRepository.listarVisitasVinculadas({ autorId }),
+    nomesDoCatalogo(),
   ]);
 
   const visitasPorCampanha = new Map<string, VisitaVinculada[]>();
@@ -151,11 +161,13 @@ export async function listarCampanhas(usuario: UsuarioAutenticado, hoje: Date = 
     visitasPorCampanha.set(visita.campanhaId, [...(visitasPorCampanha.get(visita.campanhaId) ?? []), visita]);
   }
 
-  return campanhas.map((campanha) => toCampanhaDTO(campanha, hoje, visitasPorCampanha.get(campanha.id) ?? [], base));
+  return campanhas.map((campanha) =>
+    toCampanhaDTO(campanha, hoje, visitasPorCampanha.get(campanha.id) ?? [], base, catalogo),
+  );
 }
 
 export async function criarCampanha(input: CampanhaInput, usuario: UsuarioAutenticado): Promise<CampanhaDTO> {
-  const criada = await campaignRepository.create(dadosDaCampanha(input));
+  const criada = await campaignRepository.create(await dadosDaCampanha(input));
   return montarDTO(criada, usuario, new Date());
 }
 
@@ -166,7 +178,7 @@ export async function atualizarCampanha(
   usuario: UsuarioAutenticado,
 ): Promise<CampanhaDTO> {
   await exigirCampanha(id);
-  const atualizada = await campaignRepository.update(id, dadosDaCampanha(input));
+  const atualizada = await campaignRepository.update(id, await dadosDaCampanha(input));
   return montarDTO(atualizada, usuario, new Date());
 }
 

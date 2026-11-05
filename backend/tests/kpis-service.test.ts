@@ -35,6 +35,7 @@ function clienteAtivo(id: string, erpId: string | null, ultimaVisita: UltimaVisi
     criadoEm: new Date('2026-01-01T12:00:00Z'),
     recorrenciaDias: 15,
     erpId,
+    cnpj: '11222333000181',
     visits: ultimaVisita ? [ultimaVisita] : [],
     representante: { id: 'rep-1', nome: 'Representante' },
     proximaVisita: null,

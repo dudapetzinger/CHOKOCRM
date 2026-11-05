@@ -8,7 +8,7 @@ import {
   ordemDeCor,
   type Cor,
 } from './classificacao.service';
-import { consultarUltimasVendas } from './erp.service';
+import { consultarUltimasVendasPorCliente } from './erp.service';
 import type { Janela } from './kpis.regras';
 
 /**
@@ -71,7 +71,7 @@ export async function obterRelatorio(
     visitRepository.listNoPeriodoComPedido(inicioDoDia(inicio), fimDoDia(fim), representanteId),
   ]);
 
-  const ultimasVendas = await consultarUltimasVendas(ativos.map((cliente) => cliente.erpId));
+  const ultimasVendas = await consultarUltimasVendasPorCliente(ativos);
 
   const doPeriodo = new Map<string, { visitas: number; vendas: Prisma.Decimal }>();
   for (const visita of visitas) {
@@ -88,7 +88,7 @@ export async function obterRelatorio(
       const { cor, diasSemVisita } = classificacaoDoCliente(
         cliente.visits,
         hoje,
-        ultimasVendas.get(cliente.erpId ?? '') ?? null,
+        ultimasVendas.get(cliente.id) ?? null,
       );
       return { cliente, cor, diasSemVisita, nome: cliente.nomeFantasia };
     })
