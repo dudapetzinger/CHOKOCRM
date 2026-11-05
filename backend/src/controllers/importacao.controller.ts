@@ -2,7 +2,9 @@ import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
+import { cnpjDaNotaParamSchema, criarClientePelaNotaSchema } from '../schemas/cliente-pela-nota.schema';
 import { nomeArquivoSchema, vincularNotaSchema } from '../schemas/importacao.schema';
+import * as clientePelaNotaService from '../services/importacao-nf/cliente-pela-nota.service';
 import * as importacaoService from '../services/importacao-nf/importacao.service';
 import { usuarioAutenticado } from './usuarioAutenticado';
 
@@ -62,6 +64,27 @@ export async function deleteVinculo(req: Request, res: Response, next: NextFunct
   try {
     const saleId = idParamSchema.parse(req.params.id);
     res.status(200).json(await importacaoService.desvincular(saleId));
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** CNPJs das notas sem cliente no CRM, agrupados (cliente pela nota). */
+export async function getSemCliente(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.status(200).json({ data: await clientePelaNotaService.listarSemCliente() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Cria o cliente do CNPJ com os dados da nota, na carteira escolhida pelo gestor. */
+export async function postClientePelaNota(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const usuario = usuarioAutenticado(req);
+    const cnpj = cnpjDaNotaParamSchema.parse(req.params.cnpj);
+    const dados = criarClientePelaNotaSchema.parse(req.body);
+    res.status(201).json(await clientePelaNotaService.criarClientePelaNota(cnpj, dados, usuario));
   } catch (err) {
     next(err);
   }

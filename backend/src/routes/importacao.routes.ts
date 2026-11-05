@@ -3,6 +3,8 @@ import {
   deleteVinculo,
   getImportacoes,
   getPendencias,
+  getSemCliente,
+  postClientePelaNota,
   postImportacao,
   postVinculo,
 } from '../controllers/importacao.controller';
@@ -13,7 +15,8 @@ import { requireRole } from '../middlewares/requireRole';
  * Importação de notas fiscais e vínculo com as visitas (Etapa 12b), montado em
  * `/erp`. Só o gestor importa e responde as pendências; o `requireRole` fica em
  * cada rota (e não em `router.use`) para não barrar `/erp/produtos`, que o
- * representante lê.
+ * representante lê. `/sem-cliente` lista os CNPJs das notas sem cliente e cria
+ * o cliente pela nota fiscal.
  */
 export const importacaoRouter = Router();
 
@@ -22,3 +25,5 @@ importacaoRouter.get('/importacoes', authJwt, requireRole('GESTOR'), getImportac
 importacaoRouter.get('/pendencias', authJwt, requireRole('GESTOR'), getPendencias);
 importacaoRouter.post('/vendas/:id/vinculo', authJwt, requireRole('GESTOR'), postVinculo);
 importacaoRouter.delete('/vendas/:id/vinculo', authJwt, requireRole('GESTOR'), deleteVinculo);
+importacaoRouter.get('/sem-cliente', authJwt, requireRole('GESTOR'), getSemCliente);
+importacaoRouter.post('/sem-cliente/:cnpj/cliente', authJwt, requireRole('GESTOR'), postClientePelaNota);

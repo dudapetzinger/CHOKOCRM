@@ -3,7 +3,9 @@
  * casa cada nota com o cliente pelo CNPJ (guardando o endereço do destinatário
  * lido da DANFE), decide o vínculo com a última visita
  * (`vinculo.regras.ts`) e grava tudo numa transação por arquivo. Também cuida
- * das pendências e do vínculo/desvínculo manual feitos pelo gestor.
+ * das pendências e do vínculo/desvínculo manual feitos pelo gestor, e decide o
+ * vínculo das notas ligadas ao cliente criado pela nota fiscal
+ * (`decidirVinculoDaNotaLigada`, usado por `cliente-pela-nota.service.ts`).
  */
 import type { Prisma, ResultadoVisita, VinculoNota } from '@prisma/client';
 import { z } from 'zod';
@@ -174,10 +176,25 @@ function itensDaVisita(itens: { codigo: string; descricao: string; quantidade: n
 
 type Decisao = { status: VinculoNota; visitaSugeridaId: string | null; visitaParaVincular: string | null };
 
-/** Situação do vínculo de uma nota que chega (nova ou reimportada). */
+/** Itens de uma nota já gravada no formato que `itensDaVisita` espera. */
+function itensDaNotaGravada(nota: NotaComRelacoes): ItemDoPedidoData[] {
+  return itensDaVisita(
+    nota.itens.map((i) => ({
+      codigo: i.produtoCodigo,
+      descricao: i.produtoNome,
+      quantidade: Number(i.quantidade),
+      precoUnitario: Number(i.precoUnitario),
+    })),
+  );
+}
+
+/**
+ * Situação do vínculo de uma nota que chega (nova ou reimportada) ou que
+ * acabou de ganhar cliente (cliente pela nota); da nota só importa o dia.
+ */
 async function decidirSituacao(
   tx: Prisma.TransactionClient,
-  nota: NotaFiscalLida,
+  nota: { dataEmissao: string },
   clientId: string | null,
   existente: NotaComRelacoes | null,
 ): Promise<Decisao> {
@@ -201,6 +218,25 @@ async function decidirSituacao(
     return { status: 'AUTOMATICO', visitaSugeridaId: null, visitaParaVincular: ultima.id };
   }
   return { status: 'PENDENTE', visitaSugeridaId: ultima.id, visitaParaVincular: null };
+}
+
+/**
+ * Nota já gravada (`SEM_CLIENTE`) que acabou de ser ligada a `clientId`
+ * (cliente criado pela nota fiscal): decide o vínculo com as mesmas regras da
+ * importação e grava o status — e, no mesmo dia da última visita, os itens na
+ * visita. Roda na transação de quem chama. Devolve o status decidido.
+ */
+export async function decidirVinculoDaNotaLigada(
+  tx: Prisma.TransactionClient,
+  nota: NotaComRelacoes,
+  clientId: string,
+): Promise<VinculoNota> {
+  const decisao = await decidirSituacao(tx, { dataEmissao: dataDaColunaDate(nota.dataEmissao) }, clientId, nota);
+  await erpSaleRepository.atualizarVinculo(nota.id, decisao.status, decisao.visitaSugeridaId, tx);
+  if (decisao.visitaParaVincular !== null) {
+    await visitRepository.substituirItensPorNota(decisao.visitaParaVincular, nota.id, itensDaNotaGravada(nota), tx);
+  }
+  return decisao.status;
 }
 
 async function gravarNota(
@@ -352,19 +388,7 @@ export async function vincular(saleId: string, visitId: string): Promise<NotaDTO
     if (nota.visita !== null && nota.visita.id !== visita.id) {
       await visitRepository.desvincularNota(nota.visita.id, tx);
     }
-    await visitRepository.substituirItensPorNota(
-      visita.id,
-      nota.id,
-      itensDaVisita(
-        nota.itens.map((i) => ({
-          codigo: i.produtoCodigo,
-          descricao: i.produtoNome,
-          quantidade: Number(i.quantidade),
-          precoUnitario: Number(i.precoUnitario),
-        })),
-      ),
-      tx,
-    );
+    await visitRepository.substituirItensPorNota(visita.id, nota.id, itensDaNotaGravada(nota), tx);
     await erpSaleRepository.atualizarVinculo(nota.id, 'VINCULADA', null, tx);
 
     const atualizada = await erpSaleRepository.findById(nota.id, tx);

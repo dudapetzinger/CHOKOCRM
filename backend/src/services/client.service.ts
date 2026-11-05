@@ -78,7 +78,8 @@ export type ClienteCompletoDTO = {
   cidade: string;
   endereco: string;
   telefone: string;
-  email: string;
+  /** `null` no cliente criado pela nota fiscal, até alguém informar o e-mail. */
+  email: string | null;
   erpId: string | null;
   recorrenciaDias: number;
   ativo: boolean;

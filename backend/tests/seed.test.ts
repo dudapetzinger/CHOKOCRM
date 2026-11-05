@@ -437,7 +437,7 @@ describe('histórico realista', () => {
     for (const cliente of clientes) {
       expect(cliente.recorrenciaDias).toBeGreaterThanOrEqual(7);
       expect(cliente.recorrenciaDias).toBeLessThanOrEqual(60);
-      if (EXCECOES.includes(cliente.email)) continue;
+      if (EXCECOES.includes(cliente.email ?? '')) continue;
 
       if (cliente.ativo) {
         expect({ cliente: cliente.nomeFantasia, temVisita: cliente.visits.length > 0 }).toEqual({

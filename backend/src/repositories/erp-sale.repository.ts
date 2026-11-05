@@ -1,7 +1,8 @@
 /**
  * Notas fiscais importadas (`ErpSale`), seus itens, o catálogo aprendido e as
  * importações. `salvarNota` grava ou atualiza a nota pela chave de acesso,
- * incluindo o endereço do destinatário lido da DANFE (cliente pela nota).
+ * incluindo o endereço do destinatário lido da DANFE; as notas `SEM_CLIENTE`
+ * são agrupadas por CNPJ e ligadas ao cliente criado pela nota fiscal.
  */
 import type { Prisma, PrismaClient, VinculoNota } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -262,4 +263,61 @@ export async function findProdutoPorCodigo(
     where: { codigo },
     select: { codigo: true, nome: true, precoUnitario: true },
   });
+}
+
+// --- Cliente pela nota fiscal ------------------------------------------------
+
+const SELECT_SEM_CLIENTE = {
+  destinatarioCnpj: true,
+  destinatarioNome: true,
+  destinatarioEndereco: true,
+  destinatarioBairro: true,
+  destinatarioCep: true,
+  destinatarioMunicipio: true,
+  destinatarioUf: true,
+  destinatarioTelefone: true,
+  dataEmissao: true,
+} satisfies Prisma.ErpSaleSelect;
+
+export type DestinatarioDaNota = Prisma.ErpSaleGetPayload<{ select: typeof SELECT_SEM_CLIENTE }>;
+
+export type GrupoSemCliente = {
+  /** A nota mais recente do CNPJ: dela saem a razão social e o endereço. */
+  maisRecente: DestinatarioDaNota;
+  notas: number;
+};
+
+/**
+ * Notas `SEM_CLIENTE` agrupadas pelo CNPJ do destinatário, do grupo de nota
+ * mais recente para o mais antigo. Uma consulta só, já na ordem de
+ * `ORDEM_MAIS_RECENTE`: a primeira nota vista de cada CNPJ é a mais recente.
+ */
+export async function listarSemClientePorCnpj(): Promise<GrupoSemCliente[]> {
+  const notas = await prisma.erpSale.findMany({
+    where: { vinculoStatus: 'SEM_CLIENTE' },
+    orderBy: ORDEM_MAIS_RECENTE,
+    select: SELECT_SEM_CLIENTE,
+  });
+  const grupos = new Map<string, GrupoSemCliente>();
+  for (const nota of notas) {
+    const grupo = grupos.get(nota.destinatarioCnpj);
+    if (grupo) grupo.notas += 1;
+    else grupos.set(nota.destinatarioCnpj, { maisRecente: nota, notas: 1 });
+  }
+  return [...grupos.values()];
+}
+
+/** Notas `SEM_CLIENTE` de um CNPJ, da mais antiga para a mais recente. */
+export async function listarSemClienteDoCnpj(cnpj: string, banco: Banco = prisma): Promise<NotaComRelacoes[]> {
+  return banco.erpSale.findMany({
+    where: { destinatarioCnpj: cnpj, vinculoStatus: 'SEM_CLIENTE' },
+    orderBy: [{ dataEmissao: 'asc' }, { chaveAcesso: 'asc' }],
+    include: INCLUDE_NOTA,
+  });
+}
+
+/** Liga ao cliente as notas indicadas (o status do vínculo é decidido em seguida, nota a nota). */
+export async function ligarCliente(ids: string[], clientId: string, banco: Banco = prisma): Promise<number> {
+  const { count } = await banco.erpSale.updateMany({ where: { id: { in: ids } }, data: { clientId } });
+  return count;
 }

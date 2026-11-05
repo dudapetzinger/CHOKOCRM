@@ -84,7 +84,8 @@ model Client {
   cidade            String
   endereco          String
   telefone          String
-  email             String
+  /// Opcional: o cliente criado pela nota fiscal (gestor) nasce sem e-mail.
+  email             String?
   erpId             String?               @map("erp_id")
   recorrenciaDias   Int                   @default(15) @map("recorrencia_dias")
   /// Data prevista da próxima visita, marcada no check-in ou pela ficha

@@ -869,6 +869,26 @@ describe('PUT /clients/:id', () => {
     expect(res.body.cidade).toBe('Gaspar');
   });
 
+  it('email: null limpa o e-mail do cliente e a ficha devolve email null', async () => {
+    const id = await idDoClientePorNomeFantasia('Café Blumenau');
+
+    const res = await request(app).put(`/clients/${id}`).set('Authorization', `Bearer ${token}`).send({ email: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.email).toBeNull();
+    const ficha = await request(app).get(`/clients/${id}`).set('Authorization', `Bearer ${token}`);
+    expect(ficha.status).toBe(200);
+    expect(ficha.body.email).toBeNull();
+  });
+
+  it('email inválido continua respondendo 400', async () => {
+    const id = await idDoClientePorNomeFantasia('Café Blumenau');
+
+    const res = await request(app).put(`/clients/${id}`).set('Authorization', `Bearer ${token}`).send({ email: 'x' });
+
+    expect(res.status).toBe(400);
+  });
+
   it('ativo: false inativa o cliente (some da listagem default, aparece em ativo=todos)', async () => {
     const id = await idDoClientePorNomeFantasia('Café Blumenau');
 

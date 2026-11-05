@@ -4,9 +4,11 @@ import { proximaVisitaSchema } from './visit.schema';
 
 /**
  * Validação de clientes e contatos (UC02/UC03/UC04). O schema Prisma
- * (`prisma/schema.prisma`) exige endereco/email do Client e cargo/telefone/
- * email do Contact como NOT NULL — este zod reflete essa obrigatoriedade,
- * conforme o dicionário de dados (docs/modelo-de-dados.md).
+ * (`prisma/schema.prisma`) exige endereco do Client e cargo/telefone/email do
+ * Contact como NOT NULL — este zod reflete essa obrigatoriedade, conforme o
+ * dicionário de dados (docs/modelo-de-dados.md). O e-mail do Client é
+ * opcional no banco (o cliente criado pela nota fiscal nasce sem ele), mas o
+ * cadastro do representante continua exigindo; na atualização, `null` apaga.
  */
 
 const MENSAGEM_CONTATO_PRINCIPAL_UNICO = 'Cadastro exige exatamente um contato marcado como principal.';
@@ -74,7 +76,7 @@ export const updateClientSchema = z
     cidade: z.string().min(1, 'Cidade é obrigatória.').optional(),
     endereco: z.string().min(1, 'Endereço é obrigatório.').optional(),
     telefone: z.string().min(1, 'Telefone é obrigatório.').optional(),
-    email: z.string().email('E-mail inválido.').optional(),
+    email: z.string().email('E-mail inválido.').nullable().optional(),
     erpId: z.string().min(1, 'Identificador de ERP não pode ser vazio.').optional(),
     ativo: z.boolean().optional(),
     representanteId: z.string().uuid('Identificador do representante inválido.').optional(),

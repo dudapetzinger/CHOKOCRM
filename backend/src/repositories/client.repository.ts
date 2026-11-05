@@ -149,26 +149,46 @@ export async function list(params: {
 }
 
 /**
+ * Dados do cliente novo: os do cadastro do representante (`CreateClientInput`)
+ * ou os do cliente criado pela nota fiscal, que nasce sem e-mail (`null`) e
+ * sem contatos (`[]`).
+ */
+export type NovoClienteData = Omit<CreateClientInput, 'email'> & { email: string | null };
+
+async function criarClienteEContatos(
+  tx: Prisma.TransactionClient,
+  input: NovoClienteData,
+  representanteId: string,
+): Promise<string> {
+  const { contatos, ...dadosCliente } = input;
+  // `criadoEm` explícito: é a base da primeira visita (agenda e cor), então
+  // nasce no relógio do sistema, que pode ser a data de demonstração.
+  const client = await tx.client.create({ data: { ...dadosCliente, representanteId, criadoEm: agora() } });
+
+  if (contatos.length > 0) {
+    await tx.contact.createMany({
+      data: contatos.map((contato) => ({ ...contato, clientId: client.id })),
+    });
+  }
+
+  return client.id;
+}
+
+/**
  * Cria o cliente e seus contatos numa única transação: o índice único
  * parcial `one_principal_per_client` (client_id) WHERE principal, definido
  * na migration, é a última linha de defesa contra dois contatos principais
  * concorrentes, mas a regra "exatamente um principal" já é garantida antes
- * disso pelo zod (createClientSchema).
+ * disso pelo zod (createClientSchema). Com `tx`, roda dentro da transação de
+ * quem chama (o cliente pela nota liga as notas na mesma transação).
  */
-export async function createWithContacts(input: CreateClientInput, representanteId: string): Promise<string> {
-  const { contatos, ...dadosCliente } = input;
-
-  return prisma.$transaction(async (tx) => {
-    // `criadoEm` explícito: é a base da primeira visita (agenda e cor), então
-    // nasce no relógio do sistema, que pode ser a data de demonstração.
-    const client = await tx.client.create({ data: { ...dadosCliente, representanteId, criadoEm: agora() } });
-
-    await tx.contact.createMany({
-      data: contatos.map((contato) => ({ ...contato, clientId: client.id })),
-    });
-
-    return client.id;
-  });
+export async function createWithContacts(
+  input: NovoClienteData,
+  representanteId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<string> {
+  if (tx) return criarClienteEContatos(tx, input, representanteId);
+  return prisma.$transaction((transacao) => criarClienteEContatos(transacao, input, representanteId));
 }
 
 /**
