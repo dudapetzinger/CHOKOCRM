@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs';
 import type { Prisma, PrismaClient, ResultadoVisita, TipoCampanha } from '@prisma/client';
-// erpIds calibrados para a demonstração da Etapa 5 (cor composta com
-// rebaixamento por última compra no ERP) — ver comentário de calibração
-// em config/erpIdsDemonstracao.ts.
+// erpIds (códigos numéricos de 5 dígitos) calibrados para o ERP simulado
+// (cor composta com rebaixamento por última compra no ERP) — ver comentário
+// de calibração em config/erpIdsDemonstracao.ts.
 import { ERP_IDS_DEMONSTRACAO } from '../config/erpIdsDemonstracao';
 import { eventosSazonaisParaSeed } from '../config/eventosSazonaisSeed';
 // O seed usa o catálogo de demonstração direto, seja qual for o provedor de
@@ -29,6 +29,11 @@ import { periodoDaMeta } from '../services/goal.regras';
  * (`CATALOGO`), seja qual for o `ERP_PROVIDER`: o seed roda igual no mock e
  * no importado (produção). O mesmo catálogo vai para `ErpProduct`, para que,
  * no importado, as campanhas e o check-in da demonstração achem os produtos.
+ * Os 26 clientes (`CLIENTES`) formam as carteiras da Eduarda (16) e do Rafael
+ * (10), cada uma nas cidades da sua rota, com cadastro de sistema de verdade:
+ * CNPJ com dígitos verificadores válidos, razão social, endereço, telefone e
+ * e-mail no domínio do cliente, de 1 a 2 contatos (um principal) e, em todos
+ * menos dois, `erpId` numérico; nada com cara de dado de teste.
  */
 
 /** Senha das três contas de demonstração (publicada no guia de desenvolvimento). */
@@ -99,7 +104,11 @@ type ClienteSeed = {
   email: string;
   contatos: ContatoSeed[];
   erpId?: string | null;
-  /** Dono da carteira; os nove primeiros clientes são da Eduarda, os quatro últimos do Rafael. */
+  /**
+   * Dono da carteira; os 16 primeiros clientes são da Eduarda (Joinville, Jaraguá do Sul, Corupá,
+   * São Bento do Sul e Pomerode), os 10 últimos do Rafael (Blumenau, Indaial, Timbó, Brusque,
+   * Itajaí e Rio do Sul), cada carteira na ordem da rota.
+   */
   representanteEmail: string;
 };
 
@@ -108,10 +117,300 @@ const EMAIL_RAFAEL = 'rafael@chokolaten.com.br';
 const EMAIL_GESTOR = 'gestor@chokolaten.com.br';
 
 const CLIENTES: ClienteSeed[] = [
+  // Carteira da Eduarda, na ordem da rota: Joinville, Jaraguá do Sul, Corupá, São Bento do Sul e Pomerode.
   {
-    razaoSocial: 'Empório Pomerode Comércio de Alimentos Ltda',
+    razaoSocial: 'Alves & Filhos Comércio de Alimentos Ltda',
+    nomeFantasia: 'Mercado Central Joinville',
+    cnpj: '15327045000142',
+    cidade: 'Joinville',
+    endereco: 'Rua do Príncipe, 800 - Centro, Joinville/SC',
+    telefone: '(47) 3433-3030',
+    email: 'contato@mercadocentraljoinville.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Roberto Alves',
+        cargo: 'Gerente de Compras',
+        telefone: '(47) 99955-3030',
+        email: 'roberto.alves@mercadocentraljoinville.com.br',
+        principal: true,
+      },
+      {
+        nome: 'Sílvia Alves',
+        cargo: 'Proprietária',
+        telefone: '(47) 99955-3131',
+        email: 'silvia.alves@mercadocentraljoinville.com.br',
+        principal: false,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Souza Cafeteria e Eventos Ltda',
+    nomeFantasia: 'Cafeteria Estrada Bonita',
+    cnpj: '39007747000107',
+    cidade: 'Joinville',
+    endereco: 'Rua Dona Francisca, 11.800 - Pirabeiraba, Joinville/SC',
+    telefone: '(47) 3455-5050',
+    email: 'contato@cafeteriaestradabonita.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Fernanda Souza',
+        cargo: 'Gerente',
+        telefone: '(47) 99977-5050',
+        email: 'fernanda.souza@cafeteriaestradabonita.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Frida Lange Confeitaria Ltda',
+    nomeFantasia: 'Confeitaria Dona Frida',
+    cnpj: '34331603000198',
+    cidade: 'Joinville',
+    endereco: 'Rua Otto Boehm, 415 - América, Joinville/SC',
+    telefone: '(47) 3422-6181',
+    email: 'contato@confeitariadonafrida.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Ingrid Lange',
+        cargo: 'Proprietária',
+        telefone: '(47) 99127-6181',
+        email: 'ingrid.lange@confeitariadonafrida.com.br',
+        principal: true,
+      },
+      {
+        nome: 'Paulo Lange',
+        cargo: 'Comprador',
+        telefone: '(47) 99127-6182',
+        email: 'paulo.lange@confeitariadonafrida.com.br',
+        principal: false,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Palmeiras Café e Bistrô Ltda',
+    nomeFantasia: 'Café Rua das Palmeiras',
+    cnpj: '26301847000108',
+    cidade: 'Joinville',
+    endereco: 'Rua das Palmeiras, 37 - Centro, Joinville/SC',
+    telefone: '(47) 3027-4410',
+    email: 'contato@caferuadaspalmeiras.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Renata Kohler',
+        cargo: 'Gerente',
+        telefone: '(47) 98834-4410',
+        email: 'renata.kohler@caferuadaspalmeiras.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'J. Schulz Mercearia ME',
+    nomeFantasia: 'Mercearia Bom Retiro',
+    cnpj: '46594713000121',
+    cidade: 'Joinville',
+    endereco: 'Rua Copacabana, 1.022 - Bom Retiro, Joinville/SC',
+    telefone: '(47) 3436-2290',
+    email: 'contato@merceariabomretiro.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'José Schulz',
+        cargo: 'Proprietário',
+        telefone: '(47) 99652-2290',
+        email: 'jose.schulz@merceariabomretiro.com.br',
+        principal: true,
+      },
+      {
+        nome: 'Ana Paula Schulz',
+        cargo: 'Compradora',
+        telefone: '(47) 99652-2291',
+        email: 'anapaula.schulz@merceariabomretiro.com.br',
+        principal: false,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Bauer Doces e Salgados Ltda',
+    nomeFantasia: 'Doceria Jaraguá',
+    cnpj: '44168350000137',
+    cidade: 'Jaraguá do Sul',
+    endereco: 'Rua Reinoldo Rau, 220 - Centro, Jaraguá do Sul/SC',
+    telefone: '(47) 3275-2020',
+    email: 'contato@doceriajaragua.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Cristiane Bauer',
+        cargo: 'Proprietária',
+        telefone: '(47) 99944-2020',
+        email: 'cristiane.bauer@doceriajaragua.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Moretti Panificadora Ltda',
+    nomeFantasia: 'Panificadora Vila Lenzi',
+    cnpj: '28952634000163',
+    cidade: 'Jaraguá do Sul',
+    endereco: 'Rua José Theodoro Ribeiro, 1.480 - Vila Lenzi, Jaraguá do Sul/SC',
+    telefone: '(47) 3370-4815',
+    email: 'contato@panificadoravilalenzi.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Giovana Moretti',
+        cargo: 'Proprietária',
+        telefone: '(47) 99188-4815',
+        email: 'giovana.moretti@panificadoravilalenzi.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Stein Casa de Chá e Eventos EIRELI',
+    nomeFantasia: 'Casa de Chá Recanto Alemão',
+    cnpj: '38272408000195',
+    cidade: 'Jaraguá do Sul',
+    endereco: 'Rua Bernardo Dornbusch, 2.210 - Baependi, Jaraguá do Sul/SC',
+    telefone: '(47) 3371-5520',
+    email: 'contato@recantoalemao.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Elfrida Stein',
+        cargo: 'Proprietária',
+        telefone: '(47) 99230-5520',
+        email: 'elfrida.stein@recantoalemao.com.br',
+        principal: true,
+      },
+      {
+        nome: 'Marcos Stein',
+        cargo: 'Sócio',
+        telefone: '(47) 99230-5521',
+        email: 'marcos.stein@recantoalemao.com.br',
+        principal: false,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Piske Confeitaria e Cafeteria Ltda',
+    nomeFantasia: 'Confeitaria Rota das Cachoeiras',
+    cnpj: '16945161000198',
+    cidade: 'Corupá',
+    endereco: 'Rua Getúlio Vargas, 450 - Centro, Corupá/SC',
+    telefone: '(47) 3375-7070',
+    email: 'contato@rotadascachoeiras.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Marcelo Piske',
+        cargo: 'Proprietário',
+        telefone: '(47) 99999-7070',
+        email: 'marcelo.piske@rotadascachoeiras.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Hruschka Turismo e Hospedagem Ltda',
+    nomeFantasia: 'Hotel Fazenda Rio Novo',
+    cnpj: '46949783000155',
+    cidade: 'Corupá',
+    endereco: 'Rua Rio Novo, 3.900 - Rio Novo, Corupá/SC',
+    telefone: '(47) 3375-1840',
+    email: 'reservas@hotelfazendarionovo.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Cláudio Hruschka',
+        cargo: 'Gerente',
+        telefone: '(47) 99145-1840',
+        email: 'claudio@hotelfazendarionovo.com.br',
+        principal: true,
+      },
+      {
+        nome: 'Vera Hruschka',
+        cargo: 'Sócia',
+        telefone: '(47) 99145-1841',
+        email: 'vera@hotelfazendarionovo.com.br',
+        principal: false,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Wolf Comércio de Alimentos Ltda',
+    nomeFantasia: 'Armazém São Bento',
+    cnpj: '49610663000117',
+    cidade: 'São Bento do Sul',
+    endereco: 'Rua XV de Novembro, 900 - Centro, São Bento do Sul/SC',
+    telefone: '(47) 3633-8080',
+    email: 'contato@armazemsaobento.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Luciane Wolf',
+        cargo: 'Gerente',
+        telefone: '(47) 99900-8080',
+        email: 'luciane.wolf@armazemsaobento.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Treml Café Colonial Ltda',
+    nomeFantasia: 'Café Colonial Serra Alta',
+    cnpj: '25804541000101',
+    cidade: 'São Bento do Sul',
+    endereco: 'Rua Jorge Lacerda, 1.350 - Serra Alta, São Bento do Sul/SC',
+    telefone: '(47) 3635-2730',
+    email: 'contato@cafecolonialserraalta.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Lúcia Treml',
+        cargo: 'Proprietária',
+        telefone: '(47) 99174-2730',
+        email: 'lucia.treml@cafecolonialserraalta.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Grosskopf Panificadora Ltda',
+    nomeFantasia: 'Padaria Rainha da Serra',
+    cnpj: '37629266000108',
+    cidade: 'São Bento do Sul',
+    endereco: 'Rua Antônio Kaesemodel, 512 - Centenário, São Bento do Sul/SC',
+    telefone: '(47) 3626-3355',
+    email: 'contato@padariarainhadaserra.com.br',
+    representanteEmail: EMAIL_EDUARDA,
+    contatos: [
+      {
+        nome: 'Edson Grosskopf',
+        cargo: 'Proprietário',
+        telefone: '(47) 99203-3355',
+        email: 'edson.grosskopf@padariarainhadaserra.com.br',
+        principal: true,
+      },
+      {
+        nome: 'Mariane Grosskopf',
+        cargo: 'Compradora',
+        telefone: '(47) 99203-3356',
+        email: 'mariane.grosskopf@padariarainhadaserra.com.br',
+        principal: false,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Weber & Siewert Comércio de Alimentos Ltda',
     nomeFantasia: 'Empório Pomerode',
-    cnpj: '11222333000181',
+    cnpj: '11017166000137',
     cidade: 'Pomerode',
     endereco: 'Rua Hermann Weege, 620 - Centro, Pomerode/SC',
     telefone: '(47) 3395-1122',
@@ -135,107 +434,12 @@ const CLIENTES: ClienteSeed[] = [
     ],
   },
   {
-    razaoSocial: 'Café Blumenau Comércio de Alimentos Ltda',
-    nomeFantasia: 'Café Blumenau',
-    cnpj: '11222333000262',
-    cidade: 'Blumenau',
-    endereco: 'Rua XV de Novembro, 500 - Centro, Blumenau/SC',
-    telefone: '(47) 3322-1010',
-    email: 'contato@cafeblumenau.com.br',
-    representanteEmail: EMAIL_EDUARDA,
-    contatos: [
-      {
-        nome: 'Helena Krüger',
-        cargo: 'Gerente',
-        telefone: '(47) 99933-1010',
-        email: 'helena.kruger@cafeblumenau.com.br',
-        principal: true,
-      },
-    ],
-  },
-  {
-    razaoSocial: 'Doceria Jaraguá Doces e Salgados Ltda',
-    nomeFantasia: 'Doceria Jaraguá',
-    cnpj: '11222333000343',
-    cidade: 'Jaraguá do Sul',
-    endereco: 'Rua Reinoldo Rau, 220 - Centro, Jaraguá do Sul/SC',
-    telefone: '(47) 3275-2020',
-    email: 'contato@doceriajaragua.com.br',
-    representanteEmail: EMAIL_EDUARDA,
-    contatos: [
-      {
-        nome: 'Cristiane Bauer',
-        cargo: 'Proprietária',
-        telefone: '(47) 99944-2020',
-        email: 'cristiane.bauer@doceriajaragua.com.br',
-        principal: true,
-      },
-    ],
-  },
-  {
-    razaoSocial: 'Mercado Central Joinville Comércio de Alimentos Ltda',
-    nomeFantasia: 'Mercado Central Joinville',
-    cnpj: '11222333000424',
-    cidade: 'Joinville',
-    endereco: 'Rua do Príncipe, 800 - Centro, Joinville/SC',
-    telefone: '(47) 3433-3030',
-    email: 'contato@mercadocentraljoinville.com.br',
-    representanteEmail: EMAIL_EDUARDA,
-    contatos: [
-      {
-        nome: 'Roberto Alves',
-        cargo: 'Gerente de Compras',
-        telefone: '(47) 99955-3030',
-        email: 'roberto.alves@mercadocentraljoinville.com.br',
-        principal: true,
-      },
-    ],
-  },
-  {
-    razaoSocial: 'Padaria Vale Europeu Ltda',
-    nomeFantasia: 'Padaria Vale Europeu',
-    cnpj: '11222333000505',
-    cidade: 'Timbó',
-    endereco: 'Rua 7 de Setembro, 150 - Centro, Timbó/SC',
-    telefone: '(47) 3382-4040',
-    email: 'contato@padariavaleeuropeu.com.br',
-    representanteEmail: EMAIL_EDUARDA,
-    contatos: [
-      {
-        nome: 'Sandra Zimmermann',
-        cargo: 'Proprietária',
-        telefone: '(47) 99966-4040',
-        email: 'sandra.zimmermann@padariavaleeuropeu.com.br',
-        principal: true,
-      },
-    ],
-  },
-  {
-    razaoSocial: 'Cafeteria Estrada Bonita Ltda',
-    nomeFantasia: 'Cafeteria Estrada Bonita',
-    cnpj: '11222333000686',
-    cidade: 'Joinville',
-    endereco: 'Estrada Bonita, 1200 - Vila Nova, Joinville/SC',
-    telefone: '(47) 3455-5050',
-    email: 'contato@cafeteriaestradabonita.com.br',
-    representanteEmail: EMAIL_EDUARDA,
-    contatos: [
-      {
-        nome: 'Fernanda Souza',
-        cargo: 'Gerente',
-        telefone: '(47) 99977-5050',
-        email: 'fernanda.souza@cafeteriaestradabonita.com.br',
-        principal: true,
-      },
-    ],
-  },
-  {
-    razaoSocial: 'Empório do Chocolate Comércio Ltda',
+    razaoSocial: 'Hoffmann Chocolates e Presentes Ltda',
     nomeFantasia: 'Empório do Chocolate',
-    cnpj: '11222333000767',
-    cidade: 'Blumenau',
-    endereco: 'Rua Sete de Setembro, 300 - Centro, Blumenau/SC',
-    telefone: '(47) 3311-6060',
+    cnpj: '42293000000177',
+    cidade: 'Pomerode',
+    endereco: 'Rua XV de Novembro, 1.050 - Centro, Pomerode/SC',
+    telefone: '(47) 3387-6060',
     email: 'contato@emporiodochocolate.com.br',
     representanteEmail: EMAIL_EDUARDA,
     contatos: [
@@ -249,47 +453,164 @@ const CLIENTES: ClienteSeed[] = [
     ],
   },
   {
-    razaoSocial: 'Confeitaria Rota das Cachoeiras Ltda',
-    nomeFantasia: 'Confeitaria Rota das Cachoeiras',
-    cnpj: '11222333000848',
-    cidade: 'Corupá',
-    endereco: 'Rua Getúlio Vargas, 450 - Centro, Corupá/SC',
-    telefone: '(47) 3375-7070',
-    email: 'contato@rotadascachoeiras.com.br',
+    razaoSocial: 'Krause Doces Artesanais Ltda',
+    nomeFantasia: 'Doceria Enxaimel',
+    cnpj: '42451115000142',
+    cidade: 'Pomerode',
+    endereco: 'Rua Ribeirão Herdt, 215 - Ribeirão Herdt, Pomerode/SC',
+    telefone: '(47) 3387-2468',
+    email: 'contato@doceriaenxaimel.com.br',
     representanteEmail: EMAIL_EDUARDA,
     contatos: [
       {
-        nome: 'Marcelo Piske',
-        cargo: 'Proprietário',
-        telefone: '(47) 99999-7070',
-        email: 'marcelo.piske@rotadascachoeiras.com.br',
+        nome: 'Heloísa Krause',
+        cargo: 'Proprietária',
+        telefone: '(47) 99161-2468',
+        email: 'heloisa.krause@doceriaenxaimel.com.br',
         principal: true,
+      },
+      {
+        nome: 'Bruno Krause',
+        cargo: 'Sócio',
+        telefone: '(47) 99161-2469',
+        email: 'bruno.krause@doceriaenxaimel.com.br',
+        principal: false,
       },
     ],
   },
+  // Carteira do Rafael, na ordem da rota: Blumenau, Indaial, Timbó, Brusque, Itajaí e Rio do Sul.
   {
-    razaoSocial: 'Armazém São Bento Comércio Ltda',
-    nomeFantasia: 'Armazém São Bento',
-    cnpj: '11222333000929',
-    cidade: 'São Bento do Sul',
-    endereco: 'Rua XV de Novembro, 900 - Centro, São Bento do Sul/SC',
-    telefone: '(47) 3633-8080',
-    email: 'contato@armazemsaobento.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    razaoSocial: 'Krüger Café e Confeitaria Ltda',
+    nomeFantasia: 'Café Blumenau',
+    cnpj: '10344962000111',
+    cidade: 'Blumenau',
+    endereco: 'Rua XV de Novembro, 500 - Centro, Blumenau/SC',
+    telefone: '(47) 3322-1010',
+    email: 'contato@cafeblumenau.com.br',
+    representanteEmail: EMAIL_RAFAEL,
     contatos: [
       {
-        nome: 'Luciane Wolf',
+        nome: 'Helena Krüger',
         cargo: 'Gerente',
-        telefone: '(47) 99900-8080',
-        email: 'luciane.wolf@armazemsaobento.com.br',
+        telefone: '(47) 99933-1010',
+        email: 'helena.kruger@cafeblumenau.com.br',
         principal: true,
       },
     ],
   },
   {
-    razaoSocial: 'Empório do Vale Brusque Comércio de Alimentos Ltda',
+    razaoSocial: 'Haertel Confeitaria e Cafeteria Ltda',
+    nomeFantasia: 'Confeitaria Vila Germânica',
+    cnpj: '37946439000111',
+    cidade: 'Blumenau',
+    endereco: 'Rua Alberto Stein, 199 - Velha, Blumenau/SC',
+    telefone: '(47) 3326-1955',
+    email: 'contato@confeitariavilagermanica.com.br',
+    representanteEmail: EMAIL_RAFAEL,
+    contatos: [
+      {
+        nome: 'Rita Haertel',
+        cargo: 'Proprietária',
+        telefone: '(47) 99112-1955',
+        email: 'rita.haertel@confeitariavilagermanica.com.br',
+        principal: true,
+      },
+      {
+        nome: 'Felipe Haertel',
+        cargo: 'Comprador',
+        telefone: '(47) 99112-1956',
+        email: 'felipe.haertel@confeitariavilagermanica.com.br',
+        principal: false,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Gaulke Comércio de Alimentos ME',
+    nomeFantasia: 'Empório Itoupava',
+    cnpj: '30223526000100',
+    cidade: 'Blumenau',
+    endereco: 'Rua Dr. Pedro Zimmermann, 6.410 - Itoupava Central, Blumenau/SC',
+    telefone: '(47) 3337-2201',
+    email: 'contato@emporioitoupava.com.br',
+    representanteEmail: EMAIL_RAFAEL,
+    contatos: [
+      {
+        nome: 'Rodrigo Gaulke',
+        cargo: 'Proprietário',
+        telefone: '(47) 99281-2201',
+        email: 'rodrigo.gaulke@emporioitoupava.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Dalfovo Panificadora Ltda',
+    nomeFantasia: 'Padaria Confeitaria Indaial',
+    cnpj: '20952813000199',
+    cidade: 'Indaial',
+    endereco: 'Rua Presidente Castelo Branco, 280 - Centro, Indaial/SC',
+    telefone: '(47) 3333-4545',
+    email: 'contato@padariaconfeitariaindaial.com.br',
+    representanteEmail: EMAIL_RAFAEL,
+    contatos: [
+      {
+        nome: 'Tiago Dalfovo',
+        cargo: 'Proprietário',
+        telefone: '(47) 99855-4545',
+        email: 'tiago.dalfovo@padariaconfeitariaindaial.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Zimmermann Panificadora Ltda',
+    nomeFantasia: 'Padaria Vale Europeu',
+    cnpj: '16674624000124',
+    cidade: 'Timbó',
+    endereco: 'Rua 7 de Setembro, 150 - Centro, Timbó/SC',
+    telefone: '(47) 3382-4040',
+    email: 'contato@padariavaleeuropeu.com.br',
+    representanteEmail: EMAIL_RAFAEL,
+    contatos: [
+      {
+        nome: 'Sandra Zimmermann',
+        cargo: 'Proprietária',
+        telefone: '(47) 99966-4040',
+        email: 'sandra.zimmermann@padariavaleeuropeu.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Pasold Hotelaria e Turismo Ltda',
+    nomeFantasia: 'Hotel Fazenda Mulde',
+    cnpj: '11802149000100',
+    cidade: 'Timbó',
+    endereco: 'Rua Mulde Alta, 4.200 - Mulde, Timbó/SC',
+    telefone: '(47) 3399-5310',
+    email: 'contato@hotelfazendamulde.com.br',
+    representanteEmail: EMAIL_RAFAEL,
+    contatos: [
+      {
+        nome: 'André Pasold',
+        cargo: 'Gerente',
+        telefone: '(47) 99196-5310',
+        email: 'andre.pasold@hotelfazendamulde.com.br',
+        principal: true,
+      },
+      {
+        nome: 'Cristina Pasold',
+        cargo: 'Sócia',
+        telefone: '(47) 99196-5311',
+        email: 'cristina.pasold@hotelfazendamulde.com.br',
+        principal: false,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Becker Comércio de Alimentos Ltda',
     nomeFantasia: 'Empório do Vale Brusque',
-    cnpj: '23456780000184',
+    cnpj: '27993094000101',
     cidade: 'Brusque',
     endereco: 'Rua Dr. Maruri, 410 - Centro, Brusque/SC',
     telefone: '(47) 3351-1212',
@@ -308,7 +629,7 @@ const CLIENTES: ClienteSeed[] = [
   {
     razaoSocial: 'Casa de Chás e Doces Itajaí Ltda',
     nomeFantasia: 'Casa de Chás Itajaí',
-    cnpj: '23456781000129',
+    cnpj: '48518477000190',
     cidade: 'Itajaí',
     endereco: 'Rua Hercílio Luz, 735 - Centro, Itajaí/SC',
     telefone: '(47) 3344-2323',
@@ -332,9 +653,28 @@ const CLIENTES: ClienteSeed[] = [
     ],
   },
   {
-    razaoSocial: 'Mercearia Alto Vale Rio do Sul Ltda',
+    razaoSocial: 'Maes Cafeteria e Doceria Ltda',
+    nomeFantasia: 'Café Beira-Rio',
+    cnpj: '42792026000160',
+    cidade: 'Itajaí',
+    endereco: 'Rua Pedro Ferreira, 160 - Centro, Itajaí/SC',
+    telefone: '(47) 3348-7720',
+    email: 'contato@cafebeirario.com.br',
+    representanteEmail: EMAIL_RAFAEL,
+    contatos: [
+      {
+        nome: 'Juliana Maes',
+        cargo: 'Proprietária',
+        telefone: '(47) 98822-7720',
+        email: 'juliana.maes@cafebeirario.com.br',
+        principal: true,
+      },
+    ],
+  },
+  {
+    razaoSocial: 'Lenzi & Cia Comércio de Alimentos Ltda',
     nomeFantasia: 'Mercearia Alto Vale',
-    cnpj: '23456782000173',
+    cnpj: '32406429000170',
     cidade: 'Rio do Sul',
     endereco: 'Rua Quinze de Novembro, 1.150 - Centro, Rio do Sul/SC',
     telefone: '(47) 3521-3434',
@@ -346,25 +686,6 @@ const CLIENTES: ClienteSeed[] = [
         cargo: 'Gerente de Compras',
         telefone: '(47) 99844-3434',
         email: 'debora.lenzi@merceariaaltovale.com.br',
-        principal: true,
-      },
-    ],
-  },
-  {
-    razaoSocial: 'Padaria e Confeitaria Indaial Ltda',
-    nomeFantasia: 'Padaria Confeitaria Indaial',
-    cnpj: '23456783000118',
-    cidade: 'Indaial',
-    endereco: 'Rua Presidente Castelo Branco, 280 - Centro, Indaial/SC',
-    telefone: '(47) 3333-4545',
-    email: 'contato@padariaconfeitariaindaial.com.br',
-    representanteEmail: EMAIL_RAFAEL,
-    contatos: [
-      {
-        nome: 'Tiago Dalfovo',
-        cargo: 'Proprietário',
-        telefone: '(47) 99855-4545',
-        email: 'tiago.dalfovo@padariaconfeitariaindaial.com.br',
         principal: true,
       },
     ],
@@ -474,7 +795,6 @@ type VisitasClienteSeed = {
  * e uma agenda do dia não vazia (atrasadas e hoje):
  * - Empório Pomerode: VERDE (VENDA há 3 dias, vinculada ao Natal) —
  *   histórico original mantido.
- * - Café Blumenau: AMARELO (NEGOCIACAO há 10 dias, dentro dos 15 dias).
  * - Doceria Jaraguá: LARANJA e atrasada (SEM_VENDA há 20 dias; a próxima
  *   visita marcada no check-in venceu há 2 dias — ver
  *   `PROXIMAS_VISITAS_DEMO` —, sem visita depois dela, então ainda vale;
@@ -486,8 +806,9 @@ type VisitasClienteSeed = {
  * - Empório do Chocolate: VERDE (VENDA ontem, no primeiro dia da Feira
  *   Sabores do Vale, com a visita vinculada à feira); em dia, com a próxima
  *   visita prevista pela recorrência (ontem + 15), sem data marcada.
- * - Carteira do Rafael (2 visitas nos últimos 30 dias, nenhuma com VENDA,
- *   então a conversão dele é 0 %, abaixo dos 50 % da Eduarda):
+ * - Carteira do Rafael (3 visitas nos últimos 30 dias, nenhuma com VENDA,
+ *   então a conversão dele é 0 %, abaixo da da Eduarda):
+ *   - Café Blumenau: AMARELO (NEGOCIACAO há 10 dias, dentro dos 15 dias).
  *   - Empório do Vale Brusque: AMARELO (NEGOCIACAO há 6 dias, vinculada ao
  *     Natal; ERP com compra recente, sem rebaixamento).
  *   - Casa de Chás Itajaí: LARANJA (SEM_VENDA há 20 dias).

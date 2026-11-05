@@ -1,8 +1,10 @@
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
+import { ERP_IDS_DEMONSTRACAO } from '../src/config/erpIdsDemonstracao';
 import { prisma } from '../src/lib/prisma';
 import { CATALOGO } from '../src/providers/erp/mock/catalogo';
+import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
 import { reiniciarDemonstracao, semear } from '../src/seed/demonstracao';
 import { truncateAllTables } from './helpers/db';
 
@@ -88,13 +90,13 @@ async function criarDadosDoApp(): Promise<{ id: string; senhaHash: string }> {
   return { id: usuario.id, senhaHash };
 }
 
+afterAll(async () => {
+  await prisma.$disconnect();
+});
+
 describe('seed de demonstração', () => {
   beforeEach(async () => {
     await truncateAllTables();
-  });
-
-  afterAll(async () => {
-    await prisma.$disconnect();
   });
 
   it('reiniciarDemonstracao recria clientes, visitas com pedido, campanhas, metas, próximas visitas e lembretes', async () => {
@@ -102,8 +104,8 @@ describe('seed de demonstração', () => {
 
     expect(await totais()).toEqual({
       usuarios: 3,
-      clientes: 13,
-      contatos: 15,
+      clientes: 26,
+      contatos: 37,
       visitas: 15,
       itens: 18,
       campanhas: 3,
@@ -300,5 +302,127 @@ describe('seed de demonstração', () => {
       new Set(['VERDE', 'AMARELO', 'LARANJA', 'VERMELHO']),
     );
     expect(clientes.some((cliente) => cliente.rebaixadoPorVenda)).toBe(true);
+  });
+});
+
+const CIDADES_EDUARDA = ['Joinville', 'Jaraguá do Sul', 'Corupá', 'São Bento do Sul', 'Pomerode'];
+const CIDADES_RAFAEL = ['Blumenau', 'Indaial', 'Timbó', 'Brusque', 'Itajaí', 'Rio do Sul'];
+/** CNPJ real da parceira, usado nos testes de importação: o seed não pode colidir com ele. */
+const CNPJ_DA_PARCEIRA = '25382906000149';
+
+/** Dígito verificador do CNPJ pelo algoritmo oficial (módulo 11 com os pesos dados). */
+function digitoVerificador(digitos: string, pesos: number[]): number {
+  const soma = pesos.reduce((total, peso, indice) => total + Number(digitos[indice]) * peso, 0);
+  const resto = soma % 11;
+  return resto < 2 ? 0 : 11 - resto;
+}
+
+function cnpjValido(cnpj: string): boolean {
+  if (!/^\d{14}$/.test(cnpj) || /^(\d)\1{13}$/.test(cnpj)) return false;
+  const primeiro = digitoVerificador(cnpj, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const segundo = digitoVerificador(cnpj, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return cnpj.endsWith(`${primeiro}${segundo}`);
+}
+
+describe('cadastro realista', () => {
+  beforeAll(async () => {
+    await truncateAllTables();
+    await reiniciarDemonstracao(prisma, new Date());
+  });
+
+  async function clientesDoSeed() {
+    return prisma.client.findMany({
+      include: { representante: true, contacts: true },
+      orderBy: { nomeFantasia: 'asc' },
+    });
+  }
+
+  it('cria 26 clientes, 16 da Eduarda e 10 do Rafael, nas 12 cidades das rotas', async () => {
+    const clientes = await clientesDoSeed();
+    expect(clientes).toHaveLength(26);
+
+    const daEduarda = clientes.filter((cliente) => cliente.representante.email === 'eduarda@chokolaten.com.br');
+    const doRafael = clientes.filter((cliente) => cliente.representante.email === 'rafael@chokolaten.com.br');
+    expect(daEduarda).toHaveLength(16);
+    expect(doRafael).toHaveLength(10);
+
+    expect(daEduarda.every((cliente) => CIDADES_EDUARDA.includes(cliente.cidade))).toBe(true);
+    expect(doRafael.every((cliente) => CIDADES_RAFAEL.includes(cliente.cidade))).toBe(true);
+    const cidadesDasRotas = new Set([...CIDADES_EDUARDA, ...CIDADES_RAFAEL]);
+    expect([...new Set(clientes.map((cliente) => cliente.cidade))].every((cidade) => cidadesDasRotas.has(cidade))).toBe(
+      true,
+    );
+  });
+
+  it('todo cliente tem CNPJ válido e único, razão social diferente do nome fantasia, telefone de SC e e-mail único', async () => {
+    const clientes = await clientesDoSeed();
+
+    for (const cliente of clientes) {
+      expect({ nome: cliente.nomeFantasia, valido: cnpjValido(cliente.cnpj) }).toEqual({
+        nome: cliente.nomeFantasia,
+        valido: true,
+      });
+      expect(cliente.cnpj).not.toBe(CNPJ_DA_PARCEIRA);
+      expect(cliente.razaoSocial).not.toBe(cliente.nomeFantasia);
+      expect(cliente.telefone).toMatch(/^\(47\) (3\d{3}|9\d{4})-\d{4}$/);
+      expect(cliente.endereco).toContain(', ');
+      expect(cliente.endereco).toContain('/SC');
+    }
+    expect(new Set(clientes.map((cliente) => cliente.cnpj)).size).toBe(clientes.length);
+    expect(new Set(clientes.map((cliente) => cliente.email)).size).toBe(clientes.length);
+    expect(new Set(clientes.map((cliente) => cliente.telefone)).size).toBe(clientes.length);
+  });
+
+  it('todo cliente tem 1 ou 2 contatos com cargo e exatamente um principal', async () => {
+    const clientes = await clientesDoSeed();
+
+    for (const cliente of clientes) {
+      expect(cliente.contacts.length).toBeGreaterThanOrEqual(1);
+      expect(cliente.contacts.length).toBeLessThanOrEqual(2);
+      expect(cliente.contacts.every((contato) => contato.cargo.trim().length > 0)).toBe(true);
+      expect(cliente.contacts.filter((contato) => contato.principal)).toHaveLength(1);
+    }
+  });
+
+  it('erpId é código numérico de 5 dígitos e único, exceto os dois clientes sem ERP', async () => {
+    const clientes = await clientesDoSeed();
+    const semErp = ['Confeitaria Rota das Cachoeiras', 'Padaria Vale Europeu'];
+
+    expect(clientes.filter((cliente) => cliente.erpId === null).map((cliente) => cliente.nomeFantasia)).toEqual(semErp);
+    const comErp = clientes.filter((cliente) => cliente.erpId !== null).map((cliente) => cliente.erpId as string);
+    expect(comErp).toHaveLength(24);
+    for (const erpId of comErp) {
+      expect(erpId).toMatch(/^\d{5}$/);
+      expect(erpId).not.toMatch(/-0$/);
+    }
+    expect(new Set(comErp).size).toBe(24);
+  });
+
+  it('a calibração do ERP simulado dá 0 meses sem compra aos clientes em dia e 3 ou mais só ao Armazém São Bento', () => {
+    const meses = (nomeFantasia: string): number => {
+      const erpId = ERP_IDS_DEMONSTRACAO[nomeFantasia];
+      if (!erpId) throw new Error(`${nomeFantasia} sem erpId na calibração.`);
+      return perfilDoErpId(erpId).mesesSemCompra;
+    };
+
+    expect(meses('Armazém São Bento')).toBeGreaterThanOrEqual(3);
+    expect(meses('Empório Pomerode')).toBe(0);
+    expect(meses('Empório do Vale Brusque')).toBe(0);
+    expect(meses('Mercearia Alto Vale')).toBe(0);
+
+    const comTresOuMais = Object.entries(ERP_IDS_DEMONSTRACAO)
+      .filter(([, erpId]) => erpId !== null && perfilDoErpId(erpId).mesesSemCompra >= 3)
+      .map(([nomeFantasia]) => nomeFantasia);
+    expect(comTresOuMais).toEqual(['Armazém São Bento']);
+  });
+
+  it('nenhum texto do seed tem marca de demonstração', async () => {
+    const clientes = await clientesDoSeed();
+    const marca = /ERP-|exemplo|teste|demo|\b(2|II)$/i;
+
+    for (const cliente of clientes) {
+      expect(cliente.nomeFantasia).not.toMatch(marca);
+      expect(cliente.razaoSocial).not.toMatch(marca);
+    }
   });
 });
