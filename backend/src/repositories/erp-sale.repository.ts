@@ -291,6 +291,8 @@ export type GrupoSemCliente = {
  * Notas `SEM_CLIENTE` agrupadas pelo CNPJ do destinatário, do grupo de nota
  * mais recente para o mais antigo. Uma consulta só, já na ordem de
  * `ORDEM_MAIS_RECENTE`: a primeira nota vista de cada CNPJ é a mais recente.
+ * CNPJ que já tem cliente fica de fora (defensivo: o cadastro do cliente já
+ * adota as notas do CNPJ), para o gestor não tentar criá-lo e levar 409.
  */
 export async function listarSemClientePorCnpj(): Promise<GrupoSemCliente[]> {
   const notas = await prisma.erpSale.findMany({
@@ -298,8 +300,13 @@ export async function listarSemClientePorCnpj(): Promise<GrupoSemCliente[]> {
     orderBy: ORDEM_MAIS_RECENTE,
     select: SELECT_SEM_CLIENTE,
   });
+  const cnpjs = [...new Set(notas.map((n) => n.destinatarioCnpj))];
+  const comCliente = new Set(
+    (await prisma.client.findMany({ where: { cnpj: { in: cnpjs } }, select: { cnpj: true } })).map((c) => c.cnpj),
+  );
   const grupos = new Map<string, GrupoSemCliente>();
   for (const nota of notas) {
+    if (comCliente.has(nota.destinatarioCnpj)) continue;
     const grupo = grupos.get(nota.destinatarioCnpj);
     if (grupo) grupo.notas += 1;
     else grupos.set(nota.destinatarioCnpj, { maisRecente: nota, notas: 1 });
@@ -316,8 +323,14 @@ export async function listarSemClienteDoCnpj(cnpj: string, banco: Banco = prisma
   });
 }
 
-/** Liga ao cliente as notas indicadas (o status do vínculo é decidido em seguida, nota a nota). */
+/**
+ * Liga ao cliente as notas indicadas que ainda estão sem cliente (o status do
+ * vínculo é decidido em seguida, nota a nota).
+ */
 export async function ligarCliente(ids: string[], clientId: string, banco: Banco = prisma): Promise<number> {
-  const { count } = await banco.erpSale.updateMany({ where: { id: { in: ids } }, data: { clientId } });
+  const { count } = await banco.erpSale.updateMany({
+    where: { id: { in: ids }, clientId: null, vinculoStatus: 'SEM_CLIENTE' },
+    data: { clientId },
+  });
   return count;
 }

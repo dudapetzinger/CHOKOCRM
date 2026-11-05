@@ -5,6 +5,11 @@ module.exports = {
   rootDir: '.',
   testMatch: ['<rootDir>/tests/**/*.test.ts'],
   clearMocks: true,
+  // Os hooks dos testes de integração fazem bcrypt + login + cadastros no
+  // Postgres; sob carga passavam de 5 s (visits.test, clients.test) e
+  // falhavam por timeout sem defeito no código. 15 s dá folga sem esconder
+  // um teste travado.
+  testTimeout: 15_000,
   // Cobertura só é coletada com `--coverage` (CI); lcov alimenta o SonarCloud.
   coverageDirectory: 'coverage',
   coverageReporters: ['lcov', 'text-summary'],

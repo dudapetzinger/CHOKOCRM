@@ -11,6 +11,12 @@
  * Etapa 8 (visual do protótipo, `Cadastro` de `crm/ficha.tsx`): os dados
  * numa lista rótulo | valor, os contatos numa lista com bordas e os avisos de
  * sucesso em `toast` (com os mesmos textos de antes).
+ *
+ * Cliente criado pelo gestor a partir da nota fiscal: nasce sem e-mail e sem
+ * contatos, e às vezes sem telefone ou cidade (a nota não trazia). O dado
+ * vazio aparece como "—"; em "Editar dados" o e-mail é opcional (vazio vai
+ * como `null`), e telefone e cidade continuam obrigatórios, então o
+ * representante os completa ao salvar.
  */
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -39,6 +45,7 @@ import {
 import { NovoContato } from './crm/NovoContato';
 import { useDevolverFoco } from '../lib/useFoco';
 import { formatarData } from '../lib/formatarData';
+import { formatarCnpj } from '../lib/formatarCnpj';
 import { Aviso, Campo, Cartao, CLASSES_BOTAO_PERIGO, Etiqueta } from './crm/ui';
 
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar as alterações.';
@@ -47,11 +54,6 @@ const MENSAGEM_ERRO_REATIVAR = 'Não foi possível reativar o cliente.';
 const MENSAGEM_ERRO_CONTATO = 'Não foi possível salvar o contato.';
 const MENSAGEM_ERRO_PROMOVER = 'Não foi possível promover o contato a principal.';
 const MENSAGEM_ERRO_REMOVER = 'Não foi possível remover o contato.';
-
-function formatarCnpj(cnpj: string): string {
-  if (!/^\d{14}$/.test(cnpj)) return cnpj;
-  return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-}
 
 function formatarUltimaVisita(diasSemVisita: number | null): string {
   if (diasSemVisita === null) return 'Nunca visitado';
@@ -67,7 +69,7 @@ function dadosParaFormulario(cliente: {
   cidade: string;
   endereco: string;
   telefone: string;
-  email: string;
+  email: string | null;
   erpId: string | null;
   recorrenciaDias: number;
 }): DadosClienteFormulario {
@@ -78,7 +80,7 @@ function dadosParaFormulario(cliente: {
     cidade: cliente.cidade,
     endereco: cliente.endereco,
     telefone: cliente.telefone,
-    email: cliente.email,
+    email: cliente.email ?? '',
     erpId: cliente.erpId ?? '',
     recorrenciaDias: String(cliente.recorrenciaDias),
   };
@@ -99,7 +101,7 @@ const CAMPOS_EDICAO: {
   { campo: 'cidade', rotulo: 'Cidade', tipo: 'text' },
   { campo: 'endereco', rotulo: 'Endereço', tipo: 'text' },
   { campo: 'telefone', rotulo: 'Telefone', tipo: 'tel' },
-  { campo: 'email', rotulo: 'E-mail', tipo: 'email' },
+  { campo: 'email', rotulo: 'E-mail (opcional)', tipo: 'email' },
   { campo: 'erpId', rotulo: 'Identificador no ERP (opcional)', tipo: 'text' },
 ];
 
@@ -222,7 +224,7 @@ export function DadosCadastrais({ cliente }: Props) {
     event.preventDefault();
     setErroEdicaoEnvio(null);
 
-    const erros = validarDadosCliente(dadosEdicao);
+    const erros = validarDadosCliente(dadosEdicao, { emailOpcional: true });
     setErrosEdicao(erros);
     if (Object.keys(erros).length > 0) return;
 
@@ -262,10 +264,10 @@ export function DadosCadastrais({ cliente }: Props) {
   const dados: [string, string][] = [
     ['Razão social', cliente.razaoSocial],
     ['CNPJ', formatarCnpj(cliente.cnpj)],
-    ['Cidade', cliente.cidade],
-    ['Endereço', cliente.endereco],
-    ['Telefone', cliente.telefone],
-    ['E-mail', cliente.email],
+    ['Cidade', cliente.cidade || '—'],
+    ['Endereço', cliente.endereco || '—'],
+    ['Telefone', cliente.telefone || '—'],
+    ['E-mail', cliente.email || '—'],
     ...(cliente.erpId ? ([['Identificador no ERP', cliente.erpId]] as [string, string][]) : []),
     ['Cliente desde', formatarData(cliente.criadoEm)],
   ];

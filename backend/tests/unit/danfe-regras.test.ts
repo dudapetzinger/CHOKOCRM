@@ -231,6 +231,16 @@ describe('lerDanfes: endereço do destinatário', () => {
     });
   });
 
+  it.each(['4733875820', '47 3387 5820'])('fone sem parênteses (%s) não vaza para o município', (fone) => {
+    const base = pagina('danfe-2455.txt');
+    base.linhas = base.linhas.map((l) => l.replace('Pomerode (47)3387-5820 SC', `Pomerode ${fone} SC`));
+    expect(lerDanfes([base]).notas[0]?.destinatario).toMatchObject({
+      municipio: 'Pomerode',
+      uf: 'SC',
+      telefone: null,
+    });
+  });
+
   it('folhas da mesma chave: o endereço vem da primeira folha que o trouxe', () => {
     const folha1 = pagina('danfe-2455.txt', 1);
     folha1.linhas = folha1.linhas.filter((l) => !l.startsWith('Pomerode ('));

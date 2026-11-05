@@ -5,23 +5,34 @@ import { MemoryRouter } from 'react-router-dom';
 import { Toaster } from '../components/ui/sonner';
 import { AuthContext, type Role } from '../auth/auth-context';
 import { ApiError } from '../services/api';
+import type { ClienteCompleto } from '../services/clients';
 import {
+  criarClientePelaNota,
   desvincularNota,
   importarPdf,
   listarImportacoes,
   listarPendencias,
+  listarSemCliente,
   vincularNota,
+  type CnpjSemCliente,
   type Importacao,
   type Nota,
 } from '../services/importacoes';
+import { listRepresentantes } from '../services/users';
 import { ImportacoesPage } from './ImportacoesPage';
 
 vi.mock('../services/importacoes', () => ({
   importarPdf: vi.fn(),
   listarImportacoes: vi.fn(),
   listarPendencias: vi.fn(),
+  listarSemCliente: vi.fn(),
+  criarClientePelaNota: vi.fn(),
   vincularNota: vi.fn(),
   desvincularNota: vi.fn(),
+}));
+
+vi.mock('../services/users', () => ({
+  listRepresentantes: vi.fn(),
 }));
 
 function nota(extra: Partial<Nota> = {}): Nota {
@@ -65,6 +76,30 @@ const PENDENTE = nota({
   visitaSugerida: { id: 'v1', dataHora: '2026-11-03T15:00:00.000Z', resultado: 'VENDA', totalPedido: 900 },
 });
 
+function semCliente(extra: Partial<CnpjSemCliente> = {}): CnpjSemCliente {
+  return {
+    cnpj: '99888777000166',
+    razaoSocial: 'PADARIA E CONFEITARIA ESTRELA LTDA',
+    endereco: 'RUA DAS FLORES, 120',
+    bairro: 'CENTRO',
+    cep: '89280-000',
+    municipio: 'SAO BENTO DO SUL',
+    uf: 'SC',
+    telefone: '(47) 3633-0000',
+    notas: 3,
+    ultimaEmissao: '2026-11-04',
+    ...extra,
+  };
+}
+
+const MERCADO = semCliente({
+  cnpj: '11222333000144',
+  razaoSocial: 'MERCADO BOA VISTA LTDA',
+  municipio: null,
+  uf: null,
+  notas: 1,
+});
+
 let usuario: ReturnType<typeof userEvent.setup>;
 
 beforeEach(() => {
@@ -72,8 +107,18 @@ beforeEach(() => {
   vi.mocked(importarPdf).mockReset();
   vi.mocked(listarImportacoes).mockReset().mockResolvedValue([]);
   vi.mocked(listarPendencias).mockReset().mockResolvedValue([]);
+  vi.mocked(listarSemCliente).mockReset().mockResolvedValue([]);
+  vi.mocked(criarClientePelaNota).mockReset();
+  vi.mocked(listRepresentantes)
+    .mockReset()
+    .mockResolvedValue([{ id: 'r2', nome: 'Eduarda Fischer' }]);
   vi.mocked(vincularNota).mockReset().mockResolvedValue(nota());
   vi.mocked(desvincularNota).mockReset().mockResolvedValue(nota());
+});
+
+/** Os testes que espiam `invalidateQueries` não deixam o espião para os seguintes. */
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function renderizar(role: Role = 'GESTOR') {
@@ -199,7 +244,7 @@ describe('ImportacoesPage', () => {
     expect(importarPdf).toHaveBeenCalledTimes(2);
   });
 
-  it('lista os CNPJs sem cliente, com "Copiar CNPJ" e a orientação ao representante', async () => {
+  it('o resultado da importação lista os CNPJs sem cliente e leva ao bloco onde se cria o cliente', async () => {
     vi.mocked(importarPdf).mockResolvedValue(
       importacao({ cnpjsSemCliente: [{ cnpj: '99888777000166', razaoSocial: 'Padaria & Cia' }] }),
     );
@@ -207,18 +252,67 @@ describe('ImportacoesPage', () => {
 
     await escolherEImportar('a.pdf');
 
-    expect(await screen.findByText('CNPJs sem cliente no CRM')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Novo cliente' })).not.toBeInTheDocument();
-    expect(screen.getByText(/Peça ao representante da carteira para cadastrar o cliente com este CNPJ/)).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /Cadastrado o cliente, as vendas dele já aparecem na ficha; para vincular a nota a uma visita, importe o PDF de novo\./,
-      ),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/na próxima importação/)).not.toBeInTheDocument();
-    await usuario.click(screen.getByRole('button', { name: 'Copiar CNPJ' }));
+    const item = await resultadoDe('a.pdf');
+    expect(item).toHaveTextContent('Sem cliente no CRM: Padaria & Cia · 99888777000166.');
+    expect(within(item).getByRole('link', { name: 'Criar o cliente no bloco "CNPJs sem cliente no CRM"' })).toHaveAttribute(
+      'href',
+      '#cnpjs-sem-cliente',
+    );
+    expect(within(item).queryByRole('button', { name: 'Criar cliente' })).not.toBeInTheDocument();
+  });
+
+  it('bloco persistente "CNPJs sem cliente no CRM (N)": razão social, CNPJ, município, notas, "Criar cliente" e "Copiar CNPJ"', async () => {
+    vi.mocked(listarSemCliente).mockResolvedValue([semCliente(), MERCADO]);
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'CNPJs sem cliente no CRM' });
+    expect(screen.getByRole('heading', { name: 'CNPJs sem cliente no CRM (2)' })).toBeInTheDocument();
+    const [estrela, mercado] = within(lista).getAllByRole('listitem');
+    expect(estrela).toHaveTextContent('PADARIA E CONFEITARIA ESTRELA LTDA');
+    expect(estrela).toHaveTextContent('99.888.777/0001-66 · SAO BENTO DO SUL/SC · 3 notas');
+    expect(within(estrela).getByRole('button', { name: 'Criar cliente' })).toBeInTheDocument();
+    expect(mercado).toHaveTextContent('11.222.333/0001-44 · 1 nota');
+    expect(screen.queryByText(/Peça ao representante da carteira/)).not.toBeInTheDocument();
+
+    await usuario.click(within(estrela).getByRole('button', { name: 'Copiar CNPJ' }));
     expect(await screen.findByText('CNPJ copiado')).toBeInTheDocument();
     expect(await navigator.clipboard.readText()).toBe('99888777000166');
+  });
+
+  it('sem CNPJs sem cliente, o bloco não aparece', async () => {
+    renderizar();
+
+    await waitFor(() => expect(listarSemCliente).toHaveBeenCalled());
+    expect(screen.queryByText(/CNPJs sem cliente no CRM/)).not.toBeInTheDocument();
+  });
+
+  it('"Criar cliente": o item some da lista e o ERP e as fichas são buscados de novo', async () => {
+    vi.mocked(listarSemCliente).mockResolvedValueOnce([semCliente(), MERCADO]).mockResolvedValue([MERCADO]);
+    vi.mocked(criarClientePelaNota).mockResolvedValue({
+      id: 'c9',
+      representante: { id: 'r2', nome: 'Eduarda Fischer' },
+    } as ClienteCompleto);
+    const invalidar = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'CNPJs sem cliente no CRM' });
+    const [estrela] = within(lista).getAllByRole('listitem');
+    await usuario.click(within(estrela).getByRole('button', { name: 'Criar cliente' }));
+    await within(estrela).findByRole('option', { name: 'Eduarda Fischer' });
+    await usuario.selectOptions(within(estrela).getByLabelText('Representante'), 'Eduarda Fischer');
+    await usuario.click(within(estrela).getByRole('button', { name: 'Salvar' }));
+
+    expect(criarClientePelaNota).toHaveBeenCalledWith('99888777000166', {
+      representanteId: 'r2',
+      nomeFantasia: 'PADARIA E CONFEITARIA ESTRELA LTDA',
+      recorrenciaDias: 15,
+    });
+    expect(await screen.findByText('Cliente criado na carteira de Eduarda Fischer')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('PADARIA E CONFEITARIA ESTRELA LTDA')).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: 'CNPJs sem cliente no CRM (1)' })).toBeInTheDocument();
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ['erp'] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ['client'] });
+    invalidar.mockRestore();
   });
 
   it('pendência: vincula à visita sugerida e some da lista', async () => {

@@ -23,6 +23,8 @@ import {
   type Cor,
 } from './classificacao.service';
 import { consultarUltimasVendasPorCliente } from './erp.service';
+import { adotarNotasSemCliente } from './importacao-nf/importacao.service';
+import { prisma } from '../lib/prisma';
 import { agora } from '../lib/relogio';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
@@ -32,6 +34,8 @@ const MENSAGEM_SOMENTE_REPRESENTANTE_CADASTRA = 'Somente representante cadastra 
 const MENSAGEM_SOMENTE_GESTOR_TRANSFERE = 'Somente o gestor transfere um cliente de carteira.';
 const MENSAGEM_REPRESENTANTE_INVALIDO = 'Representante informado não existe ou não é representante.';
 const MENSAGEM_REPRESENTANTE_INATIVO = 'Representante inativo.';
+/** O cadastro adota as notas sem cliente do CNPJ; muitas notas passam do padrão de 5 s. */
+const OPCOES_DA_TRANSACAO_DO_CADASTRO = { timeout: 30_000, maxWait: 10_000 };
 
 // A regra de carteira vive em `carteira.ts`, que não depende de
 // `erp.service` (este já é dependência daqui; ver o import circular evitado
@@ -182,7 +186,7 @@ function toClienteCompletoDTO(client: ClientComContatos, hoje: Date, ultimaVenda
  * contato principal (índice parcial `one_principal_per_client`) -> 400
  * VALIDATION_ERROR, já que é a mesma regra de negócio validada no zod.
  */
-function mapPrismaUniqueError(err: unknown): unknown {
+export function mapPrismaUniqueError(err: unknown): unknown {
   if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2002') {
     return err;
   }
@@ -248,7 +252,13 @@ export async function createClient(
   }
 
   try {
-    const id = await clientRepository.createWithContacts(input, usuario.id);
+    // Na mesma transação, as notas importadas sem cliente deste CNPJ passam a
+    // ser do cliente novo e saem de "CNPJs sem cliente no CRM".
+    const id = await prisma.$transaction(async (tx) => {
+      const novo = await clientRepository.createWithContacts(input, usuario.id, tx);
+      await adotarNotasSemCliente(tx, input.cnpj, novo);
+      return novo;
+    }, OPCOES_DA_TRANSACAO_DO_CADASTRO);
     return await getClientById(id, usuario);
   } catch (err) {
     throw mapPrismaUniqueError(err);

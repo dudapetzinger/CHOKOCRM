@@ -117,6 +117,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 - O identificador do cliente no ERP é **opcional** no cadastro — seu preenchimento é recomendado assim que disponível, mas a ausência não impede o cadastro do cliente. Sem esse identificador, a consulta de dados de venda/estoque (UC11) fica indisponível para o cliente até que o campo seja preenchido (ver fluxo de exceção de UC11).
 - Recorrência de visitas padrão de 15 dias na criação do cliente.
 - Cadastro exige ao menos um contato principal (ver UC04).
+- Desde 06/11, o gestor também cria clientes, pela nota fiscal (UC28, A2): esse cliente nasce sem e-mail e sem contatos, que o representante completa na ficha (UC03, UC04). O cadastro pelo representante continua exigindo os dois.
 
 ---
 
@@ -146,6 +147,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 
 **Regras de negócio associadas:**
 - A inativação de cliente é sempre lógica, por meio da flag `ativo`; não há, em nenhum fluxo do sistema, exclusão física do registro do cliente.
+- Desde 06/11, na edição o e-mail do cliente é opcional ("E-mail (opcional)"; vazio apaga o e-mail): o cliente criado pela nota fiscal (UC28) nasce sem ele. Telefone, cidade e endereço continuam obrigatórios, então o representante os completa ao salvar quando a nota não os trazia; na ficha, o dado ausente aparece como "—".
 - Desde a Etapa 7, o representante só edita clientes da própria carteira: `PUT /clients/:id` em cliente de outra carteira responde 403 `FORBIDDEN` ("Cliente de outra carteira."). Os botões "Editar dados" e "Inativar cliente" ficam na aba "Cadastro" da ficha (UC06); até a Etapa 8 ficavam num grupo "Dados cadastrais" recolhido.
 
 ---
@@ -933,12 +935,17 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 3. Para cada arquivo, o sistema lê o texto da DANFE (uma nota por página, ou uma nota em mais de uma folha, agrupada pela chave de acesso de 44 dígitos) e reconhece número, série, chave, natureza da operação, protocolo de autorização, data de emissão, destinatário (razão social e CNPJ), totais e os itens (código, descrição, quantidade, valor unitário e total).
 4. O sistema grava cada nota pela chave de acesso, junto dos itens e dos produtos vistos (o catálogo do pedido e das campanhas) e procura o cliente pelo CNPJ do destinatário (14 dígitos = `Client.cnpj`).
 5. Havendo cliente, o sistema compara a data da nota com a da última visita dele (a mais recente, de qualquer resultado, no calendário de São Paulo): se for a mesma, vincula a nota à visita sozinho — os itens do pedido da visita passam a ser os da nota e o resultado vira "Venda" (UC16); se for outra, deixa a nota pendente.
-6. O sistema mostra, por arquivo, o resumo "N notas · V vinculadas · P pendentes · S só no ERP · I ignoradas", as notas ignoradas com o motivo e os "CNPJs sem cliente no CRM".
+6. O sistema mostra, por arquivo, o resumo "N notas · V vinculadas · P pendentes · S só no ERP · I ignoradas", as notas ignoradas com o motivo e os CNPJs sem cliente no CRM, com um link para o bloco "CNPJs sem cliente no CRM (N)" (A2).
 7. O gestor responde às pendências no bloco "Pendências (N)", abaixo do resultado por arquivo (o resultado só mostra as contagens): "Vincular à visita de dd/mm (Resultado)" faz o mesmo que o vínculo automático; "Deixar só no ERP" mantém a nota fora da visita.
 
 **Fluxos alternativos:**
 - **A1** (passo 5): o cliente não tem visita — a nota fica só no ERP (`SEM_VISITA`), sem pergunta.
-- **A2** (passo 4): nenhum cliente tem aquele CNPJ — a nota fica gravada sem cliente (`SEM_CLIENTE`) e o CNPJ aparece em "CNPJs sem cliente no CRM", com "Copiar CNPJ", para o representante da carteira cadastrar o cliente (o gestor não cadastra cliente, UC02). Cadastrado o cliente, as notas aparecem na ficha dele, porque o provedor lê pelo CNPJ; o vínculo com a visita só é feito ao reimportar a nota.
+- **A2** (passo 4): nenhum cliente tem aquele CNPJ — a nota fica gravada sem cliente (`SEM_CLIENTE`) e o CNPJ aparece no bloco persistente "CNPJs sem cliente no CRM (N)" da página (`GET /erp/sem-cliente`), com a razão social, o CNPJ, o município e "N notas", e os botões "Criar cliente" e "Copiar CNPJ" (desde 06/11):
+  1. O gestor aciona "Criar cliente"; no próprio item abre o formulário "Representante" (obrigatório, entre os representantes ativos), "Nome fantasia" (vem com a razão social) e "Recorrência (dias)" (15).
+  2. O gestor escolhe o representante e aciona "Salvar" (`POST /erp/sem-cliente/:cnpj/cliente`).
+  3. O sistema cria o cliente na carteira escolhida com os dados da nota mais recente do CNPJ (razão social, endereço, cidade, telefone), sem e-mail e sem contatos, liga a ele todas as notas sem cliente daquele CNPJ (cliente novo, sem visitas: ficam "Só no ERP") e mostra "Cliente criado na carteira de <representante>"; o CNPJ sai do bloco e as vendas já aparecem na ficha.
+  4. O representante completa na ficha o e-mail, os contatos e, se a nota não os trazia, telefone, cidade e endereço (UC03, UC04).
+  Se preferir, o gestor usa "Copiar CNPJ" e pede ao representante da carteira que cadastre o cliente (UC02); no cadastro, o sistema liga ao cliente novo todas as notas sem cliente do CNPJ e decide o vínculo de cada uma com as mesmas regras da importação (sem visitas ainda, ficam "Só no ERP"), e o CNPJ sai do bloco. O bloco também nunca lista um CNPJ que já tem cliente.
 - **A3** (passo 3): a nota já foi importada — o sistema atualiza a nota e os itens pela chave de acesso, sem duplicar, e mantém o vínculo (refazendo os itens da visita); uma nota que o gestor recusou não volta a ser vinculada.
 - **A4** (passo 7): o gestor desfaz um vínculo (pelo botão "Desvincular" em "Importações anteriores", nas notas vinculadas ou automáticas; `DELETE /erp/vendas/:id/vinculo`, depois de confirmar na própria linha) — os itens da visita ficam vazios e a nota passa a "recusada"; o resultado da visita não volta ao valor anterior.
 - **A5** (passo 5): a visita da mesma data já tem outra nota — a nova fica pendente, porque uma visita só recebe uma nota.
@@ -948,13 +955,14 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - **E2** (passo 3): a nota não é de venda (devolução, bonificação, remessa), não tem protocolo de autorização ou tem totais que não fecham com os itens — o sistema não a grava e a lista entre as ignoradas, com o motivo.
 - **E3** (passo 2): arquivo que não é PDF (415), vazio (400) ou acima de 10 MB (413) — o sistema recusa o arquivo e informa o erro.
 - **E4** (passo 1): usuário que não é gestor — a página mostra o aviso de acesso exclusivo do gestor e a API responde 403.
+- **E5** (A2, passo 2): sem representante escolhido, o formulário não envia ("Escolha o representante."); se, entre a lista e o "Salvar", o CNPJ ganhou cliente (o representante cadastrou pelo app), o sistema responde "Já existe um cliente com este CNPJ." e nada muda (as notas já passaram ao cliente dele no cadastro); representante inexistente, inativo ou gestor dá "Representante inválido."; CNPJ sem nota sem cliente dá "Nenhuma nota sem cliente para este CNPJ.". A mensagem aparece no formulário, que continua aberto.
 
 **Regras de negócio associadas:**
-- Só o gestor importa, vincula e desvincula notas; o representante não acessa a página nem as rotas `/erp/importacoes`, `/erp/pendencias` e `/erp/vendas/:id/vinculo`.
+- Só o gestor importa, vincula, desvincula notas e cria clientes pela nota; o representante não acessa a página nem as rotas `/erp/importacoes`, `/erp/pendencias`, `/erp/vendas/:id/vinculo` e `/erp/sem-cliente`.
 - Só entram DANFEs de venda com protocolo: natureza da operação começando por "Venda" ou todos os CFOPs em 5101–5125, 5401–5405, 6101–6125 ou 6401–6405.
 - Vincular substitui os itens da visita pelos da nota (quantidade arredondada, no mínimo 1; a nota guarda o decimal) e põe o resultado em "Venda"; por isso campanhas, metas e KPIs passam a contar o pedido faturado. A ficha (UC08) mostra "Pedido conforme NF 2455 · R$ 1.634,00" e, havendo desconto, "Total da nota R$ 1.529,98".
 - Desvincular (botão "Desvincular" em "Importações anteriores", só para notas `VINCULADA` ou `AUTOMATICO`) zera os itens da visita e marca a nota como recusada, sempre; a reimportação nunca a religa.
-- Importar não cria visitas, clientes nem representantes: a DANFE não traz representante, e uma nota nunca inventa uma visita que não aconteceu.
+- Importar não cria visitas, clientes nem representantes: a DANFE não traz representante, e uma nota nunca inventa uma visita que não aconteceu. O cliente só é criado pela nota quando o gestor aciona "Criar cliente" e escolhe o representante (A2), nunca numa carteira padrão; o CNPJ é único, então não há cliente duplicado. Provisório até a integração com a API do Senior X.
 - O catálogo do check-in e das campanhas, sob o provedor importado, é o dos produtos vistos nas notas (mais os do seed de demonstração).
 
 ---
@@ -1005,6 +1013,8 @@ A Etapa 11 (02/11/2026 — [spec da etapa](superpowers/specs/2026-11-02-etapa-11
 A Etapa 11b (03/11/2026 — [spec da etapa](superpowers/specs/2026-11-03-etapa-11b-editar-proxima-visita-na-ficha-design.md)) não cria caso de uso novo; revisa o UC17 (novo fluxo alternativo A3 e exceção E2: marcar, alterar ou limpar a data da próxima visita pela ficha) e o UC06 (o aviso da próxima visita ganha "Alterar data" e "Marcar próxima visita").
 
 A Etapa 12 (05/11/2026 — [spec da etapa](superpowers/specs/2026-11-04-etapa-12-ficha-e-importacao-de-notas-fiscais-design.md)) cria o UC28 (importação das notas fiscais em PDF, com o provedor de ERP `importado`) e revisa: o UC04 ("Adicionar contato" pela aba "Cadastro"), o UC06 (abas na ordem "ERP e sugestões", "Visitas" e "Cadastro", abrindo pela primeira), o UC08 (pedido recolhido e "Pedido conforme NF"), o UC11 (chave do cliente por provedor, "Últimas vendas", estoque indisponível e o aviso da situação do ERP) e o UC15 (alertas sem estoque).
+
+O "cliente pela nota" (06/11/2026 — [spec](superpowers/specs/2026-11-06-cliente-pela-nota-design.md)) não cria caso de uso novo; revisa o UC28 (A2 com "Criar cliente", exceção E5 e regras), o UC02 (o gestor também cria cliente, pela nota) e o UC03 (e-mail opcional na edição).
 
 ## 6. Cobertura das regras de negócio da especificação (seção 6)
 

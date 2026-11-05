@@ -208,6 +208,62 @@ describe('GET /erp/sem-cliente', () => {
       },
     ]);
   });
+
+  it('não lista CNPJ que já tem cliente, mesmo com notas SEM_CLIENTE deixadas para trás', async () => {
+    await criarClienteNoBanco(CNPJ_NF);
+    // Inserida direto no banco: uma nota sem cliente de um CNPJ que já tem cliente.
+    await criarNota({ cnpj: CNPJ_NF, nome: 'DON GIACOMO PIZZARIA LTDA', dataEmissao: '2026-11-03' });
+    await criarNota({ cnpj: CNPJ_OUTRO, nome: 'MERCADO SOLO LTDA', dataEmissao: '2026-11-04' });
+
+    const res = await listar();
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((item: { cnpj: string }) => item.cnpj)).toEqual([CNPJ_OUTRO]);
+  });
+});
+
+describe('POST /clients (representante) adota as notas sem cliente do CNPJ', () => {
+  it('liga ao cliente novo as notas SEM_CLIENTE do CNPJ, decide o vínculo e o CNPJ sai da lista', async () => {
+    const notaA = await criarNota({ cnpj: CNPJ_NF, nome: 'DON GIACOMO PIZZARIA LTDA', dataEmissao: '2026-10-20' });
+    const notaB = await criarNota({ cnpj: CNPJ_NF, nome: 'DON GIACOMO PIZZARIA LTDA', dataEmissao: '2026-11-03' });
+    const outra = await criarNota({ cnpj: CNPJ_OUTRO, nome: 'MERCADO SOLO LTDA', dataEmissao: '2026-11-04' });
+
+    const res = await request(app)
+      .post('/clients')
+      .set('Authorization', `Bearer ${tokenRep}`)
+      .send({
+        razaoSocial: 'Don Giacomo Pizzaria Ltda',
+        nomeFantasia: 'Don Giacomo',
+        cnpj: CNPJ_NF,
+        cidade: 'Pomerode',
+        endereco: 'Rua Boa Vista, 80 - Centro, Pomerode/SC',
+        telefone: '(47) 3387-5820',
+        email: 'contato@dongiacomo.com.br',
+        contatos: [
+          {
+            nome: 'Giacomo Rossi',
+            cargo: 'Proprietário',
+            telefone: '(47) 99999-5820',
+            email: 'giacomo@dongiacomo.com.br',
+            principal: true,
+          },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    const notas = await prisma.erpSale.findMany({ where: { id: { in: [notaA, notaB] } } });
+    expect(notas).toHaveLength(2);
+    for (const nota of notas) {
+      expect(nota.clientId).toBe(res.body.id);
+      expect(nota.vinculoStatus).toBe('SEM_VISITA');
+    }
+    const naoMexida = await prisma.erpSale.findUniqueOrThrow({ where: { id: outra } });
+    expect(naoMexida.clientId).toBeNull();
+    expect(naoMexida.vinculoStatus).toBe('SEM_CLIENTE');
+
+    const lista = await listar();
+    expect(lista.body.data.map((item: { cnpj: string }) => item.cnpj)).toEqual([CNPJ_OUTRO]);
+  });
 });
 
 describe('POST /erp/sem-cliente/:cnpj/cliente', () => {
@@ -258,8 +314,8 @@ describe('POST /erp/sem-cliente/:cnpj/cliente', () => {
     expect(semDados.body).toMatchObject({
       nomeFantasia: 'MERCADO SOLO LTDA',
       recorrenciaDias: 15,
-      // Sem endereço, bairro e município: sobra só a UF, sem separadores soltos.
-      endereco: 'SC',
+      // Sem endereço e sem bairro: endereço vazio (a ficha mostra "—" e a edição o pede).
+      endereco: '',
       cidade: '',
       telefone: '',
     });

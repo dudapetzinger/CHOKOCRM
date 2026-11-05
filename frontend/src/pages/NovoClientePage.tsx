@@ -8,8 +8,10 @@
  *
  * Validações do app (as mesmas do zod do backend); o primeiro campo com erro
  * recebe o foco. Sucesso: aviso "Cliente cadastrado" e a ficha do cliente
- * criado. Só o representante cadastra (o cliente entra na carteira dele); o
- * gestor volta para a lista. Os campos não usam o preenchimento automático
+ * criado. Só o representante cadastra por aqui (o cliente entra na carteira
+ * dele; as notas importadas sem cliente do CNPJ passam a ser dele); o gestor
+ * volta para a lista — o gestor também cria clientes pela nota, em Importar
+ * notas. Os campos não usam o preenchimento automático
  * do navegador: os dados são do cliente, não da representante.
  */
 import { useState, type ComponentProps, type FormEvent } from 'react';

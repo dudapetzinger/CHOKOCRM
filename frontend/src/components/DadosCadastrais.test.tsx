@@ -43,13 +43,16 @@ const cliente: ClienteCompleto = {
   proximaCampanha: null,
 };
 
-function renderizar() {
+/** Cliente criado pelo gestor a partir da nota fiscal: sem e-mail, sem contatos e, às vezes, sem telefone e cidade. */
+const clienteDaNota: ClienteCompleto = { ...cliente, email: null, telefone: '', cidade: '', contatos: [] };
+
+function renderizar(dados: ClienteCompleto = cliente) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <DadosCadastrais cliente={cliente} />
+      <DadosCadastrais cliente={dados} />
       <Toaster />
     </QueryClientProvider>,
   );
@@ -113,5 +116,53 @@ describe('DadosCadastrais', () => {
     expect(updateCliente).toHaveBeenCalledWith('c1', expect.objectContaining({ cidade: 'Rio Negrinho' }));
     expect(await screen.findByText('Dados do cliente atualizados.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Editar dados' })).toBeInTheDocument();
+  });
+
+  it('cliente sem e-mail, telefone e cidade (criado pela nota) mostra "—" nesses dados', () => {
+    renderizar(clienteDaNota);
+
+    const valorDe = (rotulo: string) => screen.getByText(rotulo, { selector: 'dt' }).nextElementSibling;
+    expect(valorDe('E-mail')).toHaveTextContent(/^—$/);
+    expect(valorDe('Telefone')).toHaveTextContent(/^—$/);
+    expect(valorDe('Cidade')).toHaveTextContent(/^—$/);
+    expect(screen.getByRole('button', { name: 'Adicionar contato' })).toBeInTheDocument();
+  });
+
+  it('editar o cliente sem e-mail: o campo vem vazio, telefone e cidade são pedidos e o e-mail vazio vai como null', async () => {
+    vi.mocked(updateCliente).mockReset().mockResolvedValue(cliente);
+    const usuario = userEvent.setup({ delay: null });
+    renderizar(clienteDaNota);
+
+    await usuario.click(screen.getByRole('button', { name: 'Editar dados' }));
+    expect(screen.getByLabelText('E-mail (opcional)')).toHaveValue('');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    expect(screen.getByText('Telefone é obrigatório.')).toBeInTheDocument();
+    expect(screen.getByText('Cidade é obrigatória.')).toBeInTheDocument();
+    expect(screen.queryByText('E-mail inválido.')).not.toBeInTheDocument();
+    expect(updateCliente).not.toHaveBeenCalled();
+
+    await usuario.type(screen.getByLabelText('Telefone'), '(47) 3633-0000');
+    await usuario.type(screen.getByLabelText('Cidade'), 'São Bento do Sul');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    expect(updateCliente).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ email: null, telefone: '(47) 3633-0000', cidade: 'São Bento do Sul' }),
+    );
+  });
+
+  it('editar: e-mail preenchido mas inválido continua barrado', async () => {
+    vi.mocked(updateCliente).mockReset().mockResolvedValue(cliente);
+    const usuario = userEvent.setup({ delay: null });
+    renderizar();
+
+    await usuario.click(screen.getByRole('button', { name: 'Editar dados' }));
+    await usuario.clear(screen.getByLabelText('E-mail (opcional)'));
+    await usuario.type(screen.getByLabelText('E-mail (opcional)'), 'sem-arroba');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    expect(screen.getByText('E-mail inválido.')).toBeInTheDocument();
+    expect(updateCliente).not.toHaveBeenCalled();
   });
 });

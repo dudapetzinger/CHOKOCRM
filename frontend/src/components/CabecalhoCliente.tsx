@@ -11,7 +11,9 @@
  * abriu). Sem `podeCheckIn` (gestor, cliente inativo), o link vai só com o
  * número. O botão WhatsApp só aparece quando o telefone serve para o
  * WhatsApp (mesmas regras do backend: com DDD, sem 0800 etc.); sem isso, só
- * "Ligar", e a proposta nem é buscada.
+ * "Ligar", e a proposta nem é buscada. Sem telefone nenhum (cliente criado
+ * pelo gestor a partir da nota, sem contato), nem "Ligar" nem WhatsApp; sem
+ * cidade, a linha começa direto no representante.
  *
  * Com `podeTransferir` (gestor), o nome do representante vira um select que
  * transfere o cliente na hora (`PUT /clients/:id { representanteId }`), com
@@ -142,8 +144,12 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
               {cliente.nomeFantasia}
             </h2>
             <p className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm text-muted-foreground">
-              <span>{cliente.cidade}</span>
-              <span aria-hidden="true">·</span>
+              {cliente.cidade && (
+                <>
+                  <span>{cliente.cidade}</span>
+                  <span aria-hidden="true">·</span>
+                </>
+              )}
               {podeTransferir ? (
                 <TransferirCliente cliente={cliente} />
               ) : (

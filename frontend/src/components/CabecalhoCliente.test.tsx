@@ -284,4 +284,22 @@ describe('CabecalhoCliente', () => {
     expect(buscarProposta).not.toHaveBeenCalled();
     expect(gerarMensagem).not.toHaveBeenCalled();
   });
+
+  it('cliente criado pela nota (sem e-mail, sem contato, sem telefone e sem cidade): sem "Ligar" nem WhatsApp e sem buscar a proposta', async () => {
+    renderizar(
+      <CabecalhoCliente
+        cliente={cliente({ email: null, telefone: '', cidade: '', contatos: [] })}
+        podeCheckIn
+        podeTransferir={false}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Armazém São Bento' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Ligar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Novo check-in' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Adicionar contato' })).toBeInTheDocument();
+    expect(screen.getByText(/Rep\.:/).parentElement).not.toHaveTextContent(/^\s*·/);
+    expect(buscarProposta).not.toHaveBeenCalled();
+  });
 });

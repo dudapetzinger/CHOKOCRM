@@ -5,7 +5,9 @@
  * (`vinculo.regras.ts`) e grava tudo numa transação por arquivo. Também cuida
  * das pendências e do vínculo/desvínculo manual feitos pelo gestor, e decide o
  * vínculo das notas ligadas ao cliente criado pela nota fiscal
- * (`decidirVinculoDaNotaLigada`, usado por `cliente-pela-nota.service.ts`).
+ * (`decidirVinculoDaNotaLigada`, usado por `cliente-pela-nota.service.ts`) ou
+ * cadastrado pelo representante (`adotarNotasSemCliente`, usado por
+ * `client.service.ts`).
  */
 import type { Prisma, ResultadoVisita, VinculoNota } from '@prisma/client';
 import { z } from 'zod';
@@ -237,6 +239,28 @@ export async function decidirVinculoDaNotaLigada(
     await visitRepository.substituirItensPorNota(decisao.visitaParaVincular, nota.id, itensDaNotaGravada(nota), tx);
   }
   return decisao.status;
+}
+
+/**
+ * Liga ao cliente recém-criado todas as notas `SEM_CLIENTE` do CNPJ e decide o
+ * vínculo de cada uma, na transação do cadastro. Devolve quantas adotou.
+ */
+export async function adotarNotasSemCliente(
+  tx: Prisma.TransactionClient,
+  cnpj: string,
+  clientId: string,
+): Promise<number> {
+  const notas = await erpSaleRepository.listarSemClienteDoCnpj(cnpj, tx);
+  if (notas.length === 0) return 0;
+  await erpSaleRepository.ligarCliente(
+    notas.map((n) => n.id),
+    clientId,
+    tx,
+  );
+  for (const nota of notas) {
+    await decidirVinculoDaNotaLigada(tx, nota, clientId);
+  }
+  return notas.length;
 }
 
 async function gravarNota(

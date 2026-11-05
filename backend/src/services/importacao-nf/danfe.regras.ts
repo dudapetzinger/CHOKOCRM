@@ -212,11 +212,19 @@ function lerEnderecoEBairro(linha: string): { endereco: string | null; bairro: s
   };
 }
 
+/** O texto até a primeira palavra que tem dígito (nome de município não tem). */
+function antesDaPrimeiraPalavraComDigito(texto: string): string {
+  const palavra = /(?:^|\s)[^\s\d]*\d/.exec(texto);
+  return palavra ? texto.slice(0, palavra.index) : texto;
+}
+
 /**
  * Linha após "MUNICÍPIO FONE / FAX UF …": `município  fone?  UF  IE  hora`.
  * A UF é a primeira sigla válida depois do fone ou, sem fone, a última sigla
  * válida da linha (o nome do município pode ter "DO", "DA"…). Sem fone nem UF,
- * a linha não é a esperada e nada é lido.
+ * a linha não é a esperada e nada é lido. O município termina antes da
+ * primeira palavra com dígito: um fone fora do formato `(DD) NNNN-NNNN`
+ * (`4733875820`, `47 3387 5820`) não entra no nome, e o telefone fica `null`.
  */
 function lerMunicipioUfEFone(linha: string): { municipio: string | null; uf: string | null; telefone: string | null } {
   const fone = REGEX_FONE.exec(linha);
@@ -227,7 +235,7 @@ function lerMunicipioUfEFone(linha: string): { municipio: string | null; uf: str
   if (!fone && !uf) return { municipio: null, uf: null, telefone: null };
   const fimDoMunicipio = fone ? fone.index : (uf?.index ?? 0);
   return {
-    municipio: vazioParaNulo(linha.slice(0, fimDoMunicipio)),
+    municipio: vazioParaNulo(antesDaPrimeiraPalavraComDigito(linha.slice(0, fimDoMunicipio))),
     uf: uf ? uf[0] : null,
     telefone: fone ? fone[0] : null,
   };

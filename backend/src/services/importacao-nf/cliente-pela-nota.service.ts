@@ -4,9 +4,9 @@
  * recente, na carteira do representante escolhido. Numa transação só: cria o
  * cliente (sem e-mail e sem contatos), liga a ele todas as notas
  * `SEM_CLIENTE` do CNPJ e decide o vínculo de cada uma com as regras da
- * importação (`decidirVinculoDaNotaLigada`). Provisório até a API do Senior X.
+ * importação (`adotarNotasSemCliente`, o mesmo do cadastro pelo
+ * representante). Provisório até a API do Senior X.
  */
-import { Prisma } from '@prisma/client';
 import { AppError } from '../../errors/AppError';
 import { ErrorCode } from '../../errors/errorCodes';
 import { prisma } from '../../lib/prisma';
@@ -16,8 +16,8 @@ import type { DestinatarioDaNota } from '../../repositories/erp-sale.repository'
 import type { CriarClientePelaNotaInput } from '../../schemas/cliente-pela-nota.schema';
 import type { UsuarioAutenticado } from '../carteira';
 import { dataDaColunaDate } from '../classificacao.service';
-import { getClientById, type ClienteCompletoDTO } from '../client.service';
-import { decidirVinculoDaNotaLigada } from './importacao.service';
+import { getClientById, mapPrismaUniqueError, type ClienteCompletoDTO } from '../client.service';
+import { adotarNotasSemCliente } from './importacao.service';
 
 const MENSAGEM_CNPJ_JA_CADASTRADO = 'Já existe um cliente com este CNPJ.';
 const MENSAGEM_REPRESENTANTE_INVALIDO = 'Representante inválido.';
@@ -58,7 +58,9 @@ function paraSemClienteDTO(nota: DestinatarioDaNota, notas: number): SemClienteD
 
 /**
  * Endereço do cliente no formato do cadastro: `"<endereço> - <bairro>,
- * <município>/<UF>"`, omitindo as partes ausentes junto com o separador.
+ * <município>/<UF>"`, omitindo as partes ausentes junto com o separador. Sem
+ * endereço e sem bairro, devolve `''`: só município/UF não é endereço, e o
+ * vazio faz a ficha mostrar "—" e a edição pedir o endereço.
  */
 export function montarEndereco(nota: {
   destinatarioEndereco: string | null;
@@ -67,6 +69,7 @@ export function montarEndereco(nota: {
   destinatarioUf: string | null;
 }): string {
   const rua = [nota.destinatarioEndereco, nota.destinatarioBairro].filter(Boolean).join(' - ');
+  if (rua === '') return '';
   const cidade = [nota.destinatarioMunicipio, nota.destinatarioUf].filter(Boolean).join('/');
   return [rua, cidade].filter(Boolean).join(', ');
 }
@@ -75,10 +78,6 @@ export function montarEndereco(nota: {
 export async function listarSemCliente(): Promise<SemClienteDTO[]> {
   const grupos = await erpSaleRepository.listarSemClientePorCnpj();
   return grupos.map((g) => paraSemClienteDTO(g.maisRecente, g.notas));
-}
-
-function cnpjDuplicado(err: unknown): boolean {
-  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
 }
 
 /**
@@ -106,8 +105,7 @@ export async function criarClientePelaNota(
       if (representante?.role !== 'REPRESENTANTE' || !representante.ativo) {
         throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_REPRESENTANTE_INVALIDO, 400);
       }
-      const notas = await erpSaleRepository.listarSemClienteDoCnpj(cnpj, tx);
-      const maisRecente = notas.at(-1);
+      const maisRecente = (await erpSaleRepository.listarSemClienteDoCnpj(cnpj, tx)).at(-1);
       if (maisRecente === undefined) {
         throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_SEM_NOTA, 404);
       }
@@ -128,19 +126,11 @@ export async function criarClientePelaNota(
         tx,
       );
 
-      await erpSaleRepository.ligarCliente(
-        notas.map((n) => n.id),
-        id,
-        tx,
-      );
-      for (const nota of notas) {
-        await decidirVinculoDaNotaLigada(tx, nota, id);
-      }
+      await adotarNotasSemCliente(tx, cnpj, id);
       return id;
     }, OPCOES_DA_TRANSACAO);
   } catch (err) {
-    if (cnpjDuplicado(err)) throw new AppError(ErrorCode.CONFLICT, MENSAGEM_CNPJ_JA_CADASTRADO, 409);
-    throw err;
+    throw mapPrismaUniqueError(err);
   }
 
   return getClientById(clienteId, usuario);

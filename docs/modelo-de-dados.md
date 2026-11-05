@@ -86,16 +86,16 @@ Convenções adotadas nas tabelas abaixo:
 | razao_social | Texto | Sim | Razão social da empresa cliente. |
 | nome_fantasia | Texto | Sim | Nome fantasia da empresa cliente. |
 | cnpj | Texto | Sim | CNPJ do cliente. |
-| cidade | Texto | Sim | Cidade do estabelecimento do cliente. |
+| cidade | Texto | Sim | Cidade do estabelecimento do cliente. No cliente criado pela nota fiscal, é o município da nota, ou texto vazio se a nota não o trazia. |
 | endereco | Texto | Sim | Endereço completo do estabelecimento. |
-| telefone | Texto | Sim | Telefone de contato principal do cliente; usado na geração do link de WhatsApp da mensagem de estoque (seção 6.3 da especificação). |
-| email | Texto | Sim | E-mail de contato do cliente. |
+| telefone | Texto | Sim | Telefone de contato principal do cliente; usado na geração do link de WhatsApp da mensagem de estoque (seção 6.3 da especificação). No cliente criado pela nota fiscal, é o fone da nota, ou texto vazio se a nota não o trazia (sem telefone, a ficha não mostra "Ligar" nem "WhatsApp"). |
+| email | Texto | Não | E-mail de contato do cliente. Desde 06/11 aceita nulo (migration `client_email_opcional`): o cliente criado pelo gestor a partir da nota fiscal (UC28, A2) nasce sem e-mail, que o representante completa na ficha. O cadastro pelo representante (UC02) continua exigindo e-mail; a ficha mostra "—" quando falta. |
 | erp_id | Texto | Não | Identificador do cliente no ERP da Senior Sistemas; chave usada nas consultas ao `ErpProvider` (seção 4 deste documento). Preenchimento recomendado assim que disponível, mas opcional no cadastro — o cliente pode ainda não ter vínculo com o ERP (UC02, UC11 em `docs/casos-de-uso.md`). |
 | recorrencia_dias | Número inteiro | Sim | Intervalo, em dias, entre visitas recorrentes a este cliente. **Valor padrão: 15. Faixa sugerida: 15 a 30.** Alteração exige registro correspondente em `VisitScheduleChange`, com justificativa (seção 6.2 da especificação). |
 | proxima_visita | Data | Não | Data prevista da próxima visita, marcada no check-in ou pela ficha (Etapa 8 e Etapa 11b, UC17). Quando existe, é ela que a agenda usa; nula, a agenda usa a última visita (ou o cadastro) + `recorrencia_dias`. Cada check-in regrava (ou apaga) a data, a ficha também a marca, muda ou limpa (limpar apaga junto a campanha da próxima visita), e alterar a recorrência (UC09) a apaga. |
 | proxima_campanha_id | Chave estrangeira → `Campaign.id` | Não | Campanha da próxima visita (Etapa 8), gravada no check-in e apagada no check-in seguinte ou ao limpar a data pela ficha (Etapa 11b). Excluir a campanha só desvincula (`ON DELETE SET NULL`). |
 | ativo | Booleano | Sim | Indica se o cliente está ativo na carteira do representante. A especificação não define valor padrão explícito para este campo; sugere-se `true` na criação, como decisão de implementação da Etapa 2. |
-| representante_id | FK → User.id | Sim | Representante dono da carteira. Preenchido automaticamente com o usuário que cadastra; só o gestor transfere (Etapa 4). |
+| representante_id | FK → User.id | Sim | Representante dono da carteira. Preenchido automaticamente com o usuário que cadastra; só o gestor transfere (Etapa 4). No cliente criado pela nota fiscal, é o representante que o gestor escolhe. |
 | criado_em | Data/hora | Sim | Data e hora de criação do registro. |
 
 **Etapa 9:** o campo `lembrete` (texto de até 200 caracteres preso à próxima visita) **saiu** de `Client`: o lembrete virou a entidade `Reminder` (seção 3.12), com data própria, e a migration `20261025232841_lembretes_como_tarefa` copiou os lembretes existentes antes de remover a coluna (e a constraint `clients_lembrete_ate_200`).
@@ -285,7 +285,13 @@ Nota fiscal de venda lida de uma DANFE (Etapa 12, UC28). Tabela `erp_sales`. É 
 | natureza_operacao | Texto | Sim | Natureza da operação ("Venda Produção do Estabelecimento", por exemplo). |
 | destinatario_cnpj | Texto (14 dígitos) | Sim | CNPJ do destinatário, só dígitos; é por ele que o provedor `importado` acha as notas de um cliente. Índice em (`destinatario_cnpj`, `data_emissao`). |
 | destinatario_nome | Texto | Sim | Razão social do destinatário na nota. |
-| client_id | Chave estrangeira → `Client.id` | Não | Cliente com aquele CNPJ no momento da importação; nulo se ainda não existia. Apagar o cliente só solta o vínculo (`ON DELETE SET NULL`). |
+| destinatario_endereco | Texto | Não | Logradouro e número do destinatário, lidos da DANFE (desde 06/11); nulo se a nota não traz. A reimportação atualiza este e os cinco campos seguintes. |
+| destinatario_bairro | Texto | Não | Bairro/distrito do destinatário. |
+| destinatario_cep | Texto (`00000-000`) | Não | CEP do destinatário. |
+| destinatario_municipio | Texto | Não | Município do destinatário; vira a `cidade` do cliente criado pela nota. |
+| destinatario_uf | Texto (2 letras) | Não | UF do destinatário. |
+| destinatario_telefone | Texto | Não | Fone/fax do destinatário; vira o `telefone` do cliente criado pela nota. |
+| client_id | Chave estrangeira → `Client.id` | Não | Cliente com aquele CNPJ no momento da importação; nulo se ainda não existia. Criar o cliente pela nota (UC28, A2) preenche este campo em todas as notas `SEM_CLIENTE` do CNPJ. Apagar o cliente só solta o vínculo (`ON DELETE SET NULL`). |
 | valor_produtos | Decimal (12,2) | Sim | Valor total dos produtos. |
 | desconto | Decimal (12,2) | Sim | Desconto da nota. |
 | valor_total | Decimal (12,2) | Sim | Valor total da nota (`VALOR TOTAL DA NOTA`); é o `valor` de `Sale`. |
@@ -328,6 +334,8 @@ Catálogo de produtos aprendido das notas importadas (Etapa 12). Tabela `erp_pro
 O seed de demonstração grava o catálogo do mock (`providers/erp/mock/catalogo.ts`) nesta tabela, com qualquer provedor, e sobrescreve nome e preço de um produto importado com o mesmo código; os produtos de outros códigos ficam como estão.
 
 **Migração (Etapa 12):** a migration `20261105120000_notas_fiscais_importadas` é aditiva: cria o tipo `VinculoNota`, as quatro tabelas acima e a coluna `visits.erp_sale_id` (única, com chave estrangeira para `erp_sales` e `ON DELETE SET NULL`); não altera nem apaga nada que já existia.
+
+**Migrações do "cliente pela nota" (06/11):** `20261106120000_danfe_destinatario_endereco` acrescenta as seis colunas nulas `destinatario_*` (endereço, bairro, CEP, município, UF e telefone) a `erp_sales`, e `20261107120000_client_email_opcional` tira o `NOT NULL` de `clients.email`. As duas são aditivas: nenhum dado existente muda (as notas importadas antes ficam com o endereço nulo até serem reimportadas).
 
 ## 4. Dados externos (ERP)
 

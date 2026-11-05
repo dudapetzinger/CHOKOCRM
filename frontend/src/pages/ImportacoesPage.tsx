@@ -5,8 +5,16 @@
  *     sequência (um por requisição), e cada um ganha o seu resultado — notas,
  *     vinculadas, pendentes, ignoradas — ou o seu erro, sem derrubar os
  *     outros;
- *   - "CNPJs sem cliente no CRM": notas cujo destinatário ainda não é
- *     cliente, com "Copiar CNPJ" para passar ao representante da carteira (só ele cadastra cliente);
+ *     O resultado de um arquivo lista também os CNPJs das notas sem cliente,
+ *     com um link para o bloco abaixo;
+ *   - "CNPJs sem cliente no CRM (N)": bloco persistente (`GET /erp/sem-cliente`,
+ *     lido como as pendências), um item por CNPJ das notas cujo destinatário
+ *     ainda não é cliente — razão social, CNPJ formatado, município, quantas notas. O
+ *     gestor cria o cliente pela nota ali mesmo ("Criar cliente",
+ *     `CriarClientePelaNota`): escolhe o representante, e o cadastro vem da
+ *     DANFE; as notas do CNPJ passam ao cliente novo e o item some. "Copiar
+ *     CNPJ" continua, para quem preferir que o representante cadastre (o
+ *     cadastro dele também adota as notas do CNPJ e o item some);
  *   - "Pendências": notas com uma visita sugerida, à espera de o gestor
  *     vincular ou deixar só no ERP; a linha avisa que os itens do pedido
  *     passam a ser os da nota e, se a visita não é Venda, que ela passa a ser
@@ -28,8 +36,10 @@ import { Button } from '@/components/ui/button';
 import { contar } from '@/lib/contar';
 import { useAuth } from '../auth/useAuth';
 import { AvisoExclusivoDoGestor } from '../components/AvisoExclusivoDoGestor';
+import { CriarClientePelaNota } from '../components/crm/CriarClientePelaNota';
 import { Aviso, Cartao } from '../components/crm/ui';
-import { useImportacoes, usePendencias } from '../hooks/useImportacoes';
+import { useImportacoes, usePendencias, useSemCliente } from '../hooks/useImportacoes';
+import { formatarCnpj } from '../lib/formatarCnpj';
 import { formatarData, formatarDiaMes } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
 import { useDevolverFoco } from '../lib/useFoco';
@@ -38,6 +48,7 @@ import {
   desvincularNota,
   importarPdf,
   vincularNota,
+  type CnpjSemCliente,
   type Importacao,
   type Nota,
   type VinculoNota,
@@ -46,6 +57,8 @@ import { ROTULO_RESULTADO } from '../services/visits';
 
 const MENSAGEM_ERRO_IMPORTAR = 'Não foi possível importar este arquivo.';
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar a lista.';
+/** Âncora do bloco "CNPJs sem cliente no CRM", para o link do resultado da importação. */
+const ID_SEM_CLIENTE = 'cnpjs-sem-cliente';
 
 /** Estado do vínculo da nota no histórico, nas palavras do resumo da importação. */
 const ROTULO_VINCULO: Record<VinculoNota, string> = {
@@ -130,12 +143,6 @@ function Importacoes() {
     void queryClient.invalidateQueries({ queryKey: ['erp'] });
   }
 
-  const semClientes = new Map<string, string>();
-  for (const resultado of resultados) {
-    if (resultado.estado !== 'ok') continue;
-    for (const { cnpj, razaoSocial } of resultado.importacao.cnpjsSemCliente) semClientes.set(cnpj, razaoSocial);
-  }
-
   return (
     <div className="space-y-4">
       <Cartao titulo="Importar notas">
@@ -172,6 +179,18 @@ function Importacoes() {
                 {resultado.estado === 'aguardando' && <p className="text-muted-foreground">Aguardando...</p>}
                 {resultado.estado === 'enviando' && <p className="text-muted-foreground">Importando...</p>}
                 {resultado.estado === 'ok' && <p>{resumo(resultado.importacao)}</p>}
+                {resultado.estado === 'ok' && resultado.importacao.cnpjsSemCliente.length > 0 && (
+                  <p className="text-muted-foreground">
+                    Sem cliente no CRM:{' '}
+                    {resultado.importacao.cnpjsSemCliente
+                      .map(({ cnpj, razaoSocial }) => `${razaoSocial} · ${cnpj}`)
+                      .join('; ')}
+                    .{' '}
+                    <a href={`#${ID_SEM_CLIENTE}`} className="font-medium text-primary underline-offset-4 hover:underline">
+                      Criar o cliente no bloco "CNPJs sem cliente no CRM"
+                    </a>
+                  </p>
+                )}
                 {resultado.estado === 'ok' &&
                   resultado.importacao.ignoradas.map(({ numero, motivo }, i) => (
                     <p key={i} className="text-muted-foreground">
@@ -189,30 +208,69 @@ function Importacoes() {
         )}
       </Cartao>
 
-      {semClientes.size > 0 && (
-        <Cartao titulo="CNPJs sem cliente no CRM">
-          <ul className="divide-y">
-            {[...semClientes].map(([cnpj, razaoSocial]) => (
-              <li key={cnpj} className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
-                <span>
-                  {razaoSocial} <span className="text-muted-foreground">· {cnpj}</span>
-                </span>
-                <Button type="button" variant="outline" size="sm" onClick={() => void copiarCnpj(cnpj)}>
-                  Copiar CNPJ
-                </Button>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Peça ao representante da carteira para cadastrar o cliente com este CNPJ. Cadastrado o cliente, as vendas dele
-            já aparecem na ficha; para vincular a nota a uma visita, importe o PDF de novo.
-          </p>
-        </Cartao>
-      )}
-
+      <SemCliente />
       <Pendencias />
       <ImportacoesAnteriores />
     </div>
+  );
+}
+
+/**
+ * CNPJs das notas sem cliente no CRM, com "Criar cliente" e "Copiar CNPJ".
+ * Sem nenhum, o bloco não aparece; criado o cliente, a lista é buscada de
+ * novo (`['erp']`) e o item some.
+ */
+function SemCliente() {
+  const { data: itens, isError, error } = useSemCliente();
+
+  if (isError) {
+    return (
+      <Cartao titulo="CNPJs sem cliente no CRM">
+        <Aviso tom="erro" role="alert">
+          {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
+        </Aviso>
+      </Cartao>
+    );
+  }
+  if (!itens || itens.length === 0) return null;
+
+  return (
+    <div id={ID_SEM_CLIENTE} className="scroll-mt-4">
+      <Cartao titulo={`CNPJs sem cliente no CRM (${itens.length})`}>
+        <ul aria-label="CNPJs sem cliente no CRM" className="divide-y">
+          {itens.map((item) => (
+            <ItemSemCliente key={item.cnpj} item={item} />
+          ))}
+        </ul>
+        <p className="mt-3 text-sm text-muted-foreground">
+          "Criar cliente" cadastra o cliente com os dados da nota, na carteira do representante escolhido, e as notas
+          deste CNPJ passam a ser dele; o representante completa e-mail e contatos na ficha. Se preferir que o
+          representante cadastre, use "Copiar CNPJ": cadastrado o cliente pelo representante, as notas deste CNPJ
+          passam a ser dele e o CNPJ sai desta lista.
+        </p>
+      </Cartao>
+    </div>
+  );
+}
+
+function ItemSemCliente({ item }: { item: CnpjSemCliente }) {
+  const local = item.municipio ? (item.uf ? `${item.municipio}/${item.uf}` : item.municipio) : null;
+
+  return (
+    <li className="space-y-2 py-3 text-sm">
+      <p>
+        <b className="font-medium">{item.razaoSocial}</b>
+        <br />
+        <span className="text-muted-foreground">
+          {[formatarCnpj(item.cnpj), local, contar(item.notas, 'nota')].filter(Boolean).join(' · ')}
+        </span>
+      </p>
+      <CriarClientePelaNota item={item}>
+        <Button type="button" variant="outline" size="sm" onClick={() => void copiarCnpj(item.cnpj)}>
+          Copiar CNPJ
+        </Button>
+      </CriarClientePelaNota>
+    </li>
   );
 }
 

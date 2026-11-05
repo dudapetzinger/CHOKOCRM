@@ -63,7 +63,8 @@ export type ClienteCompleto = {
   cidade: string;
   endereco: string;
   telefone: string;
-  email: string;
+  /** Opcional: o cliente criado pelo gestor a partir da nota fiscal nasce sem e-mail. */
+  email: string | null;
   erpId: string | null;
   recorrenciaDias: number;
   ativo: boolean;
@@ -109,7 +110,8 @@ export type UpdateClienteInput = Partial<{
   cidade: string;
   endereco: string;
   telefone: string;
-  email: string;
+  /** `null` apaga o e-mail (ele é opcional no cliente). */
+  email: string | null;
   erpId: string;
   ativo: boolean;
   representanteId: string;
@@ -236,9 +238,14 @@ const CNPJ_REGEX = /^\d{14}$/;
 /**
  * Validação client-side dos campos do cliente, espelhando
  * `createClientSchema`/`updateClientSchema` (zod). Não substitui a validação
- * do backend — apenas evita idas e vindas desnecessárias à API.
+ * do backend — apenas evita idas e vindas desnecessárias à API. O cadastro
+ * do representante exige e-mail; com `emailOpcional` (edição na ficha), o
+ * e-mail vazio passa e só o preenchido é conferido.
  */
-export function validarDadosCliente(dados: DadosClienteFormulario): ErrosDadosCliente {
+export function validarDadosCliente(
+  dados: DadosClienteFormulario,
+  { emailOpcional = false }: { emailOpcional?: boolean } = {},
+): ErrosDadosCliente {
   const erros: ErrosDadosCliente = {};
 
   if (!dados.razaoSocial.trim()) erros.razaoSocial = 'Razão social é obrigatória.';
@@ -247,7 +254,8 @@ export function validarDadosCliente(dados: DadosClienteFormulario): ErrosDadosCl
   if (!dados.cidade.trim()) erros.cidade = 'Cidade é obrigatória.';
   if (!dados.endereco.trim()) erros.endereco = 'Endereço é obrigatório.';
   if (!dados.telefone.trim()) erros.telefone = 'Telefone é obrigatório.';
-  if (!EMAIL_REGEX.test(dados.email.trim())) erros.email = 'E-mail inválido.';
+  const email = dados.email.trim();
+  if (!(emailOpcional && email === '') && !EMAIL_REGEX.test(email)) erros.email = 'E-mail inválido.';
 
   if (dados.recorrenciaDias.trim()) {
     const numero = Number(dados.recorrenciaDias);
@@ -279,9 +287,10 @@ export function normalizarDadosCliente(
 /**
  * Mesma normalização de `normalizarDadosCliente`, mas sem `recorrenciaDias`:
  * usada na edição dos dados do cliente, já que a recorrência agora tem seu
- * próprio fluxo (com justificativa e histórico) em `RecorrenciaCard`.
+ * próprio fluxo (com justificativa e histórico) em `RecorrenciaCard`. Na
+ * edição o e-mail é opcional: vazio vai como `null`.
  */
 export function normalizarDadosEdicao(dados: DadosClienteFormulario): UpdateClienteInput {
-  const { recorrenciaDias: _recorrenciaDias, ...resto } = normalizarDadosCliente(dados);
-  return resto;
+  const { recorrenciaDias: _recorrenciaDias, email, ...resto } = normalizarDadosCliente(dados);
+  return { ...resto, email: email === '' ? null : email };
 }
