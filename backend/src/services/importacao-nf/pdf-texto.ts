@@ -71,6 +71,9 @@ function lerItensDasPaginas(conteudo: Buffer): Promise<ItemDeTexto[][]> {
     const dados = new Uint8Array(conteudo);
     const trabalhador = new Worker(CODIGO_DO_TRABALHADOR, {
       eval: true,
+      // PDF de até 10 MB numa máquina B1 de 1,75 GB: o teto de heap do worker
+      // protege o processo da API; estourar cai em `error` e vira o 400.
+      resourceLimits: { maxOldGenerationSizeMb: 256 },
       workerData: {
         modulo: pathToFileURL(join(raizDoPdfjs(), 'legacy', 'build', 'pdf.mjs')).href,
         fontes: `${join(raizDoPdfjs(), 'standard_fonts').split(sep).join('/')}/`,

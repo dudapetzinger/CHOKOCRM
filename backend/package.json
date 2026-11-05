@@ -4,7 +4,7 @@
   "description": "API backend do ChokoCRM (Express + TypeScript)",
   "main": "dist/server.js",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
     "postinstall": "prisma generate",

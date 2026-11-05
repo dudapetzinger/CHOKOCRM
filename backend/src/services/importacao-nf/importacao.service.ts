@@ -354,7 +354,9 @@ export async function vincular(saleId: string, visitId: string): Promise<NotaDTO
 /**
  * Desfaz o vínculo (a visita fica sem itens) ou, numa pendência, responde
  * "não". Em ambos os casos a nota fica `RECUSADA`, e uma reimportação não a
- * vincula nem pergunta de novo.
+ * vincula nem pergunta de novo. Uma nota `AUTOMATICO`/`VINCULADA` cuja visita
+ * foi apagada (ex.: pelo `db:seed:reset`) também fica `RECUSADA`, em vez de
+ * seguir "vinculada" sem visita.
  */
 export async function desvincular(saleId: string): Promise<NotaDTO> {
   return prisma.$transaction(async (tx) => {
@@ -365,7 +367,11 @@ export async function desvincular(saleId: string): Promise<NotaDTO> {
     if (nota.visita !== null) {
       await visitRepository.desvincularNota(nota.visita.id, tx);
       status = 'RECUSADA';
-    } else if (nota.vinculoStatus === 'PENDENTE') {
+    } else if (
+      nota.vinculoStatus === 'PENDENTE' ||
+      nota.vinculoStatus === 'AUTOMATICO' ||
+      nota.vinculoStatus === 'VINCULADA'
+    ) {
       status = 'RECUSADA';
     }
 

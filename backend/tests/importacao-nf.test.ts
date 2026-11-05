@@ -445,6 +445,22 @@ describe('vínculo manual', () => {
     expect(await prisma.visitItem.count({ where: { visitId: visita.id } })).toBe(0);
   });
 
+  it('desvincular uma nota vinculada cuja visita foi apagada a deixa RECUSADA', async () => {
+    const visita = await criarVisita(DIA_DA_NOTA);
+    const importada = await importar(tokenGestor);
+    const id = importada.body.notas[0].id;
+    expect(importada.body.notas[0].vinculo).toBe('AUTOMATICO');
+    await prisma.visitItem.deleteMany({ where: { visitId: visita.id } });
+    await prisma.visit.delete({ where: { id: visita.id } });
+
+    const res = await request(app).delete(`/erp/vendas/${id}/vinculo`).set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id, vinculo: 'RECUSADA', visitaVinculadaId: null });
+    const nota = await prisma.erpSale.findUniqueOrThrow({ where: { id } });
+    expect(nota.vinculoStatus).toBe('RECUSADA');
+  });
+
   it('PDF só com notas ignoradas: 201 com notas vazias e uma importação gravada', async () => {
     const devolucao = readFileSync(join(__dirname, 'fixtures', 'danfe-devolucao.txt'), 'utf8').split(/\r?\n/);
     simularPdf(devolucao);

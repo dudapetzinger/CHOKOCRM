@@ -14,7 +14,9 @@ import { truncateAllTables } from './helpers/db';
  * Etapa 12b), sem nenhum produto importado (`ErpProduct` vazio): os pedidos
  * saem do catálogo de demonstração direto, e o mesmo catálogo vai para
  * `ErpProduct`, para o check-in e as campanhas da demonstração o acharem. Os
- * totais e o resto do seed estão em `seed.test.ts` (provedor mock).
+ * totais e o resto do seed estão em `seed.test.ts` (provedor mock). O reset
+ * também solta as notas vinculadas ou pendentes (visitas apagadas), para uma
+ * reimportação decidir o vínculo de novo.
  */
 
 const HOJE = new Date('2026-10-19T15:00:00.000Z');
@@ -86,5 +88,70 @@ describe('seed de demonstração com o provedor importado', () => {
         produtos: salva.produtos,
       });
     expect(edicao.status).toBe(200);
+  });
+
+  it('notas vinculadas ou pendentes voltam a SEM_VISITA, sem visita sugerida; as recusadas ficam como estão', async () => {
+    const gestor = await prisma.user.create({
+      data: { nome: 'Gestor do teste', email: 'gestor.reset@chokolaten.com.br', role: 'GESTOR', senhaHash: 'x' },
+    });
+    const cliente = await prisma.client.create({
+      data: {
+        razaoSocial: 'Don Giacomo Ltda',
+        nomeFantasia: 'Don Giacomo',
+        cnpj: '25382906000149',
+        cidade: 'Pomerode',
+        endereco: 'Rua Boa Vista, 80',
+        telefone: '(47) 3387-5820',
+        email: 'contato@exemplo.com.br',
+        representanteId: gestor.id,
+      },
+    });
+    const visita = await prisma.visit.create({
+      data: { clientId: cliente.id, userId: gestor.id, dataHora: HOJE, descricao: 'Visita', resultado: 'VENDA' },
+    });
+    const importacao = await prisma.erpImport.create({
+      data: {
+        userId: gestor.id,
+        nomeArquivo: 'notas.pdf',
+        notasImportadas: 4,
+        notasIgnoradas: 0,
+        vinculadasAutomaticamente: 1,
+        pendentes: 1,
+        cnpjsSemCliente: [],
+      },
+    });
+    const nota = (numero: string, vinculoStatus: 'AUTOMATICO' | 'VINCULADA' | 'PENDENTE' | 'RECUSADA') =>
+      prisma.erpSale.create({
+        data: {
+          chaveAcesso: `422611418870170001905500100000${numero}1844654424`,
+          numero,
+          serie: '1',
+          dataEmissao: new Date('2026-10-19'),
+          naturezaOperacao: 'VENDA',
+          destinatarioCnpj: '25382906000149',
+          destinatarioNome: 'Don Giacomo Ltda',
+          clientId: cliente.id,
+          valorProdutos: 100,
+          desconto: 0,
+          valorTotal: 100,
+          importId: importacao.id,
+          vinculoStatus,
+          visitaSugeridaId: vinculoStatus === 'PENDENTE' ? visita.id : null,
+        },
+      });
+    const vinculada = await nota('2455', 'VINCULADA');
+    const automatica = await nota('2456', 'AUTOMATICO');
+    const pendente = await nota('2457', 'PENDENTE');
+    const recusada = await nota('2458', 'RECUSADA');
+    await prisma.visit.update({ where: { id: visita.id }, data: { erpSaleId: vinculada.id } });
+
+    await reiniciarDemonstracao(prisma, HOJE);
+
+    const depois = await prisma.erpSale.findMany({ include: { visita: true } });
+    const porId = new Map(depois.map((n) => [n.id, n]));
+    for (const id of [vinculada.id, automatica.id, pendente.id]) {
+      expect(porId.get(id)).toMatchObject({ vinculoStatus: 'SEM_VISITA', visitaSugeridaId: null, visita: null });
+    }
+    expect(porId.get(recusada.id)?.vinculoStatus).toBe('RECUSADA');
   });
 });

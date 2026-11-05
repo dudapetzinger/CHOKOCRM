@@ -210,6 +210,12 @@ describe('ImportacoesPage', () => {
     expect(await screen.findByText('CNPJs sem cliente no CRM')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Novo cliente' })).not.toBeInTheDocument();
     expect(screen.getByText(/Peça ao representante da carteira para cadastrar o cliente com este CNPJ/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Cadastrado o cliente, as vendas dele já aparecem na ficha; para vincular a nota a uma visita, importe o PDF de novo\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/na próxima importação/)).not.toBeInTheDocument();
     await usuario.click(screen.getByRole('button', { name: 'Copiar CNPJ' }));
     expect(await screen.findByText('CNPJ copiado')).toBeInTheDocument();
     expect(await navigator.clipboard.readText()).toBe('99888777000166');
@@ -223,6 +229,41 @@ describe('ImportacoesPage', () => {
 
     expect(vincularNota).toHaveBeenCalledWith('n9', 'v1');
     await waitFor(() => expect(screen.queryByText(/2460/)).not.toBeInTheDocument());
+  });
+
+  it('pendência: vincular busca de novo a ficha do cliente (vendas e visitas)', async () => {
+    const invalidar = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    vi.mocked(listarPendencias).mockResolvedValueOnce([PENDENTE]).mockResolvedValue([]);
+    renderizar();
+
+    await usuario.click(await screen.findByRole('button', { name: 'Vincular à visita de 03/11 (Houve venda)' }));
+
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ['client'] }));
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ['erp'] });
+    invalidar.mockRestore();
+  });
+
+  it('pendência com visita em negociação avisa que ela passa a contar como Venda e que os itens passam a ser os da nota', async () => {
+    vi.mocked(listarPendencias).mockResolvedValue([
+      nota({
+        id: 'n9',
+        numero: '2460',
+        vinculo: 'PENDENTE',
+        visitaSugerida: { id: 'v1', dataHora: '2026-11-03T15:00:00.000Z', resultado: 'NEGOCIACAO', totalPedido: null },
+      }),
+    ]);
+    renderizar();
+
+    expect(await screen.findByText(/A visita de 03\/11 \(Em negociação\) passa a contar como Venda\./)).toBeInTheDocument();
+    expect(screen.getByText(/Os itens do pedido passam a ser os da nota\./)).toBeInTheDocument();
+  });
+
+  it('pendência com visita que já é Venda avisa só que os itens passam a ser os da nota', async () => {
+    vi.mocked(listarPendencias).mockResolvedValue([PENDENTE]);
+    renderizar();
+
+    expect(await screen.findByText(/Os itens do pedido passam a ser os da nota\./)).toBeInTheDocument();
+    expect(screen.queryByText(/passa a contar como Venda/)).not.toBeInTheDocument();
   });
 
   it('pendência: "Deixar só no ERP" desvincula e some da lista', async () => {
@@ -284,15 +325,41 @@ describe('ImportacoesPage', () => {
       .mockResolvedValueOnce([importacao({ notas: [vinculada] })])
       .mockResolvedValue([importacao({ notas: [recusada] })]);
     vi.mocked(desvincularNota).mockResolvedValue(recusada);
+    const invalidar = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
     renderizar();
 
     const item = await notaDoHistorico('2455');
     expect(item).toHaveTextContent(/Doceria Central — nota 2455 de 04\/11 · R\$\s1\.000,00 · Vinculada à visita/);
     await usuario.click(within(item).getByRole('button', { name: 'Desvincular' }));
 
+    expect(desvincularNota).not.toHaveBeenCalled();
+    expect(item).toHaveTextContent(
+      'Desvincular a nota 2455? Os itens da visita ficam vazios e a nota não volta a ser vinculada.',
+    );
+    expect(within(item).getByRole('button', { name: 'Confirmar' })).toHaveFocus();
+    await usuario.click(within(item).getByRole('button', { name: 'Confirmar' }));
+
     expect(desvincularNota).toHaveBeenCalledWith('n7');
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Desvincular' })).not.toBeInTheDocument());
     expect(await notaDoHistorico('2455')).toHaveTextContent(/· Só no ERP$/);
+    expect(screen.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument();
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ['client'] });
+    invalidar.mockRestore();
+  });
+
+  it('importações anteriores: "Cancelar" fecha a confirmação sem desvincular e devolve o foco ao botão', async () => {
+    vi.mocked(listarImportacoes).mockResolvedValue([
+      importacao({ notas: [nota({ id: 'n7', vinculo: 'VINCULADA', visitaVinculadaId: 'v1' })] }),
+    ]);
+    renderizar();
+
+    const item = await notaDoHistorico('2455');
+    await usuario.click(within(item).getByRole('button', { name: 'Desvincular' }));
+    await usuario.click(within(item).getByRole('button', { name: 'Cancelar' }));
+
+    expect(desvincularNota).not.toHaveBeenCalled();
+    expect(item).not.toHaveTextContent(/Desvincular a nota 2455\?/);
+    expect(within(item).getByRole('button', { name: 'Desvincular' })).toHaveFocus();
   });
 
   it('importações anteriores: nota vinculada automaticamente também oferece "Desvincular"', async () => {

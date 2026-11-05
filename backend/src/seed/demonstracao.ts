@@ -974,12 +974,19 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
  * sazonais não são apagados (o upsert os mantém em dia). Nada do ERP
  * importado é apagado — notas, importações e produtos (`ErpProduct`) ficam;
  * os produtos de demonstração voltam ao nome e preço do catálogo pelo upsert.
+ * Antes de apagar as visitas, as notas vinculadas (`AUTOMATICO`, `VINCULADA`)
+ * ou pendentes voltam a `SEM_VISITA`, sem visita sugerida: a visita delas some,
+ * e uma reimportação decide o vínculo de novo. As `RECUSADA` ficam como estão.
  */
 export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): Promise<void> {
   await prisma.$transaction(
     async (tx) => {
       await tx.goal.deleteMany();
       await tx.reminder.deleteMany();
+      await tx.erpSale.updateMany({
+        where: { vinculoStatus: { in: ['AUTOMATICO', 'VINCULADA', 'PENDENTE'] } },
+        data: { vinculoStatus: 'SEM_VISITA', visitaSugeridaId: null },
+      });
       await tx.visitItem.deleteMany();
       await tx.visit.deleteMany();
       await tx.stockMessage.deleteMany();

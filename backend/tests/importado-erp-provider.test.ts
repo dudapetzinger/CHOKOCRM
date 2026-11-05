@@ -334,6 +334,36 @@ describe('GET /erp/produtos (importado)', () => {
   });
 });
 
+describe('POST /clients/:id/visits (importado)', () => {
+  it('check-in com pedido usa o catálogo importado (ErpProduct); SKU fora dele é recusado', async () => {
+    const clienteId = await criarCliente(CNPJ_EMPORIO, 'Empório Pomerode');
+    await prisma.erpProduct.create({ data: { codigo: 'BAR0019', nome: 'Barra ao leite 100 g', precoUnitario: 8.9 } });
+    const postar = (sku: string) =>
+      request(app)
+        .post(`/clients/${clienteId}/visits`)
+        .set('Authorization', `Bearer ${tokenRep}`)
+        .send({ descricao: 'Pedido de barras.', resultado: 'VENDA', itens: [{ sku, quantidade: 4 }] });
+
+    const res = await postar('BAR0019');
+
+    expect(res.status).toBe(201);
+    expect(res.body.itens).toEqual([
+      { sku: 'BAR0019', produtoNome: 'Barra ao leite 100 g', quantidade: 4, precoUnitario: 8.9 },
+    ]);
+    const gravados = await prisma.visitItem.findMany({ where: { visitId: res.body.id } });
+    expect(gravados.map((item) => [item.sku, item.produtoNome, item.quantidade, item.precoUnitario.toFixed(2)])).toEqual([
+      ['BAR0019', 'Barra ao leite 100 g', 4, '8.90'],
+    ]);
+
+    const recusada = await postar('BOMB-SORT');
+
+    expect(recusada.status).toBe(400);
+    expect(recusada.body.error.code).toBe('VALIDATION_ERROR');
+    expect(recusada.body.error.message).toBe('Produto não encontrado no catálogo.');
+    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(1);
+  });
+});
+
 describe('GET /dashboard/vendas-mensais (importado)', () => {
   it('soma as notas do mês de cada cliente ativo, pelo CNPJ', async () => {
     const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');

@@ -8,16 +8,19 @@
  *   - "CNPJs sem cliente no CRM": notas cujo destinatário ainda não é
  *     cliente, com "Copiar CNPJ" para passar ao representante da carteira (só ele cadastra cliente);
  *   - "Pendências": notas com uma visita sugerida, à espera de o gestor
- *     vincular ou deixar só no ERP;
+ *     vincular ou deixar só no ERP; a linha avisa que os itens do pedido
+ *     passam a ser os da nota e, se a visita não é Venda, que ela passa a ser
+ *     (spec 2.4);
  *   - "Importações anteriores": as últimas 20, cada uma com as suas notas e o
  *     estado do vínculo hoje ("Vinculada à visita", "Pendente" ou "Só no
  *     ERP"); a nota vinculada tem "Desvincular" (spec 2.5), a mesma ação do
- *     "Deixar só no ERP" da pendência.
+ *     "Deixar só no ERP" da pendência, com confirmação na própria linha
+ *     (não tem volta: a nota não é vinculada de novo).
  * As regras valem no backend; as mensagens dele aparecem como vêm.
  * O dia de emissão da nota é data de calendário ('AAAA-MM-DD') e é formatado
  * por texto (`formatarDiaMes`); a data da visita é um instante ISO.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileUp } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,6 +32,7 @@ import { Aviso, Cartao } from '../components/crm/ui';
 import { useImportacoes, usePendencias } from '../hooks/useImportacoes';
 import { formatarData, formatarDiaMes } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
+import { useDevolverFoco } from '../lib/useFoco';
 import { mensagemErroApi } from '../services/clients';
 import {
   desvincularNota,
@@ -200,8 +204,8 @@ function Importacoes() {
             ))}
           </ul>
           <p className="mt-3 text-sm text-muted-foreground">
-            Peça ao representante da carteira para cadastrar o cliente com este CNPJ. As notas passam a aparecer na ficha
-            dele na próxima importação.
+            Peça ao representante da carteira para cadastrar o cliente com este CNPJ. Cadastrado o cliente, as vendas dele
+            já aparecem na ficha; para vincular a nota a uma visita, importe o PDF de novo.
           </p>
         </Cartao>
       )}
@@ -238,11 +242,17 @@ function Pendencias() {
 /**
  * Vincular e desvincular uma nota, usados pela pendência e pelo histórico.
  * Depois de qualquer um, tudo do ERP (`['erp']`: importações, pendências,
- * situação) é buscado de novo, e a nota aparece no estado novo sem recarregar.
+ * situação) é buscado de novo, e a nota aparece no estado novo sem recarregar;
+ * a ficha dos clientes (`['client']`: vendas do ERP e visitas, cujos itens e
+ * resultado mudaram) também.
  */
 function useAcoesDaNota(nota: Nota) {
   const queryClient = useQueryClient();
-  const aoConcluir = () => queryClient.invalidateQueries({ queryKey: ['erp'] });
+  const aoConcluir = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['erp'] }),
+      queryClient.invalidateQueries({ queryKey: ['client'] }),
+    ]);
   const aoFalhar = (erro: unknown) => toast.error(mensagemErroApi(erro, 'Não foi possível salvar. Tente novamente.'));
 
   const vincular = useMutation({
@@ -288,6 +298,13 @@ function LinhaPendente({ nota }: { nota: Nota }) {
           Deixar só no ERP
         </Button>
       </div>
+      {visita && (
+        <p className="text-muted-foreground">
+          {visita.resultado !== 'VENDA' &&
+            `A visita de ${diaMes(visita.dataHora)}${visita.resultado ? ` (${ROTULO_RESULTADO[visita.resultado]})` : ''} passa a contar como Venda. `}
+          Os itens do pedido passam a ser os da nota.
+        </p>
+      )}
     </li>
   );
 }
@@ -325,19 +342,67 @@ function ImportacoesAnteriores() {
   );
 }
 
+/**
+ * Nota do histórico. "Desvincular" não tem volta (a nota não é vinculada de
+ * novo), então pede confirmação na própria linha: o foco vai para
+ * "Confirmar" ao abrir e volta ao botão em "Cancelar".
+ */
 function LinhaDoHistorico({ nota }: { nota: Nota }) {
   const { desvincular, ocupada } = useAcoesDaNota(nota);
   const vinculada = nota.vinculo === 'VINCULADA' || nota.vinculo === 'AUTOMATICO';
+  const [confirmando, setConfirmando] = useState(false);
+  const { ref: botaoDesvincular, devolverFoco } = useDevolverFoco<HTMLButtonElement>(confirmando);
+  const botaoConfirmar = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (confirmando) botaoConfirmar.current?.focus();
+  }, [confirmando]);
 
   return (
     <li className="flex flex-wrap items-center justify-between gap-2">
       <span>
         <DescricaoDaNota nota={nota} /> · {ROTULO_VINCULO[nota.vinculo]}
       </span>
-      {vinculada && (
-        <Button type="button" size="sm" variant="outline" disabled={ocupada} onClick={() => desvincular.mutate()}>
+      {vinculada && !confirmando && (
+        <Button
+          ref={botaoDesvincular}
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={ocupada}
+          onClick={() => setConfirmando(true)}
+        >
           Desvincular
         </Button>
+      )}
+      {vinculada && confirmando && (
+        <div className="flex flex-wrap items-center gap-2 text-foreground">
+          <span>
+            Desvincular a nota {nota.numero}? Os itens da visita ficam vazios e a nota não volta a ser vinculada.
+          </span>
+          <Button
+            ref={botaoConfirmar}
+            type="button"
+            size="sm"
+            variant="destructive"
+            disabled={ocupada}
+            onClick={() => desvincular.mutate(undefined, { onSuccess: () => setConfirmando(false) })}
+          >
+            Confirmar
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={ocupada}
+            onClick={() => {
+              devolverFoco();
+              setConfirmando(false);
+            }}
+          >
+            Cancelar
+          </Button>
+        </div>
       )}
     </li>
   );

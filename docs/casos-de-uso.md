@@ -934,13 +934,13 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 4. O sistema grava cada nota pela chave de acesso, junto dos itens e dos produtos vistos (o catálogo do pedido e das campanhas) e procura o cliente pelo CNPJ do destinatário (14 dígitos = `Client.cnpj`).
 5. Havendo cliente, o sistema compara a data da nota com a da última visita dele (a mais recente, de qualquer resultado, no calendário de São Paulo): se for a mesma, vincula a nota à visita sozinho — os itens do pedido da visita passam a ser os da nota e o resultado vira "Venda" (UC16); se for outra, deixa a nota pendente.
 6. O sistema mostra, por arquivo, o resumo "N notas · V vinculadas · P pendentes · S só no ERP · I ignoradas", as notas ignoradas com o motivo e os "CNPJs sem cliente no CRM".
-7. O gestor responde às pendências, no resultado ou no bloco "Pendências (N)" da página: "Vincular à visita de dd/mm (Resultado)" faz o mesmo que o vínculo automático; "Deixar só no ERP" mantém a nota fora da visita.
+7. O gestor responde às pendências no bloco "Pendências (N)", abaixo do resultado por arquivo (o resultado só mostra as contagens): "Vincular à visita de dd/mm (Resultado)" faz o mesmo que o vínculo automático; "Deixar só no ERP" mantém a nota fora da visita.
 
 **Fluxos alternativos:**
 - **A1** (passo 5): o cliente não tem visita — a nota fica só no ERP (`SEM_VISITA`), sem pergunta.
 - **A2** (passo 4): nenhum cliente tem aquele CNPJ — a nota fica gravada sem cliente (`SEM_CLIENTE`) e o CNPJ aparece em "CNPJs sem cliente no CRM", com "Copiar CNPJ", para o representante da carteira cadastrar o cliente (o gestor não cadastra cliente, UC02). Cadastrado o cliente, as notas aparecem na ficha dele, porque o provedor lê pelo CNPJ; o vínculo com a visita só é feito ao reimportar a nota.
 - **A3** (passo 3): a nota já foi importada — o sistema atualiza a nota e os itens pela chave de acesso, sem duplicar, e mantém o vínculo (refazendo os itens da visita); uma nota que o gestor recusou não volta a ser vinculada.
-- **A4** (passo 7): o gestor desfaz um vínculo (pelo botão "Desvincular" em "Importações anteriores", nas notas vinculadas ou automáticas; `DELETE /erp/vendas/:id/vinculo`) — os itens da visita ficam vazios e a nota passa a "recusada"; o resultado da visita não volta ao valor anterior.
+- **A4** (passo 7): o gestor desfaz um vínculo (pelo botão "Desvincular" em "Importações anteriores", nas notas vinculadas ou automáticas; `DELETE /erp/vendas/:id/vinculo`, depois de confirmar na própria linha) — os itens da visita ficam vazios e a nota passa a "recusada"; o resultado da visita não volta ao valor anterior.
 - **A5** (passo 5): a visita da mesma data já tem outra nota — a nova fica pendente, porque uma visita só recebe uma nota.
 
 **Fluxos de exceção:**
