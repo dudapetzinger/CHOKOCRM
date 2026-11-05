@@ -80,6 +80,7 @@ export async function update(
 
   const [usuario] = await prisma.$transaction([
     prisma.user.update({ where: { id }, data }),
+    // relógio real: uso do token de redefinição (segurança).
     prisma.passwordResetToken.updateMany({ where: linksAbertos(id), data: { usadoEm: new Date() } }),
   ]);
   return usuario;
@@ -89,6 +90,7 @@ export async function update(
 export async function updateSenhaEInvalidarLinks(id: string, senhaHash: string): Promise<void> {
   await prisma.$transaction([
     prisma.user.update({ where: { id }, data: { senhaHash } }),
+    // relógio real: uso do token de redefinição (segurança).
     prisma.passwordResetToken.updateMany({ where: linksAbertos(id), data: { usadoEm: new Date() } }),
   ]);
 }

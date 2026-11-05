@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { dataCalendario } from '../services/classificacao.service';
+import { agora } from '../lib/relogio';
 
 /**
  * Validação do check-in de visita (UC07), com o pedido opcional da visita
@@ -36,7 +37,7 @@ const dataHoraSchema = z
   .string({ message: MENSAGEM_DATA_INVALIDA })
   .datetime({ offset: true, message: MENSAGEM_DATA_INVALIDA })
   .transform((valor) => new Date(valor))
-  .refine((data) => data.getTime() <= Date.now(), { message: MENSAGEM_DATA_FUTURA });
+  .refine((data) => data.getTime() <= agora().getTime(), { message: MENSAGEM_DATA_FUTURA });
 
 const MAXIMO_ITENS_DO_PEDIDO = 30;
 const MAXIMO_QUANTIDADE_POR_ITEM = 99999;
@@ -73,7 +74,7 @@ const MAXIMO_LEMBRETE = 200;
  */
 export const proximaVisitaSchema = z.iso
   .date({ error: MENSAGEM_PROXIMA_VISITA_INVALIDA, abort: true })
-  .refine((data) => data >= dataCalendario(new Date()), { message: MENSAGEM_PROXIMA_VISITA_PASSADA });
+  .refine((data) => data >= dataCalendario(agora()), { message: MENSAGEM_PROXIMA_VISITA_PASSADA });
 
 const MENSAGEM_TEXTO_DO_LEMBRETE = 'Informe o texto do lembrete.';
 
@@ -95,7 +96,7 @@ const lembreteSchema = z
         error: (issue) => (issue.input === undefined ? 'Informe a data do lembrete.' : 'Data do lembrete inválida.'),
         abort: true,
       })
-      .refine((data) => data >= dataCalendario(new Date()), { message: 'A data do lembrete não pode ser antes de hoje.' }),
+      .refine((data) => data >= dataCalendario(agora()), { message: 'A data do lembrete não pode ser antes de hoje.' }),
   })
   .strict();
 

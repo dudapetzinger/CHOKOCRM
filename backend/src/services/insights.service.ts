@@ -36,6 +36,7 @@ import {
   type EventoProximo,
   type Janela,
 } from './insights.regras';
+import { agora } from '../lib/relogio';
 
 /**
  * Insights sazonais do cliente (UC13) e alertas de produção do gestor (UC15):
@@ -132,7 +133,7 @@ export async function obterInsights(
   clientId: string,
   usuario: UsuarioAutenticado,
   horizonteDias: number,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
 ): Promise<InsightsDTO> {
   const cliente = exigirClienteVisivel(await clientRepository.findById(clientId), usuario);
   const chave = chaveDoCliente(cliente);
@@ -213,7 +214,7 @@ export async function obterInsights(
  */
 export async function obterAlertasDeProducao(
   horizonteDias: number,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
   representanteId?: string,
 ): Promise<AlertasDTO> {
   const eventos = await eventosDoHorizonte(dataCalendario(hoje), horizonteDias);

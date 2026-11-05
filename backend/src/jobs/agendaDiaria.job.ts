@@ -5,6 +5,7 @@ import { logger } from '../lib/logger';
 import * as userRepository from '../repositories/user.repository';
 import * as agendaService from '../services/agenda.service';
 import type { AgendaItem } from '../services/agenda.service';
+import { agora } from '../lib/relogio';
 
 export const NOME_JOB = 'agenda-diaria';
 
@@ -16,7 +17,7 @@ export const NOME_JOB = 'agenda-diaria';
  * log. Falha ao calcular a agenda de um representante não interrompe os
  * demais.
  */
-export async function executarAgendaDiaria(hoje: Date = new Date()): Promise<void> {
+export async function executarAgendaDiaria(hoje: Date = agora()): Promise<void> {
   const representantes = await userRepository.listByRole('REPRESENTANTE');
 
   for (const representante of representantes) {

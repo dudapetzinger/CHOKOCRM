@@ -17,6 +17,7 @@ import { exigirCampanhaNaoEncerrada } from './campaign.service';
 import { ehDeOutraCarteira, exigirClienteDaCarteira, exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
 import { colunaDateDaData } from './classificacao.service';
 import { buscarProduto } from './erp.service';
+import { agora } from '../lib/relogio';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CLIENTE_INATIVO = 'Cliente inativo não recebe check-in.';
@@ -207,7 +208,7 @@ export async function createVisit(
     userId: usuario.id,
     contactId: input.contactId,
     campanhaId,
-    dataHora: input.dataHora ?? new Date(),
+    dataHora: input.dataHora ?? agora(),
     descricao: input.descricao,
     resultado: input.resultado,
     itens,

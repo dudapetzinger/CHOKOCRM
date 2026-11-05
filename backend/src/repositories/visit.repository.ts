@@ -2,6 +2,7 @@ import { Prisma, type PrismaClient, type ResultadoVisita } from '@prisma/client'
 import { prisma } from '../lib/prisma';
 import { somarItens, type ItemSomavel } from '../lib/somarItens';
 import * as reminderRepository from './reminder.repository';
+import { agora } from '../lib/relogio';
 
 /**
  * Itens do pedido em ordem alfabética do produto: a tabela não guarda a
@@ -106,7 +107,7 @@ export async function findById(id: string): Promise<VisitComCarteira | null> {
 export async function updateDescricao(id: string, descricao: string): Promise<VisitComRelacoes> {
   return prisma.visit.update({
     where: { id },
-    data: { descricao, editadoEm: new Date() },
+    data: { descricao, editadoEm: agora() },
     include: INCLUDE_RELACOES,
   });
 }

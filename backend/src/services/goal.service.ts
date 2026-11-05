@@ -10,6 +10,7 @@ import { representanteEfetivo, type UsuarioAutenticado } from './carteira';
 import { colunaDateDaData, dataDaColunaDate, fimDoDia, inicioDoDia } from './classificacao.service';
 import { metaDentroDaCampanha, periodoDaMeta, realizadoDaMeta, type Realizado } from './goal.regras';
 import { resolverPeriodo } from './periodo';
+import { agora } from '../lib/relogio';
 
 /**
  * Metas de visitas e vendas (spec 7.8). O gestor cria, altera e exclui
@@ -142,7 +143,7 @@ async function exigirMeta(id: string): Promise<Goal> {
  */
 export async function listarMetas(usuario: UsuarioAutenticado, filtro: ListarMetasQuery): Promise<MetaDTO[]> {
   const pediuPeriodo = filtro.periodoDias !== undefined || filtro.inicio !== undefined || filtro.fim !== undefined;
-  const janela = pediuPeriodo ? resolverPeriodo(filtro, new Date()) : undefined;
+  const janela = pediuPeriodo ? resolverPeriodo(filtro, agora()) : undefined;
 
   const metas = await goalRepository.listar({
     campanhaId: filtro.campanhaId ?? null,

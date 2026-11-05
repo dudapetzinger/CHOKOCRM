@@ -7,6 +7,7 @@ import { limitesDoMes, montarCalendario, type CalendarioDTO, type MesCalendario 
 import { montarAgenda, type Agenda } from './agenda.montagem';
 import { colunaDateDaData, dataCalendario } from './classificacao.service';
 import { consultarUltimasVendasPorCliente } from './erp.service';
+import { agora } from '../lib/relogio';
 
 export type { AgendaItem, Agenda } from './agenda.montagem';
 export type { CalendarioDTO, ItemCalendario } from './agenda.calendario';
@@ -24,7 +25,7 @@ export type { CalendarioDTO, ItemCalendario } from './agenda.calendario';
  */
 export async function getAgendaDoDia(
   usuario: UsuarioAutenticado,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
   representanteId?: string,
 ): Promise<Agenda> {
   const efetivo = representanteEfetivo(usuario, representanteId);
@@ -53,7 +54,7 @@ export async function getAgendaDoDia(
 export async function getCalendario(
   usuario: UsuarioAutenticado,
   mes: MesCalendario,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
   representanteId?: string,
 ): Promise<CalendarioDTO> {
   const { primeiro, ultimo } = limitesDoMes(mes);

@@ -4,13 +4,14 @@ import { representanteEfetivo } from '../services/carteira';
 import { resolverPeriodo } from '../services/periodo';
 import * as relatorioService from '../services/relatorio.service';
 import { usuarioAutenticado } from './usuarioAutenticado';
+import { agora } from '../lib/relogio';
 
 /** Relatório da planilha do Painel (spec 7.12): mesmo período e mesma carteira dos indicadores. */
 export async function getRelatorio(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = periodoQuerySchema.parse(req.query);
     const usuario = usuarioAutenticado(req);
-    const hoje = new Date();
+    const hoje = agora();
     // Sem teto de dias: a Planilha é onde se vê além do limite do Painel.
     const janela = resolverPeriodo(query, hoje);
 

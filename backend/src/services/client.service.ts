@@ -23,6 +23,7 @@ import {
   type Cor,
 } from './classificacao.service';
 import { consultarUltimasVendasPorCliente } from './erp.service';
+import { agora } from '../lib/relogio';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CNPJ_DUPLICADO = 'Já existe um cliente cadastrado com este CNPJ.';
@@ -209,7 +210,7 @@ function mapPrismaUniqueError(err: unknown): unknown {
 export async function listClients(query: ListClientsQuery, usuario: UsuarioAutenticado): Promise<ClienteListItemDTO[]> {
   const ativoFiltro = query.ativo === 'todos' ? 'todos' : 'ativos';
   const representanteId = representanteEfetivo(usuario, query.representanteId);
-  const hoje = new Date();
+  const hoje = agora();
   const clientes = await clientRepository.list({ search: query.search, ativoFiltro, representanteId });
   const ultimasVendas = await consultarUltimasVendasPorCliente(clientes);
   const itens = clientes.map((cliente) => toListItemDTO(cliente, hoje, ultimasVendas.get(cliente.id) ?? null));
@@ -223,7 +224,7 @@ export async function listClients(query: ListClientsQuery, usuario: UsuarioAuten
  * que a resposta não revele que o cliente existe.
  */
 export async function getClientById(id: string, usuario: UsuarioAutenticado): Promise<ClienteCompletoDTO> {
-  const hoje = new Date();
+  const hoje = agora();
   const cliente = exigirClienteVisivel(await clientRepository.findById(id), usuario);
 
   const ultimasVendas = await consultarUltimasVendasPorCliente([cliente]);

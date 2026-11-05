@@ -233,6 +233,7 @@ export async function enviarRedefinicaoDeSenha(id: string): Promise<void> {
   const novo = await userRepository.createTokenDeRedefinicao({
     userId: usuario.id,
     tokenHash,
+    // relógio real: validade do token de redefinição (segurança).
     expiraEm: expiracaoDoToken(new Date()),
   });
 
@@ -246,11 +247,13 @@ export async function enviarRedefinicaoDeSenha(id: string): Promise<void> {
       'Falha ao enviar o e-mail de redefinição de senha',
     );
     // Se nem o descarte gravar, o link novo fica aberto, mas ninguém o recebeu.
+    // relógio real: descarte do token de redefinição (segurança).
     await userRepository.descartarTokenDeRedefinicao(novo.id, new Date()).catch((erroDoDescarte: unknown) => {
       logger.error({ userId: usuario.id, err: erroDoDescarte }, 'Falha ao descartar o link não enviado');
     });
     throw new AppError(ErrorCode.SERVICE_UNAVAILABLE, MENSAGEM_FALHA_NO_ENVIO, 503);
   }
 
+  // relógio real: invalidação dos tokens de redefinição (segurança).
   await userRepository.invalidarLinksAnteriores({ userId: usuario.id, novo, agora: new Date() });
 }

@@ -20,6 +20,7 @@ import {
 } from './campaign.regras';
 import { colunaDateDaData, dataCalendario, dataDaColunaDate } from './classificacao.service';
 import { buscarProduto, listarProdutos } from './erp.service';
+import { agora } from '../lib/relogio';
 
 /**
  * Campanhas, promoções e eventos (spec 7.7). Todos leem; só o gestor cria,
@@ -148,7 +149,7 @@ async function exigirCampanha(id: string): Promise<Campaign> {
 }
 
 /** Todas, em ordem de início, com status e vendas vinculadas no escopo de quem pede. */
-export async function listarCampanhas(usuario: UsuarioAutenticado, hoje: Date = new Date()): Promise<CampanhaDTO[]> {
+export async function listarCampanhas(usuario: UsuarioAutenticado, hoje: Date = agora()): Promise<CampanhaDTO[]> {
   const { base, autorId } = await escopoDosResultados(usuario);
   const [campanhas, visitas, catalogo] = await Promise.all([
     campaignRepository.listar(),
@@ -168,7 +169,7 @@ export async function listarCampanhas(usuario: UsuarioAutenticado, hoje: Date = 
 
 export async function criarCampanha(input: CampanhaInput, usuario: UsuarioAutenticado): Promise<CampanhaDTO> {
   const criada = await campaignRepository.create(await dadosDaCampanha(input));
-  return montarDTO(criada, usuario, new Date());
+  return montarDTO(criada, usuario, agora());
 }
 
 /** Troca a campanha inteira (o `PUT` manda todos os campos). */
@@ -179,7 +180,7 @@ export async function atualizarCampanha(
 ): Promise<CampanhaDTO> {
   await exigirCampanha(id);
   const atualizada = await campaignRepository.update(id, await dadosDaCampanha(input));
-  return montarDTO(atualizada, usuario, new Date());
+  return montarDTO(atualizada, usuario, agora());
 }
 
 /** Visitas e próximas visitas vinculadas ficam sem campanha; nada mais muda. */
@@ -193,7 +194,7 @@ export async function excluirCampanha(id: string): Promise<void> {
  * campanha que existe e não está encerrada no dia de hoje em São Paulo
  * (programada ou em andamento). Senão, 400.
  */
-export async function exigirCampanhaNaoEncerrada(id: string, hoje: Date = new Date()): Promise<void> {
+export async function exigirCampanhaNaoEncerrada(id: string, hoje: Date = agora()): Promise<void> {
   const campanha = await campaignRepository.findById(id);
   const encerrada =
     !campanha ||

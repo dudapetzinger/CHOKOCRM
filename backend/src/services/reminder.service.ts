@@ -5,6 +5,7 @@ import * as reminderRepository from '../repositories/reminder.repository';
 import { ehDeOutraCarteira, exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
 import { dataCalendario } from './classificacao.service';
 import { toLembreteDTO, type LembreteDTO } from './lembrete.dto';
+import { agora } from '../lib/relogio';
 
 /**
  * Lembrete como tarefa própria (Etapa 9): criado no check-in, listado na
@@ -20,7 +21,7 @@ const MENSAGEM_LEMBRETE_JA_CONCLUIDO = 'Lembrete já concluído.';
 export async function listarAbertosDoCliente(
   clientId: string,
   usuario: UsuarioAutenticado,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
 ): Promise<LembreteDTO[]> {
   exigirClienteVisivel(await clientRepository.findById(clientId), usuario);
 
@@ -37,7 +38,7 @@ export async function listarAbertosDoCliente(
 export async function concluir(
   id: string,
   usuario: UsuarioAutenticado,
-  agora: Date = new Date(),
+  concluidoEm: Date = agora(),
 ): Promise<{ id: string; concluidoEm: string }> {
   const lembrete = await reminderRepository.findById(id);
 
@@ -47,9 +48,9 @@ export async function concluir(
 
   // A conclusão é condicional no banco (`concluidoEm` ainda nulo): dois
   // toques ao mesmo tempo não gravam duas datas — o segundo recebe o 409.
-  if (!(await reminderRepository.concluir(id, agora))) {
+  if (!(await reminderRepository.concluir(id, concluidoEm))) {
     throw new AppError(ErrorCode.CONFLICT, MENSAGEM_LEMBRETE_JA_CONCLUIDO, 409);
   }
 
-  return { id, concluidoEm: agora.toISOString() };
+  return { id, concluidoEm: concluidoEm.toISOString() };
 }

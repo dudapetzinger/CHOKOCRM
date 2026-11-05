@@ -13,3 +13,7 @@ process.env.ERP_PROVIDER = 'mock';
 // vazio (e NODE_ENV=test) o provedor é o ConsoleEmailProvider, que guarda as
 // mensagens em memória para os testes lerem o link de redefinição.
 process.env.SMTP_HOST = '';
+// E rodam no relógio real: vazia = sem data de demonstração, mesmo que o
+// `.env` local tenha DATA_DE_DEMONSTRACAO. Quem testa a data simulada importa
+// `tests/helpers/data-de-demonstracao` primeiro.
+process.env.DATA_DE_DEMONSTRACAO = '';

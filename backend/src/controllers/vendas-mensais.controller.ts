@@ -5,12 +5,13 @@ import { representanteEfetivo } from '../services/carteira';
 import { resolverPeriodo } from '../services/periodo';
 import * as vendasMensaisService from '../services/vendas-mensais.service';
 import { usuarioAutenticado } from './usuarioAutenticado';
+import { agora } from '../lib/relogio';
 
 export async function getVendasMensais(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = vendasMensaisQuerySchema.parse(req.query);
     const usuario = usuarioAutenticado(req);
-    const hoje = new Date();
+    const hoje = agora();
     const janela = resolverPeriodo(query, hoje, { limiteDias: LIMITE_DIAS_DO_PAINEL });
 
     const vendas = await vendasMensaisService.obterVendasMensais(

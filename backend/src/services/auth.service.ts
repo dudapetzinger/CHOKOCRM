@@ -114,6 +114,7 @@ export async function alterarSenha(id: string, senhaAtual: string, novaSenha: st
  * mensagem. Não desloga ninguém: o JWT vigente expira sozinho.
  */
 export async function redefinirSenha(token: string, novaSenha: string): Promise<void> {
+  // relógio real: o token de redefinição vence pelo relógio real (segurança).
   const agora = new Date();
   const registro = await findTokenDeRedefinicao(hashDoToken(token));
 

@@ -109,3 +109,34 @@ describe('envSchema — provedor de ERP', () => {
     expect(envSchema.safeParse({ ...OBRIGATORIAS, ERP_PROVIDER: 'senior' }).success).toBe(false);
   });
 });
+
+describe('envSchema — data de demonstração', () => {
+  const OBRIGATORIAS = { DATABASE_URL: 'x', JWT_SECRET: 'y' };
+  const MENSAGEM = 'DATA_DE_DEMONSTRACAO deve ser uma data AAAA-MM-DD.';
+
+  it('ausente (ou vazia) fica undefined: relógio real', () => {
+    expect(envSchema.parse(OBRIGATORIAS).DATA_DE_DEMONSTRACAO).toBeUndefined();
+    expect(envSchema.parse({ ...OBRIGATORIAS, DATA_DE_DEMONSTRACAO: '' }).DATA_DE_DEMONSTRACAO).toBeUndefined();
+  });
+
+  it('data válida é preservada, em qualquer NODE_ENV', () => {
+    expect(envSchema.parse({ ...OBRIGATORIAS, DATA_DE_DEMONSTRACAO: '2027-03-15' }).DATA_DE_DEMONSTRACAO).toBe(
+      '2027-03-15',
+    );
+    expect(
+      envSchema.parse({
+        ...OBRIGATORIAS,
+        NODE_ENV: 'production',
+        FRONTEND_URL: 'https://app.exemplo.com',
+        DATA_DE_DEMONSTRACAO: '2027-03-15',
+      }).DATA_DE_DEMONSTRACAO,
+    ).toBe('2027-03-15');
+  });
+
+  it.each(['2027-02-30', '15/03/2027'])('%s falha com a mensagem da variável', (valor) => {
+    const resultado = envSchema.safeParse({ ...OBRIGATORIAS, DATA_DE_DEMONSTRACAO: valor });
+
+    expect(resultado.success).toBe(false);
+    expect(resultado.error?.issues.map((issue) => issue.message)).toEqual([MENSAGEM]);
+  });
+});

@@ -5,12 +5,13 @@ import { representanteEfetivo } from '../services/carteira';
 import * as kpisService from '../services/kpis.service';
 import { resolverPeriodo } from '../services/periodo';
 import { usuarioAutenticado } from './usuarioAutenticado';
+import { agora } from '../lib/relogio';
 
 export async function getKpis(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = periodoQuerySchema.parse(req.query);
     const usuario = usuarioAutenticado(req);
-    const hoje = new Date();
+    const hoje = agora();
     const janela = resolverPeriodo(query, hoje, { limiteDias: LIMITE_DIAS_DO_PAINEL });
 
     const kpis = await kpisService.obterKpis(janela, hoje, representanteEfetivo(usuario, query.representanteId));
@@ -24,7 +25,7 @@ export async function getKpisPorRepresentante(req: Request, res: Response, next:
   try {
     const query = periodoQuerySchema.parse(req.query);
     const usuario = usuarioAutenticado(req);
-    const hoje = new Date();
+    const hoje = agora();
     const janela = resolverPeriodo(query, hoje, { limiteDias: LIMITE_DIAS_DO_PAINEL });
 
     const kpis = await kpisService.obterKpisPorRepresentante(janela, representanteEfetivo(usuario, query.representanteId));

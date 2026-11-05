@@ -7,6 +7,7 @@ import {
   type Volume,
 } from './ErpProvider';
 import { gerarHistoricoErp } from './mock/gerador';
+import { agora } from '../../lib/relogio';
 
 /**
  * Implementação de demonstração de `ErpProvider`: gera um histórico
@@ -23,7 +24,7 @@ export class MockErpProvider implements ErpProvider {
   private readonly falhar: boolean;
   private readonly hoje: () => Date;
 
-  constructor(opcoes: { falhar: boolean } = { falhar: false }, hoje: () => Date = () => new Date()) {
+  constructor(opcoes: { falhar: boolean } = { falhar: false }, hoje: () => Date = () => agora()) {
     this.falhar = opcoes.falhar;
     this.hoje = hoje;
   }

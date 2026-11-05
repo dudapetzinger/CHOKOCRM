@@ -2,6 +2,7 @@ import type { Client, Contact, Prisma, ResultadoVisita, VisitScheduleChange } fr
 import { prisma } from '../lib/prisma';
 import type { CreateClientInput, UpdateClientInput } from '../schemas/client.schema';
 import { dataDaColunaDate, type DataCalendario } from '../services/classificacao.service';
+import { agora } from '../lib/relogio';
 
 export type AtivoFiltro = 'ativos' | 'todos';
 
@@ -219,7 +220,7 @@ export async function updateRecorrenciaComHistorico(params: {
         recorrenciaAnterior: anterior,
         recorrenciaNova: nova,
         justificativa,
-        data: new Date(),
+        data: agora(),
       },
     }),
     prisma.client.update({ where: { id: clientId }, data: { recorrenciaDias: nova, proximaVisita: null } }),

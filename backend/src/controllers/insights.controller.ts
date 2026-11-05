@@ -4,6 +4,7 @@ import { alertasQuerySchema, horizonteQuerySchema } from '../schemas/insights.sc
 import { representanteEfetivo } from '../services/carteira';
 import * as insightsService from '../services/insights.service';
 import { usuarioAutenticado } from './usuarioAutenticado';
+import { agora } from '../lib/relogio';
 
 const idParamSchema = z.string().uuid('Identificador inválido.');
 
@@ -27,7 +28,7 @@ export async function getAlertasDeProducao(req: Request, res: Response, next: Ne
 
     const alertas = await insightsService.obterAlertasDeProducao(
       horizonteDias,
-      new Date(),
+      agora(),
       representanteEfetivo(usuario, representanteId),
     );
     res.status(200).json(alertas);

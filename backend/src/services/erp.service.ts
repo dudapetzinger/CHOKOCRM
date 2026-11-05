@@ -15,6 +15,7 @@ import { logger } from '../lib/logger';
 // De `carteira`, não de `client.service`: este depende daqui (`consultarUltimasVendas`).
 import { exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
 import { dataCalendario, dataDaColunaDate, fimDoDia, inicioDoDia, somarDias } from './classificacao.service';
+import { agora } from '../lib/relogio';
 
 const DIAS_DE_VOLUME = 90;
 /** Quantas vendas a ficha lista em `ultimasVendas` (só no provedor importado). */
@@ -351,7 +352,7 @@ function paraVendaDTO(venda: Sale): VendaDTO {
 export async function obterDadosErp(
   clientId: string,
   usuario: UsuarioAutenticado,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
 ): Promise<DadosErpDTO> {
   const cliente = exigirClienteVisivel(await clientRepository.findById(clientId), usuario);
   const chave = chaveDoCliente(cliente);

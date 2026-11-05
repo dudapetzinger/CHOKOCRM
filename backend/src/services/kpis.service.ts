@@ -19,6 +19,7 @@ import {
   type Proporcao,
   type Ritmo,
 } from './kpis.regras';
+import { agora } from '../lib/relogio';
 
 /**
  * Indicadores do painel do gestor (UC14): busca visitas, mensagens e clientes
@@ -58,7 +59,7 @@ export type KpisPorRepresentanteDTO = {
  */
 export async function obterKpis(
   janela: Janela,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
   representanteId?: string,
 ): Promise<KpisDTO> {
   const { inicio, fim } = janela;

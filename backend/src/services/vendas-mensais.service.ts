@@ -11,6 +11,7 @@ import {
   type PontoMensal,
   type VendasDeUmCliente,
 } from './vendas-mensais.regras';
+import { agora } from '../lib/relogio';
 
 /**
  * Vendas mensais da carteira (gráfico do painel do gestor, Etapa 7): busca os
@@ -40,7 +41,7 @@ export type VendasMensaisDTO = {
  */
 export async function obterVendasMensais(
   janela: Janela,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
   representanteId?: string,
 ): Promise<VendasMensaisDTO> {
   const hojeCal = dataCalendario(hoje);

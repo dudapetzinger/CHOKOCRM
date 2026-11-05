@@ -2,6 +2,22 @@ import 'dotenv/config';
 import cron from 'node-cron';
 import { z } from 'zod';
 
+/**
+ * Variáveis de ambiente validadas com Zod na subida: valor inválido = a API
+ * não sobe. Inclui a data de demonstração opcional (`DATA_DE_DEMONSTRACAO`),
+ * que `lib/relogio.ts` usa para deslocar o "hoje" do sistema.
+ */
+
+const MENSAGEM_DATA_DE_DEMONSTRACAO = 'DATA_DE_DEMONSTRACAO deve ser uma data AAAA-MM-DD.';
+
+/** `AAAA-MM-DD` que existe no calendário (`2027-02-30` não existe). */
+function dataAaaaMmDdValida(valor: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
+  const [ano, mes, dia] = valor.split('-').map(Number) as [number, number, number];
+  const data = new Date(Date.UTC(ano, mes - 1, dia));
+  return data.getUTCFullYear() === ano && data.getUTCMonth() === mes - 1 && data.getUTCDate() === dia;
+}
+
 /** APP_URL efetiva: a explícita ou, sem ela (ausente ou vazia), a FRONTEND_URL. */
 function appUrlEfetiva(valores: { APP_URL?: string; FRONTEND_URL: string }): string {
   return valores.APP_URL || valores.FRONTEND_URL;
@@ -63,6 +79,16 @@ export const envSchema = z.object({
   // FRONTEND_URL: em produção a API serve o próprio front (WEB_DIR), então é
   // o mesmo endereço https do App Service; em dev/test, o Vite local.
   APP_URL: z.string().optional(),
+  // Data de demonstração (relógio simulado, ver lib/relogio.ts): o app vive
+  // nesse dia com o horário real e o calendário andando. Ausente ou vazia =
+  // relógio real. Vale em qualquer NODE_ENV (a apresentação roda em produção).
+  DATA_DE_DEMONSTRACAO: z
+    .string()
+    .optional()
+    .transform((valor) => valor || undefined)
+    .refine((valor) => valor === undefined || dataAaaaMmDdValida(valor), {
+      message: MENSAGEM_DATA_DE_DEMONSTRACAO,
+    }),
 })
   // Em produção, o link do e-mail precisa ser https: valor efetivo sem
   // https (ex.: só o padrão localhost) e a API não sobe, em vez de mandar

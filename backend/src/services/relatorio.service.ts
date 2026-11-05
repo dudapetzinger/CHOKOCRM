@@ -10,6 +10,7 @@ import {
 } from './classificacao.service';
 import { consultarUltimasVendasPorCliente } from './erp.service';
 import type { Janela } from './kpis.regras';
+import { agora } from '../lib/relogio';
 
 /**
  * Relatório da planilha do Painel (spec 7.12): uma linha por cliente ativo
@@ -61,7 +62,7 @@ export function compararPorUrgencia(a: Ordenavel, b: Ordenavel): number {
 /** Com `representanteId`, só a carteira daquele representante; sem ele, a empresa toda. */
 export async function obterRelatorio(
   janela: Janela,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
   representanteId?: string,
 ): Promise<LinhaDoRelatorioDTO[]> {
   const { inicio, fim } = janela;

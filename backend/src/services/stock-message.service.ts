@@ -7,6 +7,7 @@ import type { GerarMensagemInput } from '../schemas/stock-message.schema';
 import { exigirClienteDaCarteira, representanteEfetivo, type UsuarioAutenticado } from './carteira';
 import { eventoVigente } from './seasonal-event.service';
 import { montarLinkWhatsapp, montarMensagemDeEstoque, normalizarTelefone } from './stock-message.template';
+import { agora } from '../lib/relogio';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CLIENTE_INATIVO = 'Cliente inativo não recebe mensagem de estoque.';
@@ -51,7 +52,7 @@ export type GeracaoDTO = StockMessageDTO & {
 export async function propor(
   clientId: string,
   usuario: UsuarioAutenticado,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
 ): Promise<PropostaDTO> {
   const cliente = await clientRepository.findById(clientId);
   if (!cliente) {
@@ -133,7 +134,7 @@ export async function gerar(
   clientId: string,
   usuario: UsuarioAutenticado,
   input: GerarMensagemInput,
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
 ): Promise<GeracaoDTO> {
   const cliente = await clientRepository.findById(clientId);
   if (!cliente) {
@@ -172,7 +173,7 @@ export async function gerar(
     userId: usuario.id,
     eventoSazonalId: evento?.id ?? null,
     textoFinal: input.texto,
-    dataGeracao: new Date(),
+    dataGeracao: agora(),
   });
 
   const link = montarLinkWhatsapp(telefone, input.texto);

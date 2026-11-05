@@ -4,6 +4,7 @@ import { env } from '../config/env';
 import { logger } from '../lib/logger';
 import * as visitRepository from '../repositories/visit.repository';
 import { fileStorage } from '../storage';
+import { agora } from '../lib/relogio';
 
 export const NOME_JOB = 'limpeza-de-fotos';
 
@@ -18,7 +19,7 @@ const MILISSEGUNDOS_POR_DIA = 24 * 60 * 60 * 1000;
  * ausente não falha). Falha numa visita é logada e não interrompe as demais.
  */
 export async function executarLimpezaDeFotos(
-  hoje: Date = new Date(),
+  hoje: Date = agora(),
 ): Promise<{ apagadas: number; falhas: number }> {
   const limite = new Date(hoje.getTime() - env.FOTOS_RETENCAO_DIAS * MILISSEGUNDOS_POR_DIA);
   const visitas = await visitRepository.listComFotoAntesDe(limite);
