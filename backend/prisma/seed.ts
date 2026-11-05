@@ -1,17 +1,19 @@
 import { env } from '../src/config/env';
 import { prisma } from '../src/lib/prisma';
+import { agora } from '../src/lib/relogio';
 import { AVISO_RESET_SEM_CONFIRMACAO, modoDoSeed, reiniciarDemonstracao, semear } from '../src/seed/demonstracao';
 
 /**
  * `npm run db:seed` (`prisma db seed`) só acrescenta os dados de
  * demonstração; `npm run db:seed:reset` (com `--reset`) apaga e recria a
  * demonstração com datas relativas a hoje, mantendo as contas criadas pelo
- * app. Em produção ou com banco remoto o reinício exige também `--confirmar`
+ * app. "Hoje" é `agora()` (`src/lib/relogio.ts`): a data de demonstração
+ * quando `DATA_DE_DEMONSTRACAO` está definida, senão o dia real. Em produção ou com banco remoto o reinício exige também `--confirmar`
  * (`npm run db:seed:reset -- --confirmar`). Os dados e as regras ficam em
  * `src/seed/demonstracao.ts`.
  */
 async function main(): Promise<void> {
-  const hoje = new Date();
+  const hoje = agora();
   const modo = modoDoSeed(process.argv.slice(2), env.NODE_ENV, env.DATABASE_URL);
 
   if (modo === 'recusar') {

@@ -25,7 +25,10 @@ import { periodoDaMeta } from '../services/goal.regras';
  * `tests`, e `tests/seed.test.ts` chama as duas funções direto, como
  * `config/eventosSazonaisSeed.ts`. Todas as datas são relativas ao `hoje`
  * recebido, para a demonstração nascer com cores, agenda, campanhas e metas
- * do dia em que roda. Os pedidos usam o catálogo de demonstração direto
+ * do dia em que roda; `prisma/seed.ts` passa `agora()` (`lib/relogio.ts`), a
+ * data de demonstração quando `DATA_DE_DEMONSTRACAO` está definida. Até o
+ * `criadoEm` dos clientes novos é `hoje` (base da primeira visita de quem
+ * nunca foi visitado). Os pedidos usam o catálogo de demonstração direto
  * (`CATALOGO`), seja qual for o `ERP_PROVIDER`: o seed roda igual no mock e
  * no importado (produção). O mesmo catálogo vai para `ErpProduct`, para que,
  * no importado, as campanhas e o check-in da demonstração achem os produtos.
@@ -1533,7 +1536,7 @@ async function seedContato(prisma: Banco, clientId: string, contato: ContatoSeed
   await prisma.contact.create({ data: { ...contato, clientId } });
 }
 
-async function seedCliente(prisma: Banco, cliente: ClienteSeed): Promise<void> {
+async function seedCliente(prisma: Banco, cliente: ClienteSeed, hoje: Date): Promise<void> {
   const { contatos, representanteEmail, recorrenciaDias = 15, ativo = true, ...cadastro } = cliente;
   const dadosCliente = { ...cadastro, recorrenciaDias, ativo };
   const { id: representanteId } = await prisma.user.findUniqueOrThrow({
@@ -1544,7 +1547,8 @@ async function seedCliente(prisma: Banco, cliente: ClienteSeed): Promise<void> {
   const client = await prisma.client.upsert({
     where: { cnpj: cliente.cnpj },
     update: { ...dadosCliente, representanteId, erpId },
-    create: { ...dadosCliente, representanteId, erpId },
+    // `criadoEm` é a base da primeira visita de quem nunca foi visitado.
+    create: { ...dadosCliente, representanteId, erpId, criadoEm: hoje },
   });
 
   for (const contato of contatos) {
@@ -1729,7 +1733,7 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
 
   await seedUsuarios(prisma);
   for (const cliente of CLIENTES) {
-    await seedCliente(prisma, cliente);
+    await seedCliente(prisma, cliente, hoje);
   }
   await seedEventosSazonais(prisma, dia);
   await seedProdutos(prisma);

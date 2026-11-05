@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient, VinculoNota } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { agora } from '../lib/relogio';
 
 /** Cliente do Prisma ou a transação em andamento: a importação grava tudo numa transação só. */
 export type Banco = PrismaClient | Prisma.TransactionClient;
@@ -115,6 +116,8 @@ export async function criarImportacao(
     data: {
       userId,
       nomeArquivo,
+      // "Importada em" é data de negócio: segue o relógio do sistema (data de demonstração).
+      criadoEm: agora(),
       notasImportadas: 0,
       notasIgnoradas: 0,
       vinculadasAutomaticamente: 0,

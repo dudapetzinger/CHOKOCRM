@@ -159,7 +159,9 @@ export async function createWithContacts(input: CreateClientInput, representante
   const { contatos, ...dadosCliente } = input;
 
   return prisma.$transaction(async (tx) => {
-    const client = await tx.client.create({ data: { ...dadosCliente, representanteId } });
+    // `criadoEm` explícito: é a base da primeira visita (agenda e cor), então
+    // nasce no relógio do sistema, que pode ser a data de demonstração.
+    const client = await tx.client.create({ data: { ...dadosCliente, representanteId, criadoEm: agora() } });
 
     await tx.contact.createMany({
       data: contatos.map((contato) => ({ ...contato, clientId: client.id })),
