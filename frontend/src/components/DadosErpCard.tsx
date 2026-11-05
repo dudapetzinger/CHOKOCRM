@@ -13,7 +13,7 @@ import { mensagemErroApi } from '../services/clients';
 import { formatarData } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
 import type { DadosErp, NivelEstoque } from '../services/erp';
-import { AvisoSimulado } from './AvisoSimulado';
+import { AvisoErp } from './AvisoErp';
 import { Aviso, Cartao, Etiqueta } from './crm/ui';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do ERP.';
@@ -51,7 +51,7 @@ function renderizarConteudo(dadosErp: DadosErp): ReactElement {
     case 'OK':
       return (
         <>
-          {dadosErp.simulado && <AvisoSimulado />}
+          <AvisoErp />
 
           <div className="grid gap-4 @lg:grid-cols-2">
             <div>

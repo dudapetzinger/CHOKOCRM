@@ -14,6 +14,7 @@ import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
 import { CampanhasPage } from './pages/CampanhasPage';
 import { UsuariosPage } from './pages/UsuariosPage';
+import { ImportacoesPage } from './pages/ImportacoesPage';
 import { NovoUsuarioPage } from './pages/NovoUsuarioPage';
 import { AlterarSenhaPage } from './pages/AlterarSenhaPage';
 import { RedefinirSenhaPage } from './pages/RedefinirSenhaPage';
@@ -88,6 +89,7 @@ export function App() {
               />
               <Route path="/usuarios" element={<UsuariosPage />} />
               <Route path="/usuarios/novo" element={<NovoUsuarioPage />} />
+              <Route path="/importacoes" element={<ImportacoesPage />} />
               <Route path="/conta/senha" element={<AlterarSenhaPage />} />
               <Route path="*" element={<TelaInicial />} />
             </Route>

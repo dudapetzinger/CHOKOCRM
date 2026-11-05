@@ -7,7 +7,7 @@
  *
  * Fora das abas, no topo: a barra com o seletor (gestor), o período (30, 90,
  * 365 dias ou personalizado) e, à direita (linha própria no celular),
- * "Planilha" e "PDF" (spec 7.12); a faixa de dados simulados; e as abas
+ * "Planilha" e "PDF" (spec 7.12); a faixa da fonte do ERP (simulada ou importada); e as abas
  * "Metas e resultados" e "Produção e sazonalidade", com a aba na URL
  * (`?aba=producao`; sem o parâmetro, a primeira). Só o painel da aba aberta
  * fica montado.
@@ -41,7 +41,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../auth/useAuth';
 import { Abas, PainelDaAba, type Aba } from '../components/Abas';
-import { AvisoSimulado } from '../components/AvisoSimulado';
+import { AvisoErp } from '../components/AvisoErp';
 import { AlertasProducao } from '../components/crm/graficos/AlertasProducao';
 import { DistribuicaoPorCor } from '../components/crm/graficos/DistribuicaoPorCor';
 import { MapaPorCidade } from '../components/crm/graficos/MapaPorCidade';
@@ -469,10 +469,6 @@ export function PainelPage() {
   // `undefined` para o representante: o backend usa a carteira dele.
   const representanteId = useRepresentanteSelecionado();
   const consultaDeAlertas = useAlertasDeProducao(horizonteDias, representanteId);
-  // As mesmas chaves dos cartões (o TanStack Query não repete a busca), só para uma faixa única de dados simulados.
-  const { data: kpis } = useKpis(periodo, representanteId);
-  const { data: vendas } = useVendasMensais(periodo, representanteId);
-  const simulado = Boolean(kpis?.simulado || vendas?.simulado || consultaDeAlertas.data?.simulado);
 
   return (
     <div className="space-y-5">
@@ -490,7 +486,7 @@ export function PainelPage() {
         <BotoesDeExportar periodo={periodoDaPlanilha} representanteId={representanteId} />
       </div>
 
-      {simulado && <AvisoSimulado className="" />}
+      <AvisoErp className="" />
 
       <div className="print:hidden">
         <Abas idBase={ID_DAS_ABAS} ariaLabel="Seções do Painel" abas={ABAS} valor={aba} onChange={trocarAba} />

@@ -54,6 +54,8 @@ export type Alertas = {
   clientesConsultados: number;
   /** Dentre os consultados, os que ficaram sem resposta do ERP. */
   clientesIndisponiveis: number;
+  /** O provedor do ERP não informa o estoque do cliente (vendas importadas). */
+  estoqueIndisponivel: boolean;
 };
 
 export function buscarInsights(clienteId: string, horizonteDias: number): Promise<Insights> {

@@ -10,7 +10,7 @@ function cliente(id: string, nomeFantasia: string, quantidade: number) {
   return { id, nomeFantasia, cidade: 'Blumenau', quantidade, atualizadoEm: '2026-10-14T12:00:00.000Z' };
 }
 
-function alertas(lista: AlertaProducao[], indisponiveis = 0): Alertas {
+function alertas(lista: AlertaProducao[], indisponiveis = 0, estoqueIndisponivel = false): Alertas {
   return {
     simulado: true,
     horizonteDias: 90,
@@ -18,6 +18,7 @@ function alertas(lista: AlertaProducao[], indisponiveis = 0): Alertas {
     alertas: lista,
     clientesConsultados: 4,
     clientesIndisponiveis: indisponiveis,
+    estoqueIndisponivel,
   };
 }
 
@@ -55,6 +56,18 @@ function renderizar(props: Props = {}) {
 }
 
 describe('AlertasProducao', () => {
+  it('provedor sem estoque: avisa que o ERP não informa o estoque do cliente', () => {
+    renderizar({ alertas: alertas([], 0, true) });
+
+    expect(screen.getByText('O ERP não informa o estoque do cliente.')).toBeInTheDocument();
+  });
+
+  it('com estoque disponível, o aviso do estoque não aparece', () => {
+    renderizar();
+
+    expect(screen.queryByText('O ERP não informa o estoque do cliente.')).not.toBeInTheDocument();
+  });
+
   it('título e o segmentado "Próximos 30 · 60 · 90 · 180", com o horizonte atual marcado', async () => {
     const { onHorizonteChange } = renderizar();
 

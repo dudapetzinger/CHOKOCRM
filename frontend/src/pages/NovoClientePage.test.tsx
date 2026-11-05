@@ -71,7 +71,7 @@ beforeEach(() => {
   vi.mocked(createCliente).mockReset().mockResolvedValue(CRIADO);
 });
 
-function renderizar(role: Role = 'REPRESENTANTE') {
+function renderizar(role: Role = 'REPRESENTANTE', url = '/clientes/novo') {
   const auth = {
     user: {
       id: 'r1',
@@ -89,7 +89,7 @@ function renderizar(role: Role = 'REPRESENTANTE') {
   render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={auth}>
-        <MemoryRouter initialEntries={['/clientes/novo']}>
+        <MemoryRouter initialEntries={[url]}>
           <Routes>
             <Route path="/clientes/novo" element={<NovoClientePage />} />
             <Route path="/clientes/:id" element={<FichaFalsa />} />
@@ -124,6 +124,14 @@ function preencherContato(numero: number, nome: string) {
 }
 
 describe('NovoClientePage', () => {
+  it('vindo de "Importar notas", já traz a razão social e o CNPJ da nota', () => {
+    renderizar('REPRESENTANTE', '/clientes/novo?razaoSocial=Padaria+%26+Cia&cnpj=99888777000166');
+
+    expect(campoDoCliente('Razão social')).toHaveValue('Padaria & Cia');
+    expect(campoDoCliente('CNPJ')).toHaveValue('99888777000166');
+    expect(campoDoCliente('Nome fantasia')).toHaveValue('');
+  });
+
   it('exige nome fantasia e cidade', async () => {
     renderizar();
 

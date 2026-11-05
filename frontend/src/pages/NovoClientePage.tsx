@@ -13,7 +13,7 @@
  * do navegador: os dados são do cliente, não da representante.
  */
 import { useState, type ComponentProps, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -57,8 +57,14 @@ export function NovoClientePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  // Vindo de "Importar notas", o cadastro chega com a razão social e o CNPJ da nota (`?razaoSocial=&cnpj=`).
+  const [parametros] = useSearchParams();
 
-  const [dados, setDados] = useState<DadosClienteFormulario>(dadosClienteVazios());
+  const [dados, setDados] = useState<DadosClienteFormulario>(() => ({
+    ...dadosClienteVazios(),
+    razaoSocial: parametros.get('razaoSocial') ?? '',
+    cnpj: (parametros.get('cnpj') ?? '').replace(/\D/g, '').slice(0, 14),
+  }));
   const [erros, setErros] = useState<ErrosDadosCliente>({});
   // Número vindo do SeletorRecorrencia; o campo "Outro" vazio chega como NaN
   const [recorrencia, setRecorrencia] = useState(RECORRENCIA_PADRAO);

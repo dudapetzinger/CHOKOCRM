@@ -29,6 +29,7 @@ function renderizar({ papel = 'REPRESENTANTE', entradas = ['/clientes'] }: { pap
             <Route path="/campanhas" element={<p>tela de campanhas</p>} />
             <Route path="/usuarios" element={<p>tela de usuários</p>} />
             <Route path="/usuarios/novo" element={<p>tela de novo usuário</p>} />
+            <Route path="/importacoes" element={<p>tela de importações</p>} />
             <Route path="/conta/senha" element={<p>tela de alterar senha</p>} />
           </Route>
         </Routes>
@@ -51,23 +52,24 @@ afterEach(() => {
 
 describe('Moldura', () => {
   // Ordens finais (spec 6.5).
-  it('gestor vê Painel, Clientes, Agenda, Campanhas e Usuários nessa ordem', () => {
+  it('gestor vê Painel, Clientes, Agenda, Campanhas, Usuários e Importar notas nessa ordem', () => {
     renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
 
-    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas', 'Usuários']);
+    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas', 'Usuários', 'Importar notas']);
   });
 
-  it('representante vê Agenda, Clientes, Painel e Campanhas, sem Usuários', () => {
+  it('representante vê Agenda, Clientes, Painel e Campanhas, sem Usuários nem Importar notas', () => {
     renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
 
     expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Painel', 'Campanhas']);
     expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Importar notas' })).not.toBeInTheDocument();
   });
 
   it('desktop: as mesmas ordens no menu lateral', () => {
     simularLargura(true);
     const { unmount } = renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
-    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas', 'Usuários']);
+    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas', 'Usuários', 'Importar notas']);
     unmount();
 
     renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
@@ -172,6 +174,7 @@ describe('tituloDaRota', () => {
     ['/clientes/c1/check-in', 'Novo check-in', true],
     ['/campanhas', 'Campanhas e eventos', false],
     ['/usuarios', 'Usuários', false],
+    ['/importacoes', 'Importar notas', false],
     ['/usuarios/novo', 'Novo usuário', true],
     ['/conta/senha', 'Alterar senha', true],
   ])('%s → "%s" (interna: %s)', (caminho, titulo, interna) => {

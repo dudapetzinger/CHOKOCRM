@@ -179,5 +179,8 @@ export const api = {
   putBinario: async (path: string, conteudo: Blob): Promise<void> => {
     await requestNaoJson('PUT', path, { body: conteudo, contentType: conteudo.type || 'image/jpeg' });
   },
+  /** Envia o arquivo como corpo bruto (PDF de nota fiscal) e lê a resposta como JSON. */
+  postBinario: async <T>(path: string, conteudo: Blob, contentType: string): Promise<T> =>
+    (await requestNaoJson('POST', path, { body: conteudo, contentType })).json() as Promise<T>,
   getBlob: async (path: string): Promise<Blob> => (await requestNaoJson('GET', path)).blob(),
 };

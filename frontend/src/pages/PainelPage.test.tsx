@@ -6,6 +6,7 @@ import { AuthContext } from '../auth/auth-context';
 import { Toaster } from '../components/ui/sonner';
 import { useClientesDaCarteira, useKpisPorRepresentante, useVendasMensais } from '../hooks/useDashboard';
 import { useAlertasDeProducao } from '../hooks/useInsights';
+import { useSituacaoErp } from '../hooks/useImportacoes';
 import { useKpis } from '../hooks/useKpis';
 import { baixarCsv } from '../lib/csv';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
@@ -19,6 +20,7 @@ import {
 } from '../services/dashboard';
 import { listarMetas, type Meta } from '../services/goals';
 import type { Alertas } from '../services/insights';
+import type { SituacaoErp } from '../services/erp';
 import type { Kpis } from '../services/kpis';
 import { PainelPage } from './PainelPage';
 
@@ -32,6 +34,11 @@ vi.mock('../hooks/useRepresentantes', () => ({
 }));
 
 vi.mock('../hooks/useKpis', () => ({ useKpis: vi.fn() }));
+
+vi.mock('../hooks/useImportacoes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../hooks/useImportacoes')>()),
+  useSituacaoErp: vi.fn(),
+}));
 
 vi.mock('../hooks/useDashboard', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../hooks/useDashboard')>()),
@@ -143,6 +150,7 @@ const ALERTAS: Alertas = {
   alertas: [],
   clientesConsultados: 3,
   clientesIndisponiveis: 0,
+  estoqueIndisponivel: false,
 };
 
 const CLIENTE_ESFRIANDO: ClienteListItem = {
@@ -171,7 +179,16 @@ const LINHA_DO_RELATORIO: LinhaDoRelatorio = {
 
 type Retorno<F extends (...args: never[]) => unknown> = ReturnType<F>;
 
+const SITUACAO_MOCK: SituacaoErp = {
+  provedor: 'mock',
+  simulado: true,
+  estoqueDisponivel: true,
+  ultimaVendaEm: null,
+  ultimaImportacaoEm: null,
+};
+
 beforeEach(() => {
+  vi.mocked(useSituacaoErp).mockReturnValue(consulta(SITUACAO_MOCK) as unknown as Retorno<typeof useSituacaoErp>);
   vi.mocked(buscarRelatorio).mockReset().mockResolvedValue([LINHA_DO_RELATORIO]);
   vi.mocked(baixarCsv).mockReset();
   vi.mocked(listarMetas).mockReset().mockResolvedValue([META_DA_EDUARDA]);
@@ -225,11 +242,20 @@ describe('PainelPage (gestor)', () => {
     expect(screen.getByText('Dados simulados — integração com o ERP ainda não está disponível')).toBeInTheDocument();
   });
 
-  it('sem dados simulados, a faixa não aparece', () => {
-    vi.mocked(useKpis).mockReturnValue(consulta({ ...KPIS, simulado: false }) as unknown as Retorno<typeof useKpis>);
+  it('com o provedor importado, a faixa diz até quando as vendas foram importadas', () => {
+    vi.mocked(useSituacaoErp).mockReturnValue(
+      consulta({
+        provedor: 'importado',
+        simulado: false,
+        estoqueDisponivel: false,
+        ultimaVendaEm: '2026-11-04',
+        ultimaImportacaoEm: '2026-11-05T12:00:00.000Z',
+      }) as unknown as Retorno<typeof useSituacaoErp>,
+    );
     renderizarComo('GESTOR');
 
     expect(screen.queryByText(/Dados simulados/)).not.toBeInTheDocument();
+    expect(screen.getByText('Vendas do ERP importadas até 04/11/2026')).toBeInTheDocument();
   });
 
   it('título "Quem está visitando pouco?" com o período e os clientes ativos, e os quatro indicadores', () => {
@@ -396,10 +422,10 @@ describe('PainelPage (gestor)', () => {
 
     expect(useKpis).toHaveBeenCalledWith({ dias: 30 }, 'u1');
     expect(useKpisPorRepresentante).toHaveBeenCalledWith({ dias: 30 }, 'u1');
-    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, 'u1');
     expect(useAlertasDeProducao).toHaveBeenCalledWith(90, 'u1');
 
     await userEvent.click(screen.getByRole('tab', { name: 'Produção e sazonalidade' }));
+    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, 'u1');
     expect(useClientesDaCarteira).toHaveBeenCalledWith('u1');
   });
 
@@ -481,7 +507,6 @@ describe('PainelPage (gestor)', () => {
 
     expect(useKpis).toHaveBeenLastCalledWith({ dias: 90 }, undefined);
     expect(useKpisPorRepresentante).toHaveBeenLastCalledWith({ dias: 90 }, undefined);
-    expect(useVendasMensais).toHaveBeenLastCalledWith({ dias: 90 }, undefined);
     expect(within(periodo).getByRole('radio', { name: '90 dias' })).toHaveAttribute('aria-checked', 'true');
   });
 
@@ -579,10 +604,10 @@ describe('PainelPage (representante)', () => {
 
     expect(useKpis).toHaveBeenCalledWith({ dias: 30 }, undefined);
     expect(useKpisPorRepresentante).toHaveBeenCalledWith({ dias: 30 }, undefined);
-    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, undefined);
     expect(useAlertasDeProducao).toHaveBeenCalledWith(90, undefined);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Produção e sazonalidade' }));
+    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, undefined);
     expect(useClientesDaCarteira).toHaveBeenCalledWith(undefined);
   });
 

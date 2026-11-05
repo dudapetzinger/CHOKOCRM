@@ -8,7 +8,7 @@
  * leitor de tela não achar dois menus iguais.
  */
 import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3, CalendarDays, Megaphone, UserCog, Users, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, BarChart3, CalendarDays, FileUp, Megaphone, UserCog, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
 import type { Role } from '@/auth/auth-context';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ type ItemNavegacao = { para: string; rotulo: string; icone: LucideIcon; papeis: 
 /**
  * Atalhos da navegação e quem vê cada um. Cada papel vê os seus nesta
  * ordem, com a tela inicial dele (`rotaInicialDoPapel`) puxada para a
- * frente: gestor — Painel, Clientes, Agenda, Campanhas, Usuários;
+ * frente: gestor — Painel, Clientes, Agenda, Campanhas, Usuários, Importar notas;
  * representante — Agenda, Clientes, Painel, Campanhas. Item novo entra na posição em
  * que deve aparecer depois da tela inicial (as ordens estão fixadas em
  * Moldura.test.tsx).
@@ -33,6 +33,7 @@ export const ITENS_NAVEGACAO: ItemNavegacao[] = [
   { para: '/agenda', rotulo: 'Agenda', icone: CalendarDays, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/campanhas', rotulo: 'Campanhas', icone: Megaphone, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/usuarios', rotulo: 'Usuários', icone: UserCog, papeis: ['GESTOR'] },
+  { para: '/importacoes', rotulo: 'Importar notas', icone: FileUp, papeis: ['GESTOR'] },
 ];
 
 function itensDoPapel(role: Role): ItemNavegacao[] {
@@ -56,6 +57,7 @@ const TITULOS_DAS_ROTAS: { padrao: string; titulo: string; interna: boolean }[] 
   { padrao: '/clientes', titulo: 'Clientes', interna: false },
   { padrao: '/usuarios/novo', titulo: 'Novo usuário', interna: true },
   { padrao: '/usuarios', titulo: 'Usuários', interna: false },
+  { padrao: '/importacoes', titulo: 'Importar notas', interna: false },
   { padrao: '/conta/senha', titulo: 'Alterar senha', interna: true },
 ];
 

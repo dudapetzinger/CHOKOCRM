@@ -34,3 +34,18 @@ export async function listarProdutos(): Promise<Produto[]> {
   const resposta = await api.get<{ data: Produto[] }>('/erp/produtos');
   return resposta.data;
 }
+
+/** Situação da fonte de vendas do ERP (`GET /erp/situacao`, qualquer papel). */
+export type SituacaoErp = {
+  provedor: 'mock' | 'importado';
+  simulado: boolean;
+  estoqueDisponivel: boolean;
+  /** 'AAAA-MM-DD' da venda mais recente; `null` sem notas. */
+  ultimaVendaEm: string | null;
+  /** ISO da última importação; `null` se nunca houve. */
+  ultimaImportacaoEm: string | null;
+};
+
+export function buscarSituacaoErp(): Promise<SituacaoErp> {
+  return api.get<SituacaoErp>('/erp/situacao');
+}

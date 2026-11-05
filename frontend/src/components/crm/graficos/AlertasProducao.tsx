@@ -136,6 +136,10 @@ export function AlertasProducao({ horizonteDias, onHorizonteChange, alertas, car
           </p>
         )}
 
+        {alertas?.estoqueIndisponivel && (
+          <p className="text-sm text-muted-foreground">O ERP não informa o estoque do cliente.</p>
+        )}
+
         {alertas && <ListaDeAlertas alertas={alertas} />}
       </div>
     </>

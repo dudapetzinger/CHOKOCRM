@@ -16,7 +16,7 @@ import { formatarDataCalendario } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
 import { descreverPrazo } from '../lib/descreverPrazo';
 import type { AcaoSugerida, Insights, Sugestao } from '../services/insights';
-import { AvisoSimulado } from './AvisoSimulado';
+import { AvisoErp } from './AvisoErp';
 import { FiltroHorizonte, HORIZONTE_PADRAO_DIAS } from './FiltroHorizonte';
 import { EstadoVazio } from './EstadoVazio';
 import { Aviso, Cartao, Etiqueta } from './crm/ui';
@@ -136,7 +136,7 @@ export function InsightsCard({ clienteId }: Props) {
         </span>
       }
     >
-      {insights?.status === 'OK' && insights.simulado && <AvisoSimulado />}
+      {insights?.status === 'OK' && <AvisoErp />}
 
       {mostrarFiltro && <FiltroHorizonte valor={horizonteDias} onChange={setHorizonteDias} />}
 
