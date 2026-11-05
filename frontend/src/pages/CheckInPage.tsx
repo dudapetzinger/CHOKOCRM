@@ -51,7 +51,7 @@
  * passo 3 não avança sem ela): o check-in é salvo primeiro e a foto enviada
  * em seguida, comprimida, então uma falha no upload não perde o registro — a
  * ficha avisa e a timeline oferece anexar depois. Sucesso: aviso "Check-in salvo" e volta
- * à ficha. O erro da API aparece num aviso abaixo do indicador, sem perder
+ * à ficha, na aba Visitas (`?aba=visitas`). O erro da API aparece num aviso abaixo do indicador, sem perder
  * o que foi digitado, e sai ao avançar de passo ou reenviar; o erro de um
  * campo de outro passo (ex.: data no futuro pelo relógio do servidor) leva a
  * esse passo, com a mensagem no campo.
@@ -371,13 +371,13 @@ export function CheckInPage() {
         } catch {
           // O check-in já está salvo; a ficha exibe o aviso e a timeline
           // oferece anexar a foto depois (UC07, fluxo de exceção E2).
-          navigate(`/clientes/${id}`, { replace: true, state: { avisoFoto: 'nao-enviada' } });
+          navigate(`/clientes/${id}?aba=visitas`, { replace: true, state: { avisoFoto: 'nao-enviada' } });
           return;
         }
       }
 
       toast.success('Check-in salvo');
-      navigate(`/clientes/${id}`, { replace: true });
+      navigate(`/clientes/${id}?aba=visitas`, { replace: true });
     } catch (err: unknown) {
       mostrarErroDoEnvio(err);
       setSalvando(false);
@@ -665,7 +665,7 @@ export function CheckInPage() {
                 Voltar
               </Button>
             )}
-            <Button type="button" variant="ghost" onClick={() => navigate(`/clientes/${id}`)}>
+            <Button type="button" variant="ghost" onClick={() => navigate(`/clientes/${id}?aba=visitas`)}>
               Cancelar
             </Button>
           </div>

@@ -121,9 +121,14 @@ const PERGUNTA_LEMBRETE = 'Deseja anotar um lembrete?';
 
 /** A ficha, para conferir a volta (e o aviso da foto que não subiu). */
 function FichaFalsa() {
-  const { state } = useLocation();
+  const { state, search } = useLocation();
   const aviso = (state as { avisoFoto?: string } | null)?.avisoFoto;
-  return <p>Ficha do cliente{aviso ? ` (foto: ${aviso})` : ''}</p>;
+  return (
+    <>
+      <p>Ficha do cliente{aviso ? ` (foto: ${aviso})` : ''}</p>
+      <span data-testid="busca-da-ficha">{search}</span>
+    </>
+  );
 }
 
 // Sem atraso entre as teclas: o teste não depende da velocidade da máquina.
@@ -791,6 +796,7 @@ describe('CheckInPage — passos', () => {
     await salvar();
 
     expect(await screen.findByText('Ficha do cliente (foto: nao-enviada)')).toBeInTheDocument();
+    expect(screen.getByTestId('busca-da-ficha')).toHaveTextContent('?aba=visitas');
     expect(registrarCheckIn).toHaveBeenCalledTimes(1);
   });
 });

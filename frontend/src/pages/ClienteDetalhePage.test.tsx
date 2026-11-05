@@ -287,7 +287,7 @@ describe('ClienteDetalhePage', () => {
   });
 
   describe('abas da ficha', () => {
-    it('mostra as três abas, com Visitas marcada por padrão', async () => {
+    it('mostra as três abas na ordem, com "ERP e sugestões" marcada por padrão', async () => {
       vi.mocked(getCliente).mockResolvedValue(FICHA);
       renderizar();
 
@@ -295,13 +295,24 @@ describe('ClienteDetalhePage', () => {
         name: 'Seções da ficha',
       });
       const abas = within(lista).getAllByRole('tab');
-      expect(abas.map((aba) => aba.textContent)).toEqual(['Visitas', 'ERP e sugestões', 'Cadastro']);
-      expect(screen.getByRole('tab', { name: 'Visitas' })).toHaveAttribute('aria-selected', 'true');
+      expect(abas.map((aba) => aba.textContent)).toEqual(['ERP e sugestões', 'Visitas', 'Cadastro']);
+      expect(screen.getByRole('tab', { name: 'ERP e sugestões' })).toHaveAttribute('aria-selected', 'true');
     });
 
-    it('por padrão mostra o histórico de visitas e não consulta insights nem ERP', async () => {
+    it('na aba ERP, os cartões vêm em Insights, Dados do ERP e Mensagem de estoque', async () => {
       vi.mocked(getCliente).mockResolvedValue(FICHA);
       renderizar();
+
+      const insights = await screen.findByRole('heading', { name: /Insights e sugestões/ });
+      const dados = await screen.findByRole('heading', { name: 'Dados do ERP' });
+      const mensagem = await screen.findByRole('heading', { name: 'Mensagem de estoque' });
+      expect(insights.compareDocumentPosition(dados) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(dados.compareDocumentPosition(mensagem) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('?aba=visitas mostra o histórico de visitas e não consulta insights nem ERP', async () => {
+      vi.mocked(getCliente).mockResolvedValue(FICHA);
+      renderizar('/clientes/c1?aba=visitas');
 
       expect(
         await screen.findByRole('heading', {
@@ -309,6 +320,7 @@ describe('ClienteDetalhePage', () => {
           name: 'Histórico de visitas',
         }),
       ).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Visitas' })).toHaveAttribute('aria-selected', 'true');
       expect(screen.queryByRole('region', { name: 'Mensagem de estoque' })).not.toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Contatos' })).not.toBeInTheDocument();
       expect(buscarInsights).not.toHaveBeenCalled();
@@ -350,22 +362,17 @@ describe('ClienteDetalhePage', () => {
       expect(buscarInsights).not.toHaveBeenCalled();
     });
 
-    it('?aba=xyz cai em Visitas', async () => {
+    it('?aba=xyz cai em ERP e sugestões', async () => {
       vi.mocked(getCliente).mockResolvedValue(FICHA);
       renderizar('/clientes/c1?aba=xyz');
 
-      expect(
-        await screen.findByRole('heading', {
-          level: 2,
-          name: 'Histórico de visitas',
-        }),
-      ).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Visitas' })).toHaveAttribute('aria-selected', 'true');
+      expect(await screen.findByRole('region', { name: 'Mensagem de estoque' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'ERP e sugestões' })).toHaveAttribute('aria-selected', 'true');
     });
 
     it('o aviso da foto não enviada aparece no histórico de visitas', async () => {
       vi.mocked(getCliente).mockResolvedValue(FICHA);
-      renderizar('/clientes/c1', { avisoFoto: 'nao-enviada' });
+      renderizar('/clientes/c1?aba=visitas', { avisoFoto: 'nao-enviada' });
 
       const aviso = await screen.findByText(/a foto não chegou a ser enviada/);
       expect(screen.getByRole('region', { name: 'Histórico de visitas' })).toContainElement(aviso);

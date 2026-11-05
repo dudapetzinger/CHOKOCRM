@@ -24,11 +24,11 @@ import { useLarguraDesktop } from '../lib/useLarguraDesktop';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do cliente.';
 
-const VALORES_DAS_ABAS = ['visitas', 'erp', 'cadastro'] as const;
+const VALORES_DAS_ABAS = ['erp', 'visitas', 'cadastro'] as const;
 type AbaDaFicha = (typeof VALORES_DAS_ABAS)[number];
 const ABAS: Aba<AbaDaFicha>[] = [
-  { valor: 'visitas', rotulo: 'Visitas' },
   { valor: 'erp', rotulo: 'ERP e sugestões' },
+  { valor: 'visitas', rotulo: 'Visitas' },
   { valor: 'cadastro', rotulo: 'Cadastro' },
 ];
 
@@ -42,11 +42,11 @@ const ABAS: Aba<AbaDaFicha>[] = [
  * representante e ao gestor). Na Etapa 11b, os dois também marcam, mudam e
  * limpam a data da próxima visita ali mesmo (cliente ativo ou inativo); a
  * página grava (`PUT /clients/:id`), põe a resposta em `['client', id]` e
- * invalida a lista de clientes e a agenda. Abaixo, as abas "Visitas" (histórico e
- * recorrência), "ERP e sugestões" (mensagem de estoque, insights e dados do
- * ERP) e "Cadastro" (`DadosCadastrais`), guardadas em `?aba=`; sem o
- * parâmetro, ou com um valor desconhecido, abre em Visitas, que é também onde
- * se cai ao voltar do check-in. Só o painel da aba aberta é montado, então os
+ * invalida a lista de clientes e a agenda. Abaixo, as abas "ERP e sugestões" (insights,
+ * dados do ERP e mensagem de estoque, nessa ordem), "Visitas" (histórico e
+ * recorrência) e "Cadastro" (`DadosCadastrais`), guardadas em `?aba=`; sem o
+ * parâmetro, ou com um valor desconhecido, abre em "ERP e sugestões" (Etapa
+ * 12). Só o painel da aba aberta é montado, então os
  * cartões de ERP e insights só consultam a API quando a aba é aberta. Os
  * avisos de sucesso são `toast`; os erros ficam na própria ficha.
  *
@@ -63,7 +63,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
   const location = useLocation();
   const desktop = useLarguraDesktop();
   const idDasAbas = useId();
-  const [aba, trocarAba] = useAbaNaUrl('aba', VALORES_DAS_ABAS, 'visitas');
+  const [aba, trocarAba] = useAbaNaUrl('aba', VALORES_DAS_ABAS, 'erp');
 
   /**
    * A tela de check-in redireciona para cá com este aviso quando a visita
@@ -221,11 +221,11 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
 
         {aba === 'erp' && (
           <>
-            <MensagemEstoqueCard clienteId={id!} podeGerar={ehRepresentante && cliente.ativo} />
-
             <InsightsCard clienteId={id!} />
 
             <DadosErpCard clienteId={id!} />
+
+            <MensagemEstoqueCard clienteId={id!} podeGerar={ehRepresentante && cliente.ativo} />
           </>
         )}
 
