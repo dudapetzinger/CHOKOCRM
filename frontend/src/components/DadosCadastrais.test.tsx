@@ -73,8 +73,31 @@ describe('DadosCadastrais', () => {
     expect(screen.getByText('CNPJ')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Editar dados' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Inativar cliente' })).toBeInTheDocument();
-    // "Adicionar contato" fica só no cabeçalho da ficha (Etapa 10), que está sempre à vista.
+    expect(screen.getByRole('button', { name: 'Adicionar contato' })).toBeInTheDocument();
+  });
+
+  it('"Adicionar contato" vem depois da lista e abre o formulário no lugar do botão', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    renderizar();
+
+    const botao = screen.getByRole('button', { name: 'Adicionar contato' });
+    expect(screen.getByText('Marta Hoffmann').compareDocumentPosition(botao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await usuario.click(botao);
+
+    expect(screen.getByLabelText('Nome')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Adicionar contato' })).not.toBeInTheDocument();
+  });
+
+  it('cancelar fecha o formulário e devolve o foco ao botão', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    renderizar();
+
+    await usuario.click(screen.getByRole('button', { name: 'Adicionar contato' }));
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Adicionar contato' })).toHaveFocus();
   });
 
   it('salvar a edição dos dados avisa "Dados do cliente atualizados." num toast', async () => {

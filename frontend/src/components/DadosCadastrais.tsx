@@ -1,8 +1,8 @@
 /**
  * Dados cadastrais da ficha do cliente (Etapa 7, spec 5.5): "Dados do
  * cliente" (com editar, inativar e reativar) e "Contatos" (listar, editar,
- * tornar principal, remover; adicionar fica só no cabeçalho da ficha, que
- * está sempre à vista — Etapa 10). Etapa 9: são o conteúdo da aba
+ * tornar principal, remover e adicionar, com o mesmo formulário `NovoContato`
+ * do cabeçalho da ficha — Etapa 12). Etapa 9: são o conteúdo da aba
  * "Cadastro" da ficha, então os dois blocos aparecem direto, abertos, cada um
  * num cartão, um embaixo do outro (antes ficavam recolhidos num `<details>`).
  * A aba só monta quando está aberta, então uma edição em andamento se perde
@@ -36,6 +36,8 @@ import {
   validarContatoFormulario,
   type ContatoFormValue,
 } from './ContatoFields';
+import { NovoContato } from './crm/NovoContato';
+import { useDevolverFoco } from '../lib/useFoco';
 import { formatarData } from '../lib/formatarData';
 import { Aviso, Campo, Cartao, CLASSES_BOTAO_PERIGO, Etiqueta } from './crm/ui';
 
@@ -124,6 +126,9 @@ export function DadosCadastrais({ cliente }: Props) {
 
   const [confirmandoRemocaoId, setConfirmandoRemocaoId] = useState<string | null>(null);
   const [erroAcaoContato, setErroAcaoContato] = useState<string | null>(null);
+
+  const [adicionandoContato, setAdicionandoContato] = useState(false);
+  const { ref: botaoAdicionarContato, devolverFoco } = useDevolverFoco<HTMLButtonElement>(adicionandoContato);
 
   function invalidarCliente(): void {
     queryClient.invalidateQueries({ queryKey: ['client', id] });
@@ -514,6 +519,26 @@ export function DadosCadastrais({ cliente }: Props) {
               ),
             )}
           </ul>
+        )}
+
+        {adicionandoContato ? (
+          <NovoContato
+            clienteId={cliente.id}
+            aoConcluir={() => {
+              devolverFoco();
+              setAdicionandoContato(false);
+            }}
+          />
+        ) : (
+          <Button
+            ref={botaoAdicionarContato}
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setAdicionandoContato(true)}
+          >
+            Adicionar contato
+          </Button>
         )}
       </Cartao>
     </div>
