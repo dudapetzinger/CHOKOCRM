@@ -60,24 +60,57 @@ describe('VisitTimeline', () => {
     expect(screen.queryByText('Esta visita não tem foto de comprovação.')).not.toBeInTheDocument();
   });
 
-  it('mostra o pedido da visita com o total e uma linha por item', () => {
-    renderizar([
-      visita({
-        itens: [
-          { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
-          { sku: 'PAO-MEL', produtoNome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
-        ],
-        totalPedido: 503.7,
-      }),
-    ]);
+  const ITENS_DO_PEDIDO: Visita['itens'] = [
+    { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
+    { sku: 'PAO-MEL', produtoNome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
+  ];
 
+  it('mostra o pedido recolhido: só o total e o botão "Ver itens"', () => {
+    renderizar([visita({ itens: ITENS_DO_PEDIDO, totalPedido: 503.7 })]);
+
+    expect(screen.getByText(/^Pedido · R\$\s503,70$/)).toBeInTheDocument();
+    const botao = screen.getByRole('button', { name: 'Ver itens' });
+    expect(botao).toHaveAttribute('aria-expanded', 'false');
+    expect(botao).toHaveAttribute('aria-controls');
+    expect(screen.queryByRole('list', { name: /^Pedido/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Bombons sortidos/)).not.toBeInTheDocument();
+  });
+
+  it('"Ver itens" mostra uma linha por item e o botão vira "Ocultar itens"', async () => {
+    const usuario = userEvent.setup();
+    renderizar([visita({ itens: ITENS_DO_PEDIDO, totalPedido: 503.7 })]);
+
+    await usuario.click(screen.getByRole('button', { name: 'Ver itens' }));
+
+    const botao = screen.getByRole('button', { name: 'Ocultar itens' });
+    expect(botao).toHaveAttribute('aria-expanded', 'true');
     const pedido = screen.getByRole('list', { name: /^Pedido · R\$\s503,70$/ });
+    expect(botao.getAttribute('aria-controls')).toBe(pedido.id);
     const linhas = within(pedido).getAllByRole('listitem');
     expect(linhas).toHaveLength(2);
     expect(linhas[0]).toHaveTextContent('10× Bombons sortidos');
     expect(linhas[0]).toHaveTextContent('R$ 420,00');
     expect(linhas[1]).toHaveTextContent('3× Pães de mel');
     expect(linhas[1]).toHaveTextContent('R$ 83,70');
+
+    await usuario.click(botao);
+    expect(screen.queryByRole('list', { name: /^Pedido/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver itens' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('abrir os itens de uma visita não abre os das outras', async () => {
+    const usuario = userEvent.setup();
+    renderizar([
+      visita({ id: 'v1', itens: ITENS_DO_PEDIDO, totalPedido: 503.7 }),
+      visita({ id: 'v2', descricao: 'Outra.', itens: ITENS_DO_PEDIDO, totalPedido: 503.7 }),
+    ]);
+
+    const [primeiro] = screen.getAllByRole('button', { name: 'Ver itens' });
+    await usuario.click(primeiro);
+
+    expect(screen.getAllByRole('list', { name: /^Pedido/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Ver itens' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Ocultar itens' })).toHaveLength(1);
   });
 
   it('mostra a etiqueta da campanha da visita ao lado do resultado (spec 7.7)', () => {
@@ -116,6 +149,7 @@ describe('VisitTimeline', () => {
 
     expect(screen.getByText('Reposição do mostruário.')).toBeInTheDocument();
     expect(screen.queryByText(/^Pedido/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /itens/ })).not.toBeInTheDocument();
   });
 
   it('sem visitas: mostra o estado vazio, sem destaque nem filtro', () => {

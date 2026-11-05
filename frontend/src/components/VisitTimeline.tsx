@@ -11,7 +11,8 @@
  * data e o resultado numa etiqueta só de contorno (Etapa 10c: venda verde,
  * negociação azul, sem venda vermelho claro), a etiqueta azul preenchida da
  * campanha vinculada (spec 7.7), o pedido da visita com venda ("Pedido ·
- * total" e uma linha por item, com o preço gravado no check-in) e a foto em
+ * total" e, ao abrir "Ver itens", uma linha por item, com o preço gravado no check-in; o
+ * pedido vem recolhido) e a foto em
  * miniatura — ou, depois da limpeza dos 90 dias, o aviso "Foto removida após
  * 90 dias." no lugar da foto e do botão de anexar.
  *
@@ -20,7 +21,7 @@
  * e os callbacks da página (ver docs/arquitetura.md).
  */
 import { useId, useState } from 'react';
-import { Camera, Pencil, ShoppingBag } from 'lucide-react';
+import { Camera, ChevronDown, ChevronUp, Pencil, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ROTULO_RESULTADO, type ResultadoVisita } from '../services/visits';
@@ -59,8 +60,10 @@ type PropsDoItem = {
   visita: Visita;
   souAutor: boolean;
   editando: boolean;
+  itensAbertos: boolean;
   rascunho: string;
   ocupado: boolean;
+  onAlternarItens: () => void;
   onComecarEdicao: () => void;
   onCancelarEdicao: () => void;
   onMudarRascunho: (texto: string) => void;
@@ -70,14 +73,16 @@ type PropsDoItem = {
 
 /**
  * Conteúdo de uma visita (data, etiquetas, descrição editável, pedido e foto),
- * igual no destaque e na linha do tempo. O estado de edição fica no pai.
+ * igual no destaque e na linha do tempo. O estado de edição e o dos itens abertos ficam no pai.
  */
 function ItemDaVisita({
   visita,
   souAutor,
   editando,
+  itensAbertos,
   rascunho,
   ocupado,
+  onAlternarItens,
   onComecarEdicao,
   onCancelarEdicao,
   onMudarRascunho,
@@ -144,16 +149,30 @@ function ItemDaVisita({
             <ShoppingBag aria-hidden="true" className="size-4 shrink-0 text-primary-vivo" />
             Pedido · {formatarMoeda(visita.totalPedido)}
           </p>
-          <ul aria-labelledby={`pedido-${visita.id}`} className="space-y-0.5">
-            {visita.itens.map((item, indice) => (
-              <li key={`${item.sku}-${indice}`} className="flex justify-between gap-3 text-muted-foreground">
-                <span className="min-w-0">
-                  {item.quantidade}× {item.produtoNome}
-                </span>
-                <span className="shrink-0 tabular-nums">{formatarMoeda(item.quantidade * item.precoUnitario)}</span>
-              </li>
-            ))}
-          </ul>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="-ml-3 text-muted-foreground"
+            aria-expanded={itensAbertos}
+            aria-controls={`itens-${visita.id}`}
+            onClick={onAlternarItens}
+          >
+            {itensAbertos ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+            {itensAbertos ? 'Ocultar itens' : 'Ver itens'}
+          </Button>
+          {itensAbertos && (
+            <ul id={`itens-${visita.id}`} aria-labelledby={`pedido-${visita.id}`} className="mt-1 space-y-0.5">
+              {visita.itens.map((item, indice) => (
+                <li key={`${item.sku}-${indice}`} className="flex justify-between gap-3 text-muted-foreground">
+                  <span className="min-w-0">
+                    {item.quantidade}× {item.produtoNome}
+                  </span>
+                  <span className="shrink-0 tabular-nums">{formatarMoeda(item.quantidade * item.precoUnitario)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -208,6 +227,7 @@ export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarF
   const [rascunho, setRascunho] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [itensAbertos, setItensAbertos] = useState<ReadonlySet<string>>(new Set());
   const [filtro, setFiltro] = useState<FiltroDeVisitas>(3);
   const idDestaque = useId();
   const idAnteriores = useId();
@@ -248,12 +268,22 @@ export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarF
     }
   }
 
+  function alternarItens(visitaId: string) {
+    setItensAbertos((atuais) => {
+      const proximos = new Set(atuais);
+      if (!proximos.delete(visitaId)) proximos.add(visitaId);
+      return proximos;
+    });
+  }
+
   function renderizarItem(visita: Visita) {
     return (
       <ItemDaVisita
         visita={visita}
         souAutor={usuarioId === visita.autor.id}
         editando={editando === visita.id}
+        itensAbertos={itensAbertos.has(visita.id)}
+        onAlternarItens={() => alternarItens(visita.id)}
         rascunho={rascunho}
         ocupado={ocupado}
         onComecarEdicao={() => {
