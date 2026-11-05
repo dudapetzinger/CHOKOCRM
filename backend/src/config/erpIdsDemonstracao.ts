@@ -14,21 +14,26 @@
  *   compra): o único rebaixado para LARANJA mesmo com visita recente,
  *   mostrando `rebaixadoPorVenda`.
  * - Doceria Jaraguá → `10448` (2) e Mercado Central Joinville → `10504` (1):
- *   atrasados pela visita (LARANJA e VERMELHO), cor que a compra não muda;
- *   mesmos perfis de antes.
+ *   atrasados pela visita (LARANJA e AMARELO); com 2 meses sem compra a
+ *   Doceria poderia ser rebaixada, mas já é LARANJA, e 1 mês (até 60 dias)
+ *   não rebaixa o Mercado Central; mesmos perfis de antes.
  * - Empório do Vale Brusque → `10865` (0) e Casa de Chás Itajaí → `10947`
  *   (1): mesmos perfis de antes, e o estoque mais recente tem item BAIXO de
  *   Natal (`SKUS_SUGERIDOS.NATAL`) em todos os snapshots de 05 a 26/11/2026
  *   (o estoque do mock avança numa grade de 15 em 15 dias), para o insight de
  *   reposição sazonal.
  * - Mercearia Alto Vale → `11062` (0) e Padaria Confeitaria Indaial →
- *   `11143` (2): mesmos perfis de antes.
+ *   `11143` (2): mesmos perfis de antes; a Indaial nunca foi visitada (VERMELHO),
+ *   cor que a compra não muda.
  * - Padaria Vale Europeu e Confeitaria Rota das Cachoeiras → sem `erpId`
  *   (`null`): a consulta retorna `SEM_ERP_ID`.
+ * - Café Beira-Rio → `12106` (`mesesSemCompra` 2): o cliente inativo, fechado
+ *   para reforma há mais de um mês, também parou de comprar no ERP; já é
+ *   VERMELHO pela visita, então não aparece como rebaixado.
  * - Os demais (Café Blumenau, Cafeteria Estrada Bonita, Empório do Chocolate
- *   e os treze clientes novos): `mesesSemCompra` 0, para nenhum cliente em dia
- *   ser rebaixado sem querer; `valorBase` variado (de 718 a 2374) deixa o
- *   histórico de vendas da ficha diferente em cada um.
+ *   e os outros doze clientes novos): `mesesSemCompra` 0, para nenhum cliente
+ *   em dia ser rebaixado sem querer; `valorBase` variado deixa o histórico de
+ *   vendas da ficha diferente em cada um.
  *
  * Nenhum código termina em "-0" (`erpIdDesconhecido`): o caso
  * `NAO_ENCONTRADO` não está no seed (os testes o cobrem com ids próprios).
@@ -56,7 +61,7 @@ export const ERP_IDS_DEMONSTRACAO: Record<string, string | null> = {
   'Doceria Enxaimel': '11901',
   'Confeitaria Vila Germânica': '11959',
   'Empório Itoupava': '12024',
-  'Café Beira-Rio': '12102',
+  'Café Beira-Rio': '12106',
   'Hotel Fazenda Mulde': '12159',
   'Padaria Vale Europeu': null,
   'Confeitaria Rota das Cachoeiras': null,

@@ -33,7 +33,10 @@ import { periodoDaMeta } from '../services/goal.regras';
  * (10), cada uma nas cidades da sua rota, com cadastro de sistema de verdade:
  * CNPJ com dígitos verificadores válidos, razão social, endereço, telefone e
  * e-mail no domínio do cliente, de 1 a 2 contatos (um principal) e, em todos
- * menos dois, `erpId` numérico; nada com cara de dado de teste.
+ * menos dois, `erpId` numérico; nada com cara de dado de teste. Cada cliente
+ * tem a sua recorrência (7 a 60 dias) e um histórico de visitas que a
+ * respeita (`VISITAS_DEMO`, pedidos de 1 a 4 itens), fora os casos de
+ * propósito descritos lá; um cliente é inativo.
  */
 
 /** Senha das três contas de demonstração (publicada no guia de desenvolvimento). */
@@ -46,7 +49,7 @@ type Banco = PrismaClient | Prisma.TransactionClient;
 
 /**
  * Prazo da transação do reinício: o padrão do Prisma (5 s) não cobre o hash
- * das senhas e as ~150 gravações do seed num banco remoto.
+ * das senhas e as ~300 gravações do seed num banco remoto.
  */
 const PRAZO_DA_TRANSACAO_MS = 120_000;
 
@@ -110,6 +113,13 @@ type ClienteSeed = {
    * Itajaí e Rio do Sul), cada carteira na ordem da rota.
    */
   representanteEmail: string;
+  /**
+   * Intervalo entre visitas, em dias (7 a 60: semanal nos dois clientes grandes,
+   * quinzenal, mensal, a cada 45 dias e bimestral); sem valor, 15, o padrão do banco.
+   */
+  recorrenciaDias?: number;
+  /** `false` só no cliente fechado para reforma: guarda o histórico, sem próxima visita nem lembrete. */
+  ativo?: boolean;
 };
 
 const EMAIL_EDUARDA = 'eduarda@chokolaten.com.br';
@@ -124,21 +134,22 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '15327045000142',
     cidade: 'Joinville',
     endereco: 'Rua do Príncipe, 800 - Centro, Joinville/SC',
-    telefone: '(47) 3433-3030',
+    telefone: '(47) 3433-1867',
     email: 'contato@mercadocentraljoinville.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 7,
     contatos: [
       {
         nome: 'Roberto Alves',
         cargo: 'Gerente de Compras',
-        telefone: '(47) 99955-3030',
+        telefone: '(47) 99137-4528',
         email: 'roberto.alves@mercadocentraljoinville.com.br',
         principal: true,
       },
       {
         nome: 'Sílvia Alves',
         cargo: 'Proprietária',
-        telefone: '(47) 99955-3131',
+        telefone: '(47) 98846-1709',
         email: 'silvia.alves@mercadocentraljoinville.com.br',
         principal: false,
       },
@@ -150,14 +161,15 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '39007747000107',
     cidade: 'Joinville',
     endereco: 'Rua Dona Francisca, 11.800 - Pirabeiraba, Joinville/SC',
-    telefone: '(47) 3455-5050',
+    telefone: '(47) 3455-2194',
     email: 'contato@cafeteriaestradabonita.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 30,
     contatos: [
       {
         nome: 'Fernanda Souza',
         cargo: 'Gerente',
-        telefone: '(47) 99977-5050',
+        telefone: '(47) 99652-3184',
         email: 'fernanda.souza@cafeteriaestradabonita.com.br',
         principal: true,
       },
@@ -172,18 +184,19 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3422-6181',
     email: 'contato@confeitariadonafrida.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 15,
     contatos: [
       {
         nome: 'Ingrid Lange',
         cargo: 'Proprietária',
-        telefone: '(47) 99127-6181',
+        telefone: '(47) 99127-4035',
         email: 'ingrid.lange@confeitariadonafrida.com.br',
         principal: true,
       },
       {
         nome: 'Paulo Lange',
         cargo: 'Comprador',
-        telefone: '(47) 99127-6182',
+        telefone: '(47) 98803-5917',
         email: 'paulo.lange@confeitariadonafrida.com.br',
         principal: false,
       },
@@ -198,11 +211,12 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3027-4410',
     email: 'contato@caferuadaspalmeiras.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 30,
     contatos: [
       {
         nome: 'Renata Kohler',
         cargo: 'Gerente',
-        telefone: '(47) 98834-4410',
+        telefone: '(47) 98834-2761',
         email: 'renata.kohler@caferuadaspalmeiras.com.br',
         principal: true,
       },
@@ -217,18 +231,19 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3436-2290',
     email: 'contato@merceariabomretiro.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 45,
     contatos: [
       {
         nome: 'José Schulz',
         cargo: 'Proprietário',
-        telefone: '(47) 99652-2290',
+        telefone: '(47) 99604-8352',
         email: 'jose.schulz@merceariabomretiro.com.br',
         principal: true,
       },
       {
         nome: 'Ana Paula Schulz',
         cargo: 'Compradora',
-        telefone: '(47) 99652-2291',
+        telefone: '(47) 99171-6430',
         email: 'anapaula.schulz@merceariabomretiro.com.br',
         principal: false,
       },
@@ -240,14 +255,15 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '44168350000137',
     cidade: 'Jaraguá do Sul',
     endereco: 'Rua Reinoldo Rau, 220 - Centro, Jaraguá do Sul/SC',
-    telefone: '(47) 3275-2020',
+    telefone: '(47) 3275-1468',
     email: 'contato@doceriajaragua.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 15,
     contatos: [
       {
         nome: 'Cristiane Bauer',
         cargo: 'Proprietária',
-        telefone: '(47) 99944-2020',
+        telefone: '(47) 99914-7286',
         email: 'cristiane.bauer@doceriajaragua.com.br',
         principal: true,
       },
@@ -262,18 +278,19 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3370-4815',
     email: 'contato@panificadoravilalenzi.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 7,
     contatos: [
       {
         nome: 'Giovana Moretti',
         cargo: 'Proprietária',
-        telefone: '(47) 99188-4815',
+        telefone: '(47) 99188-2069',
         email: 'giovana.moretti@panificadoravilalenzi.com.br',
         principal: true,
       },
     ],
   },
   {
-    razaoSocial: 'Stein Casa de Chá e Eventos EIRELI',
+    razaoSocial: 'Stein Casa de Chá e Eventos Ltda',
     nomeFantasia: 'Casa de Chá Recanto Alemão',
     cnpj: '38272408000195',
     cidade: 'Jaraguá do Sul',
@@ -281,18 +298,19 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3371-5520',
     email: 'contato@recantoalemao.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 30,
     contatos: [
       {
         nome: 'Elfrida Stein',
         cargo: 'Proprietária',
-        telefone: '(47) 99230-5520',
+        telefone: '(47) 99230-1847',
         email: 'elfrida.stein@recantoalemao.com.br',
         principal: true,
       },
       {
         nome: 'Marcos Stein',
         cargo: 'Sócio',
-        telefone: '(47) 99230-5521',
+        telefone: '(47) 98417-6302',
         email: 'marcos.stein@recantoalemao.com.br',
         principal: false,
       },
@@ -304,14 +322,15 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '16945161000198',
     cidade: 'Corupá',
     endereco: 'Rua Getúlio Vargas, 450 - Centro, Corupá/SC',
-    telefone: '(47) 3375-7070',
+    telefone: '(47) 3375-6293',
     email: 'contato@rotadascachoeiras.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 45,
     contatos: [
       {
         nome: 'Marcelo Piske',
         cargo: 'Proprietário',
-        telefone: '(47) 99999-7070',
+        telefone: '(47) 99743-5376',
         email: 'marcelo.piske@rotadascachoeiras.com.br',
         principal: true,
       },
@@ -326,18 +345,19 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3375-1840',
     email: 'reservas@hotelfazendarionovo.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 60,
     contatos: [
       {
         nome: 'Cláudio Hruschka',
         cargo: 'Gerente',
-        telefone: '(47) 99145-1840',
+        telefone: '(47) 99145-6721',
         email: 'claudio@hotelfazendarionovo.com.br',
         principal: true,
       },
       {
         nome: 'Vera Hruschka',
         cargo: 'Sócia',
-        telefone: '(47) 99145-1841',
+        telefone: '(47) 98872-0394',
         email: 'vera@hotelfazendarionovo.com.br',
         principal: false,
       },
@@ -349,14 +369,15 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '49610663000117',
     cidade: 'São Bento do Sul',
     endereco: 'Rua XV de Novembro, 900 - Centro, São Bento do Sul/SC',
-    telefone: '(47) 3633-8080',
+    telefone: '(47) 3633-4172',
     email: 'contato@armazemsaobento.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 15,
     contatos: [
       {
         nome: 'Luciane Wolf',
         cargo: 'Gerente',
-        telefone: '(47) 99900-8080',
+        telefone: '(47) 99628-1957',
         email: 'luciane.wolf@armazemsaobento.com.br',
         principal: true,
       },
@@ -371,11 +392,12 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3635-2730',
     email: 'contato@cafecolonialserraalta.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 30,
     contatos: [
       {
         nome: 'Lúcia Treml',
         cargo: 'Proprietária',
-        telefone: '(47) 99174-2730',
+        telefone: '(47) 99174-8615',
         email: 'lucia.treml@cafecolonialserraalta.com.br',
         principal: true,
       },
@@ -387,21 +409,22 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '37629266000108',
     cidade: 'São Bento do Sul',
     endereco: 'Rua Antônio Kaesemodel, 512 - Centenário, São Bento do Sul/SC',
-    telefone: '(47) 3626-3355',
+    telefone: '(47) 3626-3158',
     email: 'contato@padariarainhadaserra.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 30,
     contatos: [
       {
         nome: 'Edson Grosskopf',
         cargo: 'Proprietário',
-        telefone: '(47) 99203-3355',
+        telefone: '(47) 99203-7148',
         email: 'edson.grosskopf@padariarainhadaserra.com.br',
         principal: true,
       },
       {
         nome: 'Mariane Grosskopf',
         cargo: 'Compradora',
-        telefone: '(47) 99203-3356',
+        telefone: '(47) 98466-2593',
         email: 'mariane.grosskopf@padariarainhadaserra.com.br',
         principal: false,
       },
@@ -413,21 +436,22 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '11017166000137',
     cidade: 'Pomerode',
     endereco: 'Rua Hermann Weege, 620 - Centro, Pomerode/SC',
-    telefone: '(47) 3395-1122',
+    telefone: '(47) 3395-1764',
     email: 'contato@emporiopomerode.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 15,
     contatos: [
       {
         nome: 'Marta Weber',
         cargo: 'Compradora',
-        telefone: '(47) 99911-2233',
+        telefone: '(47) 99316-8742',
         email: 'marta.weber@emporiopomerode.com.br',
         principal: true,
       },
       {
         nome: 'João Siewert',
         cargo: 'Proprietário',
-        telefone: '(47) 99922-3344',
+        telefone: '(47) 98705-1263',
         email: 'joao.siewert@emporiopomerode.com.br',
         principal: false,
       },
@@ -439,14 +463,15 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '42293000000177',
     cidade: 'Pomerode',
     endereco: 'Rua XV de Novembro, 1.050 - Centro, Pomerode/SC',
-    telefone: '(47) 3387-6060',
+    telefone: '(47) 3387-5931',
     email: 'contato@emporiodochocolate.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 15,
     contatos: [
       {
         nome: 'Patrícia Hoffmann',
         cargo: 'Compradora',
-        telefone: '(47) 99988-6060',
+        telefone: '(47) 99958-3417',
         email: 'patricia.hoffmann@emporiodochocolate.com.br',
         principal: true,
       },
@@ -458,21 +483,22 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '42451115000142',
     cidade: 'Pomerode',
     endereco: 'Rua Ribeirão Herdt, 215 - Ribeirão Herdt, Pomerode/SC',
-    telefone: '(47) 3387-2468',
+    telefone: '(47) 3387-4026',
     email: 'contato@doceriaenxaimel.com.br',
     representanteEmail: EMAIL_EDUARDA,
+    recorrenciaDias: 30,
     contatos: [
       {
         nome: 'Heloísa Krause',
         cargo: 'Proprietária',
-        telefone: '(47) 99161-2468',
+        telefone: '(47) 99161-7302',
         email: 'heloisa.krause@doceriaenxaimel.com.br',
         principal: true,
       },
       {
         nome: 'Bruno Krause',
         cargo: 'Sócio',
-        telefone: '(47) 99161-2469',
+        telefone: '(47) 98912-4586',
         email: 'bruno.krause@doceriaenxaimel.com.br',
         principal: false,
       },
@@ -485,14 +511,15 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '10344962000111',
     cidade: 'Blumenau',
     endereco: 'Rua XV de Novembro, 500 - Centro, Blumenau/SC',
-    telefone: '(47) 3322-1010',
+    telefone: '(47) 3322-6045',
     email: 'contato@cafeblumenau.com.br',
     representanteEmail: EMAIL_RAFAEL,
+    recorrenciaDias: 15,
     contatos: [
       {
         nome: 'Helena Krüger',
         cargo: 'Gerente',
-        telefone: '(47) 99933-1010',
+        telefone: '(47) 99933-5871',
         email: 'helena.kruger@cafeblumenau.com.br',
         principal: true,
       },
@@ -507,18 +534,19 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3326-1955',
     email: 'contato@confeitariavilagermanica.com.br',
     representanteEmail: EMAIL_RAFAEL,
+    recorrenciaDias: 30,
     contatos: [
       {
         nome: 'Rita Haertel',
         cargo: 'Proprietária',
-        telefone: '(47) 99112-1955',
+        telefone: '(47) 99112-6083',
         email: 'rita.haertel@confeitariavilagermanica.com.br',
         principal: true,
       },
       {
         nome: 'Felipe Haertel',
         cargo: 'Comprador',
-        telefone: '(47) 99112-1956',
+        telefone: '(47) 98827-3145',
         email: 'felipe.haertel@confeitariavilagermanica.com.br',
         principal: false,
       },
@@ -533,11 +561,12 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3337-2201',
     email: 'contato@emporioitoupava.com.br',
     representanteEmail: EMAIL_RAFAEL,
+    recorrenciaDias: 30,
     contatos: [
       {
         nome: 'Rodrigo Gaulke',
         cargo: 'Proprietário',
-        telefone: '(47) 99281-2201',
+        telefone: '(47) 99281-4796',
         email: 'rodrigo.gaulke@emporioitoupava.com.br',
         principal: true,
       },
@@ -549,14 +578,15 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '20952813000199',
     cidade: 'Indaial',
     endereco: 'Rua Presidente Castelo Branco, 280 - Centro, Indaial/SC',
-    telefone: '(47) 3333-4545',
+    telefone: '(47) 3333-2716',
     email: 'contato@padariaconfeitariaindaial.com.br',
     representanteEmail: EMAIL_RAFAEL,
+    recorrenciaDias: 15,
     contatos: [
       {
         nome: 'Tiago Dalfovo',
         cargo: 'Proprietário',
-        telefone: '(47) 99855-4545',
+        telefone: '(47) 99855-1238',
         email: 'tiago.dalfovo@padariaconfeitariaindaial.com.br',
         principal: true,
       },
@@ -568,14 +598,15 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '16674624000124',
     cidade: 'Timbó',
     endereco: 'Rua 7 de Setembro, 150 - Centro, Timbó/SC',
-    telefone: '(47) 3382-4040',
+    telefone: '(47) 3382-1539',
     email: 'contato@padariavaleeuropeu.com.br',
     representanteEmail: EMAIL_RAFAEL,
+    recorrenciaDias: 30,
     contatos: [
       {
         nome: 'Sandra Zimmermann',
         cargo: 'Proprietária',
-        telefone: '(47) 99966-4040',
+        telefone: '(47) 99726-9014',
         email: 'sandra.zimmermann@padariavaleeuropeu.com.br',
         principal: true,
       },
@@ -590,18 +621,19 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3399-5310',
     email: 'contato@hotelfazendamulde.com.br',
     representanteEmail: EMAIL_RAFAEL,
+    recorrenciaDias: 60,
     contatos: [
       {
         nome: 'André Pasold',
         cargo: 'Gerente',
-        telefone: '(47) 99196-5310',
+        telefone: '(47) 99196-2847',
         email: 'andre.pasold@hotelfazendamulde.com.br',
         principal: true,
       },
       {
         nome: 'Cristina Pasold',
         cargo: 'Sócia',
-        telefone: '(47) 99196-5311',
+        telefone: '(47) 98538-7126',
         email: 'cristina.pasold@hotelfazendamulde.com.br',
         principal: false,
       },
@@ -613,14 +645,15 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '27993094000101',
     cidade: 'Brusque',
     endereco: 'Rua Dr. Maruri, 410 - Centro, Brusque/SC',
-    telefone: '(47) 3351-1212',
+    telefone: '(47) 3351-8627',
     email: 'contato@emporiodovalebrusque.com.br',
     representanteEmail: EMAIL_RAFAEL,
+    recorrenciaDias: 15,
     contatos: [
       {
         nome: 'Aline Becker',
         cargo: 'Compradora',
-        telefone: '(47) 99811-1212',
+        telefone: '(47) 99811-4693',
         email: 'aline.becker@emporiodovalebrusque.com.br',
         principal: true,
       },
@@ -632,21 +665,22 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '48518477000190',
     cidade: 'Itajaí',
     endereco: 'Rua Hercílio Luz, 735 - Centro, Itajaí/SC',
-    telefone: '(47) 3344-2323',
+    telefone: '(47) 3344-7058',
     email: 'contato@casadechasitajai.com.br',
     representanteEmail: EMAIL_RAFAEL,
+    recorrenciaDias: 15,
     contatos: [
       {
         nome: 'Gustavo Pereira',
         cargo: 'Proprietário',
-        telefone: '(47) 99822-2323',
+        telefone: '(47) 99822-6150',
         email: 'gustavo.pereira@casadechasitajai.com.br',
         principal: true,
       },
       {
         nome: 'Camila Rocha',
         cargo: 'Gerente',
-        telefone: '(47) 99833-2324',
+        telefone: '(47) 98674-3928',
         email: 'camila.rocha@casadechasitajai.com.br',
         principal: false,
       },
@@ -661,11 +695,13 @@ const CLIENTES: ClienteSeed[] = [
     telefone: '(47) 3348-7720',
     email: 'contato@cafebeirario.com.br',
     representanteEmail: EMAIL_RAFAEL,
+    recorrenciaDias: 30,
+    ativo: false,
     contatos: [
       {
         nome: 'Juliana Maes',
         cargo: 'Proprietária',
-        telefone: '(47) 98822-7720',
+        telefone: '(47) 98822-3561',
         email: 'juliana.maes@cafebeirario.com.br',
         principal: true,
       },
@@ -677,14 +713,15 @@ const CLIENTES: ClienteSeed[] = [
     cnpj: '32406429000170',
     cidade: 'Rio do Sul',
     endereco: 'Rua Quinze de Novembro, 1.150 - Centro, Rio do Sul/SC',
-    telefone: '(47) 3521-3434',
+    telefone: '(47) 3521-2087',
     email: 'contato@merceariaaltovale.com.br',
     representanteEmail: EMAIL_RAFAEL,
+    recorrenciaDias: 30,
     contatos: [
       {
         nome: 'Débora Lenzi',
         cargo: 'Gerente de Compras',
-        telefone: '(47) 99844-3434',
+        telefone: '(47) 99844-7205',
         email: 'debora.lenzi@merceariaaltovale.com.br',
         principal: true,
       },
@@ -777,7 +814,7 @@ type VisitaSeed = {
   diasAtras: number;
   descricao: string;
   resultado: ResultadoVisita;
-  /** Pedido de 2 itens do catálogo, em toda visita com VENDA. */
+  /** Pedido de 1 a 4 itens do catálogo, em toda visita com VENDA (nas demais, nenhum). */
   itens?: ItemSeed[];
   campanha?: CampanhaDaVisita;
 };
@@ -788,66 +825,361 @@ type VisitasClienteSeed = {
 };
 
 /**
- * Visitas de demonstração por cliente, para a timeline da ficha ter
- * conteúdo e, com as regras da Etapa 4 (cor pela última visita; agenda =
- * próxima visita marcada, ou última visita + recorrência, ou criadoEm +
- * recorrência sem visita), a demonstração nascer mostrando as quatro cores
- * e uma agenda do dia não vazia (atrasadas e hoje):
- * - Empório Pomerode: VERDE (VENDA há 3 dias, vinculada ao Natal) —
- *   histórico original mantido.
- * - Doceria Jaraguá: LARANJA e atrasada (SEM_VENDA há 20 dias; a próxima
- *   visita marcada no check-in venceu há 2 dias — ver
- *   `PROXIMAS_VISITAS_DEMO` —, sem visita depois dela, então ainda vale;
- *   pela recorrência padrão de 15 dias estaria vencida há 5).
- * - Mercado Central Joinville: VERMELHO e mais atrasada ainda (VENDA há
- *   40 dias; próxima visita vencida há 25 dias).
- * - Armazém São Bento: VERDE pela visita (VENDA há 15 dias), rebaixado para
- *   LARANJA pelo ERP, e cai em "Hoje" na agenda (15 + recorrência de 15).
- * - Empório do Chocolate: VERDE (VENDA ontem, no primeiro dia da Feira
- *   Sabores do Vale, com a visita vinculada à feira); em dia, com a próxima
- *   visita prevista pela recorrência (ontem + 15), sem data marcada.
- * - Carteira do Rafael (3 visitas nos últimos 30 dias, nenhuma com VENDA,
- *   então a conversão dele é 0 %, abaixo da da Eduarda):
- *   - Café Blumenau: AMARELO (NEGOCIACAO há 10 dias, dentro dos 15 dias).
- *   - Empório do Vale Brusque: AMARELO (NEGOCIACAO há 6 dias, vinculada ao
- *     Natal; ERP com compra recente, sem rebaixamento).
- *   - Casa de Chás Itajaí: LARANJA (SEM_VENDA há 20 dias).
- *   - Mercearia Alto Vale e Padaria Confeitaria Indaial: sem visita, logo
- *     VERMELHO.
- * Os demais clientes do seed permanecem sem visita (VERMELHO, agenda
- * futura), o que também é um estado válido de demonstração. O usuário de
- * cada visita é o dono da carteira do cliente; os preços dos itens são os do
- * catálogo do ERP simulado.
- *
- * Histórico antigo (Etapa 10): visitas com VENDA de 6 a 12 meses atrás em
- * clientes que já têm visita recente, para o Painel em 365 dias mostrar mais
- * do que o de 90 (ritmo por mês com colunas preenchidas, metas e relatório
- * com vendas antigas). Nenhuma muda cor nem agenda: a classificação olha só a
- * visita mais recente.
+ * Histórico de visitas por cliente, na voz do representante (o que viu, o que
+ * o cliente pediu, o próximo passo), na ordem das rotas de `CLIENTES`. A cor
+ * da lista nasce da última visita (até 15 dias: VERDE com venda, AMARELO sem;
+ * 16 a 30: LARANJA; mais de 30 ou nenhuma: VERMELHO, rebaixada pelo ERP
+ * quando a última compra passa de 60 dias), e a agenda da última visita mais
+ * a recorrência do cliente (ou da data marcada, em `PROXIMAS_VISITAS_DEMO`).
+ * Fora dos casos de propósito, o intervalo entre visitas fica entre metade e
+ * uma vez e meia a recorrência, e a última visita é mais recente que ela (o
+ * cliente está em dia). Casos de propósito:
+ * - Panificadora Vila Lenzi (semanal): quatro vendas e uma negociação a cada
+ *   7 dias, a última há 4 dias, então VERDE.
+ * - Mercado Central Joinville (semanal): atrasado e ainda AMARELO
+ *   (NEGOCIACAO há 10 dias, prevista há 3).
+ * - Doceria Jaraguá: LARANJA (SEM_VENDA há 20 dias), com a próxima visita
+ *   marcada vencida há 2 dias (`PROXIMAS_VISITAS_DEMO`).
+ * - Casa de Chás Itajaí: atrasada e LARANJA (SEM_VENDA há 20 dias, quinzenal).
+ * - Padaria Confeitaria Indaial: nunca visitada, VERMELHO.
+ * - Armazém São Bento: VERDE pela visita (VENDA há 9 dias), rebaixado para
+ *   LARANJA pelo ERP; o caso vale do dia do reinício até o dia +6 (a
+ *   apresentação é 1 a 2 dias depois do reset).
+ * - Café Colonial Serra Alta e Padaria Rainha da Serra, também de São Bento
+ *   do Sul: as duas mensais, com VENDA há 30 e há 58 dias, caem juntas em
+ *   "Hoje" na agenda (LARANJA).
+ * - Empório Pomerode (VENDA há 3 dias) e Empório do Vale Brusque (NEGOCIACAO
+ *   há 6 dias) vinculadas ao Natal; Empório do Chocolate com VENDA ontem, na
+ *   Feira Sabores do Vale.
+ * - Café Beira-Rio: inativo (fechou para reforma), com o histórico mantido.
+ * - Carteira do Rafael: nenhuma venda nos últimos 30 dias (as dele são de 35
+ *   dias para trás), então a conversão dele no painel é 0 %, abaixo da da
+ *   Eduarda.
+ * - Histórico antigo (Etapa 10): cinco vendas de 5 a 11 meses atrás (Empório
+ *   Pomerode, duas; Mercado Central Joinville, Café Blumenau e Casa de Chás
+ *   Itajaí), nunca a visita mais recente do cliente, para o Painel em 365
+ *   dias mostrar mais do que o de 90. Nenhuma outra visita passa de 90 dias.
+ * O usuário de cada visita é o dono da carteira do cliente; os preços dos
+ * itens são os do catálogo.
  */
 const VISITAS_DEMO: VisitasClienteSeed[] = [
+  // Carteira da Eduarda
+  {
+    emailCliente: 'contato@mercadocentraljoinville.com.br',
+    visitas: [
+      {
+        diasAtras: 10,
+        descricao:
+          'Ruptura de tabletes ao leite no corredor dos doces. O gerente de compras quer fechar a reposição junto com o pedido de Natal e ficou de mandar as quantidades por WhatsApp.',
+        resultado: 'NEGOCIACAO',
+      },
+      {
+        diasAtras: 17,
+        descricao:
+          'Reposição semanal da gôndola: tabletes e barras 70% giraram bem com o encarte da semana. Incluíram dragées no caixa rápido.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TAB-LEITE', quantidade: 60 },
+          { sku: 'BARRA-70', quantidade: 30 },
+          { sku: 'DRAGEE', quantidade: 12 },
+        ],
+      },
+      {
+        diasAtras: 168,
+        descricao: 'Pedido do Dia dos Namorados: caixas presente para a ilha da entrada e pães de mel no caixa.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'CX-PRESENTE', quantidade: 10 },
+          { sku: 'PAO-MEL', quantidade: 18 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@cafeteriaestradabonita.com.br',
+    visitas: [
+      {
+        diasAtras: 12,
+        descricao:
+          'As trufas acabaram no fim de semana com o movimento da estrada. Pedido de reposição; pediram um expositor de balcão novo.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TRUF-70', quantidade: 12 },
+          { sku: 'PAO-MEL', quantidade: 24 },
+        ],
+      },
+      {
+        diasAtras: 41,
+        descricao: 'Estoque ainda alto depois do feriado. Combinei voltar no mês que vem com a linha de Natal.',
+        resultado: 'SEM_VENDA',
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@confeitariadonafrida.com.br',
+    visitas: [
+      {
+        diasAtras: 8,
+        descricao: 'Pedido de bombons, dragées e trufas para a mesa de doces das encomendas de fim de ano.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'BOMB-SORT', quantidade: 10 },
+          { sku: 'DRAGEE', quantidade: 8 },
+          { sku: 'TRUF-70', quantidade: 6 },
+        ],
+      },
+      {
+        diasAtras: 22,
+        descricao:
+          'Reposição de barras 70% para as coberturas. A dona perguntou se teremos barra de 1 kg; fiquei de consultar a fábrica.',
+        resultado: 'VENDA',
+        itens: [{ sku: 'BARRA-70', quantidade: 15 }],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@caferuadaspalmeiras.com.br',
+    visitas: [
+      {
+        diasAtras: 18,
+        descricao:
+          'Movimento fraco com a obra na calçada; ainda têm tabletes do último pedido. Volto quando liberarem a rua.',
+        resultado: 'SEM_VENDA',
+      },
+      {
+        diasAtras: 46,
+        descricao: 'Primeiro pedido com a gerente nova: tabletes para servir com o café e pães de mel no balcão.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TAB-LEITE', quantidade: 30 },
+          { sku: 'PAO-MEL', quantidade: 12 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@merceariabomretiro.com.br',
+    visitas: [
+      {
+        diasAtras: 25,
+        descricao:
+          'Pedido grande para o mês e meio: tabletes, barras, dragées e bombons. Pagamento no boleto de 28 dias, como de costume.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TAB-LEITE', quantidade: 48 },
+          { sku: 'BARRA-70', quantidade: 24 },
+          { sku: 'DRAGEE', quantidade: 10 },
+          { sku: 'BOMB-SORT', quantidade: 6 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@doceriajaragua.com.br',
+    visitas: [
+      {
+        diasAtras: 20,
+        descricao:
+          'Prateleira ainda cheia, giro lento depois do feriado. Não fechou pedido; marquei o retorno para fechar o de Natal.',
+        resultado: 'SEM_VENDA',
+      },
+      {
+        diasAtras: 34,
+        descricao: 'Pedido de trufas e bombons para as encomendas de aniversário do mês.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TRUF-70', quantidade: 10 },
+          { sku: 'BOMB-SORT', quantidade: 8 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@panificadoravilalenzi.com.br',
+    visitas: [
+      {
+        diasAtras: 4,
+        descricao: 'Reposição da semana: pães de mel e tabletes no caixa. Pediram para antecipar a entrega para quinta.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'PAO-MEL', quantidade: 36 },
+          { sku: 'TAB-LEITE', quantidade: 40 },
+        ],
+      },
+      {
+        diasAtras: 11,
+        descricao: 'Pedido semanal de pães de mel; incluíram dragées para a confeitaria dos fundos.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'PAO-MEL', quantidade: 30 },
+          { sku: 'DRAGEE', quantidade: 10 },
+        ],
+      },
+      {
+        diasAtras: 18,
+        descricao:
+          'A dona quer caixas presente para os funcionários no fim do ano e pediu preço especial. Mandar a proposta até quinta.',
+        resultado: 'NEGOCIACAO',
+      },
+      {
+        diasAtras: 25,
+        descricao: 'Reposição semanal de pães de mel, tabletes e barras 70%.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'PAO-MEL', quantidade: 30 },
+          { sku: 'TAB-LEITE', quantidade: 36 },
+          { sku: 'BARRA-70', quantidade: 12 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@recantoalemao.com.br',
+    visitas: [
+      {
+        diasAtras: 9,
+        descricao:
+          'Apresentei as trufas para acompanhar o chá da tarde. A dona gostou e pediu algumas para servir aos clientes no sábado antes de fazer o pedido.',
+        resultado: 'NEGOCIACAO',
+      },
+      {
+        diasAtras: 38,
+        descricao: 'Pedido de bombons para servir com o chá e caixas presente para a lojinha da entrada.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'BOMB-SORT', quantidade: 6 },
+          { sku: 'CX-PRESENTE', quantidade: 6 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@rotadascachoeiras.com.br',
+    visitas: [
+      {
+        diasAtras: 14,
+        descricao:
+          'A temporada das cachoeiras está começando e o movimento de turistas subiu. Pedido de barras, tabletes e pães de mel para a vitrine.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'BARRA-70', quantidade: 20 },
+          { sku: 'TAB-LEITE', quantidade: 36 },
+          { sku: 'PAO-MEL', quantidade: 12 },
+        ],
+      },
+      {
+        diasAtras: 58,
+        descricao: 'Fora de temporada, estoque parado. Combinei voltar quando o movimento das trilhas recomeçar.',
+        resultado: 'SEM_VENDA',
+      },
+    ],
+  },
+  {
+    emailCliente: 'reservas@hotelfazendarionovo.com.br',
+    visitas: [
+      {
+        diasAtras: 27,
+        descricao: 'Pedido de bombons para a cortesia dos quartos e dragées para o café colonial do hotel.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'BOMB-SORT', quantidade: 15 },
+          { sku: 'DRAGEE', quantidade: 12 },
+        ],
+      },
+      {
+        diasAtras: 85,
+        descricao: 'Pedido para o festival de inverno do hotel: trufas para o bufê e caixas presente para os hóspedes.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TRUF-70', quantidade: 12 },
+          { sku: 'CX-PRESENTE', quantidade: 10 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@armazemsaobento.com.br',
+    visitas: [
+      {
+        diasAtras: 9,
+        descricao:
+          'Reposição da linha tradicional para o mês. Pediram para conferir com o financeiro um boleto que consta em aberto.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TRUF-70', quantidade: 15 },
+          { sku: 'BARRA-70', quantidade: 20 },
+        ],
+      },
+      {
+        diasAtras: 23,
+        descricao:
+          'A gerente reclamou do atraso na entrega da última remessa e segurou o pedido. Ficou de decidir na próxima visita.',
+        resultado: 'NEGOCIACAO',
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@cafecolonialserraalta.com.br',
+    visitas: [
+      {
+        diasAtras: 30,
+        descricao:
+          'Pedido de pães de mel e trufas para o café colonial. Estão montando o cardápio de Natal e pediram preço das caixas presente para revender no balcão.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'PAO-MEL', quantidade: 24 },
+          { sku: 'TRUF-70', quantidade: 8 },
+        ],
+      },
+      {
+        diasAtras: 58,
+        descricao: 'Pedido de dragées e bombons para o bufê de doces do café colonial nos fins de semana.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'DRAGEE', quantidade: 10 },
+          { sku: 'BOMB-SORT', quantidade: 6 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@padariarainhadaserra.com.br',
+    visitas: [
+      {
+        diasAtras: 30,
+        descricao: 'Balcão reformado, com destaque para a Chokolaten. Pedido de tabletes e dragées para o caixa.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TAB-LEITE', quantidade: 36 },
+          { sku: 'DRAGEE', quantidade: 10 },
+        ],
+      },
+      {
+        diasAtras: 58,
+        descricao: 'Reposição dos tabletes. O dono pediu sugestão de chocolate para a cobertura dos panetones.',
+        resultado: 'VENDA',
+        itens: [{ sku: 'TAB-LEITE', quantidade: 24 }],
+      },
+    ],
+  },
   {
     emailCliente: 'contato@emporiopomerode.com.br',
     visitas: [
       {
         diasAtras: 3,
-        descricao: 'Reposição do mostruário e primeiro pedido das caixas de Natal.',
+        descricao: 'Reposição do mostruário e primeiro pedido das caixas de Natal, com a vitrine temática montada.',
         resultado: 'VENDA',
         itens: [
           { sku: 'CX-PRESENTE', quantidade: 12 },
           { sku: 'BOMB-SORT', quantidade: 10 },
+          { sku: 'TRUF-70', quantidade: 8 },
         ],
         campanha: 'NATAL',
       },
       {
         diasAtras: 20,
-        descricao: 'Apresentei a linha de Páscoa; pediu proposta por escrito.',
+        descricao: 'Mostrei as caixas de Natal e a vitrine da campanha; pediu a proposta por escrito com o desconto.',
         resultado: 'NEGOCIACAO',
-      },
-      {
-        diasAtras: 45,
-        descricao: 'Visita de relacionamento; estoque ainda alto, sem pedido.',
-        resultado: 'SEM_VENDA',
       },
       {
         diasAtras: 200,
@@ -860,77 +1192,11 @@ const VISITAS_DEMO: VisitasClienteSeed[] = [
       },
       {
         diasAtras: 330,
-        descricao: 'Pedido de Páscoa: ovos e bombons para a vitrine.',
+        descricao: 'Pedido das festas de fim de ano: bombons sortidos e caixas presente para a vitrine.',
         resultado: 'VENDA',
         itens: [
-          { sku: 'OVO-PASCOA', quantidade: 20 },
           { sku: 'BOMB-SORT', quantidade: 10 },
-        ],
-      },
-    ],
-  },
-  {
-    emailCliente: 'contato@cafeblumenau.com.br',
-    visitas: [
-      {
-        diasAtras: 10,
-        descricao: 'Apresentação da linha de inverno; pediu tabela de preços.',
-        resultado: 'NEGOCIACAO',
-      },
-      {
-        diasAtras: 260,
-        descricao: 'Pedido de dragées e tabletes para o balcão.',
-        resultado: 'VENDA',
-        itens: [
-          { sku: 'DRAGEE', quantidade: 15 },
-          { sku: 'TAB-LEITE', quantidade: 40 },
-        ],
-      },
-    ],
-  },
-  {
-    emailCliente: 'contato@doceriajaragua.com.br',
-    visitas: [
-      {
-        diasAtras: 20,
-        descricao: 'Visita de acompanhamento; prateleira ainda cheia, não fechou pedido.',
-        resultado: 'SEM_VENDA',
-      },
-    ],
-  },
-  {
-    emailCliente: 'contato@mercadocentraljoinville.com.br',
-    visitas: [
-      {
-        diasAtras: 40,
-        descricao: 'Reposição de gôndola e fechamento do pedido do mês.',
-        resultado: 'VENDA',
-        itens: [
-          { sku: 'BARRA-70', quantidade: 30 },
-          { sku: 'TAB-LEITE', quantidade: 60 },
-        ],
-      },
-      {
-        diasAtras: 150,
-        descricao: 'Pedido do Dia dos Namorados: caixas presente e pães de mel.',
-        resultado: 'VENDA',
-        itens: [
           { sku: 'CX-PRESENTE', quantidade: 10 },
-          { sku: 'PAO-MEL', quantidade: 18 },
-        ],
-      },
-    ],
-  },
-  {
-    emailCliente: 'contato@armazemsaobento.com.br',
-    visitas: [
-      {
-        diasAtras: 15,
-        descricao: 'Pedido de reposição da linha tradicional para o mês.',
-        resultado: 'VENDA',
-        itens: [
-          { sku: 'TRUF-70', quantidade: 15 },
-          { sku: 'BARRA-70', quantidade: 20 },
         ],
       },
     ],
@@ -940,13 +1206,144 @@ const VISITAS_DEMO: VisitasClienteSeed[] = [
     visitas: [
       {
         diasAtras: 1,
-        descricao: 'Visita no estande da feira; pedido de pães de mel e trufas para a vitrine.',
+        descricao: 'Visita no estande da feira; pedido de pães de mel, trufas e dragées para a vitrine.',
         resultado: 'VENDA',
         itens: [
           { sku: 'PAO-MEL', quantidade: 24 },
           { sku: 'TRUF-70', quantidade: 10 },
+          { sku: 'DRAGEE', quantidade: 8 },
         ],
         campanha: NOME_FEIRA,
+      },
+      {
+        diasAtras: 16,
+        descricao: 'Reposição de barras e tabletes. Convidei para o estande da Chokolaten na feira de Blumenau.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'BARRA-70', quantidade: 18 },
+          { sku: 'TAB-LEITE', quantidade: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@doceriaenxaimel.com.br',
+    visitas: [
+      {
+        diasAtras: 11,
+        descricao: 'Quer montar cestas de Natal com produtos da Chokolaten; pediu a tabela com preço por volume.',
+        resultado: 'NEGOCIACAO',
+      },
+      {
+        diasAtras: 41,
+        descricao: 'Pedido de bombons e pães de mel para a vitrine da rua turística.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'BOMB-SORT', quantidade: 8 },
+          { sku: 'PAO-MEL', quantidade: 18 },
+        ],
+      },
+    ],
+  },
+  // Carteira do Rafael (nenhuma venda nos últimos 30 dias)
+  {
+    emailCliente: 'contato@cafeblumenau.com.br',
+    visitas: [
+      {
+        diasAtras: 10,
+        descricao: 'Apresentei as caixas de Natal e os bombons sortidos; a gerente pediu a tabela de preços atualizada.',
+        resultado: 'NEGOCIACAO',
+      },
+      {
+        diasAtras: 25,
+        descricao: 'Balcão ainda abastecido de dragées do último pedido; a gerente prefere esperar a quinzena que vem. Volto com a tabela nova.',
+        resultado: 'SEM_VENDA',
+      },
+      {
+        diasAtras: 260,
+        descricao: 'Pedido de abertura do café: dragées para acompanhar o expresso e tabletes ao leite na vitrine.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'DRAGEE', quantidade: 15 },
+          { sku: 'TAB-LEITE', quantidade: 40 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@confeitariavilagermanica.com.br',
+    visitas: [
+      {
+        diasAtras: 13,
+        descricao:
+          'Movimento ainda forte depois da Oktoberfest. Pediram proposta de trufas e bombons para as encomendas de Natal.',
+        resultado: 'NEGOCIACAO',
+      },
+      {
+        diasAtras: 42,
+        descricao: 'Pedido para o período da Oktoberfest: pães de mel, dragées e tabletes para a vitrine.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'PAO-MEL', quantidade: 36 },
+          { sku: 'DRAGEE', quantidade: 15 },
+          { sku: 'TAB-LEITE', quantidade: 48 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@emporioitoupava.com.br',
+    visitas: [
+      {
+        diasAtras: 22,
+        descricao: 'A loja está trocando as prateleiras; o dono só volta a comprar depois da reforma, no mês que vem.',
+        resultado: 'SEM_VENDA',
+      },
+      {
+        diasAtras: 52,
+        descricao: 'Pedido de barras 70% e bombons para a gôndola de especiais.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'BARRA-70', quantidade: 16 },
+          { sku: 'BOMB-SORT', quantidade: 6 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@padariavaleeuropeu.com.br',
+    visitas: [
+      {
+        diasAtras: 26,
+        descricao:
+          'Pediram pagamento em 30/60 dias para o pedido de Natal. Levar a resposta do financeiro na próxima visita.',
+        resultado: 'NEGOCIACAO',
+      },
+      {
+        diasAtras: 55,
+        descricao: 'Pedido de tabletes e pães de mel para o caixa.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TAB-LEITE', quantidade: 30 },
+          { sku: 'PAO-MEL', quantidade: 18 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@hotelfazendamulde.com.br',
+    visitas: [
+      {
+        diasAtras: 28,
+        descricao:
+          'O hotel vai montar kits de boas-vindas para o fim de ano e pediu orçamento de 80 caixas presente.',
+        resultado: 'NEGOCIACAO',
+      },
+      {
+        diasAtras: 80,
+        descricao: 'Pedido de bombons sortidos para os kits de recepção dos hóspedes.',
+        resultado: 'VENDA',
+        itens: [{ sku: 'BOMB-SORT', quantidade: 20 }],
       },
     ],
   },
@@ -959,6 +1356,20 @@ const VISITAS_DEMO: VisitasClienteSeed[] = [
         resultado: 'NEGOCIACAO',
         campanha: 'NATAL',
       },
+      {
+        diasAtras: 20,
+        descricao: 'A compradora estava fechando o balanço do mês e pediu para eu voltar depois; deixei o folheto das caixas de Natal.',
+        resultado: 'SEM_VENDA',
+      },
+      {
+        diasAtras: 35,
+        descricao: 'Pedido de barras 70% e tabletes para a gôndola da entrada.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'BARRA-70', quantidade: 24 },
+          { sku: 'TAB-LEITE', quantidade: 48 },
+        ],
+      },
     ],
   },
   {
@@ -966,8 +1377,17 @@ const VISITAS_DEMO: VisitasClienteSeed[] = [
     visitas: [
       {
         diasAtras: 20,
-        descricao: 'Primeira visita; estoque da vitrine ainda cheio, sem pedido.',
+        descricao: 'Estoque da vitrine ainda cheio; sem pedido. Pediram para voltar com as novidades de Natal.',
         resultado: 'SEM_VENDA',
+      },
+      {
+        diasAtras: 36,
+        descricao: 'Reposição de trufas e bombons para acompanhar os chás da casa.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TRUF-70', quantidade: 8 },
+          { sku: 'BOMB-SORT', quantidade: 6 },
+        ],
       },
       {
         diasAtras: 290,
@@ -977,6 +1397,42 @@ const VISITAS_DEMO: VisitasClienteSeed[] = [
           { sku: 'TAB-LEITE', quantidade: 25 },
           { sku: 'BARRA-70', quantidade: 15 },
         ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@cafebeirario.com.br',
+    visitas: [
+      {
+        diasAtras: 48,
+        descricao: 'O café vai fechar para reforma sem data para reabrir. Sem pedido até lá; a dona avisa quando voltar.',
+        resultado: 'SEM_VENDA',
+      },
+      {
+        diasAtras: 77,
+        descricao: 'Pedido de tabletes e dragées para o balcão.',
+        resultado: 'VENDA',
+        itens: [
+          { sku: 'TAB-LEITE', quantidade: 24 },
+          { sku: 'DRAGEE', quantidade: 8 },
+        ],
+      },
+    ],
+  },
+  {
+    emailCliente: 'contato@merceariaaltovale.com.br',
+    visitas: [
+      {
+        diasAtras: 24,
+        descricao:
+          'Querem incluir as barras 70% no pedido do mês, mas com preço de atacado. Levar a tabela por volume.',
+        resultado: 'NEGOCIACAO',
+      },
+      {
+        diasAtras: 54,
+        descricao: 'Pedido mensal de tabletes ao leite para a gôndola.',
+        resultado: 'VENDA',
+        itens: [{ sku: 'TAB-LEITE', quantidade: 60 }],
       },
     ],
   },
@@ -994,7 +1450,7 @@ type ProximaVisitaSeed = {
  * dias, na Doceria Jaraguá — cliente sem visita depois da data marcada, para
  * a marcada ainda valer (Etapa 10d: um check-in no dia marcado ou depois a
  * cumpre, e por isso ela não fica no Empório do Chocolate, visitado ontem).
- * Nenhuma muda a cor.
+ * Nenhuma muda a cor, e nenhuma fica no cliente inativo.
  */
 const PROXIMAS_VISITAS_DEMO: ProximaVisitaSeed[] = [
   { emailCliente: 'contato@cafeblumenau.com.br', diasAFrente: 2 },
@@ -1018,22 +1474,22 @@ const LEMBRETES_DEMO: LembreteSeed[] = [
   {
     emailCliente: 'contato@cafeblumenau.com.br',
     diasAFrente: 2,
-    texto: 'Levar a tabela de preços da linha de inverno.',
+    texto: 'Levar a tabela de preços atualizada das caixas de Natal para a gerente.',
   },
   {
     emailCliente: 'contato@emporiodovalebrusque.com.br',
     diasAFrente: -3,
-    texto: 'Fechar o pedido das caixas de Natal com a sócia.',
+    texto: 'Ligar para a sócia e fechar a quantidade das caixas de Natal.',
   },
   {
     emailCliente: 'contato@emporiodochocolate.com.br',
     diasAFrente: 6,
-    texto: 'Conferir o giro dos pães de mel vendidos na feira.',
+    texto: 'Conferir o giro dos pães de mel vendidos na feira e sugerir a reposição.',
   },
   {
     emailCliente: 'contato@cafeblumenau.com.br',
     diasAFrente: -5,
-    texto: 'Enviar o catálogo de Natal para a compradora.',
+    texto: 'Enviar o catálogo de Natal por e-mail para a gerente.',
     concluido: true,
   },
 ];
@@ -1047,7 +1503,7 @@ type MetaSeed = {
 };
 
 const METAS_DEMO: MetaSeed[] = [
-  { representanteEmail: EMAIL_EDUARDA, metaVisitas: 20, metaVendas: 6000 },
+  { representanteEmail: EMAIL_EDUARDA, metaVisitas: 28, metaVendas: 15000 },
   { representanteEmail: EMAIL_RAFAEL, metaVisitas: 15, metaVendas: 4000 },
   { representanteEmail: EMAIL_EDUARDA, metaVisitas: 3, metaVendas: 1500, campanha: NOME_FEIRA },
 ];
@@ -1078,7 +1534,8 @@ async function seedContato(prisma: Banco, clientId: string, contato: ContatoSeed
 }
 
 async function seedCliente(prisma: Banco, cliente: ClienteSeed): Promise<void> {
-  const { contatos, representanteEmail, ...dadosCliente } = cliente;
+  const { contatos, representanteEmail, recorrenciaDias = 15, ativo = true, ...cadastro } = cliente;
+  const dadosCliente = { ...cadastro, recorrenciaDias, ativo };
   const { id: representanteId } = await prisma.user.findUniqueOrThrow({
     where: { email: representanteEmail },
   });

@@ -106,8 +106,8 @@ describe('seed de demonstração', () => {
       usuarios: 3,
       clientes: 26,
       contatos: 37,
-      visitas: 15,
-      itens: 18,
+      visitas: 57,
+      itens: 77,
       campanhas: 3,
       metas: 3,
       proximasVisitas: 3,
@@ -120,7 +120,7 @@ describe('seed de demonstração', () => {
     const usuarios = await prisma.user.findMany();
     expect(usuarios.every((usuario) => usuario.telefone && usuario.ativo)).toBe(true);
 
-    // Histórico antigo (6 a 12 meses): vendas fora dos 90 dias, para o Painel em 365 dias; nunca a mais recente do cliente
+    // Histórico antigo (5 a 11 meses): vendas fora dos 90 dias, para o Painel em 365 dias; nunca a mais recente do cliente
     const antigas = await prisma.visit.findMany({
       where: { dataHora: { lt: new Date(HOJE.getTime() - 90 * 86_400_000) } },
       orderBy: { dataHora: 'asc' },
@@ -134,19 +134,6 @@ describe('seed de demonstração', () => {
         orderBy: { dataHora: 'desc' },
       });
       expect(maisRecente?.id).not.toBe(antiga.id);
-    }
-
-    // Todas as visitas de venda têm pedido de 2 itens do catálogo de demonstração, com o preço dele
-    const visitas = await prisma.visit.findMany({ include: { itens: true } });
-    for (const visita of visitas) {
-      expect(visita.itens).toHaveLength(visita.resultado === 'VENDA' ? 2 : 0);
-      for (const item of visita.itens) {
-        const produto = CATALOGO.find((candidato) => candidato.sku === item.sku);
-        expect(produto).toBeDefined();
-        expect(item.produtoNome).toBe(produto?.nome);
-        expect(item.precoUnitario.toNumber()).toBe(produto?.precoUnitario);
-        expect(item.quantidade).toBeGreaterThan(0);
-      }
     }
 
     const campanhas = await prisma.campaign.findMany({ orderBy: { inicio: 'asc' } });
@@ -287,22 +274,6 @@ describe('seed de demonstração', () => {
     expect((await prisma.user.findUniqueOrThrow({ where: { id: joana.id } })).senhaHash).toBe(joana.senhaHash);
     expect(await prisma.passwordResetToken.count()).toBe(1);
   });
-
-  it('a demonstração de hoje mostra as quatro cores e um cliente rebaixado pelo ERP', async () => {
-    await reiniciarDemonstracao(prisma, new Date());
-    const login = await request(app)
-      .post('/auth/login')
-      .send({ email: 'gestor@chokolaten.com.br', senha: SENHA_DEMONSTRACAO });
-
-    const res = await request(app).get('/clients').set('Authorization', `Bearer ${login.body.token}`);
-
-    expect(res.status).toBe(200);
-    const clientes = res.body.data as { cor: string; rebaixadoPorVenda: boolean }[];
-    expect(new Set(clientes.map((cliente) => cliente.cor))).toEqual(
-      new Set(['VERDE', 'AMARELO', 'LARANJA', 'VERMELHO']),
-    );
-    expect(clientes.some((cliente) => cliente.rebaixadoPorVenda)).toBe(true);
-  });
 });
 
 const CIDADES_EDUARDA = ['Joinville', 'Jaraguá do Sul', 'Corupá', 'São Bento do Sul', 'Pomerode'];
@@ -337,7 +308,7 @@ describe('cadastro realista', () => {
     });
   }
 
-  it('cria 26 clientes, 16 da Eduarda e 10 do Rafael, nas 12 cidades das rotas', async () => {
+  it('cria 26 clientes, 16 da Eduarda e 10 do Rafael, nas 11 cidades das rotas', async () => {
     const clientes = await clientesDoSeed();
     expect(clientes).toHaveLength(26);
 
@@ -423,6 +394,199 @@ describe('cadastro realista', () => {
     for (const cliente of clientes) {
       expect(cliente.nomeFantasia).not.toMatch(marca);
       expect(cliente.razaoSocial).not.toMatch(marca);
+    }
+  });
+});
+
+/**
+ * Clientes cujo histórico foge da recorrência de propósito: os que têm venda
+ * antiga (5 a 11 meses, para o Painel em 365 dias) depois de um longo
+ * intervalo sem registro e o que nunca foi visitado (VERMELHO por falta de
+ * visita). Os atrasados e a marcada vencida (Doceria Jaraguá) fogem da
+ * recorrência só na data da próxima visita, não no intervalo entre visitas.
+ */
+const EXCECOES = [
+  'contato@emporiopomerode.com.br', // duas vendas antigas
+  'contato@mercadocentraljoinville.com.br', // venda antiga; atrasado (AMARELO)
+  'contato@cafeblumenau.com.br', // venda antiga
+  'contato@casadechasitajai.com.br', // venda antiga; atrasado (LARANJA)
+  'contato@padariaconfeitariaindaial.com.br', // nunca visitado (VERMELHO por falta de visita)
+];
+
+const MS_POR_DIA = 86_400_000;
+
+describe('histórico realista', () => {
+  let agora: Date;
+
+  beforeAll(async () => {
+    await truncateAllTables();
+    agora = new Date();
+    await reiniciarDemonstracao(prisma, agora);
+  });
+
+  async function tokenDoGestor(): Promise<string> {
+    const login = await request(app)
+      .post('/auth/login')
+      .send({ email: 'gestor@chokolaten.com.br', senha: SENHA_DEMONSTRACAO });
+    return login.body.token;
+  }
+
+  it('todo cliente ativo tem pelo menos uma visita, e os intervalos entre visitas respeitam a recorrência', async () => {
+    const clientes = await prisma.client.findMany({ include: { visits: { orderBy: { dataHora: 'asc' } } } });
+
+    for (const cliente of clientes) {
+      expect(cliente.recorrenciaDias).toBeGreaterThanOrEqual(7);
+      expect(cliente.recorrenciaDias).toBeLessThanOrEqual(60);
+      if (EXCECOES.includes(cliente.email)) continue;
+
+      if (cliente.ativo) {
+        expect({ cliente: cliente.nomeFantasia, temVisita: cliente.visits.length > 0 }).toEqual({
+          cliente: cliente.nomeFantasia,
+          temVisita: true,
+        });
+      }
+      for (let i = 1; i < cliente.visits.length; i++) {
+        const anterior = cliente.visits[i - 1] as { dataHora: Date };
+        const atual = cliente.visits[i] as { dataHora: Date };
+        const intervalo = Math.round((atual.dataHora.getTime() - anterior.dataHora.getTime()) / MS_POR_DIA);
+        const dentro = intervalo >= 0.5 * cliente.recorrenciaDias && intervalo <= 1.5 * cliente.recorrenciaDias;
+        expect({ cliente: cliente.nomeFantasia, intervalo, dentro }).toEqual({
+          cliente: cliente.nomeFantasia,
+          intervalo,
+          dentro: true,
+        });
+      }
+    }
+
+    expect(new Set(clientes.map((cliente) => cliente.recorrenciaDias))).toEqual(new Set([7, 15, 30, 45, 60]));
+    expect(clientes.filter((cliente) => !cliente.ativo)).toHaveLength(1);
+  });
+
+  it('pedidos têm de 1 a 4 itens só nas visitas de venda', async () => {
+    const visitas = await prisma.visit.findMany({ include: { itens: true } });
+
+    for (const visita of visitas) {
+      if (visita.resultado === 'VENDA') {
+        expect(visita.itens.length).toBeGreaterThanOrEqual(1);
+        expect(visita.itens.length).toBeLessThanOrEqual(4);
+      } else {
+        expect(visita.itens).toHaveLength(0);
+      }
+      expect(new Set(visita.itens.map((item) => item.sku)).size).toBe(visita.itens.length);
+      for (const item of visita.itens) {
+        const produto = CATALOGO.find((candidato) => candidato.sku === item.sku);
+        expect(produto).toBeDefined();
+        expect(item.produtoNome).toBe(produto?.nome);
+        expect(item.precoUnitario.toNumber()).toBe(produto?.precoUnitario);
+        expect(item.quantidade).toBeGreaterThan(0);
+      }
+    }
+    // Pedidos de tamanhos variados, não todos do mesmo jeito
+    const tamanhos = new Set(
+      visitas.filter((visita) => visita.resultado === 'VENDA').map((visita) => visita.itens.length),
+    );
+    expect(tamanhos.size).toBeGreaterThanOrEqual(3);
+  });
+
+  // O Armazém São Bento (VENDA há 9 dias) fica VERDE na base, e por isso rebaixado, do dia do
+  // reinício até o dia +6: a apresentação, 1 a 2 dias depois do reset, ainda mostra o caso.
+  it('a demonstração de hoje mostra as quatro cores e um cliente rebaixado pelo ERP', async () => {
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${await tokenDoGestor()}`);
+
+    expect(res.status).toBe(200);
+    const clientes = res.body.data as { nomeFantasia: string; cor: string; rebaixadoPorVenda: boolean }[];
+    expect(new Set(clientes.map((cliente) => cliente.cor))).toEqual(
+      new Set(['VERDE', 'AMARELO', 'LARANJA', 'VERMELHO']),
+    );
+    expect(clientes.filter((cliente) => cliente.rebaixadoPorVenda).map((cliente) => cliente.nomeFantasia)).toEqual([
+      'Armazém São Bento',
+    ]);
+  });
+
+  it('o cliente de recorrência semanal com visita há 4 dias fica VERDE', async () => {
+    const semanal = await prisma.client.findFirstOrThrow({
+      where: { email: 'contato@panificadoravilalenzi.com.br' },
+      include: { visits: { orderBy: { dataHora: 'desc' } } },
+    });
+    expect(semanal.recorrenciaDias).toBe(7);
+    expect(semanal.visits.length).toBeGreaterThanOrEqual(4);
+    const ultima = semanal.visits[0] as { dataHora: Date };
+    expect(Math.round((agora.getTime() - ultima.dataHora.getTime()) / MS_POR_DIA)).toBe(4);
+
+    const res = await request(app).get('/clients').set('Authorization', `Bearer ${await tokenDoGestor()}`);
+    const item = (res.body.data as { id: string; cor: string }[]).find((cliente) => cliente.id === semanal.id);
+    expect(item?.cor).toBe('VERDE');
+  });
+
+  it('dois clientes da mesma cidade com visita hoje aparecem uma vez cada na agenda do dia', async () => {
+    const res = await request(app).get('/agenda/today').set('Authorization', `Bearer ${await tokenDoGestor()}`);
+
+    expect(res.status).toBe(200);
+    const hoje = res.body.data.hoje as { nomeFantasia: string; cidade: string }[];
+    const deSaoBento = hoje.filter((item) => item.cidade === 'São Bento do Sul').map((item) => item.nomeFantasia);
+    expect(deSaoBento.sort()).toEqual(['Café Colonial Serra Alta', 'Padaria Rainha da Serra']);
+    const secoes = [
+      ...res.body.data.atrasadas,
+      ...res.body.data.hoje,
+      ...res.body.data.proximos7Dias,
+    ] as { nomeFantasia: string }[];
+    for (const nome of deSaoBento) {
+      expect(secoes.filter((item) => item.nomeFantasia === nome)).toHaveLength(1);
+    }
+  });
+
+  it('cinco vendas antigas, três visitas de campanha, três próximas visitas e quatro lembretes', async () => {
+    const antigas = await prisma.visit.findMany({
+      where: { dataHora: { lt: new Date(agora.getTime() - 90 * MS_POR_DIA) } },
+    });
+    expect(antigas).toHaveLength(5);
+    expect(antigas.every((visita) => visita.resultado === 'VENDA')).toBe(true);
+
+    const emCampanha = await prisma.visit.findMany({
+      where: { campanhaId: { not: null } },
+      include: { campanha: true },
+    });
+    expect(emCampanha.map((visita) => visita.campanha?.nome.replace(/ \d{4}$/, '')).sort()).toEqual([
+      'Feira Sabores do Vale — Blumenau',
+      'Natal Chokolaten',
+      'Natal Chokolaten',
+    ]);
+
+    const comProxima = await prisma.client.findMany({ where: { proximaVisita: { not: null } } });
+    expect(comProxima.map((cliente) => cliente.email).sort()).toEqual([
+      'contato@cafeblumenau.com.br',
+      'contato@doceriajaragua.com.br',
+      'contato@emporiodovalebrusque.com.br',
+    ]);
+
+    const lembretes = await prisma.reminder.findMany({ include: { client: true } });
+    expect(lembretes).toHaveLength(4);
+    expect(lembretes.filter((lembrete) => lembrete.concluidoEm !== null)).toHaveLength(1);
+
+    // O cliente inativo guarda o histórico, mas não tem próxima visita nem lembrete
+    const inativo = await prisma.client.findFirstOrThrow({ where: { ativo: false }, include: { visits: true } });
+    expect(inativo.visits.length).toBeGreaterThan(0);
+    expect(comProxima.some((cliente) => cliente.id === inativo.id)).toBe(false);
+    expect(lembretes.some((lembrete) => lembrete.clientId === inativo.id)).toBe(false);
+
+    // A carteira do Rafael não tem venda nos últimos 30 dias (contraste no painel)
+    const vendasDoRafael = await prisma.visit.count({
+      where: {
+        resultado: 'VENDA',
+        dataHora: { gte: new Date(agora.getTime() - 30 * MS_POR_DIA) },
+        client: { representante: { email: 'rafael@chokolaten.com.br' } },
+      },
+    });
+    expect(vendasDoRafael).toBe(0);
+  });
+
+  it('nenhuma descrição de visita ou texto de lembrete tem marca de demonstração', async () => {
+    const marca = /ERP-|exemplo|teste|demo/i;
+    const visitas = await prisma.visit.findMany();
+    const lembretes = await prisma.reminder.findMany();
+
+    for (const texto of [...visitas.map((visita) => visita.descricao), ...lembretes.map((lembrete) => lembrete.texto)]) {
+      expect(texto).not.toMatch(marca);
     }
   });
 });
