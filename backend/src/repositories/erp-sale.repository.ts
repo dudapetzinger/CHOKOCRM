@@ -1,3 +1,8 @@
+/**
+ * Notas fiscais importadas (`ErpSale`), seus itens, o catálogo aprendido e as
+ * importações. `salvarNota` grava ou atualiza a nota pela chave de acesso,
+ * incluindo o endereço do destinatário lido da DANFE (cliente pela nota).
+ */
 import type { Prisma, PrismaClient, VinculoNota } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { agora } from '../lib/relogio';
@@ -36,6 +41,13 @@ export type NotaData = {
   naturezaOperacao: string;
   destinatarioCnpj: string;
   destinatarioNome: string;
+  /** Endereço do destinatário (DANFE); reimportar a nota atualiza estes campos. */
+  destinatarioEndereco: string | null;
+  destinatarioBairro: string | null;
+  destinatarioCep: string | null;
+  destinatarioMunicipio: string | null;
+  destinatarioUf: string | null;
+  destinatarioTelefone: string | null;
   clientId: string | null;
   valorProdutos: number;
   desconto: number;
@@ -60,7 +72,7 @@ export async function findById(id: string, banco: Banco = prisma): Promise<NotaC
   return banco.erpSale.findUnique({ where: { id }, include: INCLUDE_NOTA });
 }
 
-/** Grava a nota pela chave de acesso: nova, ou atualizada com os itens recriados. */
+/** Grava a nota pela chave de acesso: nova, ou atualizada (dados, endereço do destinatário e itens recriados). */
 export async function salvarNota(
   { itens, chaveAcesso, ...dados }: NotaData,
   existente: boolean,

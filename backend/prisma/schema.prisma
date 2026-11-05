@@ -308,26 +308,33 @@ model ErpImport {
 
 /// Nota fiscal de venda lida de uma DANFE (Etapa 12); a chave de acesso evita duplicar.
 model ErpSale {
-  id               String        @id @default(uuid())
-  chaveAcesso      String        @unique @map("chave_acesso")
-  numero           String
-  serie            String
-  dataEmissao      DateTime      @map("data_emissao") @db.Date
-  naturezaOperacao String        @map("natureza_operacao")
-  destinatarioCnpj String        @map("destinatario_cnpj")
-  destinatarioNome String        @map("destinatario_nome")
-  clientId         String?       @map("client_id")
-  client           Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  valorProdutos    Decimal       @map("valor_produtos") @db.Decimal(12, 2)
-  desconto         Decimal       @db.Decimal(12, 2)
-  valorTotal       Decimal       @map("valor_total") @db.Decimal(12, 2)
-  importId         String        @map("import_id")
-  import           ErpImport     @relation(fields: [importId], references: [id])
-  vinculoStatus    VinculoNota   @map("vinculo_status")
-  visitaSugeridaId String?       @map("visita_sugerida_id")
-  atualizadoEm     DateTime      @updatedAt @map("atualizado_em")
-  itens            ErpSaleItem[]
-  visita           Visit?
+  id                    String        @id @default(uuid())
+  chaveAcesso           String        @unique @map("chave_acesso")
+  numero                String
+  serie                 String
+  dataEmissao           DateTime      @map("data_emissao") @db.Date
+  naturezaOperacao      String        @map("natureza_operacao")
+  destinatarioCnpj      String        @map("destinatario_cnpj")
+  destinatarioNome      String        @map("destinatario_nome")
+  /// Endereço do destinatário lido da DANFE (cliente pela nota); `null` quando a nota não traz.
+  destinatarioEndereco  String?       @map("destinatario_endereco")
+  destinatarioBairro    String?       @map("destinatario_bairro")
+  destinatarioCep       String?       @map("destinatario_cep")
+  destinatarioMunicipio String?       @map("destinatario_municipio")
+  destinatarioUf        String?       @map("destinatario_uf")
+  destinatarioTelefone  String?       @map("destinatario_telefone")
+  clientId              String?       @map("client_id")
+  client                Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  valorProdutos         Decimal       @map("valor_produtos") @db.Decimal(12, 2)
+  desconto              Decimal       @db.Decimal(12, 2)
+  valorTotal            Decimal       @map("valor_total") @db.Decimal(12, 2)
+  importId              String        @map("import_id")
+  import                ErpImport     @relation(fields: [importId], references: [id])
+  vinculoStatus         VinculoNota   @map("vinculo_status")
+  visitaSugeridaId      String?       @map("visita_sugerida_id")
+  atualizadoEm          DateTime      @updatedAt @map("atualizado_em")
+  itens                 ErpSaleItem[]
+  visita                Visit?
 
   @@index([destinatarioCnpj, dataEmissao])
   @@index([clientId])

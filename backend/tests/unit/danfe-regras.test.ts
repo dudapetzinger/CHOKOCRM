@@ -20,7 +20,16 @@ describe('lerDanfes', () => {
     expect(nota.dataEmissao).toBe('2026-11-04');
     expect(nota.naturezaOperacao).toBe('Venda Produção do Estabelecimento');
     expect(nota.protocolo).toBe('242260527268519');
-    expect(nota.destinatario).toEqual({ nome: 'DON GIACOMO PIZZARIA LTDA', cnpj: '25382906000149' });
+    expect(nota.destinatario).toEqual({
+      nome: 'DON GIACOMO PIZZARIA LTDA',
+      cnpj: '25382906000149',
+      endereco: 'RUA BOA VISTA, 80',
+      bairro: 'CENTRO',
+      cep: '89107-000',
+      municipio: 'Pomerode',
+      uf: 'SC',
+      telefone: '(47)3387-5820',
+    });
     expect(nota.valorProdutos).toBe(1634);
     expect(nota.desconto).toBe(104.02);
     expect(nota.valorTotal).toBe(1529.98);
@@ -149,5 +158,85 @@ describe('lerDanfes', () => {
     const { notas, ignoradas } = lerDanfes([base]);
     expect(notas).toEqual([]);
     expect(ignoradas).toEqual([{ numero: null, motivo: 'chave de acesso não encontrada' }]);
+  });
+});
+
+describe('lerDanfes: endereço do destinatário', () => {
+  it('sem fone e sem CEP: campos nulos e a nota continua válida', () => {
+    const { notas, ignoradas } = lerDanfes([pagina('danfe-sem-fone.txt')]);
+    expect(ignoradas).toEqual([]);
+    expect(notas).toHaveLength(1);
+    expect(notas[0]?.destinatario).toEqual({
+      nome: 'DON GIACOMO PIZZARIA LTDA',
+      cnpj: '25382906000149',
+      endereco: 'RUA BOA VISTA, 80',
+      bairro: 'CENTRO',
+      cep: null,
+      municipio: 'Pomerode',
+      uf: 'SC',
+      telefone: null,
+    });
+  });
+
+  it('não confunde o bloco da transportadora (ENDEREÇO MUNICÍPIO UF) com o do destinatário', () => {
+    const base = pagina('danfe-2455.txt');
+    // Sem as linhas do destinatário, o leitor não pode cair no bloco da transportadora.
+    base.linhas = base.linhas.filter(
+      (l) => !l.startsWith('ENDEREÇO BAIRRO') && !l.startsWith('MUNICÍPIO FONE') && !l.startsWith('RUA BOA VISTA') && !l.startsWith('Pomerode ('),
+    );
+    const { notas } = lerDanfes([base]);
+    expect(notas).toHaveLength(1);
+    expect(notas[0]?.destinatario).toMatchObject({
+      endereco: null,
+      bairro: null,
+      cep: null,
+      municipio: null,
+      uf: null,
+      telefone: null,
+    });
+  });
+
+  it('endereço sem vírgula+número: guarda tudo em endereco e deixa bairro nulo', () => {
+    const base = pagina('danfe-2455.txt');
+    base.linhas = base.linhas.map((l) =>
+      l.replace('RUA BOA VISTA, 80 CENTRO 89107-000', 'RODOVIA SC 418 KM 3 89107-000'),
+    );
+    expect(lerDanfes([base]).notas[0]?.destinatario).toMatchObject({
+      endereco: 'RODOVIA SC 418 KM 3',
+      bairro: null,
+      cep: '89107-000',
+    });
+  });
+
+  it('bairro separado por dois espaços e endereço S/N', () => {
+    const base = pagina('danfe-2455.txt');
+    base.linhas = base.linhas.map((l) =>
+      l.replace('RUA BOA VISTA, 80 CENTRO 89107-000', 'RUA DAS FLORES, S/N  VILA NOVA 89107-000'),
+    );
+    expect(lerDanfes([base]).notas[0]?.destinatario).toMatchObject({
+      endereco: 'RUA DAS FLORES, S/N',
+      bairro: 'VILA NOVA',
+    });
+  });
+
+  it('município com "DO" no nome e fone de 9 dígitos: UF é a sigla válida', () => {
+    const base = pagina('danfe-2455.txt');
+    base.linhas = base.linhas.map((l) =>
+      l.replace('Pomerode (47)3387-5820 SC', 'SAO BENTO DO SUL (47) 99123-4567 SC'),
+    );
+    expect(lerDanfes([base]).notas[0]?.destinatario).toMatchObject({
+      municipio: 'SAO BENTO DO SUL',
+      uf: 'SC',
+      telefone: '(47) 99123-4567',
+    });
+  });
+
+  it('folhas da mesma chave: o endereço vem da primeira folha que o trouxe', () => {
+    const folha1 = pagina('danfe-2455.txt', 1);
+    folha1.linhas = folha1.linhas.filter((l) => !l.startsWith('Pomerode ('));
+    const folha2 = pagina('danfe-2455.txt', 2);
+    folha2.linhas = folha2.linhas.filter((l) => !l.startsWith('BAR00') && l !== 'D');
+    const { notas } = lerDanfes([folha1, folha2]);
+    expect(notas[0]?.destinatario).toMatchObject({ municipio: 'Pomerode', uf: 'SC', bairro: 'CENTRO' });
   });
 });

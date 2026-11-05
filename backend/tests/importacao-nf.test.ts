@@ -244,6 +244,37 @@ describe('POST /erp/importacoes', () => {
     expect(res.body.cnpjsSemCliente).toEqual([{ cnpj: CNPJ_NF, razaoSocial: 'DON GIACOMO PIZZARIA LTDA' }]);
   });
 
+  it('grava o endereço do destinatário e a reimportação atualiza os campos', async () => {
+    const primeira = await importar(tokenGestor);
+    expect(primeira.status).toBe(201);
+    expect(primeira.body.notas[0].destinatario).toEqual({
+      endereco: 'RUA BOA VISTA, 80',
+      bairro: 'CENTRO',
+      cep: '89107-000',
+      municipio: 'Pomerode',
+      uf: 'SC',
+      telefone: '(47)3387-5820',
+    });
+    const gravada = await prisma.erpSale.findUniqueOrThrow({ where: { chaveAcesso: CHAVE_2455 } });
+    expect(gravada).toMatchObject({
+      destinatarioEndereco: 'RUA BOA VISTA, 80',
+      destinatarioBairro: 'CENTRO',
+      destinatarioCep: '89107-000',
+      destinatarioMunicipio: 'Pomerode',
+      destinatarioUf: 'SC',
+      destinatarioTelefone: '(47)3387-5820',
+    });
+
+    simularPdf(trocar(LINHAS_NF_2455, '(47)3387-5820', '(47)3399-1234'));
+    const segunda = await importar(tokenGestor, 'de-novo.pdf');
+
+    expect(segunda.status).toBe(201);
+    expect(await prisma.erpSale.count()).toBe(1);
+    const atualizada = await prisma.erpSale.findUniqueOrThrow({ where: { chaveAcesso: CHAVE_2455 } });
+    expect(atualizada.destinatarioTelefone).toBe('(47)3399-1234');
+    expect(atualizada.destinatarioMunicipio).toBe('Pomerode');
+  });
+
   it('reimportar atualiza a nota sem duplicar, mantém o vínculo e atualiza os itens da visita', async () => {
     const visita = await criarVisita(DIA_DA_NOTA);
     const primeira = await importar(tokenGestor);

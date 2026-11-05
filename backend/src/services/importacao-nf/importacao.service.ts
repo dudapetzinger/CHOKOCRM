@@ -1,6 +1,7 @@
 /**
  * Importação de notas fiscais (DANFE em PDF) pelo gestor (Etapa 12b): lê o PDF,
- * casa cada nota com o cliente pelo CNPJ, decide o vínculo com a última visita
+ * casa cada nota com o cliente pelo CNPJ (guardando o endereço do destinatário
+ * lido da DANFE), decide o vínculo com a última visita
  * (`vinculo.regras.ts`) e grava tudo numa transação por arquivo. Também cuida
  * das pendências e do vínculo/desvínculo manual feitos pelo gestor.
  */
@@ -46,6 +47,15 @@ export type NotaDTO = {
   dataEmissao: string;
   destinatarioNome: string;
   destinatarioCnpj: string;
+  /** Endereço do destinatário lido da DANFE; cada parte é `null` se a nota não trouxe. */
+  destinatario?: {
+    endereco: string | null;
+    bairro: string | null;
+    cep: string | null;
+    municipio: string | null;
+    uf: string | null;
+    telefone: string | null;
+  };
   cliente: { id: string; nomeFantasia: string } | null;
   valorProdutos: number;
   desconto: number;
@@ -98,6 +108,14 @@ function paraNotaDTO(nota: NotaComRelacoes, visitas: Map<string, VisitaParaDTO>)
     dataEmissao: dataDaColunaDate(nota.dataEmissao),
     destinatarioNome: nota.destinatarioNome,
     destinatarioCnpj: nota.destinatarioCnpj,
+    destinatario: {
+      endereco: nota.destinatarioEndereco,
+      bairro: nota.destinatarioBairro,
+      cep: nota.destinatarioCep,
+      municipio: nota.destinatarioMunicipio,
+      uf: nota.destinatarioUf,
+      telefone: nota.destinatarioTelefone,
+    },
     cliente: nota.client,
     valorProdutos: Number(nota.valorProdutos),
     desconto: Number(nota.desconto),
@@ -203,6 +221,12 @@ async function gravarNota(
       naturezaOperacao: nota.naturezaOperacao,
       destinatarioCnpj: nota.destinatario.cnpj.replace(/\D/g, ''),
       destinatarioNome: nota.destinatario.nome,
+      destinatarioEndereco: nota.destinatario.endereco,
+      destinatarioBairro: nota.destinatario.bairro,
+      destinatarioCep: nota.destinatario.cep,
+      destinatarioMunicipio: nota.destinatario.municipio,
+      destinatarioUf: nota.destinatario.uf,
+      destinatarioTelefone: nota.destinatario.telefone,
       clientId,
       valorProdutos: nota.valorProdutos,
       desconto: nota.desconto,

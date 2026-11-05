@@ -2,7 +2,9 @@
  * Regras puras de leitura de DANFE (NF-e) a partir do texto das páginas
  * (Etapa 12). Recebe as linhas já montadas por `pdf-texto.ts` e reconhece
  * os campos pelos rótulos impressos, sem depender de colunas: chave de acesso,
- * número/série, emissão, destinatário, natureza, protocolo, totais e itens.
+ * número/série, emissão, destinatário (com endereço, bairro, CEP, município, UF
+ * e fone, que ficam `null` quando faltam, sem invalidar a nota), natureza,
+ * protocolo, totais e itens.
  * Folhas com a mesma chave viram uma nota só; notas que não são venda ou que
  * não estão autorizadas vão para `ignoradas` com o motivo.
  */
@@ -27,11 +29,22 @@ export interface NotaFiscalLida {
   dataEmissao: string;
   naturezaOperacao: string;
   protocolo: string | null;
-  destinatario: { nome: string; cnpj: string };
+  destinatario: { nome: string; cnpj: string } & EnderecoDoDestinatario;
   valorProdutos: number;
   desconto: number;
   valorTotal: number;
   itens: ItemDaNota[];
+}
+
+/** Endereço do destinatário como impresso na DANFE; cada parte é `null` se não foi lida. */
+export interface EnderecoDoDestinatario {
+  endereco: string | null;
+  bairro: string | null;
+  /** `00000-000` */
+  cep: string | null;
+  municipio: string | null;
+  uf: string | null;
+  telefone: string | null;
 }
 
 export interface NotaIgnorada {
@@ -48,6 +61,7 @@ interface FolhaLida {
   protocolo: string | null;
   destinatarioNome: string | null;
   destinatarioCnpj: string | null;
+  destinatarioEndereco: EnderecoDoDestinatario;
   valorProdutos: number | null;
   desconto: number | null;
   valorTotal: number | null;
@@ -70,6 +84,12 @@ function cfopDeVenda(cfop: string): boolean {
 
 const REGEX_DATA = /(\d{2})\/(\d{2})\/(\d{4})/;
 const REGEX_CNPJ = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/;
+const REGEX_CEP = /\b\d{5}-\d{3}\b/;
+const REGEX_FONE = /\(\d{2}\)\s?\d{4,5}-\d{4}/;
+const UFS = new Set([
+  'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA',
+  'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO',
+]);
 
 // Rótulos da faixa de totais, do mais longo ao mais curto, para achar a posição
 // de cada um na linha e casar com os valores `R$` da linha seguinte.
@@ -167,6 +187,74 @@ function lerDestinatarioEEmissao(linhas: string[]): {
   };
 }
 
+function vazioParaNulo(texto: string | undefined): string | null {
+  const t = (texto ?? '').trim();
+  return t === '' ? null : t;
+}
+
+/**
+ * Linha após "ENDEREÇO BAIRRO / DISTRITO CEP …": `endereço  bairro  CEP  data`.
+ * O texto antes do CEP (ou, sem CEP, sem a data no fim) se divide em endereço e
+ * bairro pelo último grupo de 2+ espaços; sem isso, logo após a última
+ * "vírgula + número" (ou `S/N`), desde que o resto seja só palavras sem dígitos.
+ * Se nada disso fecha, tudo fica em `endereco` e o bairro fica `null`.
+ */
+function lerEnderecoEBairro(linha: string): { endereco: string | null; bairro: string | null; cep: string | null } {
+  const cep = REGEX_CEP.exec(linha);
+  const antes = (cep ? linha.slice(0, cep.index) : linha.replace(/\s*\d{2}\/\d{2}\/\d{4}.*$/, '')).trimEnd();
+  const porEspacos = /^(.*\S)\s{2,}(\S.*)$/.exec(antes);
+  const porNumero = /^(.*,\s*(?:\d+[A-Za-z]?|S\/N))\s+(\D+)$/i.exec(antes);
+  const partes = porEspacos ?? porNumero;
+  return {
+    endereco: vazioParaNulo(partes ? partes[1] : antes),
+    bairro: partes ? vazioParaNulo(partes[2]) : null,
+    cep: cep ? cep[0] : null,
+  };
+}
+
+/**
+ * Linha após "MUNICÍPIO FONE / FAX UF …": `município  fone?  UF  IE  hora`.
+ * A UF é a primeira sigla válida depois do fone ou, sem fone, a última sigla
+ * válida da linha (o nome do município pode ter "DO", "DA"…). Sem fone nem UF,
+ * a linha não é a esperada e nada é lido.
+ */
+function lerMunicipioUfEFone(linha: string): { municipio: string | null; uf: string | null; telefone: string | null } {
+  const fone = REGEX_FONE.exec(linha);
+  const siglas = [...linha.matchAll(/\b[A-Z]{2}\b/g)].filter((m) => UFS.has(m[0]));
+  const uf = fone
+    ? siglas.find((m) => m.index >= fone.index + fone[0].length)
+    : siglas[siglas.length - 1];
+  if (!fone && !uf) return { municipio: null, uf: null, telefone: null };
+  const fimDoMunicipio = fone ? fone.index : (uf?.index ?? 0);
+  return {
+    municipio: vazioParaNulo(linha.slice(0, fimDoMunicipio)),
+    uf: uf ? uf[0] : null,
+    telefone: fone ? fone[0] : null,
+  };
+}
+
+/** Endereço do destinatário: só depois do rótulo do destinatário, para não cair no bloco da transportadora. */
+function lerEnderecoDoDestinatario(linhas: string[]): EnderecoDoDestinatario {
+  const inicio = Math.max(
+    0,
+    linhas.findIndex((l) => semAcento(l).includes('NOME / RAZAO SOCIAL')),
+  );
+  const depois = linhas.slice(inicio);
+  const iEndereco = depois.findIndex((l) => {
+    const t = semAcento(l);
+    return t.includes('ENDERECO') && t.includes('BAIRRO') && t.includes('CEP');
+  });
+  const iMunicipio = depois.findIndex((l) => {
+    const t = semAcento(l);
+    return t.includes('MUNICIPIO') && t.includes('FONE');
+  });
+  const endereco =
+    iEndereco < 0 ? { endereco: null, bairro: null, cep: null } : lerEnderecoEBairro(depois[iEndereco + 1] ?? '');
+  const municipio =
+    iMunicipio < 0 ? { municipio: null, uf: null, telefone: null } : lerMunicipioUfEFone(depois[iMunicipio + 1] ?? '');
+  return { ...endereco, ...municipio };
+}
+
 function lerTotal(linhas: string[], rotulo: string): number | null {
   for (let i = 0; i < linhas.length - 1; i += 1) {
     const linha = linhas[i] ?? '';
@@ -232,6 +320,7 @@ function lerFolha(linhas: string[]): FolhaLida | 'sem chave' | null {
     protocolo,
     destinatarioNome: dest.nome,
     destinatarioCnpj: dest.cnpj,
+    destinatarioEndereco: lerEnderecoDoDestinatario(linhas),
     valorProdutos: lerTotal(linhas, 'VALOR TOTAL DOS PRODUTOS'),
     desconto: lerTotal(linhas, 'DESCONTO'),
     valorTotal: lerTotal(linhas, 'VALOR TOTAL DA NOTA'),
@@ -241,12 +330,23 @@ function lerFolha(linhas: string[]): FolhaLida | 'sem chave' | null {
 
 /** Junta as folhas da mesma chave: campos da primeira que os trouxe, itens concatenados. */
 function juntarFolhas(primeira: FolhaLida, demais: FolhaLida[]): FolhaLida {
-  const junta: FolhaLida = { ...primeira, itens: [...primeira.itens] };
+  const junta: FolhaLida = {
+    ...primeira,
+    destinatarioEndereco: { ...primeira.destinatarioEndereco },
+    itens: [...primeira.itens],
+  };
   for (const f of demais) {
     junta.dataEmissao ??= f.dataEmissao;
     junta.protocolo ??= f.protocolo;
     junta.destinatarioNome ??= f.destinatarioNome;
     junta.destinatarioCnpj ??= f.destinatarioCnpj;
+    const end = junta.destinatarioEndereco;
+    end.endereco ??= f.destinatarioEndereco.endereco;
+    end.bairro ??= f.destinatarioEndereco.bairro;
+    end.cep ??= f.destinatarioEndereco.cep;
+    end.municipio ??= f.destinatarioEndereco.municipio;
+    end.uf ??= f.destinatarioEndereco.uf;
+    end.telefone ??= f.destinatarioEndereco.telefone;
     junta.valorProdutos ??= f.valorProdutos;
     junta.desconto ??= f.desconto;
     junta.valorTotal ??= f.valorTotal;
@@ -309,7 +409,7 @@ export function lerDanfes(paginas: PaginaDeTexto[]): {
       dataEmissao: nota.dataEmissao,
       naturezaOperacao: nota.naturezaOperacao,
       protocolo: nota.protocolo,
-      destinatario: { nome: nota.destinatarioNome ?? '', cnpj: nota.destinatarioCnpj },
+      destinatario: { nome: nota.destinatarioNome ?? '', cnpj: nota.destinatarioCnpj, ...nota.destinatarioEndereco },
       valorProdutos: nota.valorProdutos ?? 0,
       desconto: nota.desconto ?? 0,
       valorTotal: nota.valorTotal ?? 0, // já garantidos por motivoDeIgnorar
