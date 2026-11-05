@@ -27,7 +27,8 @@
  * tabela e o resumo dizem "(em curso)", para a queda do último ponto não ser
  * lida como queda de vendas. A linha "Hoje" usa o laranja vivo (marca sem
  * texto) e o rótulo, junto da base e à esquerda da linha, o laranja escuro,
- * legível sobre o cartão branco.
+ * legível sobre o cartão branco. "Hoje" vem de `agora()` (`lib/relogio.ts`),
+ * então acompanha a data de demonstração.
  */
 import { useId } from 'react';
 import { contar } from '@/lib/contar';
@@ -38,6 +39,7 @@ import { useLarguraDoElemento } from '@/lib/useLarguraDoElemento';
 import type { EventoNoGrafico, VendaDoMes } from '@/services/dashboard';
 import { AreaComBalao, GatilhoDoBalao, type ConteudoDoBalao } from './BalaoDoGrafico';
 import { TabelaAcessivel } from './TabelaAcessivel';
+import { agora } from '@/lib/relogio';
 
 const LARGURA_PADRAO = 360;
 const ALTURA = 230;
@@ -85,7 +87,7 @@ function rotuloDoEixo(valor: number): string {
 
 /** Hoje (local) como 'AAAA-MM-DD'. */
 function dataDeHoje(): string {
-  const hoje = new Date();
+  const hoje = agora();
   return `${mesAtual(hoje)}-${String(hoje.getDate()).padStart(2, '0')}`;
 }
 

@@ -89,6 +89,15 @@ vi.mock('./services/campaigns', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./services/campaigns')>()),
   listarCampanhas: vi.fn(async () => []),
 }));
+// Relógio de demonstração desligado: a moldura mostra as telas assim que ele responde.
+vi.mock('./services/sistema', () => ({
+  buscarRelogio: vi.fn(async () => ({
+    agora: new Date(0).toISOString(),
+    simulado: false,
+    dataDeDemonstracao: null,
+    deslocamentoDias: 0,
+  })),
+}));
 // O Painel tem testes próprios; aqui só importa a rota em que se chega.
 vi.mock('./pages/PainelPage', () => ({ default: () => <p>conteúdo do painel</p> }));
 vi.mock('./services/users', async (importOriginal) => ({

@@ -265,6 +265,14 @@ Na etapa 5, a cor calculada pela tabela acima pode ser rebaixada em um degrau: s
 - **Gravação:** uma transação por arquivo (`upsert` de `ErpProduct`, de `ErpSale` e `ErpImport` com os totais). Corpo bruto `application/pdf` (`express.raw`, 10 MB, só em `/erp/importacoes`): 415 se não for PDF, 400 se vazio ou ilegível, 413 acima do limite.
 - **Provedor:** `ERP_PROVIDER` aceita `mock | importado` (padrão `mock`). `GET /erp/situacao` devolve `{ provedor, simulado, estoqueDisponivel, ultimaVendaEm, ultimaImportacaoEm }`; no `importado` a ficha traz `ultimasVendas` (5 notas) e `estoqueIndisponivel`, e os alertas de produção vêm vazios com `estoqueIndisponivel`. O seed grava o catálogo de demonstração em `ErpProduct` com qualquer provedor.
 
+### 6.9 Relógio de demonstração
+
+- **Para quê:** mostrar a sazonalidade (Páscoa, Dia das Mães, Natal) na apresentação sem esperar o calendário ([spec](superpowers/specs/2026-11-06-relogio-de-demonstracao-design.md)).
+- **Variável:** `DATA_DE_DEMONSTRACAO`, opcional, `AAAA-MM-DD@AAAA-MM-DD` (recomendada: data simulada `@` dia real de referência) ou só `AAAA-MM-DD`; inválida impede a API de subir ("DATA_DE_DEMONSTRACAO deve ser uma data AAAA-MM-DD, opcionalmente seguida de @ e do dia real de referência (AAAA-MM-DD)."); vale em qualquer `NODE_ENV`. Tabela no guia de desenvolvimento, seção 2.
+- **Regra:** na subida, `deslocamentoDias = dataDeDemonstracao − dia real de referência` (o dia depois do `@`; sem âncora, o dia de hoje em São Paulo, e então todo reinício volta a API à data da variável); com a âncora, o deslocamento é o mesmo em qualquer subida e em qualquer rodada do seed; `agora() = Date.now() + deslocamentoDias × 24 h` (`lib/relogio.ts` no backend e no front). O calendário anda a partir da data de demonstração e o horário do dia é o real. Todo "hoje" de negócio (cores, agenda, campanhas, metas, KPIs, jobs, validação de data futura, seed) passa por `agora()`; tokens, logs, telemetria, `/health` e e-mail ficam no relógio real.
+- **Front:** a `Moldura` busca `GET /sistema/relogio` depois do login e só mostra as telas com a primeira resposta (ou com a falha: relógio real, sem faixa); a consulta vence em 5 minutos e é refeita quando o app volta ao primeiro plano, sem desmontar a tela, e uma nova busca que falha zera o deslocamento; com a data simulada, todas as telas autenticadas mostram a faixa "Data simulada: dd/mm/aaaa" (`role="status"`).
+- **Seed e limites:** `npm run db:seed:reset` faz a demonstração nascer na data simulada; trocar a data pede reiniciar a API e rodar o reset no mesmo dia e, nos aparelhos, fechar e abrir o app (ou sair e entrar); o botão "Atualizar" do PWA só aparece com um build novo do front. `criadoEm` de auditoria e a data das notas importadas continuam reais. Para a sazonalidade, `ERP_PROVIDER=mock` também: com `importado`, vendas, insights e estoque ficam nas datas reais, o gráfico de vendas mensais do ano simulado fica vazio, o aviso do ERP mostra "importadas até" com data real e o vínculo automático nota↔visita (mesmo dia) nunca casa uma nota real com uma visita simulada. Com mais de 90 dias à frente, a limpeza da madrugada (`FOTOS_RETENCAO_DIAS`) apaga as fotos das visitas reais já gravadas.
+
 ## 7. API REST (contorno)
 
 ```
@@ -300,6 +308,7 @@ POST   /erp/importacoes                 (gestor; ?nome=; corpo application/pdf) 
 POST   /erp/vendas/:id/vinculo          (gestor; { visitId })    DELETE /erp/vendas/:id/vinculo
 GET    /agenda/today                    (?representanteId=; atrasadas, hoje, próximos 7 dias e lembretes abertos até hoje)
 GET    /agenda/calendario               (?mes=AAAA-MM&representanteId=; visitas marcadas, lembretes, campanhas e datas sazonais)
+GET    /sistema/relogio                 (qualquer papel; { agora, simulado, dataDeDemonstracao, deslocamentoDias }, seção 6.9)
 GET    /health
 ```
 

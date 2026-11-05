@@ -1,10 +1,11 @@
 import type { Request, Response } from 'express';
-import { agora, dataDeDemonstracao, deslocamentoDias, simulado } from '../lib/relogio';
+import { agora, dataDeDemonstracao, deslocamentoDias, diaDeReferencia, simulado } from '../lib/relogio';
 
 /**
  * `GET /sistema/relogio`: o relógio do sistema para o front (qualquer papel).
  * O front calcula o próprio "agora" com o deslocamento e mostra a faixa
  * "Data simulada" quando `simulado` (relógio de demonstração, `lib/relogio.ts`).
+ * `diaDeReferencia` é o dia real da forma ancorada da variável (ou `null`).
  */
 export function getRelogio(_req: Request, res: Response): void {
   res.status(200).json({
@@ -12,5 +13,6 @@ export function getRelogio(_req: Request, res: Response): void {
     simulado: simulado(),
     dataDeDemonstracao: dataDeDemonstracao(),
     deslocamentoDias: deslocamentoDias(),
+    diaDeReferencia: diaDeReferencia(),
   });
 }

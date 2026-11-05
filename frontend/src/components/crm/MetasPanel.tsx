@@ -23,7 +23,9 @@
  * a validação exige trocar, spec 10.4), periodicidade (semanal, mensal ou período personalizado; não
  * aparece na meta de campanha), início, fim (travado e calculado na semanal
  * e na mensal), meta de visitas e meta de vendas. As regras do backend são
- * conferidas antes de enviar, com as mesmas mensagens, junto do campo.
+ * conferidas antes de enviar, com as mesmas mensagens, junto do campo. O
+ * "hoje" da meta nova vem de `agora()` (`lib/relogio.ts`, relógio de
+ * demonstração).
  */
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -57,6 +59,7 @@ import { Segmentado, type Opcao } from '../Segmentado';
 import { BarraProgresso } from './BarraProgresso';
 import type { ConteudoDoBalao } from './graficos/BalaoDoGrafico';
 import { Aviso, Campo, CLASSES_BOTAO_PERIGO, CLASSES_SELECT, Etiqueta } from './ui';
+import { agora as agoraDoRelogio } from '@/lib/relogio';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar as metas.';
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar a meta.';
@@ -73,9 +76,9 @@ const OPCOES_PERIODO: Opcao<PeriodoLivre>[] = [
 
 export type CampanhaDaMeta = { id: string; inicio: string; fim: string };
 
-/** Hoje no aparelho, `AAAA-MM-DD` (a base do período de uma meta nova). */
+/** Hoje no relógio do sistema, `AAAA-MM-DD` (a base do período de uma meta nova). */
 function hojeNoAparelho(): string {
-  const agora = new Date();
+  const agora = agoraDoRelogio();
   const mes = String(agora.getMonth() + 1).padStart(2, '0');
   const dia = String(agora.getDate()).padStart(2, '0');
   return `${agora.getFullYear()}-${mes}-${dia}`;

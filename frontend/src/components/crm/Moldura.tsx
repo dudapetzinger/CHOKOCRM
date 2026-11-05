@@ -6,15 +6,25 @@
  * 56 px com o título da tela e o menu da conta. Só uma das duas navegações
  * existe de cada vez (pela mesma largura de `useLarguraDesktop`), para o
  * leitor de tela não achar dois menus iguais.
+ *
+ * Relógio de demonstração: a moldura carrega `GET /sistema/relogio`
+ * (`useRelogio`) e só mostra a tela da rota depois da primeira resposta (ou
+ * da falha, com o relógio real), para nenhuma tela calcular "hoje" sem o
+ * deslocamento; as buscas seguintes (foco, a cada 5 min) não desmontam a
+ * tela. A `FaixaDataSimulada` fica acima do conteúdo; depois de uma busca que
+ * falhou (`isError`, mesmo com a resposta antiga no cache) não há faixa,
+ * porque `useRelogio` já voltou o deslocamento a 0.
  */
 import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, BarChart3, CalendarDays, FileUp, Megaphone, UserCog, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
+import { useRelogio } from '@/hooks/useRelogio';
 import type { Role } from '@/auth/auth-context';
 import { Button } from '@/components/ui/button';
 import { rotaInicialDoPapel } from '@/lib/rotaInicial';
 import { useLarguraDesktop } from '@/lib/useLarguraDesktop';
 import { cn } from '@/lib/utils';
+import { FaixaDataSimulada } from './FaixaDataSimulada';
 import { MenuDaConta } from './MenuDaConta';
 
 type ItemNavegacao = { para: string; rotulo: string; icone: LucideIcon; papeis: Role[] };
@@ -71,6 +81,7 @@ export function Moldura() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const desktop = useLarguraDesktop();
+  const relogio = useRelogio();
 
   if (!user) return null;
 
@@ -131,10 +142,14 @@ export function Moldura() {
           <MenuDaConta />
         </header>
 
+        {relogio.data && !relogio.isError && (
+          <FaixaDataSimulada simulado={relogio.data.simulado} dataDeDemonstracao={relogio.data.dataDeDemonstracao} />
+        )}
+
         {/* No celular, espaço embaixo para o conteúdo não ficar atrás da
             navegação inferior (56 px + a área segura do aparelho) */}
         <main className={cn('flex-1 p-4 md:p-6', !desktop && 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]')}>
-          <Outlet />
+          {relogio.isPending ? <p className="text-sm text-muted-foreground">Carregando...</p> : <Outlet />}
         </main>
       </div>
 

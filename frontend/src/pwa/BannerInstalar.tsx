@@ -8,7 +8,9 @@
  *   do app, mesmo antes do login, para não perder o evento.
  * - O Safari do iPhone/iPad não tem esse evento: mostramos o caminho manual.
  * - Nunca aparece com o app já instalado (`display-mode: standalone`), nem
- *   sem usuário logado, nem por 30 dias depois de "Agora não".
+ *   sem usuário logado, nem por 30 dias depois de "Agora não". Os 30 dias
+ *   contam no relógio real do aparelho (`// relógio real:`), não no relógio
+ *   de demonstração: é um prazo de interface, não uma data de negócio.
  */
 import { useContext, useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
@@ -44,6 +46,7 @@ function dispensadoHaPouco(): boolean {
     const gravado = localStorage.getItem(CHAVE_INSTALAR_DISPENSADO);
     if (!gravado) return false;
     const quando = new Date(gravado).getTime();
+    // relógio real: prazo do convite, guardado com a hora real do aparelho
     return !Number.isNaN(quando) && Date.now() - quando < DIAS_DISPENSADO * DIA_MS;
   } catch {
     return false;
@@ -52,6 +55,7 @@ function dispensadoHaPouco(): boolean {
 
 function gravarDispensa(): void {
   try {
+    // relógio real: prazo do convite, comparado com a hora real do aparelho
     localStorage.setItem(CHAVE_INSTALAR_DISPENSADO, new Date().toISOString());
   } catch {
     // Sem armazenamento: esconde só nesta sessão.

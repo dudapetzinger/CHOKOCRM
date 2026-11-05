@@ -20,7 +20,8 @@
  * catálogo do ERP como botões que ligam e desligam (`aria-pressed`). As
  * regras do backend são conferidas antes de enviar, com as mesmas
  * mensagens, junto do campo. Excluir pede confirmação: as visitas vinculadas
- * continuam no histórico, sem a campanha.
+ * continuam no histórico, sem a campanha. O "hoje" padrão da campanha nova
+ * vem de `agora()` (`lib/relogio.ts`, relógio de demonstração).
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -56,6 +57,7 @@ import {
   type TipoCampanha,
 } from '../services/campaigns';
 import { mensagemErroApi } from '../services/clients';
+import { agora as agoraDoRelogio } from '../lib/relogio';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar as campanhas.';
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar a campanha.';
@@ -74,9 +76,9 @@ const OPCOES_TIPO: Opcao<TipoCampanha>[] = (['CAMPANHA', 'PROMOCAO', 'EVENTO'] a
   rotulo: ROTULO_TIPO[tipo],
 }));
 
-/** Hoje no aparelho, `AAAA-MM-DD` (o padrão do início e do fim de uma campanha nova). */
+/** Hoje no relógio do sistema, `AAAA-MM-DD` (o padrão do início e do fim de uma campanha nova). */
 function hojeNoAparelho(): string {
-  const agora = new Date();
+  const agora = agoraDoRelogio();
   const mes = String(agora.getMonth() + 1).padStart(2, '0');
   const dia = String(agora.getDate()).padStart(2, '0');
   return `${agora.getFullYear()}-${mes}-${dia}`;

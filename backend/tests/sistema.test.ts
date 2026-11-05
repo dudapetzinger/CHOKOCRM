@@ -48,6 +48,7 @@ describe('GET /sistema/relogio', () => {
       simulado: true,
       dataDeDemonstracao: DATA_SIMULADA,
       deslocamentoDias: deslocamentoEsperado(),
+      diaDeReferencia: null,
     });
     expect(new Date(res.body.agora).toISOString()).toBe(res.body.agora);
     expect(dataCalendario(new Date(res.body.agora))).toBe(DATA_SIMULADA);

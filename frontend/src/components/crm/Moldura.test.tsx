@@ -1,21 +1,46 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthContext, type Role } from '../../auth/auth-context';
+import { agora, definirDeslocamento } from '../../lib/relogio';
+import { buscarRelogio, type Relogio } from '../../services/sistema';
 import { removerSimulacaoDeLargura, simularLargura } from '../../test/simularLargura';
 import { Moldura, tituloDaRota } from './Moldura';
 
+vi.mock('../../services/sistema', () => ({ buscarRelogio: vi.fn() }));
+
+const RELOGIO_REAL: Relogio = {
+  agora: '2026-11-06T18:00:00.000Z',
+  simulado: false,
+  dataDeDemonstracao: null,
+  deslocamentoDias: 0,
+};
+
 const NOMES: Record<Role, string> = { GESTOR: 'Gestor Chokolaten', REPRESENTANTE: 'Eduarda Fischer' };
 
-/** A moldura como layout das rotas, com uma tela de mentira em cada uma. */
-function renderizar({ papel = 'REPRESENTANTE', entradas = ['/clientes'] }: { papel?: Role; entradas?: string[] } = {}) {
+/**
+ * A moldura como layout das rotas, com uma tela de mentira em cada uma. Por
+ * padrão o relógio já está carregado (sem simulação) no cache, para as telas
+ * aparecerem de imediato; `relogioCarregado: false` deixa a moldura buscar
+ * `GET /sistema/relogio` (o `buscarRelogio` mockado de cada teste).
+ */
+function renderizar({
+  papel = 'REPRESENTANTE',
+  entradas = ['/clientes'],
+  relogioCarregado = true,
+}: { papel?: Role; entradas?: string[]; relogioCarregado?: boolean } = {}) {
+  // Sem espera entre as tentativas: o `retry: 1` do hook não atrasa o teste de erro.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retryDelay: 0 } } });
+  if (relogioCarregado) queryClient.setQueryData(['sistema', 'relogio'], RELOGIO_REAL);
   const auth = {
     user: { id: 'u1', nome: NOMES[papel], email: 'usuaria@exemplo.com', role: papel, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(async () => {}),
   };
-  return render(
+  const resultado = render(
+    <QueryClientProvider client={queryClient}>
     <AuthContext.Provider value={auth}>
       <MemoryRouter initialEntries={entradas} initialIndex={entradas.length - 1}>
         <Routes>
@@ -34,8 +59,10 @@ function renderizar({ papel = 'REPRESENTANTE', entradas = ['/clientes'] }: { pap
           </Route>
         </Routes>
       </MemoryRouter>
-    </AuthContext.Provider>,
+    </AuthContext.Provider>
+    </QueryClientProvider>,
   );
+  return { ...resultado, queryClient };
 }
 
 /** Os atalhos da navegação, na ordem, pelo nome acessível (o ícone é decorativo). */
@@ -48,6 +75,10 @@ function atalhos() {
 
 afterEach(() => {
   removerSimulacaoDeLargura();
+  definirDeslocamento(0);
+  focusManager.setFocused(undefined);
+  vi.restoreAllMocks();
+  vi.mocked(buscarRelogio).mockReset();
 });
 
 describe('Moldura', () => {
@@ -161,6 +192,115 @@ describe('Moldura', () => {
     expect(screen.getAllByRole('navigation')).toHaveLength(1);
     expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Painel', 'Campanhas']);
     expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Moldura: relógio de demonstração', () => {
+  it('enquanto o relógio carrega, a tela da rota não aparece (a moldura sim)', async () => {
+    vi.mocked(buscarRelogio).mockReturnValue(new Promise<Relogio>(() => {}));
+    renderizar({ entradas: ['/agenda'], relogioCarregado: false });
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Agenda' })).toBeInTheDocument();
+    expect(screen.getByText('Carregando...')).toBeInTheDocument();
+    expect(screen.queryByText('tela da agenda')).not.toBeInTheDocument();
+    expect(buscarRelogio).toHaveBeenCalledTimes(1);
+  });
+
+  it('relógio simulado: faixa "Data simulada" acima do conteúdo e agora() deslocado', async () => {
+    vi.mocked(buscarRelogio).mockResolvedValue({
+      agora: '2027-03-15T18:00:00.000Z',
+      simulado: true,
+      dataDeDemonstracao: '2027-03-15',
+      deslocamentoDias: 129,
+    });
+    renderizar({ entradas: ['/agenda'], relogioCarregado: false });
+
+    expect(await screen.findByText('tela da agenda')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/^Data simulada: 15\/03\/2027$/);
+    expect(agora().getTime() - Date.now()).toBeGreaterThan(128 * 86_400_000);
+  });
+
+  it('relógio sem simulação: conteúdo sem faixa', async () => {
+    vi.mocked(buscarRelogio).mockResolvedValue(RELOGIO_REAL);
+    renderizar({ entradas: ['/agenda'], relogioCarregado: false });
+
+    expect(await screen.findByText('tela da agenda')).toBeInTheDocument();
+    expect(screen.queryByText(/Data simulada/)).not.toBeInTheDocument();
+  });
+
+  it('erro no relógio: conteúdo sem faixa e agora() sem deslocamento', async () => {
+    vi.mocked(buscarRelogio).mockRejectedValue(new Error('falhou'));
+    renderizar({ entradas: ['/agenda'], relogioCarregado: false });
+
+    expect(await screen.findByText('tela da agenda')).toBeInTheDocument();
+    expect(screen.queryByText(/Data simulada/)).not.toBeInTheDocument();
+    expect(Math.abs(agora().getTime() - Date.now())).toBeLessThan(1000);
+    // `retry: 1`: uma tentativa e mais uma
+    expect(buscarRelogio).toHaveBeenCalledTimes(2);
+  });
+
+  it('nova busca do relógio (invalidação) não desmonta a tela da rota', async () => {
+    const { queryClient } = renderizar({ entradas: ['/agenda'] });
+    expect(screen.getByText('tela da agenda')).toBeInTheDocument();
+    vi.mocked(buscarRelogio).mockReturnValue(new Promise<Relogio>(() => {}));
+
+    await act(async () => {
+      void queryClient.invalidateQueries({ queryKey: ['sistema', 'relogio'] });
+    });
+
+    expect(buscarRelogio).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('tela da agenda')).toBeInTheDocument();
+    expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
+  });
+
+  it('volta do segundo plano (foco) depois de 5 min busca o relógio de novo, sem desmontar a tela', async () => {
+    vi.mocked(buscarRelogio).mockResolvedValueOnce(RELOGIO_REAL).mockResolvedValueOnce({
+      agora: '2027-03-15T18:00:00.000Z',
+      simulado: true,
+      dataDeDemonstracao: '2027-03-15',
+      deslocamentoDias: 129,
+    });
+    renderizar({ entradas: ['/agenda'], relogioCarregado: false });
+    expect(await screen.findByText('tela da agenda')).toBeInTheDocument();
+    expect(buscarRelogio).toHaveBeenCalledTimes(1);
+
+    // antes dos 5 min, o foco não busca de novo
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    expect(buscarRelogio).toHaveBeenCalledTimes(1);
+
+    const real = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(real + 5 * 60 * 1000 + 1000);
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^Data simulada: 15\/03\/2027$/));
+    expect(buscarRelogio).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('tela da agenda')).toBeInTheDocument();
+  });
+
+  it('nova busca que falha depois de uma sessão simulada: sem faixa e agora() sem deslocamento', async () => {
+    vi.mocked(buscarRelogio).mockResolvedValueOnce({
+      agora: '2027-03-15T18:00:00.000Z',
+      simulado: true,
+      dataDeDemonstracao: '2027-03-15',
+      deslocamentoDias: 129,
+    });
+    const { queryClient } = renderizar({ entradas: ['/agenda'], relogioCarregado: false });
+    expect(await screen.findByRole('status')).toHaveTextContent(/^Data simulada: 15\/03\/2027$/);
+    vi.mocked(buscarRelogio).mockRejectedValue(new Error('falhou'));
+
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['sistema', 'relogio'] });
+    });
+
+    await waitFor(() => expect(screen.queryByText(/Data simulada/)).not.toBeInTheDocument());
+    expect(Math.abs(agora().getTime() - Date.now())).toBeLessThan(1000);
+    expect(screen.getByText('tela da agenda')).toBeInTheDocument();
   });
 });
 

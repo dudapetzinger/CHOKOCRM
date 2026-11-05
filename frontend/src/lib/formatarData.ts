@@ -1,3 +1,9 @@
+/**
+ * Formatação de datas em pt-BR. Onde precisa de "hoje" (`mesAtual`), o padrão
+ * é `agora()` de `lib/relogio.ts` (relógio de demonstração).
+ */
+import { agora } from './relogio';
+
 /** Formata uma data ISO no padrão pt-BR (dd/mm/aaaa); usado nas fichas de cliente. */
 export function formatarData(iso: string): string {
   const data = new Date(iso);
@@ -43,7 +49,7 @@ export function formatarDiaMes(aaaaMmDd: string): string {
   return formatarDataCalendario(aaaaMmDd).slice(0, 5);
 }
 
-/** O mês local de `hoje` como 'AAAA-MM'. */
-export function mesAtual(hoje: Date = new Date()): string {
+/** O mês local de `hoje` (padrão: `agora()` do relógio do sistema) como 'AAAA-MM'. */
+export function mesAtual(hoje: Date = agora()): string {
   return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 }

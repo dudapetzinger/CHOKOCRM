@@ -4,10 +4,12 @@
  * decimal, todo campo entre aspas (aspas internas dobradas, então `;` e
  * quebra de linha dentro do campo não quebram a coluna), texto livre que
  * começa como fórmula com um apóstrofo à frente, e linhas com `\r\n`. Os
- * números vêm prontos do backend; aqui só se formata.
+ * números vêm prontos do backend; aqui só se formata. O nome do arquivo leva
+ * o dia de hoje pelo relógio do sistema (`agora()`, relógio de demonstração).
  */
 import type { LinhaDoRelatorio } from '../services/dashboard';
 import { hojeEmSaoPaulo } from './calendario';
+import { agora as agoraDoRelogio } from './relogio';
 
 const BOM = '\uFEFF';
 const SEPARADOR = ';';
@@ -62,7 +64,7 @@ export function gerarCsvRelatorio(linhas: LinhaDoRelatorio[]): string {
 }
 
 /** `chokocrm-relatorio-AAAA-MM-DD.csv`, com o dia de hoje em São Paulo. */
-export function nomeDoArquivoRelatorio(agora: Date = new Date()): string {
+export function nomeDoArquivoRelatorio(agora: Date = agoraDoRelogio()): string {
   return `chokocrm-relatorio-${hojeEmSaoPaulo(agora)}.csv`;
 }
 

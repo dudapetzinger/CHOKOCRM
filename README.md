@@ -130,6 +130,8 @@ cp frontend/.env.example frontend/.env
 docker compose up --build
 ```
 
+Para apresentar a sazonalidade em outra época do ano, a variável opcional `DATA_DE_DEMONSTRACAO=AAAA-MM-DD` (de preferência com a âncora `@dia-real`, para a data continuar andando entre reinícios) faz o app inteiro viver nessa data (faixa "Data simulada" em todas as telas), como explica o [guia](docs/guia-de-desenvolvimento.md#4-banco-de-dados-migrations-e-seed).
+
 Para testar o app instalável (PWA), que só existe no build, o guia traz o roteiro com `npm run build && npm run preview` em [Testar o PWA localmente](docs/guia-de-desenvolvimento.md#51-testar-o-pwa-localmente).
 
 ## 10. Testes

@@ -37,6 +37,7 @@ describe('lib/relogio', () => {
     expect(relogio.deslocamentoDias()).toBe(0);
     expect(relogio.simulado()).toBe(false);
     expect(relogio.dataDeDemonstracao()).toBeNull();
+    expect(relogio.diaDeReferencia()).toBeNull();
     expect(relogio.mensagemDeSubida()).toBeNull();
   });
 
@@ -53,8 +54,27 @@ describe('lib/relogio', () => {
     expect(relogio.deslocamentoDias()).toBe(129);
     expect(relogio.simulado()).toBe(true);
     expect(relogio.dataDeDemonstracao()).toBe('2027-03-15');
+    expect(relogio.diaDeReferencia()).toBeNull();
     expect(relogio.mensagemDeSubida()).toBe(
       'Relógio de demonstração: 15/03/2027 (+129 dias). Rode npm run db:seed:reset para a demonstração nascer nesta data.',
+    );
+  });
+
+  it('ancorada (AAAA-MM-DD@AAAA-MM-DD): o deslocamento vem do dia de referência, não do dia da subida', async () => {
+    fixarRelogio(new Date('2026-11-06T15:00:00-03:00'));
+    const naReferencia = await carregarRelogio('2027-03-15@2026-11-06');
+    // A API reinicia 10 dias reais depois: o deslocamento é o mesmo e o calendário simulado andou 10 dias
+    jest.setSystemTime(new Date('2026-11-16T15:00:00-03:00'));
+    const dezDiasDepois = await carregarRelogio('2027-03-15@2026-11-06');
+
+    expect(naReferencia.deslocamentoDias()).toBe(129);
+    expect(dezDiasDepois.deslocamentoDias()).toBe(129);
+    expect(dataCalendario(dezDiasDepois.agora())).toBe('2027-03-25');
+    expect(dezDiasDepois.simulado()).toBe(true);
+    expect(dezDiasDepois.dataDeDemonstracao()).toBe('2027-03-15');
+    expect(dezDiasDepois.diaDeReferencia()).toBe('2026-11-06');
+    expect(dezDiasDepois.mensagemDeSubida()).toBe(
+      'Relógio de demonstração: 15/03/2027 (+129 dias) (referência 06/11/2026). Rode npm run db:seed:reset para a demonstração nascer nesta data.',
     );
   });
 

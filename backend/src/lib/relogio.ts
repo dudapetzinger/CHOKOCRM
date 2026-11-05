@@ -6,11 +6,20 @@ import { type DataCalendario, dataCalendario, diasEntre } from '../services/clas
  * `agora()` (um teste de arquitetura impede `new Date()`/`Date.now()` fora
  * daqui, salvo as exceções marcadas `// relógio real:`).
  *
- * Com `DATA_DE_DEMONSTRACAO=AAAA-MM-DD` definida, o app vive naquele dia: o
- * deslocamento é um número inteiro de dias (data de demonstração menos o dia
- * de hoje em São Paulo), calculado UMA vez, na carga do módulo (subida da
- * API). Assim o horário do dia é o real e o calendário anda: amanhã o app
- * está no dia seguinte ao simulado. Sem a variável, o deslocamento é 0.
+ * Com `DATA_DE_DEMONSTRACAO` definida, o app vive na data simulada: o
+ * deslocamento é um número inteiro de dias (data simulada menos o dia real
+ * de referência), calculado UMA vez, na carga do módulo (subida da API).
+ * O horário do dia é o real e o calendário anda: amanhã o app está no dia
+ * seguinte ao simulado. Sem a variável, o deslocamento é 0.
+ *
+ * Duas formas (validadas em `config/env.ts`):
+ * - `AAAA-MM-DD@AAAA-MM-DD` (recomendada, "ancorada"): data simulada `@` dia
+ *   real de referência. O deslocamento é fixo (`diasEntre(referência,
+ *   simulada)`), o mesmo em qualquer dia em que a API suba ou o seed rode:
+ *   reinícios (salvar uma configuração do App Service, religar, trocar o
+ *   plano) não voltam o calendário simulado, que segue um dia por dia real.
+ * - `AAAA-MM-DD`: a referência é o dia real em São Paulo na subida, então
+ *   todo reinício volta a API à data da variável.
  *
  * `agora()` soma o deslocamento a `Date.now()` a cada chamada (em vez de
  * guardar um instante), para seguir o relógio falso dos testes
@@ -21,10 +30,17 @@ import { type DataCalendario, dataCalendario, diasEntre } from '../services/clas
  */
 const MILISSEGUNDOS_POR_DIA = 86_400_000;
 
-const DATA_DE_DEMONSTRACAO: DataCalendario | null = env.DATA_DE_DEMONSTRACAO ?? null;
+const [DATA_DE_DEMONSTRACAO, DIA_DE_REFERENCIA]: [DataCalendario | null, DataCalendario | null] = (() => {
+  const valor = env.DATA_DE_DEMONSTRACAO;
+  if (!valor) return [null, null];
+  const [simulada, referencia] = valor.split('@') as [DataCalendario, DataCalendario | undefined];
+  return [simulada, referencia ?? null];
+})();
 
 const DESLOCAMENTO_DIAS: number =
-  DATA_DE_DEMONSTRACAO === null ? 0 : diasEntre(dataCalendario(new Date()), DATA_DE_DEMONSTRACAO);
+  DATA_DE_DEMONSTRACAO === null
+    ? 0
+    : diasEntre(DIA_DE_REFERENCIA ?? dataCalendario(new Date()), DATA_DE_DEMONSTRACAO);
 
 /** O instante "agora" do sistema: o real, deslocado pelos dias da demonstração. */
 export function agora(): Date {
@@ -41,18 +57,28 @@ export function simulado(): boolean {
   return DATA_DE_DEMONSTRACAO !== null;
 }
 
-/** A data de demonstração configurada, ou `null` no relógio real. */
+/** A data simulada configurada (a parte antes do `@`), ou `null` no relógio real. */
 export function dataDeDemonstracao(): DataCalendario | null {
   return DATA_DE_DEMONSTRACAO;
+}
+
+/** O dia real de referência da forma ancorada (depois do `@`), ou `null` sem âncora. */
+export function diaDeReferencia(): DataCalendario | null {
+  return DIA_DE_REFERENCIA;
+}
+
+function formatarDia(data: DataCalendario): string {
+  const [ano, mes, dia] = data.split('-');
+  return `${dia}/${mes}/${ano}`;
 }
 
 /** Linha do log de subida quando simulado; `null` no relógio real. */
 export function mensagemDeSubida(): string | null {
   if (DATA_DE_DEMONSTRACAO === null) return null;
-  const [ano, mes, dia] = DATA_DE_DEMONSTRACAO.split('-');
   const sinal = DESLOCAMENTO_DIAS >= 0 ? '+' : '';
+  const referencia = DIA_DE_REFERENCIA === null ? '' : ` (referência ${formatarDia(DIA_DE_REFERENCIA)})`;
   return (
-    `Relógio de demonstração: ${dia}/${mes}/${ano} (${sinal}${DESLOCAMENTO_DIAS} dias). ` +
+    `Relógio de demonstração: ${formatarDia(DATA_DE_DEMONSTRACAO)} (${sinal}${DESLOCAMENTO_DIAS} dias)${referencia}. ` +
     'Rode npm run db:seed:reset para a demonstração nascer nesta data.'
   );
 }

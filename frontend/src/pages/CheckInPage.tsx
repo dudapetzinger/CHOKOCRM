@@ -54,7 +54,8 @@
  * à ficha, na aba Visitas (`?aba=visitas`). O erro da API aparece num aviso abaixo do indicador, sem perder
  * o que foi digitado, e sai ao avançar de passo ou reenviar; o erro de um
  * campo de outro passo (ex.: data no futuro pelo relógio do servidor) leva a
- * esse passo, com a mensagem no campo.
+ * esse passo, com a mensagem no campo. "Data e hora" começa no agora do
+ * relógio do sistema (`agora()`, que segue a data de demonstração do backend).
  */
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -88,6 +89,7 @@ import { PerguntaSimNao } from '../components/crm/checkin/PerguntaSimNao';
 import { NovoContato } from '../components/crm/NovoContato';
 import { PedidoCampos } from '../components/crm/PedidoCampos';
 import { Aviso, Campo, CLASSES_SELECT } from '../components/crm/ui';
+import { agora as agoraDoRelogio } from '../lib/relogio';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar o cliente.';
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar o check-in.';
@@ -96,9 +98,12 @@ const MENSAGEM_ERRO_PRODUTOS = 'Não foi possível carregar os produtos.';
 /** Valor da opção "+ Novo contato…" (não é id de contato). */
 const NOVO_CONTATO = '__novo';
 
-/** `datetime-local` espera `YYYY-MM-DDTHH:mm` no fuso do dispositivo. */
+/**
+ * `datetime-local` espera `YYYY-MM-DDTHH:mm` no fuso do dispositivo. O agora
+ * é o do relógio do sistema (`agora()`, relógio de demonstração).
+ */
 function agoraParaCampoLocal(): string {
-  const agora = new Date();
+  const agora = agoraDoRelogio();
   const deslocamento = agora.getTimezoneOffset() * 60 * 1000;
   return new Date(agora.getTime() - deslocamento).toISOString().slice(0, 16);
 }

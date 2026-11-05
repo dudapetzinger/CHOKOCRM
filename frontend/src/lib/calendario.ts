@@ -2,10 +2,13 @@
  * Datas da grade do calendário da Agenda (spec 7.6). A grade trabalha com
  * datas locais (`new Date(ano, mes, dia)`, meio-dia não importa: só o dia
  * conta) e as compara com os itens da API pela chave `AAAA-MM-DD`. O dia de
- * hoje é o de São Paulo pelo relógio do aparelho (`hojeEmSaoPaulo`): a API do
- * calendário não devolve o "hoje" dela, e o dia de hoje na grade vem do
- * mesmo relógio, salvo um relógio de aparelho errado.
+ * hoje é o de São Paulo pelo relógio do sistema (`hojeEmSaoPaulo`, com
+ * `agora()` de `lib/relogio.ts`: o do aparelho, deslocado para a data de
+ * demonstração quando o backend a tem): a API do calendário não devolve o
+ * "hoje" dela, e o dia de hoje na grade vem do mesmo relógio, salvo um
+ * relógio de aparelho errado.
  */
+import { agora as agoraDoRelogio } from './relogio';
 
 const DIAS_NA_GRADE = 42;
 
@@ -17,7 +20,7 @@ const formatadorSaoPaulo = new Intl.DateTimeFormat('en-CA', {
 });
 
 /** O dia de hoje em São Paulo como `AAAA-MM-DD`. */
-export function hojeEmSaoPaulo(agora: Date = new Date()): string {
+export function hojeEmSaoPaulo(agora: Date = agoraDoRelogio()): string {
   return formatadorSaoPaulo.format(agora);
 }
 
