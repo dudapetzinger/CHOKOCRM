@@ -1,11 +1,15 @@
 import { prisma } from '../../src/lib/prisma';
 
 const TABELAS_EM_ORDEM_DE_DEPENDENCIA = [
+  'erp_sale_items',
+  'erp_products',
   'stock_messages',
   'visit_schedule_changes',
   'lembretes',
   'visit_items',
   'visits',
+  'erp_sales',
+  'erp_imports',
   'contacts',
   'seasonal_events',
   'clients',

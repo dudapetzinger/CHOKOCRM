@@ -16,6 +16,7 @@ import { clientContactsRouter, contactRouter } from './routes/contact.routes';
 import { erpRouter } from './routes/erp.routes';
 import { goalsRouter } from './routes/goal.routes';
 import { healthRouter } from './routes/health.routes';
+import { importacaoRouter } from './routes/importacao.routes';
 import { clientInsightsRouter, insightsRouter } from './routes/insights.routes';
 import { dashboardRouter } from './routes/kpis.routes';
 import { produtosRouter } from './routes/produtos.routes';
@@ -53,6 +54,9 @@ app.use('/clients/:id/contacts', clientContactsRouter);
 app.use('/clients/:id/recurrence', recurrenceRouter);
 app.use('/clients/:id/erp', erpRouter);
 app.use('/erp', produtosRouter);
+// Corpo binário só na importação de notas (um PDF de DANFE por requisição, até 10 MB).
+app.use('/erp/importacoes', express.raw({ type: 'application/pdf', limit: '10mb' }));
+app.use('/erp', importacaoRouter);
 app.use('/goals', goalsRouter);
 app.use('/clients/:id/stock-message', clientStockMessageRouter);
 app.use('/stock-messages', stockMessagesRouter);

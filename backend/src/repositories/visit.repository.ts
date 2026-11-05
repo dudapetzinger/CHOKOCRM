@@ -1,6 +1,6 @@
-import { Prisma, type ResultadoVisita } from '@prisma/client';
+import { Prisma, type PrismaClient, type ResultadoVisita } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { somarItens } from '../lib/somarItens';
+import { somarItens, type ItemSomavel } from '../lib/somarItens';
 import * as reminderRepository from './reminder.repository';
 
 /**
@@ -207,4 +207,74 @@ export async function listNoPeriodoComPedido(
     representanteId: client.representanteId,
     totalPedido: somarItens(itens),
   }));
+}
+
+/** Cliente do Prisma ou a transação em andamento (a importação de notas grava tudo numa transação só). */
+type Banco = PrismaClient | Prisma.TransactionClient;
+
+export type UltimaVisitaDoCliente = {
+  id: string;
+  dataHora: Date;
+  resultado: ResultadoVisita;
+  erpSaleId: string | null;
+};
+
+/** Visita mais recente do cliente, de qualquer resultado, para o vínculo com a nota (Etapa 12). */
+export async function ultimaVisitaDoCliente(
+  clientId: string,
+  banco: Banco = prisma,
+): Promise<UltimaVisitaDoCliente | null> {
+  return banco.visit.findFirst({
+    where: { clientId },
+    orderBy: [{ dataHora: 'desc' }, { criadoEm: 'desc' }],
+    select: { id: true, dataHora: true, resultado: true, erpSaleId: true },
+  });
+}
+
+/** Visitas com os itens do pedido, para mostrar a visita sugerida das pendências. */
+export async function findManyComItens(
+  ids: string[],
+  banco: Banco = prisma,
+): Promise<{ id: string; dataHora: Date; resultado: ResultadoVisita; itens: ItemSomavel[] }[]> {
+  return banco.visit.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      dataHora: true,
+      resultado: true,
+      itens: { select: { quantidade: true, precoUnitario: true } },
+    },
+  });
+}
+
+/**
+ * Vincula a nota à visita: os itens do pedido são substituídos pelos da nota e
+ * o resultado passa a VENDA (spec 2.4 da Etapa 12). Serve também para
+ * atualizar os itens quando a mesma nota é importada de novo.
+ */
+export async function substituirItensPorNota(
+  visitId: string,
+  erpSaleId: string,
+  itens: ItemDoPedidoData[],
+  banco: Banco = prisma,
+): Promise<void> {
+  await banco.visitItem.deleteMany({ where: { visitId } });
+  if (itens.length > 0) {
+    await banco.visitItem.createMany({ data: itens.map((item) => ({ ...item, visitId })) });
+  }
+  await banco.visit.update({ where: { id: visitId }, data: { erpSaleId, resultado: 'VENDA' } });
+}
+
+/** Desfaz o vínculo: a visita perde a nota e fica sem itens (o que foi digitado no check-in não é guardado). */
+export async function desvincularNota(visitId: string, banco: Banco = prisma): Promise<void> {
+  await banco.visitItem.deleteMany({ where: { visitId } });
+  await banco.visit.update({ where: { id: visitId }, data: { erpSaleId: null } });
+}
+
+/** Cliente e nota vinculada da visita, para validar o vínculo manual. */
+export async function findParaVinculo(
+  id: string,
+  banco: Banco = prisma,
+): Promise<{ id: string; clientId: string; erpSaleId: string | null } | null> {
+  return banco.visit.findUnique({ where: { id }, select: { id: true, clientId: true, erpSaleId: true } });
 }
