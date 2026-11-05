@@ -7,6 +7,7 @@ import * as reminderRepository from './reminder.repository';
  * Itens do pedido em ordem alfabética do produto: a tabela não guarda a
  * ordem das linhas do formulário, e o id (uuid) não serve de ordem. O
  * serviço junta as linhas do mesmo SKU, então o nome não se repete.
+ * A nota fiscal vinculada à visita (Etapa 12) vem só com número e valor total.
  */
 const INCLUDE_RELACOES = {
   contact: { select: { id: true, nome: true } },
@@ -16,6 +17,7 @@ const INCLUDE_RELACOES = {
     select: { sku: true, produtoNome: true, quantidade: true, precoUnitario: true },
     orderBy: { produtoNome: 'asc' },
   },
+  erpSale: { select: { numero: true, valorTotal: true } },
 } as const;
 
 export type VisitComRelacoes = Prisma.VisitGetPayload<{ include: typeof INCLUDE_RELACOES }>;

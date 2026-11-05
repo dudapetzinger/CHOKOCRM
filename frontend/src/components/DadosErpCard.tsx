@@ -5,14 +5,18 @@
  * Visual do protótipo (Etapa 8): compras e estoque em duas colunas quando o
  * cartão tem espaço, com os itens em baixa numa lista com a quantidade numa
  * etiqueta vermelha.
+ * Etapa 12b (notas importadas): a seção "Últimas vendas" lista as 5 notas mais
+ * recentes (data, valor e os itens, "16× BARRA AO LEITE 35% 500 G") e só
+ * aparece quando há notas, então o card dos dados simulados não muda; quando o
+ * ERP não informa estoque, uma frase fica no lugar do nível de estoque.
  */
-import type { ReactElement } from 'react';
+import { useId, type ReactElement } from 'react';
 import { Package } from 'lucide-react';
 import { useDadosErp } from '../hooks/useDadosErp';
 import { mensagemErroApi } from '../services/clients';
-import { formatarData } from '../lib/formatarData';
+import { formatarData, formatarDataCalendario } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
-import type { DadosErp, NivelEstoque } from '../services/erp';
+import type { DadosErp, NivelEstoque, VendaErp } from '../services/erp';
 import { AvisoErp } from './AvisoErp';
 import { Aviso, Cartao, Etiqueta } from './crm/ui';
 
@@ -27,6 +31,44 @@ const ROTULO_NIVEL_ESTOQUE: Record<NivelEstoque, string> = {
 /** "1 venda" / "N vendas" — evita o plural incorreto quando há exatamente uma venda. */
 function formatarQuantidadeVendas(quantidade: number): string {
   return quantidade === 1 ? '1 venda' : `${quantidade} vendas`;
+}
+
+/**
+ * Quantidade no formato pt-BR ("16", "0,5"): as notas podem trazer frações
+ * (quilos, caixas abertas).
+ */
+function formatarQuantidade(quantidade: number): string {
+  return quantidade.toLocaleString('pt-BR');
+}
+
+/** Últimas notas do cliente; a data é de calendário e não passa por `Date`. */
+function UltimasVendas({ vendas }: { vendas: VendaErp[] }) {
+  const idTitulo = useId();
+
+  return (
+    <div className="mt-4">
+      <h3 id={idTitulo} className="mb-2 text-xs font-semibold text-muted-foreground uppercase">
+        Últimas vendas
+      </h3>
+      <ol aria-labelledby={idTitulo} className="space-y-2.5 text-sm">
+        {vendas.map((venda, indice) => (
+          <li key={`${venda.data}-${indice}`}>
+            <p className="flex justify-between gap-3 font-medium">
+              <span>{formatarDataCalendario(venda.data)}</span>
+              <span className="shrink-0 tabular-nums">{formatarMoeda(venda.valor)}</span>
+            </p>
+            <ul aria-label="Itens da nota" className="mt-0.5 space-y-0.5 text-muted-foreground">
+              {venda.produtos.map((produto, indiceProduto) => (
+                <li key={`${produto.sku}-${indiceProduto}`}>
+                  {formatarQuantidade(produto.quantidade)}× {produto.nome}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 /**
@@ -71,10 +113,14 @@ function renderizarConteudo(dadosErp: DadosErp): ReactElement {
 
             <div>
               <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Estoque</h3>
-              <p className="text-sm">
-                Estoque estimado:{' '}
-                {dadosErp.estoque ? ROTULO_NIVEL_ESTOQUE[dadosErp.estoque.nivel] : 'sem dados'}
-              </p>
+              {dadosErp.estoqueIndisponivel ? (
+                <p className="text-sm text-muted-foreground">O ERP não informa o estoque do cliente.</p>
+              ) : (
+                <p className="text-sm">
+                  Estoque estimado:{' '}
+                  {dadosErp.estoque ? ROTULO_NIVEL_ESTOQUE[dadosErp.estoque.nivel] : 'sem dados'}
+                </p>
+              )}
               {dadosErp.estoque && dadosErp.estoque.itensBaixos.length > 0 && (
                 <>
                   <p className="mt-3 mb-1.5 text-sm">Itens em baixa:</p>
@@ -93,6 +139,8 @@ function renderizarConteudo(dadosErp: DadosErp): ReactElement {
               )}
             </div>
           </div>
+
+          {dadosErp.ultimasVendas.length > 0 && <UltimasVendas vendas={dadosErp.ultimasVendas} />}
         </>
       );
 

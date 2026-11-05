@@ -55,6 +55,11 @@ export type VisitaDTO = {
   totalPedido: number;
   /** Campanha da visita (spec 7.7); `null` sem campanha ou depois de a campanha ser excluída. */
   campanha: { id: string; nome: string } | null;
+  /**
+   * Nota fiscal importada vinculada à visita (Etapa 12): número e valor total
+   * da nota, em reais com 2 casas; `null` sem vínculo.
+   */
+  notaFiscal: { numero: string; valorTotal: number } | null;
 };
 
 /**
@@ -84,6 +89,9 @@ export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
     })),
     totalPedido: somarItens(visit.itens).toDecimalPlaces(2).toNumber(),
     campanha: visit.campanha ? { id: visit.campanha.id, nome: visit.campanha.nome } : null,
+    notaFiscal: visit.erpSale
+      ? { numero: visit.erpSale.numero, valorTotal: visit.erpSale.valorTotal.toDecimalPlaces(2).toNumber() }
+      : null,
   };
 }
 

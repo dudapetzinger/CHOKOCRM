@@ -12,7 +12,9 @@
  * negociação azul, sem venda vermelho claro), a etiqueta azul preenchida da
  * campanha vinculada (spec 7.7), o pedido da visita com venda ("Pedido ·
  * total" e, ao abrir "Ver itens", uma linha por item, com o preço gravado no check-in; o
- * pedido vem recolhido) e a foto em
+ * pedido vem recolhido; com a nota fiscal importada vinculada (Etapa 12b), "Pedido
+ * conforme NF 2455 · total do pedido" e, só quando o valor da nota difere,
+ * "Total da nota R$ ...") e a foto em
  * miniatura — ou, depois da limpeza dos 90 dias, o aviso "Foto removida após
  * 90 dias." no lugar da foto e do botão de anexar.
  *
@@ -147,8 +149,12 @@ function ItemDaVisita({
           <p id={`pedido-${visita.id}`} className="mb-1 flex items-center gap-1.5 font-medium">
             {/* Marca sem texto: o laranja vivo vale aqui (spec 6.3) */}
             <ShoppingBag aria-hidden="true" className="size-4 shrink-0 text-primary-vivo" />
-            Pedido · {formatarMoeda(visita.totalPedido)}
+            {visita.notaFiscal ? `Pedido conforme NF ${visita.notaFiscal.numero}` : 'Pedido'} ·{' '}
+            {formatarMoeda(visita.totalPedido)}
           </p>
+          {visita.notaFiscal && visita.notaFiscal.valorTotal !== visita.totalPedido && (
+            <p className="mb-1 text-muted-foreground">Total da nota {formatarMoeda(visita.notaFiscal.valorTotal)}</p>
+          )}
           <Button
             type="button"
             size="sm"

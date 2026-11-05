@@ -42,6 +42,8 @@ export type Visita = {
   totalPedido: number;
   /** Campanha da visita (spec 7.7); `null` sem campanha ou depois de a campanha ser excluída. */
   campanha: { id: string; nome: string } | null;
+  /** Nota fiscal importada vinculada à visita (Etapa 12); `null` sem vínculo. */
+  notaFiscal: { numero: string; valorTotal: number } | null;
 };
 
 /** Linha do pedido no check-in: só produto e quantidade (o preço vem do catálogo, no backend). */

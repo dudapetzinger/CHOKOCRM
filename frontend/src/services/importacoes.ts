@@ -29,7 +29,7 @@ export type Nota = {
   chaveAcesso: string;
   numero: string;
   serie: string;
-  /** ISO. */
+  /** Data de calendário 'AAAA-MM-DD' (nunca virar `Date`: o dia voltaria um no fuso -03:00). */
   dataEmissao: string;
   destinatarioNome: string;
   destinatarioCnpj: string;

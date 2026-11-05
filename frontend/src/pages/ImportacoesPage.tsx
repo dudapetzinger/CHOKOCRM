@@ -9,8 +9,13 @@
  *     cliente, com "Copiar CNPJ" para passar ao representante da carteira (só ele cadastra cliente);
  *   - "Pendências": notas com uma visita sugerida, à espera de o gestor
  *     vincular ou deixar só no ERP;
- *   - "Importações anteriores": as últimas 20.
+ *   - "Importações anteriores": as últimas 20, cada uma com as suas notas e o
+ *     estado do vínculo hoje ("Vinculada à visita", "Pendente" ou "Só no
+ *     ERP"); a nota vinculada tem "Desvincular" (spec 2.5), a mesma ação do
+ *     "Deixar só no ERP" da pendência.
  * As regras valem no backend; as mensagens dele aparecem como vêm.
+ * O dia de emissão da nota é data de calendário ('AAAA-MM-DD') e é formatado
+ * por texto (`formatarDiaMes`); a data da visita é um instante ISO.
  */
 import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -22,7 +27,7 @@ import { useAuth } from '../auth/useAuth';
 import { AvisoExclusivoDoGestor } from '../components/AvisoExclusivoDoGestor';
 import { Aviso, Cartao } from '../components/crm/ui';
 import { useImportacoes, usePendencias } from '../hooks/useImportacoes';
-import { formatarData } from '../lib/formatarData';
+import { formatarData, formatarDiaMes } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
 import { mensagemErroApi } from '../services/clients';
 import {
@@ -31,11 +36,22 @@ import {
   vincularNota,
   type Importacao,
   type Nota,
+  type VinculoNota,
 } from '../services/importacoes';
 import { ROTULO_RESULTADO } from '../services/visits';
 
 const MENSAGEM_ERRO_IMPORTAR = 'Não foi possível importar este arquivo.';
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar a lista.';
+
+/** Estado do vínculo da nota no histórico, nas palavras do resumo da importação. */
+const ROTULO_VINCULO: Record<VinculoNota, string> = {
+  AUTOMATICO: 'Vinculada à visita',
+  VINCULADA: 'Vinculada à visita',
+  PENDENTE: 'Pendente',
+  RECUSADA: 'Só no ERP',
+  SEM_VISITA: 'Só no ERP',
+  SEM_CLIENTE: 'Só no ERP',
+};
 
 type ResultadoDoArquivo =
   | { nome: string; estado: 'aguardando' | 'enviando' }
@@ -51,6 +67,7 @@ async function copiarCnpj(cnpj: string): Promise<void> {
   }
 }
 
+/** Instante ISO (a data/hora da visita) como "dd/mm" no fuso local. */
 function diaMes(iso: string): string {
   return formatarData(iso).slice(0, 5);
 }
@@ -218,7 +235,12 @@ function Pendencias() {
   );
 }
 
-function LinhaPendente({ nota }: { nota: Nota }) {
+/**
+ * Vincular e desvincular uma nota, usados pela pendência e pelo histórico.
+ * Depois de qualquer um, tudo do ERP (`['erp']`: importações, pendências,
+ * situação) é buscado de novo, e a nota aparece no estado novo sem recarregar.
+ */
+function useAcoesDaNota(nota: Nota) {
   const queryClient = useQueryClient();
   const aoConcluir = () => queryClient.invalidateQueries({ queryKey: ['erp'] });
   const aoFalhar = (erro: unknown) => toast.error(mensagemErroApi(erro, 'Não foi possível salvar. Tente novamente.'));
@@ -233,14 +255,27 @@ function LinhaPendente({ nota }: { nota: Nota }) {
     onSuccess: aoConcluir,
     onError: aoFalhar,
   });
-  const ocupada = vincular.isPending || desvincular.isPending;
+  return { vincular, desvincular, ocupada: vincular.isPending || desvincular.isPending };
+}
+
+/** "Doceria Central — nota 2455 de 04/11 · R$ 1.000,00", comum à pendência e ao histórico. */
+function DescricaoDaNota({ nota }: { nota: Nota }) {
+  return (
+    <>
+      <b className="font-medium">{nota.cliente?.nomeFantasia ?? nota.destinatarioNome}</b> — nota {nota.numero} de{' '}
+      {formatarDiaMes(nota.dataEmissao)} · {formatarMoeda(nota.valorTotal)}
+    </>
+  );
+}
+
+function LinhaPendente({ nota }: { nota: Nota }) {
+  const { vincular, desvincular, ocupada } = useAcoesDaNota(nota);
   const visita = nota.visitaSugerida;
 
   return (
     <li className="space-y-2 py-3 text-sm">
       <p>
-        <b className="font-medium">{nota.cliente?.nomeFantasia ?? nota.destinatarioNome}</b> — nota {nota.numero} de{' '}
-        {diaMes(nota.dataEmissao)} · {formatarMoeda(nota.valorTotal)}
+        <DescricaoDaNota nota={nota} />
         {visita?.totalPedido != null && ` · Pedido da visita: ${formatarMoeda(visita.totalPedido)}`}
       </p>
       <div className="flex flex-wrap gap-2">
@@ -275,10 +310,35 @@ function ImportacoesAnteriores() {
             <li key={importacao.id} className="py-2 text-sm">
               {importacao.nomeArquivo} — {contar(importacao.notas.length, 'nota')} · {formatarData(importacao.criadoEm)} ·{' '}
               {importacao.autor.nome}
+              {importacao.notas.length > 0 && (
+                <ul aria-label="Notas da importação" className="mt-1.5 space-y-1.5 pl-3 text-muted-foreground">
+                  {importacao.notas.map((nota) => (
+                    <LinhaDoHistorico key={nota.id} nota={nota} />
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
       )}
     </Cartao>
+  );
+}
+
+function LinhaDoHistorico({ nota }: { nota: Nota }) {
+  const { desvincular, ocupada } = useAcoesDaNota(nota);
+  const vinculada = nota.vinculo === 'VINCULADA' || nota.vinculo === 'AUTOMATICO';
+
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-2">
+      <span>
+        <DescricaoDaNota nota={nota} /> · {ROTULO_VINCULO[nota.vinculo]}
+      </span>
+      {vinculada && (
+        <Button type="button" size="sm" variant="outline" disabled={ocupada} onClick={() => desvincular.mutate()}>
+          Desvincular
+        </Button>
+      )}
+    </li>
   );
 }

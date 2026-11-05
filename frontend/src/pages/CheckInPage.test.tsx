@@ -108,6 +108,7 @@ const VISITA: Visita = {
   itens: [],
   totalPedido: 0,
   campanha: null,
+  notaFiscal: null,
 };
 
 const PRODUTOS: Produto[] = [

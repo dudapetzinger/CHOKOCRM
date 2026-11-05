@@ -18,6 +18,7 @@ function visita(sobrescrever: Partial<Visita>): Visita {
     itens: [],
     totalPedido: 0,
     campanha: null,
+    notaFiscal: null,
     ...sobrescrever,
   };
 }
@@ -96,6 +97,27 @@ describe('VisitTimeline', () => {
     await usuario.click(botao);
     expect(screen.queryByRole('list', { name: /^Pedido/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver itens' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  const ITENS_DA_NOTA: Visita['itens'] = [
+    { sku: '1001', produtoNome: 'BARRA AO LEITE 35% 500 G', quantidade: 16, precoUnitario: 102.125 },
+  ];
+
+  it('visita com nota fiscal: "Pedido conforme NF" e o total da nota quando difere do pedido', () => {
+    renderizar([
+      visita({ itens: ITENS_DA_NOTA, totalPedido: 1634, notaFiscal: { numero: '2455', valorTotal: 1529.98 } }),
+    ]);
+
+    expect(screen.getByText(/^Pedido conforme NF 2455 · R\$\s1\.634,00$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Total da nota R\$\s1\.529,98$/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Pedido · /)).not.toBeInTheDocument();
+  });
+
+  it('visita com nota fiscal de mesmo valor do pedido não repete o total da nota', () => {
+    renderizar([visita({ itens: ITENS_DA_NOTA, totalPedido: 1634, notaFiscal: { numero: '2455', valorTotal: 1634 } })]);
+
+    expect(screen.getByText(/^Pedido conforme NF 2455 · R\$\s1\.634,00$/)).toBeInTheDocument();
+    expect(screen.queryByText(/Total da nota/)).not.toBeInTheDocument();
   });
 
   it('abrir os itens de uma visita não abre os das outras', async () => {

@@ -30,7 +30,7 @@ function nota(extra: Partial<Nota> = {}): Nota {
     chaveAcesso: '4'.repeat(44),
     numero: '2455',
     serie: '1',
-    dataEmissao: '2026-11-04T12:00:00.000Z',
+    dataEmissao: '2026-11-04',
     destinatarioNome: 'DOCERIA LTDA',
     destinatarioCnpj: '12345678000190',
     cliente: { id: 'c1', nomeFantasia: 'Doceria Central' },
@@ -251,6 +251,13 @@ describe('ImportacoesPage', () => {
     expect(screen.getByRole('heading', { name: 'Pendências (1)' })).toBeInTheDocument();
   });
 
+  it('pendência mostra o dia de emissão da nota como veio (data de calendário, sem voltar um dia pelo fuso)', async () => {
+    vi.mocked(listarPendencias).mockResolvedValue([PENDENTE]);
+    renderizar();
+
+    expect(await screen.findByText(/nota 2460 de 04\/11 · R\$\s1\.000,00/)).toBeInTheDocument();
+  });
+
   it('mostra as importações anteriores', async () => {
     vi.mocked(listarImportacoes).mockResolvedValue([importacao({ nomeArquivo: 'ontem.pdf' })]);
     renderizar();
@@ -258,5 +265,56 @@ describe('ImportacoesPage', () => {
     expect(await screen.findByText('Importações anteriores')).toBeInTheDocument();
     expect(await screen.findByText(/ontem\.pdf/)).toBeInTheDocument();
     expect(screen.getByText(/Marina Gestora/)).toBeInTheDocument();
+  });
+
+  /** O item de uma nota nas importações anteriores, achado pelo número. */
+  async function notaDoHistorico(numero: string) {
+    const lista = await screen.findByRole('list', { name: 'Notas da importação' });
+    const item = within(lista)
+      .getAllByRole('listitem')
+      .find((li) => li.textContent?.includes(`nota ${numero} `));
+    if (!item) throw new Error(`Nota ${numero} não encontrada no histórico`);
+    return item;
+  }
+
+  it('importações anteriores: nota vinculada mostra o estado e "Desvincular", que a deixa só no ERP', async () => {
+    const vinculada = nota({ id: 'n7', numero: '2455', vinculo: 'VINCULADA', visitaVinculadaId: 'v1' });
+    const recusada = { ...vinculada, vinculo: 'RECUSADA' as const, visitaVinculadaId: null };
+    vi.mocked(listarImportacoes)
+      .mockResolvedValueOnce([importacao({ notas: [vinculada] })])
+      .mockResolvedValue([importacao({ notas: [recusada] })]);
+    vi.mocked(desvincularNota).mockResolvedValue(recusada);
+    renderizar();
+
+    const item = await notaDoHistorico('2455');
+    expect(item).toHaveTextContent(/Doceria Central — nota 2455 de 04\/11 · R\$\s1\.000,00 · Vinculada à visita/);
+    await usuario.click(within(item).getByRole('button', { name: 'Desvincular' }));
+
+    expect(desvincularNota).toHaveBeenCalledWith('n7');
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Desvincular' })).not.toBeInTheDocument());
+    expect(await notaDoHistorico('2455')).toHaveTextContent(/· Só no ERP$/);
+  });
+
+  it('importações anteriores: nota vinculada automaticamente também oferece "Desvincular"', async () => {
+    vi.mocked(listarImportacoes).mockResolvedValue([importacao({ notas: [nota({ vinculo: 'AUTOMATICO' })] })]);
+    renderizar();
+
+    const item = await notaDoHistorico('2455');
+    expect(item).toHaveTextContent('Vinculada à visita');
+    expect(within(item).getByRole('button', { name: 'Desvincular' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['SEM_VISITA', 'Só no ERP'],
+    ['RECUSADA', 'Só no ERP'],
+    ['SEM_CLIENTE', 'Só no ERP'],
+    ['PENDENTE', 'Pendente'],
+  ] as const)('importações anteriores: nota %s mostra "%s" e não oferece "Desvincular"', async (vinculo, rotulo) => {
+    vi.mocked(listarImportacoes).mockResolvedValue([importacao({ notas: [nota({ vinculo })] })]);
+    renderizar();
+
+    const item = await notaDoHistorico('2455');
+    expect(item).toHaveTextContent(new RegExp(`· ${rotulo}$`));
+    expect(within(item).queryByRole('button', { name: 'Desvincular' })).not.toBeInTheDocument();
   });
 });

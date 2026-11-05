@@ -791,6 +791,56 @@ describe('GET /clients/:id/visits', () => {
     expect(semPedido.totalPedido).toBe(0);
   });
 
+  it('traz a nota fiscal vinculada à visita (número e valor total); sem vínculo, notaFiscal null', async () => {
+    const comNota = await request(app)
+      .post(`/clients/${clienteId}/visits`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        descricao: 'Visita com nota.',
+        resultado: 'VENDA',
+        dataHora: '2026-09-18T13:00:00.000Z',
+        itens: [{ sku: 'TAB-LEITE', quantidade: 12 }],
+      });
+    await criarVisita('Visita sem nota.', '2026-09-10T13:00:00.000Z', 'NEGOCIACAO');
+    const importacao = await prisma.erpImport.create({
+      data: {
+        userId: representanteId,
+        nomeArquivo: 'notas.pdf',
+        notasImportadas: 1,
+        notasIgnoradas: 0,
+        vinculadasAutomaticamente: 1,
+        pendentes: 0,
+        cnpjsSemCliente: [],
+      },
+    });
+    const nota = await prisma.erpSale.create({
+      data: {
+        chaveAcesso: '4226090000000000000000550010000024551000000001',
+        numero: '2455',
+        serie: '1',
+        dataEmissao: new Date('2026-09-18T00:00:00.000Z'),
+        naturezaOperacao: 'VENDA DE MERCADORIA',
+        destinatarioCnpj: '11222333000181',
+        destinatarioNome: 'Empório Teste',
+        clientId: clienteId,
+        valorProdutos: 1529.98,
+        desconto: 0,
+        valorTotal: 1529.98,
+        importId: importacao.id,
+        vinculoStatus: 'VINCULADA',
+      },
+    });
+    await prisma.visit.update({ where: { id: comNota.body.id }, data: { erpSaleId: nota.id } });
+
+    const res = await request(app).get(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const [vinculada, semVinculo] = res.body.data;
+    expect(vinculada.notaFiscal).toEqual({ numero: '2455', valorTotal: 1529.98 });
+    expect(vinculada.totalPedido).toBe(108);
+    expect(semVinculo.notaFiscal).toBeNull();
+  });
+
   it('não vaza visita de outro cliente', async () => {
     await criarVisita('Visita do Empório.', '2026-09-18T13:00:00.000Z');
 
