@@ -385,6 +385,52 @@ describe('ImportadoErpProvider: notas + pedidos dos check-ins sem nota', () => {
 
     expect(vendas.map((venda) => venda.origem?.tipo)).toEqual(['nota', 'pedido']);
   });
+
+  it('nota PENDENTE que sugere a visita: o pedido dela não entra (a nota já é essa venda); vinculada, continua uma vez só', async () => {
+    const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    const visita = await criarPedido(emporioId, noDia('2026-09-28', 10));
+    const nota = await criarNota(CNPJ_EMPORIO, '2026-10-01', 100, ITENS_PADRAO, '2455');
+    await prisma.erpSale.update({
+      where: { id: nota.id },
+      data: { vinculoStatus: 'PENDENTE', visitaSugeridaId: visita.id },
+    });
+    const periodo = { inicio: inicioDoDia('2026-09-01'), fim: fimDoDia('2026-10-31') };
+
+    const vendas = await provedor.getRecentSales(CNPJ_EMPORIO, 10);
+    expect(vendas.map((venda) => venda.origem)).toEqual([{ tipo: 'nota', numero: '2455' }]);
+    await expect(provedor.getPurchaseVolume(CNPJ_EMPORIO, periodo)).resolves.toEqual({
+      total: 100,
+      quantidadeVendas: 1,
+    });
+
+    // O gestor vincula a pendência: a visita passa a apontar para a nota.
+    await prisma.$transaction([
+      prisma.erpSale.update({ where: { id: nota.id }, data: { vinculoStatus: 'VINCULADA', visitaSugeridaId: null } }),
+      prisma.visit.update({ where: { id: visita.id }, data: { erpSaleId: nota.id } }),
+    ]);
+    await expect(provedor.getPurchaseVolume(CNPJ_EMPORIO, periodo)).resolves.toEqual({
+      total: 100,
+      quantidadeVendas: 1,
+    });
+  });
+
+  it('nota RECUSADA que apontava para a visita também a tira do histórico; visita sem nota apontando entra', async () => {
+    const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    const apontada = await criarPedido(emporioId, noDia('2026-09-28', 10));
+    const livre = await criarPedido(emporioId, noDia('2026-10-05', 10));
+    const nota = await criarNota(CNPJ_EMPORIO, '2026-10-01', 100, ITENS_PADRAO, '2455');
+    await prisma.erpSale.update({
+      where: { id: nota.id },
+      data: { vinculoStatus: 'RECUSADA', visitaSugeridaId: apontada.id },
+    });
+
+    const vendas = await provedor.getRecentSales(CNPJ_EMPORIO, 10);
+
+    expect(vendas.map((venda) => venda.origem)).toEqual([
+      { tipo: 'pedido', visitaId: livre.id },
+      { tipo: 'nota', numero: '2455' },
+    ]);
+  });
 });
 
 describe('erp.service com o provedor importado', () => {

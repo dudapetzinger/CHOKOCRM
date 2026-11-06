@@ -18,6 +18,8 @@ function renderizar(role: Role, nome: string) {
         <Routes>
           <Route path="/clientes" element={<MenuDaConta />} />
           <Route path="/login" element={<p>tela de login</p>} />
+          <Route path="/importacoes" element={<p>tela de importações</p>} />
+          <Route path="/usuarios" element={<p>tela de usuários</p>} />
           <Route path="/conta/senha" element={<p>tela de alterar senha</p>} />
         </Routes>
       </MemoryRouter>
@@ -54,6 +56,34 @@ describe('MenuDaConta', () => {
 
     expect(await screen.findByText('tela de alterar senha')).toBeInTheDocument();
     expect(logout).not.toHaveBeenCalled();
+  });
+
+  it('gestor abre "Importar notas" pelo menu', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    renderizar('GESTOR', 'Gestão Chokolaten');
+
+    await usuario.click(screen.getByRole('button', { name: 'Conta de Gestão Chokolaten' }));
+    await usuario.click(await screen.findByRole('menuitem', { name: 'Importar notas' }));
+    expect(await screen.findByText('tela de importações')).toBeInTheDocument();
+  });
+
+  it('gestor abre "Usuários" pelo menu', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    renderizar('GESTOR', 'Gestão Chokolaten');
+
+    await usuario.click(screen.getByRole('button', { name: 'Conta de Gestão Chokolaten' }));
+    await usuario.click(await screen.findByRole('menuitem', { name: 'Usuários' }));
+    expect(await screen.findByText('tela de usuários')).toBeInTheDocument();
+  });
+
+  it('representante não vê "Importar notas" nem "Usuários"', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    renderizar('REPRESENTANTE', 'Eduarda Fischer');
+
+    await usuario.click(screen.getByRole('button', { name: 'Conta de Eduarda Fischer' }));
+    await screen.findByRole('menu');
+    expect(screen.queryByRole('menuitem', { name: 'Importar notas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Usuários' })).not.toBeInTheDocument();
   });
 
   it('mostra "Gestor" para o gestor', async () => {

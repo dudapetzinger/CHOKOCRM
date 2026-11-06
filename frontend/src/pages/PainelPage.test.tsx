@@ -208,7 +208,7 @@ function renderizarComo(role: 'GESTOR' | 'REPRESENTANTE', url = '/painel') {
   const auth = {
     user:
       role === 'GESTOR'
-        ? { id: 'g1', nome: 'Maicon', email: 'gestor@exemplo.com', role, telefone: null, ativo: true }
+        ? { id: 'g1', nome: 'Gestão Chokolaten', email: 'gestor@exemplo.com', role, telefone: null, ativo: true }
         : { id: 'u1', nome: 'Eduarda Fischer', email: 'eduarda@exemplo.com', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),

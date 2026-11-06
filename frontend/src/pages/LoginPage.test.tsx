@@ -15,7 +15,7 @@ beforeEach(() => {
 const GESTOR: UsuarioAutenticado = {
   id: 'g1',
   nome: 'Marina Gestora',
-  email: 'gestor@chokolaten.com.br',
+  email: 'gestao@chokolaten.com.br',
   telefone: null,
   role: 'GESTOR',
   ativo: true,
@@ -89,11 +89,11 @@ describe('LoginPage', () => {
     const login = vi.fn().mockResolvedValue(GESTOR);
     renderizar(login);
 
-    await preencherEEnviar('gestor@chokolaten.com.br', 'segredo123');
+    await preencherEEnviar('gestao@chokolaten.com.br', 'segredo123');
 
     expect(await screen.findByText('painel')).toBeInTheDocument();
     expect(login).toHaveBeenCalledTimes(1);
-    expect(login).toHaveBeenCalledWith('gestor@chokolaten.com.br', 'segredo123');
+    expect(login).toHaveBeenCalledWith('gestao@chokolaten.com.br', 'segredo123');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 

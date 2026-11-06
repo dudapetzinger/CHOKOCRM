@@ -5,7 +5,7 @@ import { ERP_IDS_DEMONSTRACAO } from '../src/config/erpIdsDemonstracao';
 import { prisma } from '../src/lib/prisma';
 import { CATALOGO } from '../src/providers/erp/mock/catalogo';
 import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
-import { EMAIL_GESTAO, reiniciarDemonstracao, semear } from '../src/seed/demonstracao';
+import { EMAIL_GESTAO, horarioDaVisita, reiniciarDemonstracao, semear } from '../src/seed/demonstracao';
 import { dataCalendario, diasEntre } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
@@ -344,7 +344,7 @@ describe('seed de demonstração', () => {
 
     const visitas = await prisma.visit.findMany({ orderBy: { dataHora: 'desc' } });
     const horarios = visitas.map((visita) => horario(visita.dataHora));
-    expect(horarios.every((valor) => valor >= '08:00' && valor <= '18:59')).toBe(true);
+    expect(horarios.every((valor) => valor >= '08:00' && valor <= '17:59')).toBe(true);
     expect(new Set(horarios.map((valor) => valor.slice(3))).size).toBeGreaterThanOrEqual(5);
     expect(visitas.every((visita) => visita.dataHora <= HOJE)).toBe(true);
 
@@ -370,6 +370,18 @@ describe('seed de demonstração', () => {
     await reiniciarDemonstracao(prisma, cedo);
 
     expect(await prisma.visit.count({ where: { dataHora: { gt: cedo } } })).toBe(0);
+  });
+
+  it('visita de hoje com o reset antes das 8h fica no próprio instante do reset, nunca depois dele', () => {
+    // 07:30 em São Paulo
+    const cedo = new Date('2026-10-19T10:30:00.000Z');
+    // Índice 1 → 11:17, ainda não chegou: antes caía às 08:00, no futuro.
+    expect(horarioDaVisita(cedo, 0, 1)).toEqual(cedo);
+    // Às 12:00 de São Paulo, a visita de hoje ainda não chegada fica às 08:00.
+    const meioDia = new Date('2026-10-19T15:00:00.000Z');
+    expect(horario(horarioDaVisita(meioDia, 0, 3))).toBe('08:00');
+    // Visita de ontem não muda: 11:17.
+    expect(horario(horarioDaVisita(cedo, 1, 1))).toBe('11:17');
   });
 });
 
@@ -682,7 +694,7 @@ describe('histórico realista', () => {
     const visitas = await prisma.visit.findMany();
     expect(visitas.every((visita) => visita.dataHora <= agora)).toBe(true);
     const horarios = visitas.map((visita) => horario(visita.dataHora));
-    expect(horarios.every((valor) => valor >= '08:00' && valor <= '18:59')).toBe(true);
+    expect(horarios.every((valor) => valor >= '08:00' && valor <= '17:59')).toBe(true);
     expect(new Set(horarios).size).toBeGreaterThanOrEqual(5);
   });
 

@@ -174,7 +174,7 @@ describe('CabecalhoCliente', () => {
   it('o select do gestor inclui o representante atual mesmo fora da lista (ex.: inativo)', async () => {
     renderizar(
       <CabecalhoCliente
-        cliente={cliente({ representante: { id: 'u9', nome: 'Maicon Antigo' } })}
+        cliente={cliente({ representante: { id: 'u9', nome: 'Representante Antigo' } })}
         podeCheckIn={false}
         podeTransferir
       />,
@@ -186,7 +186,7 @@ describe('CabecalhoCliente', () => {
     expect(within(select).getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
       'Eduarda Petzinger',
       'Rafael Schmitt',
-      'Maicon Antigo',
+      'Representante Antigo',
     ]);
     expect(select).toHaveValue('u9');
   });

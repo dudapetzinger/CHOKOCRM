@@ -300,6 +300,9 @@ export type PedidoSemNota = Prisma.VisitGetPayload<{ select: typeof SELECT_PEDID
  * visitas VENDA com pelo menos um item e `erpSaleId` nulo. A visita com nota
  * vinculada fica de fora (os itens dela já são os da nota, que o provedor lê
  * por conta própria); VENDA sem itens também (não vira venda de valor 0).
+ * Fica de fora ainda a visita que é a `visitaSugeridaId` de alguma nota do
+ * mesmo CNPJ, em qualquer status (pendente ou recusada): se uma nota apontou
+ * para ela, o ERP já tem essa venda e ela não conta duas vezes.
  * `inicio`/`fim` filtram `dataHora` com os dois instantes inclusivos; da
  * mais recente para a mais antiga; `limite` corta a lista.
  */
@@ -307,9 +310,17 @@ export async function listarPedidosSemNotaDoCnpj(
   cnpj: string,
   { inicio, fim, limite }: { inicio?: Date; fim?: Date; limite?: number } = {},
 ): Promise<PedidoSemNota[]> {
+  const notasQueApontam = await prisma.erpSale.findMany({
+    where: { destinatarioCnpj: cnpj, visitaSugeridaId: { not: null } },
+    select: { visitaSugeridaId: true },
+  });
+  const visitasApontadas = notasQueApontam.flatMap((nota) =>
+    nota.visitaSugeridaId === null ? [] : [nota.visitaSugeridaId],
+  );
   return prisma.visit.findMany({
     where: {
       client: { cnpj },
+      ...(visitasApontadas.length > 0 ? { id: { notIn: visitasApontadas } } : {}),
       resultado: 'VENDA',
       erpSaleId: null,
       itens: { some: {} },

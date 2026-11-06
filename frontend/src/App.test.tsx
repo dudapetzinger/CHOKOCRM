@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { removerSimulacaoDeLargura, simularLargura } from './test/simularLargura';
 import { api } from './services/api';
-import { listClients, type ClienteCompleto, type ClienteListItem } from './services/clients';
+import { getCliente, listClients, type ClienteCompleto, type ClienteListItem } from './services/clients';
 
 /**
  * `/clientes/:id` (rota única `ClientesOuFicha`, Etapa 7): desktop = lista com
@@ -75,7 +75,10 @@ vi.mock('./services/visits', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./services/visits')>()),
   listarVisitas: vi.fn(async () => []),
 }));
-vi.mock('./services/erp', () => ({ buscarDadosErp: vi.fn(async () => ({ status: 'SEM_ERP_ID' })) }));
+vi.mock('./services/erp', () => ({
+  buscarDadosErp: vi.fn(async () => ({ status: 'SEM_ERP_ID' })),
+  listarProdutos: vi.fn(async () => []),
+}));
 vi.mock('./services/insights', () => ({ buscarInsights: vi.fn(async () => ({ status: 'SEM_ERP_ID' })) }));
 vi.mock('./services/stockMessages', () => ({
   listarMensagens: vi.fn(async () => []),
@@ -141,6 +144,7 @@ afterEach(() => {
   rolarParaTopo.mockRestore();
   vi.restoreAllMocks();
   vi.mocked(listClients).mockImplementation(async () => LISTA);
+  vi.mocked(getCliente).mockImplementation(async () => FICHA);
   removerSimulacaoDeLargura();
   localStorage.clear();
   window.history.pushState({}, '', '/');
@@ -220,6 +224,35 @@ describe('rota /clientes/:id', () => {
     expect(await screen.findByText('Empório Central')).toBeInTheDocument();
     expect(screen.queryByText('Selecione um cliente')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument();
+  });
+});
+
+describe('rota /clientes/:id/check-in', () => {
+  // O seletor do botão central de check-in só troca o `:id`, com a página
+  // montada: sem a chave por cliente, o formulário do cliente anterior ficava.
+  it('trocar de cliente sem sair da rota abre um check-in limpo do novo cliente', async () => {
+    simularLargura(false);
+    const EMPORIO: ClienteCompleto = { ...FICHA, id: 'c2', nomeFantasia: 'Empório Central', razaoSocial: 'Empório Central Ltda' };
+    vi.mocked(getCliente).mockImplementation(async (id: string) => (id === 'c2' ? EMPORIO : FICHA));
+    const usuario = userEvent.setup({ delay: null });
+    abrirApp('/clientes/c1/check-in');
+
+    expect(await screen.findByText(/Cliente:/)).toHaveTextContent('Cliente: Doces da Vovó');
+    await usuario.click(screen.getByRole('button', { name: 'Continuar' }));
+    await usuario.click(screen.getByRole('button', { name: 'Continuar' }));
+    fireEvent.change(screen.getByLabelText('O que aconteceu na visita'), { target: { value: 'Visita ao cliente A.' } });
+
+    // O mesmo que o `navigate('/clientes/c2/check-in')` do seletor
+    act(() => {
+      window.history.pushState({}, '', '/clientes/c2/check-in');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+
+    await waitFor(() => expect(screen.getByText(/Cliente:/)).toHaveTextContent('Cliente: Empório Central'));
+    expect(screen.getByText('Passo 1 de 4')).toBeInTheDocument();
+    await usuario.click(screen.getByRole('button', { name: 'Continuar' }));
+    await usuario.click(screen.getByRole('button', { name: 'Continuar' }));
+    expect(screen.getByLabelText('O que aconteceu na visita')).toHaveValue('');
   });
 });
 

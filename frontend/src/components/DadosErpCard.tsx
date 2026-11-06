@@ -5,9 +5,9 @@
  * Visual do protótipo (Etapa 8): compras e estoque em duas colunas quando o
  * cartão tem espaço, com os itens em baixa numa lista com a quantidade numa
  * etiqueta vermelha.
- * Etapa 12b (notas importadas): a seção "Últimas vendas" lista as 5 notas mais
- * recentes (data, valor e os itens, "16× BARRA AO LEITE 35% 500 G") e só
- * aparece quando há notas, então o card dos dados simulados não muda; quando o
+ * Etapa 12b (notas importadas): a seção "Últimas vendas" lista as 5 vendas mais
+ * recentes (notas ou pedidos; data, valor e os itens, "16× BARRA AO LEITE 35%
+ * 500 G") e só aparece quando há vendas, então o card dos dados simulados não muda; quando o
  * ERP não informa estoque, uma frase fica no lugar do nível de estoque.
  * Cada venda mostra a origem em texto miúdo ("NF 2455" ou "Pedido do
  * check-in"); sem `origem` (dados simulados) nada é exibido.
@@ -64,7 +64,7 @@ function UltimasVendas({ vendas }: { vendas: VendaErp[] }) {
                 {venda.origem.tipo === 'nota' ? `NF ${venda.origem.numero}` : 'Pedido do check-in'}
               </p>
             )}
-            <ul aria-label="Itens da nota" className="mt-0.5 space-y-0.5 text-muted-foreground">
+            <ul aria-label="Itens da venda" className="mt-0.5 space-y-0.5 text-muted-foreground">
               {venda.produtos.map((produto, indiceProduto) => (
                 <li key={`${produto.sku}-${indiceProduto}`}>
                   {formatarQuantidade(produto.quantidade)}× {produto.nome}

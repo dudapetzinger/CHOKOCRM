@@ -156,7 +156,7 @@ function renderizar(role: Role = 'GESTOR', rota = '/campanhas') {
   const auth = {
     user: {
       id: 'r1',
-      nome: role === 'GESTOR' ? 'Maicon Gestor' : 'Eduarda Fischer',
+      nome: role === 'GESTOR' ? 'Gestão Chokolaten' : 'Eduarda Fischer',
       email: 'u@exemplo.com',
       telefone: null,
       role,

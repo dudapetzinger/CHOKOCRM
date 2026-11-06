@@ -18,9 +18,10 @@ import type { ErpProvider, Period, Sale, StockSnapshot, Volume } from './ErpProv
  * `erp.service.chaveDoCliente`) —, mais os pedidos dos check-ins sem nota:
  * visitas VENDA com itens e sem `erpSaleId` do cliente com esse CNPJ. A
  * visita já vinculada a uma nota não entra (os itens dela são os da nota),
- * nem a VENDA sem itens. Cada `Sale` diz a `origem` (nota pelo número ou
- * pedido pela visita), e a lista mesclada vai da mais recente para a mais
- * antiga (no mesmo instante, a nota antes). Mesclar aqui deixa coerentes
+ * nem a VENDA sem itens, nem a visita para a qual uma nota do CNPJ aponta
+ * (`visitaSugeridaId`, pendente ou recusada). Cada `Sale` diz a `origem`
+ * (nota pelo número ou pedido pela visita), e a lista mesclada vai da mais
+ * recente para a mais antiga (no mesmo instante, a nota antes). Mesclar aqui deixa coerentes
  * todos os consumidores do `erp.service` (ficha, insights, vendas mensais,
  * rebaixamento de cor) sem tocar neles.
  * Lê por CNPJ na hora da consulta, não pelo `clientId` gravado na

@@ -79,6 +79,7 @@ Na Etapa 12 (05/11/2026, [spec da etapa](docs/superpowers/specs/2026-11-04-etapa
 
 - **Importação das notas fiscais (DANFE em PDF):** o gestor sobe um ou vários PDFs em "Importar notas"; o sistema casa cada nota com o cliente pelo CNPJ, vincula pedido e itens à última visita quando a data é a mesma (ou pergunta, quando é outra) e mostra por arquivo o que entrou, o que ficou pendente e os CNPJs sem cliente. Com `ERP_PROVIDER=importado`, as vendas da ficha, a cor, as vendas mensais e os insights passam a vir dessas notas; o estoque não existe nesse provedor ("O ERP não informa o estoque do cliente."). O desenvolvimento e o seed continuam no provedor simulado.
 - **Ficha reorganizada:** abas na ordem "ERP e sugestões" (a que abre primeiro), "Visitas" e "Cadastro", "Adicionar contato" pela aba Cadastro, pedido recolhido no histórico ("Ver itens") e, com nota vinculada, "Pedido conforme NF 2455" e "Total da nota".
+- **Barra de navegação e compras (06/11/2026):** a barra inferior do representante é Clientes · Agenda · Check-in · Painel · Campanhas, com o Check-in num botão central que pergunta "Para qual cliente?"; o gestor vê Painel · Clientes · Agenda · Campanhas, e "Importar notas" e "Usuários" ficam no menu da conta. Com o provedor importado, o histórico de compras une as notas e os pedidos dos check-ins.
 
 Cada funcionalidade está especificada como caso de uso em [docs/casos-de-uso.md](docs/casos-de-uso.md), com as regras de negócio detalhadas na [seção 6 da especificação técnica](docs/especificacao-tecnica.md#6-regras-de-negócio-principais).
 
@@ -120,7 +121,7 @@ A integração com o ERP da Senior é feita por trás de uma interface substitu�
 
 ## 9. Como executar localmente
 
-O ambiente completo (PostgreSQL, API e frontend) sobe com um comando via Docker Compose. Pré-requisitos, variáveis de ambiente, migrations, seed (`npm run db:seed`, que só acrescenta, e `npm run db:seed:reset`, que renova a demonstração com as datas de hoje mantendo as contas criadas pelo app) e alternativa sem Docker estão no guia de desenvolvimento.
+O ambiente completo (PostgreSQL, API e frontend) sobe com um comando via Docker Compose. Pré-requisitos, variáveis de ambiente, migrations, seed (`npm run db:seed`, que só acrescenta, e `npm run db:seed:reset`, que renova a demonstração com as datas de hoje mantendo as contas criadas pelo app) e alternativa sem Docker estão no guia de desenvolvimento. Contas de demonstração: os representantes Eduarda Fischer (`eduarda@chokolaten.com.br`) e Rafael Schmitt (`rafael@chokolaten.com.br`), com a senha de demonstração, e a **Gestão Chokolaten** (`gestao@chokolaten.com.br`), conta compartilhada do dono e do escritório, que o seed só cria (com a senha de demonstração) num banco novo e nunca sobrescreve.
 
 → [docs/guia-de-desenvolvimento.md](docs/guia-de-desenvolvimento.md)
 

@@ -82,7 +82,7 @@ function renderizar(
   const auth = {
     user: {
       id: role === 'GESTOR' ? 'g1' : 'r1',
-      nome: role === 'GESTOR' ? 'Maicon Gestor' : 'Eduarda Fischer',
+      nome: role === 'GESTOR' ? 'Gestão Chokolaten' : 'Eduarda Fischer',
       email: 'u@exemplo.com',
       telefone: null,
       role,

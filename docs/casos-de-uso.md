@@ -15,7 +15,7 @@ Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protó
 | Ator | Tipo | Descrição |
 |---|---|---|
 | **Representante Comercial** | Principal, humano | Usuário de campo. Cadastra e mantém os clientes da própria carteira, realiza check-ins de visita (com pedido e próxima visita, desde a Etapa 8), consulta agenda, calendário, roteiro, histórico, dados de ERP, insights, campanhas, as próprias metas e, desde a Etapa 8, o próprio painel; desde a Etapa 9, conclui os lembretes dos próprios clientes — sempre restrito aos clientes da própria carteira (desde a Etapa 7). |
-| **Gestor** | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Consulta, em modo somente leitura e para todas as carteiras — ou para a de um representante, escolhido no seletor de representante —, a lista de clientes, a ficha, o histórico e a agenda do dia, além da recorrência de visitas e seu histórico de alterações; pode transferir um cliente entre representantes. Desde a Etapa 8, gerencia os usuários, as campanhas e as metas; desde a Etapa 9, também conclui lembretes (UC27). |
+| **Gestor** (a conta compartilhada "Gestão Chokolaten", usada pelo dono e pelo escritório, ou qualquer conta com papel Gestor) | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Consulta, em modo somente leitura e para todas as carteiras — ou para a de um representante, escolhido no seletor de representante —, a lista de clientes, a ficha, o histórico e a agenda do dia, além da recorrência de visitas e seu histórico de alterações; pode transferir um cliente entre representantes. Desde a Etapa 8, gerencia os usuários, as campanhas e as metas; desde a Etapa 9, também conclui lembretes (UC27). |
 | **Sistema (Agendador)** | Secundário, automatizado | Processo executado diariamente (job agendado, sem intervenção humana) que recalcula a lista de visitas previstas e atrasadas por representante e registra os alertas em log, sem persistir nada. |
 
 **Observação sobre permissões do Gestor:** o Gestor **não** possui todas as permissões do Representante Comercial. Ele autentica-se no sistema (UC01); consulta, em modo somente leitura e para todas as carteiras, a lista de clientes com classificação por cores (UC05), a ficha do cliente (UC06), o histórico de interações (UC08), a agenda do dia (UC10) e as sugestões sazonais da ficha (UC13); visualiza a recorrência de visitas e seu histórico de alterações, sem poder alterá-la; possui o painel de KPIs (UC14) e recebe os alertas de produção (UC15) — desde a Etapa 8 o representante também tem o painel e os alertas, limitados à própria carteira —; pode transferir um cliente entre representantes através de `PUT /clients/:id` (campo `representanteId`); e, desde a Etapa 8, é o único que gerencia usuários (UC20), transfere carteiras inteiras (UC23), dispara a redefinição de senha (UC22) e cria ou altera campanhas (UC18) e metas (UC19). O Gestor **não** cadastra clientes (UC02 responde 400), não registra check-ins de visita (UC07) e não altera a recorrência de visitas (UC09 responde 403).
@@ -273,7 +273,7 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 **Pré-condições:** o cliente está cadastrado e pertence à carteira do representante; o representante está autenticado.
 
 **Fluxo principal:**
-1. O representante acessa "novo check-in" a partir da ficha do cliente (UC06) ou da agenda do dia (UC10).
+1. O representante acessa "novo check-in" a partir da ficha do cliente (UC06), da agenda do dia (UC10) ou, desde 06/11/2026, do botão central "Check-in" da barra inferior: ele abre o painel "Para qual cliente?", com busca por nome ou cidade na carteira ativa, e escolher o cliente leva à tela do check-in.
 2. O sistema preenche automaticamente a data e a hora atuais.
 3. O representante pode ajustar manualmente a data/hora, se necessário.
 4. O representante informa a descrição da visita, numa área de texto que cresce com o conteúdo e mostra a contagem de caracteres.
@@ -412,7 +412,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 **Fluxo principal:**
 1. O ator acessa a seção "Dados do ERP" na ficha do cliente (UC06).
 2. O sistema consulta o provedor de ERP (`GET /clients/:id/erp`) utilizando a chave do cliente conforme o provedor: o identificador de ERP no provedor simulado (`mock`, o de desenvolvimento) e o CNPJ do cliente no provedor `importado` (Etapa 12, o de produção), que lê as notas fiscais importadas (UC28).
-3. Encontrado dado no provedor, o sistema exibe a última venda (data e valor), o volume de compras dos últimos 90 dias e o nível de estoque estimado do cliente, com os itens em falta quando o nível for baixo. Sob o provedor importado, exibe também as "Últimas vendas" — as 5 notas mais recentes, com data, valor e os itens (por exemplo "16× BARRA AO LEITE 35% 500 G") — e, no lugar do estoque, a frase "O ERP não informa o estoque do cliente.".
+3. Encontrado dado no provedor — sob o provedor importado, o histórico de compras une as notas importadas e os pedidos dos check-ins de venda sem nota vinculada (desde 06/11/2026), cada venda com a origem "NF <número>" ou "Pedido do check-in" —, o sistema exibe a última venda (data e valor), o volume de compras dos últimos 90 dias e o nível de estoque estimado do cliente, com os itens em falta quando o nível for baixo. Sob o provedor importado, exibe também as "Últimas vendas" — as 5 vendas mais recentes (notas ou pedidos), com data, valor e os itens (por exemplo "16× BARRA AO LEITE 35% 500 G") — e, no lugar do estoque, a frase "O ERP não informa o estoque do cliente.".
 4. O sistema exibe, em todas as telas que mostram dados do ERP, o aviso da situação da fonte (`GET /erp/situacao`): com o provedor simulado, que os dados são simulados; com o importado, "Vendas do ERP importadas até dd/mm/aaaa" (a data da última nota) ou "Nenhuma nota importada ainda.".
 
 **Fluxo de exceção:**
@@ -425,8 +425,9 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - A consulta responde em quatro estados, conforme os fluxos acima: `OK`, `SEM_ERP_ID`, `NAO_ENCONTRADO` e `INDISPONIVEL`.
 - Com o provedor simulado, os dados de venda e estoque não são persistidos: são gerados sob demanda a cada acesso. Com o provedor importado (Etapa 12), as vendas vêm das notas que o gestor importou e ficam no banco (UC28), mas nada derivado delas é persistido; o estoque não existe.
 - O aviso de situação do ERP não é um texto fixo da tela: vem de `GET /erp/situacao` (campos `simulado`, `estoqueDisponivel`, `ultimaVendaEm` e `ultimaImportacaoEm`, de qualquer papel) e some ou muda conforme o provedor em uso.
+- No provedor importado, uma visita de venda cuja nota já foi vinculada não entra como pedido: a venda aparece uma vez só, como nota. Última venda, volume, insights e vendas mensais usam o histórico unificado.
 - A consulta é acessível a qualquer usuário autenticado, representante ou gestor, sem restrição de papel; desde a Etapa 7, o representante só consulta clientes da própria carteira — para um cliente de outra carteira, `GET /clients/:id/erp` responde 404, como para um cliente inexistente.
-- **A partir da Etapa 5**, a última venda consultada aqui alimenta a regra de classificação por cor composta descrita em UC05: clientes visitados recentemente mas sem venda registrada há mais de 60 dias são rebaixados na classificação.
+- **A partir da Etapa 5**, a última venda consultada aqui alimenta a regra de classificação por cor composta descrita em UC05: clientes visitados recentemente mas sem venda registrada há mais de 60 dias são rebaixados na classificação. Desde 06/11/2026, sob o provedor importado a "venda registrada" inclui os pedidos dos check-ins (UC11), então um pedido recente de check-in evita o rebaixamento; a regra de cor em si não mudou.
 
 ---
 
@@ -555,7 +556,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - Até a Etapa 7 os indicadores eram exclusivos do Gestor. Desde a Etapa 8, `GET /dashboard/kpis`, `GET /dashboard/kpis/por-representante`, `GET /dashboard/vendas-mensais` e `GET /dashboard/relatorio` servem os dois papéis: o representante recebe sempre só a própria carteira, e o `?representanteId=` que ele mandar é ignorado (ADR-015 do documento de arquitetura).
 - O aviso da situação do ERP ("dados simulados" no mock; "Vendas do ERP importadas até dd/mm/aaaa" no importado, Etapa 12) aparece como em UC11, pois a cor composta e as vendas mensais consultam o ERP.
 - **Sazonalidade (Etapa 9):** o gráfico de vendas mensais segue o formato do protótipo — subtítulo "Vendas mensais dos últimos 12 meses (R$ mil)" (desde a Etapa 11, "Vendas mensais de set/26 a nov/26 (R$ mil)", do primeiro ao último mês da série), eixo em valores compactos que parte do zero, marcas tracejadas com o nome do evento na horizontal no topo (o seguinte desce para uma segunda linha quando o nome anterior o invade; no celular o nome é encurtado, com o inteiro no balão) e a linha laranja "Hoje" com o rótulo junto da base. O mês em curso continua vazado e "(em curso)".
-- Fora do escopo: comparação com o período anterior e a evolução dos inativos ao longo do tempo (a "redução de inativos" da especificação entra aqui como a contagem atual por cor). Os indicadores por representante, fora do escopo na Etapa 6C, entraram na Etapa 7, a exportação, na Etapa 8 (UC26), e o intervalo livre de até 365 dias, na Etapa 9 (A8). Os gráficos novos que a parceira vai discutir com o Maicon ficam fora da Etapa 9.
+- Fora do escopo: comparação com o período anterior e a evolução dos inativos ao longo do tempo (a "redução de inativos" da especificação entra aqui como a contagem atual por cor). Os indicadores por representante, fora do escopo na Etapa 6C, entraram na Etapa 7, a exportação, na Etapa 8 (UC26), e o intervalo livre de até 365 dias, na Etapa 9 (A8). Os gráficos novos que a parceira vai discutir com a Gestão Chokolaten ficam fora da Etapa 9.
 
 ---
 
@@ -727,7 +728,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 **Pré-condições:** o gestor está autenticado (UC01) e a conta dele está ativa.
 
 **Fluxo principal:**
-1. O gestor abre "Usuários" na navegação.
+1. O gestor abre "Usuários" pelo menu da conta (o ícone da pessoa logada).
 2. O sistema lista as contas: avatar, nome, "e-mail · telefone", papel, Ativo/Inativo e "N clientes" na carteira, com um menu por linha.
 3. O gestor escolhe "Novo usuário" e informa nome, e-mail, telefone, papel e a senha inicial com a confirmação.
 4. O sistema valida, cria a conta e mostra o aviso "Usuário criado"; o gestor passa o e-mail e a senha inicial à pessoa, que pode trocá-la em "Alterar senha" (UC21).
@@ -737,7 +738,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - **A2** (menu da linha, "Transferir carteira"): ver UC23.
 - **A3** (menu da linha, "Redefinir senha"): ver UC22.
 - **A4** (menu da linha, "Inativar"): o sistema pede confirmação ("Fulano tem N clientes na carteira; eles continuam na carteira até você transferi-los. Inativar?"), com as opções de manter a carteira ou transferi-la antes; aviso "Usuário inativado". "Reativar" devolve o acesso (aviso "Usuário reativado").
-- **A5** (passo 1, representante): a navegação não mostra "Usuários"; aberta pelo endereço, a tela mostra "Esta tela é exclusiva do gestor." e a API responde 403.
+- **A5** (passo 1, representante): o representante não vê o item nem na navegação nem no menu da conta; aberta pelo endereço, a tela mostra "Esta tela é exclusiva do gestor." e a API responde 403.
 
 **Fluxo de exceção:**
 - **E1** (passo 4 e A1): e-mail já usado por outra conta — 409 "Já existe um usuário com este e-mail."; senha com menos de 6 caracteres ou confirmação diferente — erro junto do campo.
@@ -930,7 +931,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 **Pré-condições:** o gestor está autenticado (UC01); ele tem em mãos os PDFs das DANFEs (nota fiscal eletrônica de venda), exportados do ERP da Senior; o provedor de ERP em uso é o `importado` para que as notas alimentem as telas (com o `mock` as notas são gravadas, mas a ficha continua mostrando os dados simulados).
 
 **Fluxo principal:**
-1. O gestor abre "Importar notas" no menu (`/importacoes`) e escolhe um ou mais arquivos PDF.
+1. O gestor abre "Importar notas" no menu da conta (`/importacoes`) e escolhe um ou mais arquivos PDF.
 2. O gestor aciona "Importar". O sistema envia os arquivos um a um (`POST /erp/importacoes?nome=`, corpo `application/pdf`, até 10 MB cada) e mostra o progresso por arquivo.
 3. Para cada arquivo, o sistema lê o texto da DANFE (uma nota por página, ou uma nota em mais de uma folha, agrupada pela chave de acesso de 44 dígitos) e reconhece número, série, chave, natureza da operação, protocolo de autorização, data de emissão, destinatário (razão social e CNPJ), totais e os itens (código, descrição, quantidade, valor unitário e total).
 4. O sistema grava cada nota pela chave de acesso, junto dos itens e dos produtos vistos (o catálogo do pedido e das campanhas) e procura o cliente pelo CNPJ do destinatário (14 dígitos = `Client.cnpj`).
@@ -1015,6 +1016,8 @@ A Etapa 11b (03/11/2026 — [spec da etapa](superpowers/specs/2026-11-03-etapa-1
 A Etapa 12 (05/11/2026 — [spec da etapa](superpowers/specs/2026-11-04-etapa-12-ficha-e-importacao-de-notas-fiscais-design.md)) cria o UC28 (importação das notas fiscais em PDF, com o provedor de ERP `importado`) e revisa: o UC04 ("Adicionar contato" pela aba "Cadastro"), o UC06 (abas na ordem "ERP e sugestões", "Visitas" e "Cadastro", abrindo pela primeira), o UC08 (pedido recolhido e "Pedido conforme NF"), o UC11 (chave do cliente por provedor, "Últimas vendas", estoque indisponível e o aviso da situação do ERP) e o UC15 (alertas sem estoque).
 
 O "cliente pela nota" (06/11/2026 — [spec](superpowers/specs/2026-11-06-cliente-pela-nota-design.md)) não cria caso de uso novo; revisa o UC28 (A2 com "Criar cliente", exceção E5 e regras), o UC02 (o gestor também cria cliente, pela nota) e o UC03 (e-mail opcional na edição).
+
+A rodada "gestão, navegação e compras" (06/11/2026 — [spec](superpowers/specs/2026-11-06-gestao-navegacao-compras-design.md)) não cria caso de uso novo; revisa: o ator Gestor (conta compartilhada "Gestão Chokolaten"; o menu da conta ganha "Importar notas" e "Usuários"), o UC07 (check-in também pelo botão central da barra inferior, com o seletor "Para qual cliente?"), o UC11 (histórico de compras que une notas e pedidos dos check-ins, com a origem de cada venda) e, por consequência, o UC05 e o UC15 (o rebaixamento por última compra e os insights passam a contar os pedidos dos check-ins).
 
 ## 6. Cobertura das regras de negócio da especificação (seção 6)
 

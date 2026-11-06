@@ -40,6 +40,16 @@ function ClientesOuFicha() {
   return id && !duasColunas ? <ClienteDetalhePage /> : <ClientesPage />;
 }
 
+/**
+ * O check-in remonta a cada cliente: o seletor do botão central troca só o
+ * `:id` com a página montada, e o formulário (em `useState`) do cliente
+ * anterior ficaria na tela do novo.
+ */
+function CheckInDoCliente() {
+  const { id } = useParams<{ id: string }>();
+  return <CheckInPage key={id} />;
+}
+
 /** `/` e endereços desconhecidos levam à tela inicial do papel (spec 6.5). */
 function TelaInicial() {
   const { user } = useAuth();
@@ -74,7 +84,7 @@ export function App() {
               <Route path="/" element={<TelaInicial />} />
               <Route path="/clientes/:id?" element={<ClientesOuFicha />} />
               <Route path="/clientes/novo" element={<NovoClientePage />} />
-              <Route path="/clientes/:id/check-in" element={<CheckInPage />} />
+              <Route path="/clientes/:id/check-in" element={<CheckInDoCliente />} />
               <Route path="/agenda" element={<AgendaPage />} />
               <Route path="/campanhas" element={<CampanhasPage />} />
               <Route

@@ -33,7 +33,7 @@ beforeEach(() => {
 
 function renderizar(role: Role = 'GESTOR') {
   const auth = {
-    user: { id: 'g1', nome: 'Marina Gestora', email: 'gestor@chokolaten.com.br', telefone: null, role, ativo: true },
+    user: { id: 'g1', nome: 'Marina Gestora', email: 'gestao@chokolaten.com.br', telefone: null, role, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(),

@@ -25,7 +25,7 @@ vi.mock('../services/users', async (importOriginal) => ({
 const GESTOR: Usuario = {
   id: 'g1',
   nome: 'Marina Gestora',
-  email: 'gestor@chokolaten.com.br',
+  email: 'gestao@chokolaten.com.br',
   telefone: null,
   role: 'GESTOR',
   ativo: true,
@@ -80,7 +80,7 @@ function renderizar(role: Role = 'GESTOR') {
   const auth = {
     user:
       role === 'GESTOR'
-        ? { id: 'g1', nome: 'Marina Gestora', email: 'gestor@chokolaten.com.br', telefone: null, role, ativo: true }
+        ? { id: 'g1', nome: 'Marina Gestora', email: 'gestao@chokolaten.com.br', telefone: null, role, ativo: true }
         : { id: 'r1', nome: 'Rafael Schmitt', email: 'rafael@chokolaten.com.br', telefone: null, role, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
@@ -134,7 +134,7 @@ describe('UsuariosPage', () => {
 
     // Sem telefone, só o e-mail; papel Gestor
     const gestor = within(await linhaDe('Marina Gestora'));
-    expect(gestor.getByText('gestor@chokolaten.com.br')).toBeInTheDocument();
+    expect(gestor.getByText('gestao@chokolaten.com.br')).toBeInTheDocument();
     expect(gestor.getByText('Gestor')).toBeInTheDocument();
     expect(gestor.getByText('0 clientes')).toBeInTheDocument();
 
@@ -185,7 +185,7 @@ describe('UsuariosPage', () => {
     await vi.waitFor(() => expect(recarregarUsuario).toHaveBeenCalledTimes(1));
     expect(atualizarUsuario).toHaveBeenLastCalledWith('g1', {
       nome: 'Marina Gestora',
-      email: 'gestor@chokolaten.com.br',
+      email: 'gestao@chokolaten.com.br',
       telefone: '(47) 3333-0000',
     });
   });

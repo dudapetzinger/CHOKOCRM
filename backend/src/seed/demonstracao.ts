@@ -1663,14 +1663,16 @@ function itensDoPedido(itens: ItemSeed[]): ItemDoPedidoSeed[] {
  * cliente (determinístico). Montado a partir de `inicioDoDia` (meia-noite de
  * São Paulo) em milissegundos, não com os setters locais de `Date`: o fuso da
  * máquina pode não ser o de São Paulo. Se o horário calculado ainda não
- * chegou (visita "hoje"), fica às 8h, para nenhuma visita nascer no futuro.
+ * chegou (visita "hoje"), fica às 8h — ou no próprio `hoje`, se o seed roda
+ * antes das 8h —, para nenhuma visita nascer no futuro. Exportada para teste.
  */
-function horarioDaVisita(hoje: Date, diasAtras: number, indice: number): Date {
+export function horarioDaVisita(hoje: Date, diasAtras: number, indice: number): Date {
   const meiaNoite = inicioDoDia(dataCalendario(new Date(hoje.getTime() - diasAtras * MILISSEGUNDOS_POR_DIA))).getTime();
   const hora = 8 + ((indice * 3) % 10);
   const minuto = (indice * 17) % 60;
   const instante = new Date(meiaNoite + hora * MILISSEGUNDOS_POR_HORA + minuto * MILISSEGUNDOS_POR_MINUTO);
-  return instante > hoje ? new Date(meiaNoite + 8 * MILISSEGUNDOS_POR_HORA) : instante;
+  if (instante <= hoje) return instante;
+  return new Date(Math.min(meiaNoite + 8 * MILISSEGUNDOS_POR_HORA, hoje.getTime()));
 }
 
 /**
