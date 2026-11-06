@@ -296,15 +296,15 @@ describe('tela inicial por papel', () => {
 });
 
 describe('rotas da gestão de usuários', () => {
-  it('gestor abre Usuários pela navegação', async () => {
+  // Usuários saiu da navegação (vai para o menu da conta): a rota continua aberta ao gestor.
+  it('gestor abre /usuarios, fora da navegação principal', async () => {
     simularLargura(true);
-    const usuario = userEvent.setup({ delay: null });
-    abrirApp('/painel', GESTOR);
-
-    await usuario.click(await screen.findByRole('link', { name: 'Usuários' }));
+    abrirApp('/usuarios', GESTOR);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Usuários' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/usuarios');
+    const navegacao = screen.getByRole('navigation', { name: 'Navegação principal' });
+    expect(within(navegacao).queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument();
   });
 
   it('o menu da conta leva a "Alterar senha"', async () => {

@@ -4,11 +4,16 @@ import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthContext, type Role } from '../../auth/auth-context';
 import { agora, definirDeslocamento } from '../../lib/relogio';
+import { listClients } from '../../services/clients';
 import { buscarRelogio, type Relogio } from '../../services/sistema';
 import { removerSimulacaoDeLargura, simularLargura } from '../../test/simularLargura';
 import { Moldura, tituloDaRota } from './Moldura';
 
 vi.mock('../../services/sistema', () => ({ buscarRelogio: vi.fn() }));
+vi.mock('../../services/clients', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/clients')>()),
+  listClients: vi.fn(async () => []),
+}));
 
 const RELOGIO_REAL: Relogio = {
   agora: '2026-11-06T18:00:00.000Z',
@@ -73,6 +78,17 @@ function atalhos() {
     .map((link) => link.textContent);
 }
 
+/**
+ * As posições da navegação, na ordem: os atalhos pelo texto e o botão central
+ * pelo `aria-label` (o rótulo visível dele é só "Check-in").
+ */
+function posicoes() {
+  const navegacao = screen.getByRole('navigation', { name: 'Navegação principal' });
+  return [...navegacao.querySelectorAll('a, button')].map(
+    (elemento) => elemento.getAttribute('aria-label') ?? elemento.textContent,
+  );
+}
+
 afterEach(() => {
   removerSimulacaoDeLargura();
   definirDeslocamento(0);
@@ -82,29 +98,57 @@ afterEach(() => {
 });
 
 describe('Moldura', () => {
-  // Ordens finais (spec 6.5).
-  it('gestor vê Painel, Clientes, Agenda, Campanhas, Usuários e Importar notas nessa ordem', () => {
+  // Ordens finais (spec 2026-11-06, §3 B): Importar notas e Usuários ficam no menu da conta.
+  it('celular, gestor: barra com Painel, Clientes, Agenda e Campanhas, sem o botão de check-in nem Usuários/Importar notas', () => {
     renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
 
-    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas', 'Usuários', 'Importar notas']);
-  });
-
-  it('representante vê Agenda, Clientes, Painel e Campanhas, sem Usuários nem Importar notas', () => {
-    renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
-
-    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Painel', 'Campanhas']);
+    expect(posicoes()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas']);
+    expect(screen.queryByRole('button', { name: 'Novo check-in' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Importar notas' })).not.toBeInTheDocument();
   });
 
-  it('desktop: as mesmas ordens no menu lateral', () => {
+  it('celular, representante: barra com Clientes, Agenda, o check-in no meio, Painel e Campanhas', () => {
+    renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
+
+    expect(posicoes()).toEqual(['Clientes', 'Agenda', 'Novo check-in', 'Painel', 'Campanhas']);
+    expect(atalhos()).toEqual(['Clientes', 'Agenda', 'Painel', 'Campanhas']);
+    expect(screen.getByRole('button', { name: 'Novo check-in' })).toHaveTextContent('Check-in');
+    expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Importar notas' })).not.toBeInTheDocument();
+  });
+
+  it('celular, representante: o botão central abre "Para qual cliente?" com a carteira dele', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
+
+    await usuario.click(screen.getByRole('button', { name: 'Novo check-in' }));
+
+    expect(screen.getByRole('dialog', { name: 'Para qual cliente?' })).toBeInTheDocument();
+    expect(listClients).toHaveBeenCalledWith({ representanteId: 'u1' });
+    // O painel não fica dentro da navegação: ela continua com as mesmas 5 posições.
+    expect(posicoes()).toEqual(['Clientes', 'Agenda', 'Novo check-in', 'Painel', 'Campanhas']);
+  });
+
+  it('celular: o conteúdo do representante tem espaço embaixo também para o botão central elevado; o do gestor, só para a barra', () => {
+    const { unmount } = renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
+    expect(screen.getByRole('main')).toHaveClass('pb-[calc(6.5rem+env(safe-area-inset-bottom))]');
+    unmount();
+
+    renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
+    expect(screen.getByRole('main')).toHaveClass('pb-[calc(4.5rem+env(safe-area-inset-bottom))]');
+    expect(screen.getByRole('main')).not.toHaveClass('pb-[calc(6.5rem+env(safe-area-inset-bottom))]');
+  });
+
+  it('desktop: as mesmas listas no menu lateral, sem o botão central', () => {
     simularLargura(true);
     const { unmount } = renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
-    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas', 'Usuários', 'Importar notas']);
+    expect(posicoes()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas']);
     unmount();
 
     renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
-    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Painel', 'Campanhas']);
+    expect(posicoes()).toEqual(['Clientes', 'Agenda', 'Painel', 'Campanhas']);
+    expect(screen.queryByRole('button', { name: 'Novo check-in' })).not.toBeInTheDocument();
   });
 
   it('representante abre o Painel pela navegação, com o atalho marcado', async () => {
@@ -117,11 +161,14 @@ describe('Moldura', () => {
     expect(screen.getByRole('link', { name: 'Painel' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('em "Novo usuário" o atalho Usuários fica marcado e o celular mostra "Voltar"', () => {
+  it('em "Novo usuário" (fora da barra, vem do menu da conta) nenhum atalho fica marcado e o celular mostra "Voltar"', () => {
     renderizar({ papel: 'GESTOR', entradas: ['/usuarios', '/usuarios/novo'] });
 
     expect(screen.getByRole('heading', { level: 1, name: 'Novo usuário' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Usuários' })).toHaveAttribute('aria-current', 'page');
+    const navegacao = screen.getByRole('navigation', { name: 'Navegação principal' });
+    for (const link of within(navegacao).getAllByRole('link')) {
+      expect(link).not.toHaveAttribute('aria-current');
+    }
     expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument();
   });
 
@@ -190,7 +237,7 @@ describe('Moldura', () => {
     expect(screen.getByRole('img', { name: 'ChokoCRM' })).toHaveAttribute('src', '/logo.svg');
     expect(screen.getByText('Chokolaten')).toBeInTheDocument();
     expect(screen.getAllByRole('navigation')).toHaveLength(1);
-    expect(atalhos()).toEqual(['Agenda', 'Clientes', 'Painel', 'Campanhas']);
+    expect(atalhos()).toEqual(['Clientes', 'Agenda', 'Painel', 'Campanhas']);
     expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument();
   });
 });

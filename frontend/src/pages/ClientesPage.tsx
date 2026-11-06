@@ -239,10 +239,12 @@ export function ClientesPage() {
         colunaLista
       )}
 
+      {/* Acima da barra inferior e do botão central de check-in (elevado 24 px
+          sobre ela), com folga de ~12 px */}
       {botaoFlutuante && (
         <Link
           to="/clientes/novo"
-          className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 flex min-h-11 items-center gap-1 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="fixed right-4 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-10 flex min-h-11 items-center gap-1 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Plus aria-hidden="true" className="size-4" />
           Novo cliente

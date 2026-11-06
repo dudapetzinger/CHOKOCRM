@@ -7,6 +7,14 @@
  * existe de cada vez (pela mesma largura de `useLarguraDesktop`), para o
  * leitor de tela não achar dois menus iguais.
  *
+ * Barra inferior (spec 2026-11-06, §3 B): o representante tem 5 posições —
+ * Clientes, Agenda, o `BotaoCheckIn` no meio (círculo primário elevado que
+ * abre "Para qual cliente?") e Painel, Campanhas; o gestor tem 4 — Painel,
+ * Clientes, Agenda, Campanhas, sem o botão. "Importar notas" e "Usuários"
+ * ficam no menu da conta. O menu lateral do desktop mostra a mesma lista de
+ * atalhos do papel, sem o botão central (no desktop o check-in começa pela
+ * ficha do cliente).
+ *
  * Relógio de demonstração: a moldura carrega `GET /sistema/relogio`
  * (`useRelogio`) e só mostra a tela da rota depois da primeira resposta (ou
  * da falha, com o relógio real), para nenhuma tela calcular "hoje" sem o
@@ -16,40 +24,62 @@
  * porque `useRelogio` já voltou o deslocamento a 0.
  */
 import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3, CalendarDays, FileUp, Megaphone, UserCog, Users, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, BarChart3, CalendarDays, Megaphone, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
 import { useRelogio } from '@/hooks/useRelogio';
 import type { Role } from '@/auth/auth-context';
 import { Button } from '@/components/ui/button';
-import { rotaInicialDoPapel } from '@/lib/rotaInicial';
 import { useLarguraDesktop } from '@/lib/useLarguraDesktop';
 import { cn } from '@/lib/utils';
+import { BotaoCheckIn } from './BotaoCheckIn';
 import { FaixaDataSimulada } from './FaixaDataSimulada';
 import { MenuDaConta } from './MenuDaConta';
 
 type ItemNavegacao = { para: string; rotulo: string; icone: LucideIcon; papeis: Role[] };
 
 /**
- * Atalhos da navegação e quem vê cada um. Cada papel vê os seus nesta
- * ordem, com a tela inicial dele (`rotaInicialDoPapel`) puxada para a
- * frente: gestor — Painel, Clientes, Agenda, Campanhas, Usuários, Importar notas;
- * representante — Agenda, Clientes, Painel, Campanhas. Item novo entra na posição em
- * que deve aparecer depois da tela inicial (as ordens estão fixadas em
- * Moldura.test.tsx).
+ * Atalhos da navegação e quem vê cada um, na ordem do representante
+ * (Clientes, Agenda, Painel, Campanhas; o botão de check-in entra depois de
+ * `ATALHOS_ANTES_DO_CHECK_IN`). O gestor vê o Painel, a tela inicial dele,
+ * na frente: Painel, Clientes, Agenda, Campanhas. As ordens estão fixadas em
+ * Moldura.test.tsx.
  */
 export const ITENS_NAVEGACAO: ItemNavegacao[] = [
   { para: '/clientes', rotulo: 'Clientes', icone: Users, papeis: ['GESTOR', 'REPRESENTANTE'] },
-  { para: '/painel', rotulo: 'Painel', icone: BarChart3, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/agenda', rotulo: 'Agenda', icone: CalendarDays, papeis: ['GESTOR', 'REPRESENTANTE'] },
+  { para: '/painel', rotulo: 'Painel', icone: BarChart3, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/campanhas', rotulo: 'Campanhas', icone: Megaphone, papeis: ['GESTOR', 'REPRESENTANTE'] },
-  { para: '/usuarios', rotulo: 'Usuários', icone: UserCog, papeis: ['GESTOR'] },
-  { para: '/importacoes', rotulo: 'Importar notas', icone: FileUp, papeis: ['GESTOR'] },
 ];
+
+/** Na barra do representante, o botão central fica depois destes dois atalhos (Clientes, Agenda). */
+const ATALHOS_ANTES_DO_CHECK_IN = 2;
 
 function itensDoPapel(role: Role): ItemNavegacao[] {
   const itens = ITENS_NAVEGACAO.filter((item) => item.papeis.includes(role));
-  const inicial = rotaInicialDoPapel(role);
-  return [...itens.filter((item) => item.para === inicial), ...itens.filter((item) => item.para !== inicial)];
+  if (role !== 'GESTOR') return itens;
+  return [...itens.filter((item) => item.para === '/painel'), ...itens.filter((item) => item.para !== '/painel')];
+}
+
+/** Atalho da barra inferior (celular): ícone em cima, rótulo embaixo, ocupando uma posição. */
+function AtalhoDaBarra({ item }: { item: ItemNavegacao }) {
+  return (
+    <NavLink
+      to={item.para}
+      className={({ isActive }) =>
+        cn(
+          'flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+          isActive ? 'bg-primary-soft text-brown' : 'text-muted-foreground',
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <item.icone aria-hidden="true" className={cn('size-5', isActive && 'text-primary-vivo')} />
+          {item.rotulo}
+        </>
+      )}
+    </NavLink>
+  );
 }
 
 /**
@@ -147,8 +177,18 @@ export function Moldura() {
         )}
 
         {/* No celular, espaço embaixo para o conteúdo não ficar atrás da
-            navegação inferior (56 px + a área segura do aparelho) */}
-        <main className={cn('flex-1 p-4 md:p-6', !desktop && 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]')}>
+            navegação inferior (56 px + a área segura do aparelho); no
+            representante, também atrás do botão central, elevado 24 px
+            acima da barra */}
+        <main
+          className={cn(
+            'flex-1 p-4 md:p-6',
+            !desktop &&
+              (user.role === 'REPRESENTANTE'
+                ? 'pb-[calc(6.5rem+env(safe-area-inset-bottom))]'
+                : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'),
+          )}
+        >
           {relogio.isPending ? <p className="text-sm text-muted-foreground">Carregando...</p> : <Outlet />}
         </main>
       </div>
@@ -158,25 +198,21 @@ export function Moldura() {
           aria-label="Navegação principal"
           className="fixed inset-x-0 bottom-0 z-20 flex border-t bg-card pb-[env(safe-area-inset-bottom)] print:hidden"
         >
-          {itens.map((item) => (
-            <NavLink
-              key={item.para}
-              to={item.para}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-                  isActive ? 'bg-primary-soft text-brown' : 'text-muted-foreground',
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <item.icone aria-hidden="true" className={cn('size-5', isActive && 'text-primary-vivo')} />
-                  {item.rotulo}
-                </>
-              )}
-            </NavLink>
-          ))}
+          {user.role === 'REPRESENTANTE' ? (
+            <>
+              {itens.slice(0, ATALHOS_ANTES_DO_CHECK_IN).map((item) => (
+                <AtalhoDaBarra key={item.para} item={item} />
+              ))}
+              <div className="flex flex-1 justify-center">
+                <BotaoCheckIn representanteId={user.id} />
+              </div>
+              {itens.slice(ATALHOS_ANTES_DO_CHECK_IN).map((item) => (
+                <AtalhoDaBarra key={item.para} item={item} />
+              ))}
+            </>
+          ) : (
+            itens.map((item) => <AtalhoDaBarra key={item.para} item={item} />)
+          )}
         </nav>
       )}
     </div>

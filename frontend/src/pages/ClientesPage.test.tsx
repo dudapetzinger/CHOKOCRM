@@ -123,6 +123,8 @@ describe('ClientesPage', () => {
     expect(screen.getAllByRole('link', { name: 'Novo cliente' })).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Legenda das situações' }).parentElement).not.toContainElement(novo);
     expect(linha.compareDocumentPosition(novo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Acima da barra inferior e do botão central de check-in, elevado 24 px sobre ela.
+    expect(novo).toHaveClass('bottom-[calc(6.5rem+env(safe-area-inset-bottom))]');
   });
 
   it('a legenda (?) abre com as frases do app sobre as situações', async () => {
