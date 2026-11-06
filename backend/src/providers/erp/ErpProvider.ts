@@ -2,15 +2,23 @@
  * Contrato do provedor de ERP (Adapter) da Etapa 5. Duas implementações:
  * `MockErpProvider` simula um ERP para demonstração (chave = `erpId` do
  * cliente) e `ImportadoErpProvider` (Etapa 12b) lê as notas fiscais
- * importadas (chave = CNPJ do cliente). Quem escolhe a chave é
- * `erp.service.chaveDoCliente`; services e controllers não mudam com o
- * provedor — mesmo padrão Adapter de `FileStorage` (ver
- * `storage/FileStorage.ts`).
+ * importadas e os pedidos dos check-ins sem nota (chave = CNPJ do
+ * cliente). Quem escolhe a chave é `erp.service.chaveDoCliente`; services e
+ * controllers não mudam com o provedor — mesmo padrão Adapter de
+ * `FileStorage` (ver `storage/FileStorage.ts`).
  */
+/**
+ * De onde veio a venda no provedor importado: uma nota fiscal importada
+ * (pelo número) ou o pedido de um check-in VENDA ainda sem nota vinculada.
+ * O mock não preenche.
+ */
+export type OrigemDaVenda = { tipo: 'nota'; numero: string } | { tipo: 'pedido'; visitaId: string };
+
 export type Sale = {
   data: Date;
   valor: number;
   produtos: { sku: string; nome: string; quantidade: number }[];
+  origem?: OrigemDaVenda;
 };
 
 /**

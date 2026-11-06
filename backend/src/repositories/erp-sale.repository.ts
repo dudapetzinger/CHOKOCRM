@@ -190,6 +190,7 @@ export async function listarPendentes(): Promise<NotaComRelacoes[]> {
 // antes de o cliente existir passa a contar assim que ele é cadastrado.
 
 const SELECT_VENDA = {
+  numero: true,
   dataEmissao: true,
   valorTotal: true,
   itens: {

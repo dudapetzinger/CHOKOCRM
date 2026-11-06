@@ -31,8 +31,9 @@ const QUANTIDADE_DE_ULTIMAS_VENDAS = 5;
  * em `ErpProduct` para o importado também o oferecer. Dois provedores
  * (`ERP_PROVIDER`): `mock`, que identifica o cliente pelo `erpId` e tem o
  * catálogo fixo de demonstração, e `importado` (Etapa 12b), que identifica o
- * cliente pelo CNPJ, lê as notas fiscais importadas e o catálogo aprendido
- * delas (`ErpProduct`), sem estoque. Quem chama nunca escolhe a chave: passa
+ * cliente pelo CNPJ, lê as notas fiscais importadas mais os pedidos dos
+ * check-ins sem nota e o catálogo aprendido das notas (`ErpProduct`), sem
+ * estoque. Quem chama nunca escolhe a chave: passa
  * o cliente a `chaveDoCliente`.
  */
 export type DadosErpDTO =
@@ -55,7 +56,11 @@ export type DadosErpDTO =
   | { status: 'NAO_ENCONTRADO' }
   | { status: 'INDISPONIVEL' };
 
-/** Uma venda (nota) já serializável, com a data em 'AAAA-MM-DD'. */
+/**
+ * Uma venda já serializável, com a data em 'AAAA-MM-DD'. No importado,
+ * `origem` diz se é uma nota fiscal (`numero`) ou o pedido de um check-in
+ * sem nota (`visitaId`); o mock não preenche.
+ */
 export type VendaDTO = Omit<Sale, 'data'> & { data: string };
 
 /** Situação da fonte de vendas (`GET /erp/situacao`). */
@@ -337,7 +342,12 @@ export function resumirEstoque(historico: StockSnapshot[]): ResumoEstoque | null
 
 /** Venda serializável: a data como o dia de calendário da venda. */
 function paraVendaDTO(venda: Sale): VendaDTO {
-  return { data: dataCalendario(venda.data), valor: venda.valor, produtos: venda.produtos };
+  return {
+    data: dataCalendario(venda.data),
+    valor: venda.valor,
+    produtos: venda.produtos,
+    ...(venda.origem ? { origem: venda.origem } : {}),
+  };
 }
 
 /**

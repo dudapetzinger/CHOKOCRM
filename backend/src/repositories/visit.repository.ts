@@ -281,3 +281,42 @@ export async function findParaVinculo(
 ): Promise<{ id: string; clientId: string; erpSaleId: string | null } | null> {
   return banco.visit.findUnique({ where: { id }, select: { id: true, clientId: true, erpSaleId: true } });
 }
+
+// --- Pedidos dos check-ins no histórico do provedor `importado` -------------
+
+const SELECT_PEDIDO_SEM_NOTA = {
+  id: true,
+  dataHora: true,
+  itens: {
+    select: { sku: true, produtoNome: true, quantidade: true, precoUnitario: true },
+    orderBy: { produtoNome: 'asc' },
+  },
+} satisfies Prisma.VisitSelect;
+
+export type PedidoSemNota = Prisma.VisitGetPayload<{ select: typeof SELECT_PEDIDO_SEM_NOTA }>;
+
+/**
+ * Pedidos dos check-ins do cliente com esse CNPJ que ainda não têm nota:
+ * visitas VENDA com pelo menos um item e `erpSaleId` nulo. A visita com nota
+ * vinculada fica de fora (os itens dela já são os da nota, que o provedor lê
+ * por conta própria); VENDA sem itens também (não vira venda de valor 0).
+ * `inicio`/`fim` filtram `dataHora` com os dois instantes inclusivos; da
+ * mais recente para a mais antiga; `limite` corta a lista.
+ */
+export async function listarPedidosSemNotaDoCnpj(
+  cnpj: string,
+  { inicio, fim, limite }: { inicio?: Date; fim?: Date; limite?: number } = {},
+): Promise<PedidoSemNota[]> {
+  return prisma.visit.findMany({
+    where: {
+      client: { cnpj },
+      resultado: 'VENDA',
+      erpSaleId: null,
+      itens: { some: {} },
+      dataHora: { ...(inicio ? { gte: inicio } : {}), ...(fim ? { lte: fim } : {}) },
+    },
+    orderBy: [{ dataHora: 'desc' }, { id: 'desc' }],
+    take: limite,
+    select: SELECT_PEDIDO_SEM_NOTA,
+  });
+}

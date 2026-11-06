@@ -7,6 +7,7 @@ import { prisma } from '../src/lib/prisma';
 import { erpProvider } from '../src/providers/erp';
 import { ImportadoErpProvider } from '../src/providers/erp/ImportadoErpProvider';
 import * as seasonalEventRepository from '../src/repositories/seasonal-event.repository';
+import { janelaDoAnoAnterior, periodoBase } from '../src/services/insights.regras';
 import {
   colunaDateDaData,
   dataCalendario,
@@ -21,7 +22,8 @@ import { truncateAllTables } from './helpers/db';
  * Provedor de ERP `importado` (Etapa 12b): as vendas vêm das notas fiscais
  * importadas (`ErpSale`), lidas pelo CNPJ do destinatário. As notas são
  * gravadas direto via prisma (a leitura do PDF já tem os próprios testes em
- * `importacao-nf.test.ts`).
+ * `importacao-nf.test.ts`). Os pedidos dos check-ins (visitas VENDA com itens
+ * e sem nota vinculada) entram no mesmo histórico, com `origem`.
  */
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -102,6 +104,45 @@ async function criarNota(
       },
     },
   });
+}
+
+type ItemDoPedido = { sku: string; nome: string; quantidade: number; preco: number };
+
+const ITENS_DO_PEDIDO: ItemDoPedido[] = [
+  { sku: 'BAR0019', nome: 'Barra ao leite 100 g', quantidade: 3, preco: 27.9 },
+  { sku: 'BOMB-SORT', nome: 'Bombons sortidos', quantidade: 2, preco: 10.05 },
+];
+
+/** Check-in gravado direto via prisma: VENDA com os itens dados (vazio = pedido sem itens). */
+async function criarPedido(
+  clientId: string,
+  dataHora: Date,
+  itens: ItemDoPedido[] = ITENS_DO_PEDIDO,
+  { erpSaleId = null, resultado = 'VENDA' }: { erpSaleId?: string | null; resultado?: 'VENDA' | 'SEM_VENDA' } = {},
+) {
+  return prisma.visit.create({
+    data: {
+      clientId,
+      userId: representanteId,
+      dataHora,
+      descricao: 'Pedido no check-in.',
+      resultado,
+      erpSaleId,
+      itens: {
+        create: itens.map((item) => ({
+          sku: item.sku,
+          produtoNome: item.nome,
+          quantidade: item.quantidade,
+          precoUnitario: item.preco,
+        })),
+      },
+    },
+  });
+}
+
+/** Instante local de `dia` ('AAAA-MM-DD') às `hora`:00. */
+function noDia(dia: string, hora: number): Date {
+  return new Date(inicioDoDia(dia).getTime() + hora * 3_600_000);
 }
 
 /** Hoje ('AAAA-MM-DD') em America/Sao_Paulo, deslocado de `dias`. */
@@ -230,6 +271,122 @@ describe('ImportadoErpProvider', () => {
   });
 });
 
+describe('ImportadoErpProvider: notas + pedidos dos check-ins sem nota', () => {
+  const provedor = new ImportadoErpProvider();
+
+  it('getRecentSales mescla a nota e os 2 pedidos sem nota do cliente, com a origem, da mais recente para a mais antiga', async () => {
+    const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    const cafeId = await criarCliente(CNPJ_CAFE, 'Cafe Blumenau');
+    await criarNota(CNPJ_EMPORIO, '2026-10-01', 100, ITENS_PADRAO, '2455');
+    const recente = await criarPedido(emporioId, noDia('2026-10-10', 14));
+    const antigo = await criarPedido(emporioId, noDia('2026-09-20', 9), [
+      { sku: 'CX-PRESENTE', nome: 'Caixa presente', quantidade: 1, preco: 45 },
+    ]);
+    await criarPedido(cafeId, noDia('2026-10-05', 10));
+
+    const vendas = await provedor.getRecentSales(CNPJ_EMPORIO, 10);
+
+    expect(vendas).toEqual([
+      {
+        data: noDia('2026-10-10', 14),
+        // 3 × 27,90 + 2 × 10,05 = 103,80, em Decimal (sem 103,79999…).
+        valor: 103.8,
+        produtos: [
+          { sku: 'BAR0019', nome: 'Barra ao leite 100 g', quantidade: 3 },
+          { sku: 'BOMB-SORT', nome: 'Bombons sortidos', quantidade: 2 },
+        ],
+        origem: { tipo: 'pedido', visitaId: recente.id },
+      },
+      {
+        data: inicioDoDia('2026-10-01'),
+        valor: 100,
+        produtos: [
+          { sku: '1001', nome: 'Bombom trufado ao leite', quantidade: 12 },
+          { sku: '2002', nome: 'Barra 70% cacau', quantidade: 6 },
+        ],
+        origem: { tipo: 'nota', numero: '2455' },
+      },
+      {
+        data: noDia('2026-09-20', 9),
+        valor: 45,
+        produtos: [{ sku: 'CX-PRESENTE', nome: 'Caixa presente', quantidade: 1 }],
+        origem: { tipo: 'pedido', visitaId: antigo.id },
+      },
+    ]);
+    expect((await provedor.getRecentSales(CNPJ_EMPORIO, 2)).map((venda) => venda.origem?.tipo)).toEqual([
+      'pedido',
+      'nota',
+    ]);
+    expect((await provedor.getLastSale(CNPJ_EMPORIO))?.origem).toEqual({ tipo: 'pedido', visitaId: recente.id });
+  });
+
+  it('visita VENDA com nota vinculada (Review Focus 1) entra uma vez só, como a nota', async () => {
+    const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    const nota = await criarNota(CNPJ_EMPORIO, '2026-10-01', 100, ITENS_PADRAO, '2455');
+    await criarPedido(emporioId, noDia('2026-09-30', 10), ITENS_DO_PEDIDO, { erpSaleId: nota.id });
+    const periodo = { inicio: inicioDoDia('2026-09-01'), fim: fimDoDia('2026-10-31') };
+
+    const vendas = await provedor.getRecentSales(CNPJ_EMPORIO, 10);
+
+    expect(vendas.map((venda) => [venda.valor, venda.origem])).toEqual([[100, { tipo: 'nota', numero: '2455' }]]);
+    await expect(provedor.getSales(CNPJ_EMPORIO, periodo)).resolves.toHaveLength(1);
+    await expect(provedor.getPurchaseVolume(CNPJ_EMPORIO, periodo)).resolves.toEqual({
+      total: 100,
+      quantidadeVendas: 1,
+    });
+  });
+
+  it('visita VENDA sem itens (Review Focus 2) e visita SEM_VENDA são ignoradas: nenhuma venda de valor 0', async () => {
+    const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    await criarPedido(emporioId, noDia('2026-10-10', 10), []);
+    await criarPedido(emporioId, noDia('2026-10-11', 10), ITENS_DO_PEDIDO, { resultado: 'SEM_VENDA' });
+    const periodo = { inicio: inicioDoDia('2026-10-01'), fim: fimDoDia('2026-10-31') };
+
+    await expect(provedor.getRecentSales(CNPJ_EMPORIO, 10)).resolves.toEqual([]);
+    await expect(provedor.getLastSale(CNPJ_EMPORIO)).resolves.toBeNull();
+    await expect(provedor.getSales(CNPJ_EMPORIO, periodo)).resolves.toEqual([]);
+    await expect(provedor.getPurchaseVolume(CNPJ_EMPORIO, periodo)).resolves.toEqual({
+      total: 0,
+      quantidadeVendas: 0,
+    });
+  });
+
+  it('getSales e getPurchaseVolume somam nota + pedidos do período (instantes inclusivos para o pedido)', async () => {
+    const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    await criarNota(CNPJ_EMPORIO, '2026-10-31', 200.2, ITENS_PADRAO, '3000');
+    await criarNota(CNPJ_EMPORIO, '2026-11-01', 999, ITENS_PADRAO, '3001');
+    const noInicio = await criarPedido(emporioId, inicioDoDia('2026-10-01'));
+    const noFim = await criarPedido(emporioId, fimDoDia('2026-10-31'), [
+      { sku: 'CX-PRESENTE', nome: 'Caixa presente', quantidade: 1, preco: 45 },
+    ]);
+    await criarPedido(emporioId, new Date(inicioDoDia('2026-10-01').getTime() - 1));
+    await criarPedido(emporioId, inicioDoDia('2026-11-01'));
+    const periodo = { inicio: inicioDoDia('2026-10-01'), fim: fimDoDia('2026-10-31') };
+
+    const vendas = await provedor.getSales(CNPJ_EMPORIO, periodo);
+
+    expect(vendas.map((venda) => [venda.valor, venda.origem])).toEqual([
+      [45, { tipo: 'pedido', visitaId: noFim.id }],
+      [200.2, { tipo: 'nota', numero: '3000' }],
+      [103.8, { tipo: 'pedido', visitaId: noInicio.id }],
+    ]);
+    await expect(provedor.getPurchaseVolume(CNPJ_EMPORIO, periodo)).resolves.toEqual({
+      total: 349,
+      quantidadeVendas: 3,
+    });
+  });
+
+  it('pedido e nota no mesmo instante: a nota vem antes', async () => {
+    const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    await criarNota(CNPJ_EMPORIO, '2026-10-01', 100, ITENS_PADRAO, '2455');
+    await criarPedido(emporioId, inicioDoDia('2026-10-01'));
+
+    const vendas = await provedor.getRecentSales(CNPJ_EMPORIO, 10);
+
+    expect(vendas.map((venda) => venda.origem?.tipo)).toEqual(['nota', 'pedido']);
+  });
+});
+
 describe('erp.service com o provedor importado', () => {
   it('a chave do cliente é o CNPJ, com ou sem erpId', () => {
     expect(erpService.chaveDoCliente({ erpId: 'ERP-1001', cnpj: CNPJ_EMPORIO })).toBe(CNPJ_EMPORIO);
@@ -247,7 +404,9 @@ describe('GET /clients/:id/erp (importado)', () => {
     await criarNota(CNPJ_EMPORIO, diaRelativo(-40), 70);
     await criarNota(CNPJ_EMPORIO, diaRelativo(-30), 80);
     await criarNota(CNPJ_EMPORIO, diaRelativo(-10), 90);
-    await criarNota(CNPJ_EMPORIO, diaRelativo(0), 100, [{ codigo: '3003', nome: 'Pão de mel', quantidade: 24, preco: 4 }]);
+    const maisRecente = await criarNota(CNPJ_EMPORIO, diaRelativo(0), 100, [
+      { codigo: '3003', nome: 'Pão de mel', quantidade: 24, preco: 4 },
+    ]);
     await criarNota(CNPJ_CAFE, diaRelativo(-1), 5000);
 
     const espiaoVendas = jest.spyOn(erpProvider, 'getSales');
@@ -277,7 +436,30 @@ describe('GET /clients/:id/erp (importado)', () => {
       data: diaRelativo(0),
       valor: 100,
       produtos: [{ sku: '3003', nome: 'Pão de mel', quantidade: 24 }],
+      origem: { tipo: 'nota', numero: maisRecente.numero },
     });
+  });
+
+  it('últimas vendas com a origem (nota e pedido do check-in) e última venda = pedido mais recente', async () => {
+    const clienteId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    const nota = await criarNota(CNPJ_EMPORIO, diaRelativo(-5), 100);
+    const pedido = await criarPedido(clienteId, noDia(diaRelativo(-2), 10));
+
+    const res = await request(app).get(`/clients/${clienteId}/erp`).set('Authorization', `Bearer ${tokenRep}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.ultimaVenda).toEqual({ data: noDia(diaRelativo(-2), 10).toISOString(), valor: 103.8 });
+    expect(res.body.volume90Dias).toEqual({ total: 203.8, quantidadeVendas: 2 });
+    expect(
+      res.body.ultimasVendas.map((venda: { data: string; valor: number; origem: unknown }) => [
+        venda.data,
+        venda.valor,
+        venda.origem,
+      ]),
+    ).toEqual([
+      [diaRelativo(-2), 103.8, { tipo: 'pedido', visitaId: pedido.id }],
+      [diaRelativo(-5), 100, { tipo: 'nota', numero: nota.numero }],
+    ]);
   });
 
   it('cliente sem nota (Review Focus 5): OK, sem última venda, volume zerado e sem últimas vendas', async () => {
@@ -383,6 +565,50 @@ describe('GET /dashboard/vendas-mensais (importado)', () => {
     const mes = res.body.meses.find((ponto: { mes: string }) => ponto.mes === hoje.slice(0, 7));
     expect(mes.total).toBe(200.25);
     expect(mes.clientes).toEqual([{ id: emporioId, nomeFantasia: 'Emporio Pomerode', total: 200.25 }]);
+  });
+
+  it('soma também os pedidos dos check-ins sem nota do mês', async () => {
+    const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    const hoje = diaRelativo(0);
+    const primeiroDoMes = `${hoje.slice(0, 7)}-01`;
+    await criarNota(CNPJ_EMPORIO, primeiroDoMes, 150);
+    await criarPedido(emporioId, inicioDoDia(primeiroDoMes));
+
+    const res = await request(app).get('/dashboard/vendas-mensais').set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    const mes = res.body.meses.find((ponto: { mes: string }) => ponto.mes === hoje.slice(0, 7));
+    expect(mes.total).toBe(253.8);
+    expect(mes.clientes).toEqual([{ id: emporioId, nomeFantasia: 'Emporio Pomerode', total: 253.8 }]);
+  });
+});
+
+describe('GET /clients/:id/insights (importado)', () => {
+  it('pedido do check-in no Natal do ano passado gera a sugestão do mesmo período do ano passado', async () => {
+    const clienteId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    const dataFim = new Date();
+    dataFim.setUTCDate(dataFim.getUTCDate() + 40);
+    dataFim.setUTCHours(12, 0, 0, 0);
+    const dataInicio = new Date(dataFim);
+    dataInicio.setUTCDate(dataInicio.getUTCDate() - 30);
+    await seasonalEventRepository.upsertMany([
+      { nome: 'Natal teste', chave: 'NATAL', dataInicio, dataFim, produtosSugeridos: ['caixas presente'] },
+    ]);
+    const janela = janelaDoAnoAnterior('NATAL', dataFim.getUTCFullYear());
+    const base = periodoBase(janela);
+    // Base: uma nota no ano anterior à janela; na janela, só o pedido do check-in.
+    await criarNota(CNPJ_EMPORIO, somarDias(base.inicio, 30), 365);
+    await criarPedido(clienteId, noDia(somarDias(janela.fim, -3), 15));
+
+    const res = await request(app).get(`/clients/${clienteId}/insights`).set('Authorization', `Bearer ${tokenRep}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('OK');
+    expect(res.body.eventosSemHistorico).toEqual([]);
+    expect(res.body.sugestoes).toHaveLength(1);
+    expect(res.body.sugestoes[0].comprasNaJanela).toBe(103.8);
+    expect(res.body.sugestoes[0].periodoComparado).toEqual({ inicio: janela.inicio, fim: janela.fim });
+    expect(res.body.sugestoes[0].texto).toContain('no mesmo período do ano passado');
   });
 });
 
