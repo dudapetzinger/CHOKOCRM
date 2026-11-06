@@ -9,6 +9,8 @@
  * recentes (data, valor e os itens, "16× BARRA AO LEITE 35% 500 G") e só
  * aparece quando há notas, então o card dos dados simulados não muda; quando o
  * ERP não informa estoque, uma frase fica no lugar do nível de estoque.
+ * Cada venda mostra a origem em texto miúdo ("NF 2455" ou "Pedido do
+ * check-in"); sem `origem` (dados simulados) nada é exibido.
  */
 import { useId, type ReactElement } from 'react';
 import { Package } from 'lucide-react';
@@ -57,6 +59,11 @@ function UltimasVendas({ vendas }: { vendas: VendaErp[] }) {
               <span>{formatarDataCalendario(venda.data)}</span>
               <span className="shrink-0 tabular-nums">{formatarMoeda(venda.valor)}</span>
             </p>
+            {venda.origem && (
+              <p className="text-xs text-muted-foreground">
+                {venda.origem.tipo === 'nota' ? `NF ${venda.origem.numero}` : 'Pedido do check-in'}
+              </p>
+            )}
             <ul aria-label="Itens da nota" className="mt-0.5 space-y-0.5 text-muted-foreground">
               {venda.produtos.map((produto, indiceProduto) => (
                 <li key={`${produto.sku}-${indiceProduto}`}>

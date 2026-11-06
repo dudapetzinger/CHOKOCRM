@@ -86,6 +86,29 @@ describe('DadosErpCard', () => {
     expect(notas[4]).toHaveTextContent('1× CACAU EM PÓ 500 G');
   });
 
+  it('mostra a origem de cada venda: NF <número> ou Pedido do check-in; sem origem, nada a mais', async () => {
+    vi.mocked(buscarDadosErp).mockResolvedValue(
+      dadosOk({
+        ultimasVendas: [
+          { ...venda('2026-11-03', 100, 'A', 1), origem: { tipo: 'nota', numero: '2455' } },
+          { ...venda('2026-10-20', 200, 'B', 2), origem: { tipo: 'pedido', visitaId: 'v1' } },
+          venda('2026-10-06', 300, 'C', 3),
+        ],
+      }),
+    );
+
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'Últimas vendas' });
+    const vendas = within(lista)
+      .getAllByRole('listitem')
+      .filter((item) => item.parentElement === lista);
+    expect(vendas[0]).toHaveTextContent('NF 2455');
+    expect(vendas[1]).toHaveTextContent('Pedido do check-in');
+    expect(vendas[2]).not.toHaveTextContent('NF');
+    expect(vendas[2]).not.toHaveTextContent('Pedido do check-in');
+  });
+
   it('estoque indisponível: mostra a frase no lugar do nível de estoque', async () => {
     vi.mocked(buscarDadosErp).mockResolvedValue(dadosOk({ estoque: null, estoqueIndisponivel: true }));
 
