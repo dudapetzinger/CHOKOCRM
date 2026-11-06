@@ -11,8 +11,8 @@ import { truncateAllTables } from './helpers/db';
 const SENHA_PADRAO = 'chokocrm123';
 
 const GESTOR = {
-  nome: 'Maicon Krüger',
-  email: 'maicon.users-teste@chokolaten.com.br',
+  nome: 'Gestão Chokolaten',
+  email: 'gestao.users-teste@chokolaten.com.br',
   role: 'GESTOR' as const,
 };
 
@@ -148,7 +148,7 @@ describe('GET /users', () => {
     expect(res.body.data.map((u: { nome: string }) => u.nome)).toEqual([
       'Bruno Alencar',
       'Eduarda Fischer',
-      'Maicon Krüger',
+      'Gestão Chokolaten',
       'Rafael Schmitt',
     ]);
     expect(res.body.data[1]).toEqual({
@@ -316,12 +316,12 @@ describe('PATCH /users/:id', () => {
 
   it('gestor edita os próprios dados sem mexer no papel', async () => {
     const res = await autenticado(request(app).patch(`/users/${gestorId}`), tokenGestor).send({
-      nome: 'Maicon K.',
+      nome: 'Gestão Chokolaten SC',
       role: 'GESTOR',
     });
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ nome: 'Maicon K.', role: 'GESTOR' });
+    expect(res.body).toMatchObject({ nome: 'Gestão Chokolaten SC', role: 'GESTOR' });
   });
 
   it('representante com cliente ativo não vira gestor (400)', async () => {

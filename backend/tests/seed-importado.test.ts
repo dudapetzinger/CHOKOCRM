@@ -6,7 +6,7 @@ import { prisma } from '../src/lib/prisma';
 import { erpProvider } from '../src/providers/erp';
 import { ImportadoErpProvider } from '../src/providers/erp/ImportadoErpProvider';
 import { CATALOGO } from '../src/providers/erp/mock/catalogo';
-import { reiniciarDemonstracao, SENHA_DEMONSTRACAO, semear } from '../src/seed/demonstracao';
+import { EMAIL_GESTAO, reiniciarDemonstracao, SENHA_DEMONSTRACAO, semear } from '../src/seed/demonstracao';
 import { truncateAllTables } from './helpers/db';
 
 /**
@@ -55,7 +55,7 @@ describe('seed de demonstração com o provedor importado', () => {
 
     const login = await request(app)
       .post('/auth/login')
-      .send({ email: 'gestor@chokolaten.com.br', senha: SENHA_DEMONSTRACAO });
+      .send({ email: EMAIL_GESTAO, senha: SENHA_DEMONSTRACAO });
     const token = login.body.token as string;
 
     const produtos = await request(app).get('/erp/produtos').set('Authorization', `Bearer ${token}`);

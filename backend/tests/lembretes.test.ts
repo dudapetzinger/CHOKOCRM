@@ -16,7 +16,7 @@ import { truncateAllTables } from './helpers/db';
 const SENHA_PADRAO = 'chokocrm123';
 const ID_INEXISTENTE = '00000000-0000-0000-0000-000000000000';
 
-const GESTOR = { nome: 'Maicon Krüger', email: 'maicon.lembretes-teste@chokolaten.com.br', role: 'GESTOR' as const };
+const GESTOR = { nome: 'Gestão Chokolaten', email: 'gestao.lembretes-teste@chokolaten.com.br', role: 'GESTOR' as const };
 const EDUARDA = {
   nome: 'Eduarda Fischer',
   email: 'eduarda.lembretes-teste@chokolaten.com.br',

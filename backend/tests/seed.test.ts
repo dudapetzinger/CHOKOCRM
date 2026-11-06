@@ -5,11 +5,27 @@ import { ERP_IDS_DEMONSTRACAO } from '../src/config/erpIdsDemonstracao';
 import { prisma } from '../src/lib/prisma';
 import { CATALOGO } from '../src/providers/erp/mock/catalogo';
 import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
-import { reiniciarDemonstracao, semear } from '../src/seed/demonstracao';
+import { EMAIL_GESTAO, reiniciarDemonstracao, semear } from '../src/seed/demonstracao';
+import { dataCalendario, diasEntre } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_DEMONSTRACAO = 'chokocrm123';
-const EMAILS_DEMONSTRACAO = ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br', 'gestor@chokolaten.com.br'];
+/** Contas de demonstração que voltam à senha de demonstração no reset (a conta Gestão não: é uma conta real). */
+const EMAILS_DEMONSTRACAO = ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br'];
+/** Conta pessoal do gestor das versões anteriores do seed: o seed a inativa quando existe. */
+const EMAIL_GESTOR_ANTIGO = 'gestor@chokolaten.com.br';
+
+const horaEmSaoPaulo = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'America/Sao_Paulo',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** `HH:MM` do instante em São Paulo. */
+function horario(instante: Date): string {
+  return horaEmSaoPaulo.format(instante);
+}
 
 /** 12:00 em São Paulo: o dia de calendário é o mesmo em UTC e em SP. */
 const HOJE = new Date('2026-10-19T15:00:00.000Z');
@@ -274,6 +290,87 @@ describe('seed de demonstração', () => {
     expect((await prisma.user.findUniqueOrThrow({ where: { id: joana.id } })).senhaHash).toBe(joana.senhaHash);
     expect(await prisma.passwordResetToken.count()).toBe(1);
   });
+
+  it('cria a conta compartilhada Gestão Chokolaten (GESTOR, ativa) e não cria a conta antiga do gestor', async () => {
+    await reiniciarDemonstracao(prisma, HOJE);
+
+    expect(EMAIL_GESTAO).toBe('gestao@chokolaten.com.br');
+    const gestao = await prisma.user.findUniqueOrThrow({ where: { email: EMAIL_GESTAO } });
+    expect(gestao).toMatchObject({ nome: 'Gestão Chokolaten', role: 'GESTOR', telefone: '(47) 3387-0000', ativo: true });
+    // Banco novo: a conta nasce com a senha de demonstração
+    expect(await bcrypt.compare(SENHA_DEMONSTRACAO, gestao.senhaHash)).toBe(true);
+    expect(await prisma.user.count({ where: { email: EMAIL_GESTOR_ANTIGO } })).toBe(0);
+  });
+
+  it('inativa a conta antiga do gestor quando ela existe, sem apagá-la', async () => {
+    await prisma.user.create({
+      data: {
+        nome: 'Gestor de demonstração',
+        email: EMAIL_GESTOR_ANTIGO,
+        senhaHash: await bcrypt.hash(SENHA_DEMONSTRACAO, 4),
+        role: 'GESTOR',
+      },
+    });
+
+    await reiniciarDemonstracao(prisma, HOJE);
+
+    const antiga = await prisma.user.findUniqueOrThrow({ where: { email: EMAIL_GESTOR_ANTIGO } });
+    expect(antiga.ativo).toBe(false);
+    // Eduarda, Rafael, Gestão e a conta antiga (inativa): o seed não apaga usuários
+    expect(await prisma.user.count()).toBe(4);
+    const login = await request(app).post('/auth/login').send({ email: EMAIL_GESTOR_ANTIGO, senha: SENHA_DEMONSTRACAO });
+    expect(login.status).not.toBe(200);
+  });
+
+  it('a conta Gestão já existente mantém a própria senha no reset e no semear, e volta a ficar ativa', async () => {
+    const senhaHash = await bcrypt.hash('senha-do-escritorio', 4);
+    await prisma.user.create({ data: { nome: 'Gestão', email: EMAIL_GESTAO, senhaHash, role: 'GESTOR', ativo: false } });
+
+    await reiniciarDemonstracao(prisma, HOJE);
+
+    const depoisDoReset = await prisma.user.findUniqueOrThrow({ where: { email: EMAIL_GESTAO } });
+    expect(depoisDoReset.senhaHash).toBe(senhaHash);
+    expect(depoisDoReset).toMatchObject({ nome: 'Gestão Chokolaten', role: 'GESTOR', ativo: true });
+
+    await semear(prisma, HOJE);
+
+    const depoisDoSemear = await prisma.user.findUniqueOrThrow({ where: { email: EMAIL_GESTAO } });
+    expect(depoisDoSemear.senhaHash).toBe(senhaHash);
+    expect(await prisma.user.count()).toBe(3);
+  });
+
+  it('visitas em horário comercial de São Paulo, nos mesmos dias de antes', async () => {
+    await reiniciarDemonstracao(prisma, HOJE);
+
+    const visitas = await prisma.visit.findMany({ orderBy: { dataHora: 'desc' } });
+    const horarios = visitas.map((visita) => horario(visita.dataHora));
+    expect(horarios.every((valor) => valor >= '08:00' && valor <= '18:59')).toBe(true);
+    expect(new Set(horarios.map((valor) => valor.slice(3))).size).toBeGreaterThanOrEqual(5);
+    expect(visitas.every((visita) => visita.dataHora <= HOJE)).toBe(true);
+
+    // Os dias de calendário não mudam: as mesmas distâncias (em dias) de hoje que o seed sempre teve
+    const hoje = dataCalendario(HOJE);
+    expect(visitas.map((visita) => diasEntre(dataCalendario(visita.dataHora), hoje))).toEqual([
+      1, 3, 4, 6, 8, 9, 9, 10, 10, 11, 11, 12, 13, 14, 16, 17, 18, 18, 20, 20, 20, 20, 22, 22, 23, 24, 25, 25, 25, 26,
+      27, 28, 30, 30, 34, 35, 36, 38, 41, 41, 42, 46, 48, 52, 54, 55, 58, 58, 58, 77, 80, 85, 168, 200, 260, 290, 330,
+    ]);
+
+    // Determinístico: a 1ª visita do 1º cliente (índice 0) é às 08:00 e a 2ª (índice 1) às 11:17
+    const mercado = await prisma.client.findFirstOrThrow({
+      where: { email: 'contato@mercadocentraljoinville.com.br' },
+      include: { visits: { orderBy: { dataHora: 'desc' } } },
+    });
+    expect(mercado.visits.slice(0, 2).map((visita) => horario(visita.dataHora))).toEqual(['08:00', '11:17']);
+  });
+
+  it('com o reset antes do expediente, nenhuma visita fica no futuro', async () => {
+    // 07:30 em São Paulo
+    const cedo = new Date('2026-10-19T10:30:00.000Z');
+
+    await reiniciarDemonstracao(prisma, cedo);
+
+    expect(await prisma.visit.count({ where: { dataHora: { gt: cedo } } })).toBe(0);
+  });
 });
 
 const CIDADES_EDUARDA = ['Joinville', 'Jaraguá do Sul', 'Corupá', 'São Bento do Sul', 'Pomerode'];
@@ -427,7 +524,7 @@ describe('histórico realista', () => {
   async function tokenDoGestor(): Promise<string> {
     const login = await request(app)
       .post('/auth/login')
-      .send({ email: 'gestor@chokolaten.com.br', senha: SENHA_DEMONSTRACAO });
+      .send({ email: EMAIL_GESTAO, senha: SENHA_DEMONSTRACAO });
     return login.body.token;
   }
 
@@ -511,7 +608,8 @@ describe('histórico realista', () => {
     expect(semanal.recorrenciaDias).toBe(7);
     expect(semanal.visits.length).toBeGreaterThanOrEqual(4);
     const ultima = semanal.visits[0] as { dataHora: Date };
-    expect(Math.round((agora.getTime() - ultima.dataHora.getTime()) / MS_POR_DIA)).toBe(4);
+    // Em dias de calendário: a hora da visita (horário comercial) e a do reset não mudam o dia
+    expect(diasEntre(dataCalendario(ultima.dataHora), dataCalendario(agora))).toBe(4);
 
     const res = await request(app).get('/clients').set('Authorization', `Bearer ${await tokenDoGestor()}`);
     const item = (res.body.data as { id: string; cor: string }[]).find((cliente) => cliente.id === semanal.id);
@@ -578,6 +676,14 @@ describe('histórico realista', () => {
       },
     });
     expect(vendasDoRafael).toBe(0);
+  });
+
+  it('nenhuma visita no futuro e todas em horário comercial de São Paulo, com horários variados', async () => {
+    const visitas = await prisma.visit.findMany();
+    expect(visitas.every((visita) => visita.dataHora <= agora)).toBe(true);
+    const horarios = visitas.map((visita) => horario(visita.dataHora));
+    expect(horarios.every((valor) => valor >= '08:00' && valor <= '18:59')).toBe(true);
+    expect(new Set(horarios).size).toBeGreaterThanOrEqual(5);
   });
 
   it('nenhuma descrição de visita ou texto de lembrete tem marca de demonstração', async () => {

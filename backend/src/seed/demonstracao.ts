@@ -12,6 +12,7 @@ import { CATALOGO } from '../providers/erp/mock/catalogo';
 import {
   colunaDateDaData,
   dataCalendario,
+  inicioDoDia,
   somarDias,
   type DataCalendario,
 } from '../services/classificacao.service';
@@ -39,13 +40,26 @@ import { periodoDaMeta } from '../services/goal.regras';
  * menos dois, `erpId` numérico; nada com cara de dado de teste. Cada cliente
  * tem a sua recorrência (7 a 60 dias) e um histórico de visitas que a
  * respeita (`VISITAS_DEMO`, pedidos de 1 a 4 itens), fora os casos de
- * propósito descritos lá; um cliente é inativo.
+ * propósito descritos lá; um cliente é inativo. As visitas caem em horário
+ * comercial de São Paulo (8h às 17h59), com hora e minuto variados e
+ * determinísticos por visita (`horarioDaVisita`), nunca depois de `hoje`.
+ * Os usuários são os dois representantes de demonstração (Eduarda e Rafael,
+ * que voltam à senha de demonstração no reset) e a conta compartilhada
+ * "Gestão Chokolaten" (`EMAIL_GESTAO`), usada pelo dono e pelo escritório:
+ * é uma conta real, então o seed só a cria (com a senha de demonstração) em
+ * banco novo e nunca sobrescreve a senha dela; a conta pessoal do gestor das
+ * versões anteriores (`gestor@chokolaten.com.br`) fica inativa.
  */
 
-/** Senha das três contas de demonstração (publicada no guia de desenvolvimento). */
+/**
+ * Senha das contas de demonstração (publicada no guia de desenvolvimento): a
+ * dos representantes, e a da conta Gestão só quando o seed a cria.
+ */
 export const SENHA_DEMONSTRACAO = 'chokocrm123';
 const CUSTO_HASH = 10;
 const MILISSEGUNDOS_POR_DIA = 86_400_000;
+const MILISSEGUNDOS_POR_HORA = 3_600_000;
+const MILISSEGUNDOS_POR_MINUTO = 60_000;
 
 /** O cliente do Prisma ou o de uma transação interativa: o seed roda nos dois. */
 type Banco = PrismaClient | Prisma.TransactionClient;
@@ -127,7 +141,10 @@ type ClienteSeed = {
 
 const EMAIL_EDUARDA = 'eduarda@chokolaten.com.br';
 const EMAIL_RAFAEL = 'rafael@chokolaten.com.br';
-const EMAIL_GESTOR = 'gestor@chokolaten.com.br';
+/** Conta compartilhada da gestão (dono e escritório), já criada em produção pelo app. */
+export const EMAIL_GESTAO = 'gestao@chokolaten.com.br';
+/** Conta pessoal do gestor das versões anteriores do seed: fica inativa (não é apagada). */
+const EMAIL_GESTOR_ANTIGO = 'gestor@chokolaten.com.br';
 
 const CLIENTES: ClienteSeed[] = [
   // Carteira da Eduarda, na ordem da rota: Joinville, Jaraguá do Sul, Corupá, São Bento do Sul e Pomerode.
@@ -732,11 +749,19 @@ const CLIENTES: ClienteSeed[] = [
   },
 ];
 
+/** Representantes de demonstração: o seed os devolve à senha de demonstração e os reativa. */
 const USUARIOS_DEMO = [
   { nome: 'Eduarda Fischer', email: EMAIL_EDUARDA, role: 'REPRESENTANTE' as const, telefone: '(47) 99101-2030' },
   { nome: 'Rafael Schmitt', email: EMAIL_RAFAEL, role: 'REPRESENTANTE' as const, telefone: '(47) 99202-3040' },
-  { nome: 'Maicon Krüger', email: EMAIL_GESTOR, role: 'GESTOR' as const, telefone: '(47) 99303-4050' },
 ];
+
+/** Conta compartilhada da gestão: o seed nunca grava a senha dela no `update`. */
+const CONTA_GESTAO = {
+  nome: 'Gestão Chokolaten',
+  email: EMAIL_GESTAO,
+  role: 'GESTOR' as const,
+  telefone: '(47) 3387-0000',
+};
 
 /** Campanhas do protótipo adaptadas; o `semear` as reconhece pelo nome. */
 const NOME_FEIRA = 'Feira Sabores do Vale — Blumenau';
@@ -1521,6 +1546,18 @@ async function seedUsuarios(prisma: Banco): Promise<void> {
       create: { nome, email, senhaHash, role, telefone },
     });
   }
+
+  // Conta real (dono e escritório): a senha de demonstração só no `create`, em
+  // banco novo; no `update`, a senha que o escritório definiu fica intacta.
+  const { nome, email, role, telefone } = CONTA_GESTAO;
+  await prisma.user.upsert({
+    where: { email },
+    update: { nome, role, ativo: true },
+    create: { nome, email, senhaHash, role, telefone },
+  });
+
+  // Conta de demonstração antiga (gestor pessoal): inativada, não apagada.
+  await prisma.user.updateMany({ where: { email: EMAIL_GESTOR_ANTIGO }, data: { ativo: false } });
 }
 
 async function seedContato(prisma: Banco, clientId: string, contato: ContatoSeed): Promise<void> {
@@ -1619,13 +1656,30 @@ function itensDoPedido(itens: ItemSeed[]): ItemDoPedidoSeed[] {
 }
 
 /**
+ * Instante da visita `diasAtras` dias antes de `hoje`, no mesmo dia de
+ * calendário de sempre (`hoje - n` dias, em São Paulo), em horário comercial:
+ * hora `8 + (indice × 3) % 10` (8h a 17h) e minuto `(indice × 17) % 60`, com
+ * `indice` = posição do cliente em `VISITAS_DEMO` + posição da visita no
+ * cliente (determinístico). Montado a partir de `inicioDoDia` (meia-noite de
+ * São Paulo) em milissegundos, não com os setters locais de `Date`: o fuso da
+ * máquina pode não ser o de São Paulo. Se o horário calculado ainda não
+ * chegou (visita "hoje"), fica às 8h, para nenhuma visita nascer no futuro.
+ */
+function horarioDaVisita(hoje: Date, diasAtras: number, indice: number): Date {
+  const meiaNoite = inicioDoDia(dataCalendario(new Date(hoje.getTime() - diasAtras * MILISSEGUNDOS_POR_DIA))).getTime();
+  const hora = 8 + ((indice * 3) % 10);
+  const minuto = (indice * 17) % 60;
+  const instante = new Date(meiaNoite + hora * MILISSEGUNDOS_POR_HORA + minuto * MILISSEGUNDOS_POR_MINUTO);
+  return instante > hoje ? new Date(meiaNoite + 8 * MILISSEGUNDOS_POR_HORA) : instante;
+}
+
+/**
  * Idempotente por cliente: se o cliente já tem visita registrada, pula (não
- * duplica) — o `semear` não renova visitas; quem renova é o reinício.
+ * duplica) — o `semear` não renova visitas; quem renova é o reinício. Horário
+ * de cada visita em `horarioDaVisita`.
  */
 async function seedVisitas(prisma: Banco, hoje: Date, campanhas: Map<string, string>): Promise<void> {
-  const diasAtras = (dias: number): Date => new Date(hoje.getTime() - dias * MILISSEGUNDOS_POR_DIA);
-
-  for (const { emailCliente, visitas } of VISITAS_DEMO) {
+  for (const [indiceCliente, { emailCliente, visitas }] of VISITAS_DEMO.entries()) {
     const cliente = await prisma.client.findFirst({
       where: { email: emailCliente },
       include: { contacts: { where: { principal: true } } },
@@ -1637,13 +1691,13 @@ async function seedVisitas(prisma: Banco, hoje: Date, campanhas: Map<string, str
 
     const [contatoPrincipal] = cliente.contacts;
 
-    for (const visita of visitas) {
+    for (const [indiceVisita, visita] of visitas.entries()) {
       await prisma.visit.create({
         data: {
           clientId: cliente.id,
           userId: cliente.representanteId,
           contactId: contatoPrincipal?.id ?? null,
-          dataHora: diasAtras(visita.diasAtras),
+          dataHora: horarioDaVisita(hoje, visita.diasAtras, indiceCliente + indiceVisita),
           descricao: visita.descricao,
           resultado: visita.resultado,
           campanhaId: visita.campanha ? (campanhas.get(visita.campanha) ?? null) : null,
@@ -1721,8 +1775,10 @@ async function seedMetas(prisma: Banco, hoje: DataCalendario, campanhas: Map<str
 
 /**
  * Carga de demonstração que só acrescenta (`npm run db:seed`): devolve às
- * contas, clientes e contatos de demonstração os valores do seed (as contas
- * voltam à senha de demonstração e ficam ativas) e cria o que falta —
+ * contas, clientes e contatos de demonstração os valores do seed (os
+ * representantes de demonstração voltam à senha de demonstração e ficam
+ * ativos; a conta Gestão fica ativa com a senha dela, e a conta antiga do
+ * gestor, inativa) e cria o que falta —
  * eventos sazonais, produtos de demonstração no catálogo importado
  * (`ErpProduct`, upsert pelo código), campanhas pelo nome, visitas em cliente ainda sem visita,
  * próxima visita em cliente sem uma, lembretes e metas que não existem. Não
@@ -1750,9 +1806,11 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
  * depende antes de quem é referenciado), metas, lembretes, itens de pedido,
  * visitas, mensagens de estoque, mudanças de recorrência, contatos, clientes,
  * campanhas e tokens de redefinição de senha — inclusive o que o app gravou —
- * e recria tudo com `semear`, com datas relativas a `hoje`. As contas de
- * demonstração voltam à senha de demonstração e ficam ativas; os demais
- * usuários (criados pelo app) ficam intactos, com a senha deles. Os eventos
+ * e recria tudo com `semear`, com datas relativas a `hoje`. Os
+ * representantes de demonstração voltam à senha de demonstração e ficam
+ * ativos; a conta Gestão (conta real) fica ativa e mantém a senha dela; a
+ * conta antiga do gestor fica inativa; os demais usuários (criados pelo app)
+ * ficam intactos, com a senha deles. Os eventos
  * sazonais não são apagados (o upsert os mantém em dia). Nada do ERP
  * importado é apagado — notas, importações e produtos (`ErpProduct`) ficam;
  * os produtos de demonstração voltam ao nome e preço do catálogo pelo upsert.
