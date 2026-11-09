@@ -65,9 +65,9 @@ export function transferirCarteira(origemId: string, destinoId: string): Promise
   return api.post<{ transferidos: number }>(`/users/${origemId}/transferir-carteira`, { destinoId });
 }
 
-/** Manda ao e-mail de cadastro da pessoa o link para ela mesma definir a senha nova. */
-export async function enviarRedefinicaoDeSenha(id: string): Promise<void> {
-  await api.post<void>(`/users/${id}/redefinicao-de-senha`);
+/** Senha provisória definida pelo gestor (204); a pessoa a troca depois no perfil. */
+export async function definirSenha(id: string, senha: string): Promise<void> {
+  await api.put<void>(`/users/${id}/senha`, { senha });
 }
 
 /** Nome e e-mail como o formulário os tem (antes de aparar). */

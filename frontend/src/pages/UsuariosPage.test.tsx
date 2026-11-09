@@ -7,7 +7,7 @@ import { Toaster } from '../components/ui/sonner';
 import { ApiError } from '../services/api';
 import {
   atualizarUsuario,
-  enviarRedefinicaoDeSenha,
+  definirSenha,
   listarUsuarios,
   transferirCarteira,
   type Usuario,
@@ -19,7 +19,7 @@ vi.mock('../services/users', async (importOriginal) => ({
   listarUsuarios: vi.fn(),
   atualizarUsuario: vi.fn(),
   transferirCarteira: vi.fn(),
-  enviarRedefinicaoDeSenha: vi.fn(),
+  definirSenha: vi.fn(),
 }));
 
 const GESTOR: Usuario = {
@@ -72,7 +72,7 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation(async (id, input) => ({ ...[GESTOR, RAFAEL, EDUARDA, ANA].find((u) => u.id === id)!, ...input }));
   vi.mocked(transferirCarteira).mockReset().mockResolvedValue({ transferidos: 5 });
-  vi.mocked(enviarRedefinicaoDeSenha).mockReset().mockResolvedValue(undefined);
+  vi.mocked(definirSenha).mockReset().mockResolvedValue(undefined);
 });
 
 function renderizar(role: Role = 'GESTOR') {
@@ -304,36 +304,100 @@ describe('UsuariosPage', () => {
     expect(await painel.findByRole('alert')).toHaveTextContent('Representante inativo.');
   });
 
-  it('redefinir senha chama enviarRedefinicaoDeSenha e avisa "Link de redefinição enviado para rafael@…"', async () => {
-    renderizar();
+  describe('senha provisória', () => {
+    const TOAST = 'Senha provisória definida. Peça para a pessoa trocá-la no perfil.';
 
-    await escolherAcao('Rafael Schmitt', 'Redefinir senha');
+    function painelDaSenha(nome: string) {
+      return within(screen.getByRole('form', { name: `Definir senha provisória de ${nome}` }));
+    }
 
-    expect(
-      await screen.findByText('Link de redefinição enviado para rafael@chokolaten.com.br'),
-    ).toBeInTheDocument();
-    expect(enviarRedefinicaoDeSenha).toHaveBeenCalledWith('r1');
+    it('o item "Definir senha provisória" abre o painel com "Nova senha" e "Confirmar"; não há mais "Redefinir senha"', async () => {
+      renderizar();
+
+      const menu = await itensDoMenu('Rafael Schmitt');
+      expect(menu.queryByRole('menuitem', { name: 'Redefinir senha' })).not.toBeInTheDocument();
+      await usuario.click(menu.getByRole('menuitem', { name: 'Definir senha provisória' }));
+
+      const painel = painelDaSenha('Rafael Schmitt');
+      expect(painel.getByLabelText('Nova senha')).toHaveAttribute('type', 'password');
+      expect(painel.getByLabelText('Confirmar')).toHaveAttribute('type', 'password');
+      expect(painel.getByLabelText('Nova senha')).toHaveFocus();
+      expect(painel.getByRole('button', { name: 'Salvar' })).toBeInTheDocument();
+      expect(painel.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+    });
+
+    it('confirmação diferente mostra "As senhas não conferem." e não chama a API', async () => {
+      renderizar();
+
+      await escolherAcao('Rafael Schmitt', 'Definir senha provisória');
+      const painel = painelDaSenha('Rafael Schmitt');
+      await usuario.type(painel.getByLabelText('Nova senha'), 'provisoria1');
+      await usuario.type(painel.getByLabelText('Confirmar'), 'provisoria2');
+      await usuario.click(painel.getByRole('button', { name: 'Salvar' }));
+
+      expect(await painel.findByText('As senhas não conferem.')).toBeInTheDocument();
+      expect(definirSenha).not.toHaveBeenCalled();
+    });
+
+    it('senha curta mostra a mensagem do backend e não chama a API', async () => {
+      renderizar();
+
+      await escolherAcao('Rafael Schmitt', 'Definir senha provisória');
+      const painel = painelDaSenha('Rafael Schmitt');
+      await usuario.type(painel.getByLabelText('Nova senha'), '12345');
+      await usuario.type(painel.getByLabelText('Confirmar'), '12345');
+      await usuario.click(painel.getByRole('button', { name: 'Salvar' }));
+
+      expect(await painel.findByText('A senha deve ter pelo menos 6 caracteres.')).toBeInTheDocument();
+      expect(definirSenha).not.toHaveBeenCalled();
+    });
+
+    it('sucesso chama definirSenha(id, senha), avisa com o toast exato e fecha o painel', async () => {
+      renderizar();
+
+      await escolherAcao('Rafael Schmitt', 'Definir senha provisória');
+      const painel = painelDaSenha('Rafael Schmitt');
+      await usuario.type(painel.getByLabelText('Nova senha'), 'provisoria1');
+      await usuario.type(painel.getByLabelText('Confirmar'), 'provisoria1');
+      await usuario.click(painel.getByRole('button', { name: 'Salvar' }));
+
+      expect(await screen.findByText(TOAST)).toBeInTheDocument();
+      expect(definirSenha).toHaveBeenCalledWith('r1', 'provisoria1');
+      expect(screen.queryByRole('form', { name: 'Definir senha provisória de Rafael Schmitt' })).not.toBeInTheDocument();
+    });
+
+    it('erro da API aparece no painel, que continua aberto', async () => {
+      vi.mocked(definirSenha).mockRejectedValue(new ApiError('NOT_FOUND', 'Usuário não encontrado.'));
+      renderizar();
+
+      await escolherAcao('Rafael Schmitt', 'Definir senha provisória');
+      const painel = painelDaSenha('Rafael Schmitt');
+      await usuario.type(painel.getByLabelText('Nova senha'), 'provisoria1');
+      await usuario.type(painel.getByLabelText('Confirmar'), 'provisoria1');
+      await usuario.click(painel.getByRole('button', { name: 'Salvar' }));
+
+      expect(await painel.findByRole('alert')).toHaveTextContent('Usuário não encontrado.');
+      expect(screen.queryByText(TOAST)).not.toBeInTheDocument();
+    });
+
+    it('"Cancelar" fecha o painel sem chamar a API', async () => {
+      renderizar();
+
+      await escolherAcao('Rafael Schmitt', 'Definir senha provisória');
+      await usuario.click(painelDaSenha('Rafael Schmitt').getByRole('button', { name: 'Cancelar' }));
+
+      expect(screen.queryByRole('form', { name: 'Definir senha provisória de Rafael Schmitt' })).not.toBeInTheDocument();
+      expect(definirSenha).not.toHaveBeenCalled();
+    });
   });
 
-  it('erro 503 do envio aparece como aviso de erro', async () => {
-    vi.mocked(enviarRedefinicaoDeSenha).mockRejectedValue(
-      new ApiError('SERVICE_UNAVAILABLE', 'Envio de e-mail não configurado.'),
-    );
-    renderizar();
-
-    await escolherAcao('Rafael Schmitt', 'Redefinir senha');
-
-    expect(await screen.findByText('Envio de e-mail não configurado.')).toBeInTheDocument();
-    expect(screen.queryByText(/Link de redefinição enviado/)).not.toBeInTheDocument();
-  });
-
-  it('na própria conta "Inativar" fica desabilitado; "Editar dados" e "Redefinir senha" continuam', async () => {
+  it('na própria conta "Inativar" fica desabilitado; "Editar dados" e "Definir senha provisória" continuam', async () => {
     renderizar();
 
     const menu = await itensDoMenu('Marina Gestora');
     expect(menu.getByRole('menuitem', { name: 'Inativar' })).toHaveAttribute('aria-disabled', 'true');
     expect(menu.getByRole('menuitem', { name: 'Editar dados' })).not.toHaveAttribute('aria-disabled');
-    expect(menu.getByRole('menuitem', { name: 'Redefinir senha' })).not.toHaveAttribute('aria-disabled');
+    expect(menu.getByRole('menuitem', { name: 'Definir senha provisória' })).not.toHaveAttribute('aria-disabled');
     expect(menu.queryByRole('menuitem', { name: 'Transferir carteira' })).not.toBeInTheDocument();
   });
 

@@ -351,14 +351,11 @@ describe('rotas da gestão de usuários', () => {
     expect(screen.getByLabelText('Senha atual')).toBeInTheDocument();
   });
 
-  it('/redefinir-senha é pública: abre sem sessão, sem moldura e sem ir para o login', async () => {
+  it('/redefinir-senha não existe mais: sem sessão, vai para o login', async () => {
     abrirApp('/redefinir-senha#token-do-email', null);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Redefinir senha' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Nova senha')).toBeInTheDocument();
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
-    // O token sai da barra de endereço assim que é lido
-    expect(window.location.pathname).toBe('/redefinir-senha');
-    expect(window.location.hash).toBe('');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Entrar' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Redefinir senha' })).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe('/login');
   });
 });

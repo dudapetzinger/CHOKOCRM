@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import {
   createUserSchema,
+  definirSenhaSchema,
   listUsersQuerySchema,
   transferirCarteiraSchema,
   updateUserSchema,
@@ -58,10 +59,12 @@ export async function postTransferirCarteira(req: Request, res: Response, next: 
   }
 }
 
-export async function postRedefinicaoDeSenha(req: Request, res: Response, next: NextFunction): Promise<void> {
+/** Senha provisória definida pelo gestor: 204, sem corpo. */
+export async function putSenha(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const id = idParamSchema.parse(req.params.id);
-    await userService.enviarRedefinicaoDeSenha(id);
+    const { senha } = definirSenhaSchema.parse(req.body);
+    await userService.definirSenhaProvisoria(id, senha);
     res.status(204).send();
   } catch (err) {
     next(err);

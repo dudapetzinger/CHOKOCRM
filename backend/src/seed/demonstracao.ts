@@ -1806,8 +1806,8 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
  * Renova a demonstração (`npm run db:seed:reset`), numa transação só: se algo
  * falhar no meio (inclusive no `semear`), nada é apagado. Apaga, nesta ordem (quem
  * depende antes de quem é referenciado), metas, lembretes, itens de pedido,
- * visitas, mensagens de estoque, mudanças de recorrência, contatos, clientes,
- * campanhas e tokens de redefinição de senha — inclusive o que o app gravou —
+ * visitas, mensagens de estoque, mudanças de recorrência, contatos, clientes
+ * e campanhas — inclusive o que o app gravou —
  * e recria tudo com `semear`, com datas relativas a `hoje`. Os
  * representantes de demonstração voltam à senha de demonstração e ficam
  * ativos; a conta Gestão (conta real) fica ativa e mantém a senha dela; a
@@ -1836,7 +1836,6 @@ export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): P
       await tx.contact.deleteMany();
       await tx.client.deleteMany();
       await tx.campaign.deleteMany();
-      await tx.passwordResetToken.deleteMany();
 
       await semear(tx, hoje);
     },

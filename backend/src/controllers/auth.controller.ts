@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
-import { alterarSenhaSchema, redefinirSenhaSchema } from '../schemas/user.schema';
-import { alterarSenha, login, obterUsuarioDaSessao, redefinirSenha } from '../services/auth.service';
+import { alterarSenhaSchema } from '../schemas/user.schema';
+import { alterarSenha, login, obterUsuarioDaSessao } from '../services/auth.service';
 import { usuarioAutenticado } from './usuarioAutenticado';
 
 const loginSchema = z.object({
@@ -38,17 +38,6 @@ export async function putPassword(req: Request, res: Response, next: NextFunctio
   try {
     const { senhaAtual, novaSenha } = alterarSenhaSchema.parse(req.body);
     await alterarSenha(usuarioAutenticado(req).id, senhaAtual, novaSenha);
-    res.status(204).send();
-  } catch (err) {
-    next(err);
-  }
-}
-
-/** Rota pública: quem recebeu o link por e-mail define a senha nova. */
-export async function postRedefinirSenha(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const { token, novaSenha } = redefinirSenhaSchema.parse(req.body);
-    await redefinirSenha(token, novaSenha);
     res.status(204).send();
   } catch (err) {
     next(err);

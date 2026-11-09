@@ -15,7 +15,6 @@ const TABELAS_EM_ORDEM_DE_DEPENDENCIA = [
   'clients',
   'goals',
   'campaigns',
-  'password_reset_tokens',
   'users',
 ];
 

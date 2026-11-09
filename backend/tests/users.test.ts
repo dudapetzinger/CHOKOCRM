@@ -1,11 +1,7 @@
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
-import { env } from '../src/config/env';
 import { prisma } from '../src/lib/prisma';
-import * as provedorDeEmail from '../src/providers/email';
-import { ConsoleEmailProvider } from '../src/providers/email/ConsoleEmailProvider';
-import { hashDoToken } from '../src/services/redefinicao-senha.regras';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -66,22 +62,12 @@ async function criarCliente(representanteId: string, nomeFantasia: string, ativo
   return cliente.id;
 }
 
-/** Em teste não há SMTP: o provedor escolhido é o de console, que guarda o que "enviou". */
-function caixaDeSaida(): ConsoleEmailProvider {
-  const provedor = provedorDeEmail.emailProvider;
-  if (!(provedor instanceof ConsoleEmailProvider)) {
-    throw new Error('Os testes esperam o ConsoleEmailProvider (SMTP_HOST vazio, fora de produção).');
-  }
-  return provedor;
-}
-
 function autenticado(req: request.Test, token: string): request.Test {
   return req.set('Authorization', `Bearer ${token}`);
 }
 
 beforeEach(async () => {
   await truncateAllTables();
-  caixaDeSaida().enviados.length = 0;
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
   // Criados fora da ordem alfabética para provar a ordenação por nome.
@@ -442,102 +428,87 @@ describe('POST /users/:id/transferir-carteira', () => {
   });
 });
 
-describe('POST /users/:id/redefinicao-de-senha', () => {
-  it('envia à pessoa um e-mail com o link APP_URL/redefinir-senha#<token>; o banco guarda só o hash', async () => {
+describe('PUT /users/:id/senha', () => {
+  function definirSenha(id: string, senha: unknown, token = tokenGestor): request.Test {
+    return autenticado(request(app).put(`/users/${id}/senha`), token).send({ senha });
+  }
+
+  it('o gestor define a senha provisória: 204, a nova entra e a antiga não', async () => {
+    const res = await definirSenha(representanteBId, 'provisoria1');
+
+    expect(res.status).toBe(204);
+    expect(res.body).toEqual({});
+    expect((await logar(REPRESENTANTE_B.email, 'provisoria1')).status).toBe(200);
+    expect((await logar(REPRESENTANTE_B.email)).status).toBe(401);
+    const salvo = await prisma.user.findUniqueOrThrow({ where: { id: representanteBId } });
+    expect(salvo.senhaHash).not.toBe('provisoria1');
+    expect(await bcrypt.compare('provisoria1', salvo.senhaHash)).toBe(true);
+  });
+
+  // Review Focus 5: não há revogação de JWT; a sessão aberta continua até expirar.
+  it('a sessão já aberta da pessoa continua valendo (GET /auth/me 200)', async () => {
+    const res = await definirSenha(representanteAId, 'provisoria1');
+    expect(res.status).toBe(204);
+
+    const me = await autenticado(request(app).get('/auth/me'), tokenRepresentante);
+
+    expect(me.status).toBe(200);
+    expect(me.body.id).toBe(representanteAId);
+    expect((await logar(REPRESENTANTE_A.email)).status).toBe(401);
+    expect((await logar(REPRESENTANTE_A.email, 'provisoria1')).status).toBe(200);
+  });
+
+  it('o gestor pode definir a da própria conta e a de uma conta inativa', async () => {
+    expect((await definirSenha(gestorId, 'minha-nova')).status).toBe(204);
+    expect((await logar(GESTOR.email, 'minha-nova')).status).toBe(200);
+
+    expect((await definirSenha(inativoId, 'provisoria1')).status).toBe(204);
+    const inativo = await prisma.user.findUniqueOrThrow({ where: { id: inativoId } });
+    expect(await bcrypt.compare('provisoria1', inativo.senhaHash)).toBe(true);
+    expect(inativo.ativo).toBe(false);
+  });
+
+  it('senha com menos de 6 caracteres (ou ausente) responde 400 e nada muda', async () => {
+    const curta = await definirSenha(representanteBId, '12345');
+
+    expect(curta.status).toBe(400);
+    expect(curta.body.error.code).toBe('VALIDATION_ERROR');
+    expect(curta.body.error.details).toEqual([
+      { path: 'senha', message: 'A senha deve ter pelo menos 6 caracteres.' },
+    ]);
+    expect((await definirSenha(representanteBId, undefined)).status).toBe(400);
+    expect((await logar(REPRESENTANTE_B.email)).status).toBe(200);
+  });
+
+  it('usuário inexistente responde 404', async () => {
+    const res = await definirSenha('00000000-0000-0000-0000-000000000000', 'provisoria1');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toBe('Usuário não encontrado.');
+  });
+
+  it('representante responde 403 e a senha não muda', async () => {
+    const res = await definirSenha(representanteBId, 'provisoria1', tokenRepresentante);
+
+    expect(res.status).toBe(403);
+    expect((await logar(REPRESENTANTE_B.email)).status).toBe(200);
+  });
+
+  it('sem token responde 401', async () => {
+    const res = await request(app).put(`/users/${representanteBId}/senha`).send({ senha: 'provisoria1' });
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('redefinição de senha por e-mail removida', () => {
+  it('POST /users/:id/redefinicao-de-senha responde 404', async () => {
     const res = await autenticado(
       request(app).post(`/users/${representanteBId}/redefinicao-de-senha`),
       tokenGestor,
     );
 
-    expect(res.status).toBe(204);
-    expect(caixaDeSaida().enviados).toHaveLength(1);
-    const [mensagem] = caixaDeSaida().enviados;
-    expect(mensagem?.para).toBe(REPRESENTANTE_B.email);
-    expect(mensagem?.texto).toContain('Olá, Rafael Schmitt.');
-    expect(mensagem?.texto).toContain('vale por 24 horas');
-
-    // O token vai no fragmento (#), que o navegador não manda ao servidor
-    // nem no Referer: fica fora dos logs e da telemetria (R15).
-    const link = new RegExp(`${env.APP_URL.replace(/\/+$/, '')}/redefinir-senha#([A-Za-z0-9_-]{43})$`);
-    const token = mensagem?.texto.match(link)?.[1];
-    expect(token).toBeDefined();
-    expect(mensagem?.texto).not.toContain('/redefinir-senha/');
-    expect(mensagem?.html).toContain(`/redefinir-senha#${token}`);
-    expect(mensagem?.html).toContain('Rafael Schmitt');
-
-    const registros = await prisma.passwordResetToken.findMany({ where: { userId: representanteBId } });
-    expect(registros).toHaveLength(1);
-    expect(registros[0]?.tokenHash).toBe(hashDoToken(token ?? ''));
-    expect(registros[0]?.tokenHash).not.toBe(token);
-    expect(registros[0]?.usadoEm).toBeNull();
-  });
-
-  it('um novo pedido invalida o link anterior ainda aberto', async () => {
-    await autenticado(request(app).post(`/users/${representanteBId}/redefinicao-de-senha`), tokenGestor);
-    await autenticado(request(app).post(`/users/${representanteBId}/redefinicao-de-senha`), tokenGestor);
-
-    const registros = await prisma.passwordResetToken.findMany({
-      where: { userId: representanteBId },
-      orderBy: { criadoEm: 'asc' },
-    });
-    expect(registros).toHaveLength(2);
-    expect(registros.filter((r) => r.usadoEm === null)).toHaveLength(1);
-  });
-
-  it('conta inativa responde 400 e não envia nada', async () => {
-    const res = await autenticado(request(app).post(`/users/${inativoId}/redefinicao-de-senha`), tokenGestor);
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.message).toBe('Reative a conta antes de redefinir a senha.');
-    expect(caixaDeSaida().enviados).toHaveLength(0);
-    expect(await prisma.passwordResetToken.count()).toBe(0);
-  });
-
-  it('sem provedor de e-mail responde 503 e não grava token', async () => {
-    const substituido = jest.replaceProperty(provedorDeEmail, 'emailProvider', null);
-
-    try {
-      const res = await autenticado(
-        request(app).post(`/users/${representanteBId}/redefinicao-de-senha`),
-        tokenGestor,
-      );
-
-      expect(res.status).toBe(503);
-      expect(res.body.error.code).toBe('SERVICE_UNAVAILABLE');
-      expect(res.body.error.message).toBe('Envio de e-mail não configurado.');
-      expect(await prisma.passwordResetToken.count()).toBe(0);
-    } finally {
-      substituido.restore();
-    }
-  });
-
-  it('usuário inexistente responde 404', async () => {
-    const res = await autenticado(
-      request(app).post('/users/00000000-0000-0000-0000-000000000000/redefinicao-de-senha'),
-      tokenGestor,
-    );
-
     expect(res.status).toBe(404);
-  });
-
-  it('falha no envio responde 503, não deixa link novo valendo e mantém o anterior', async () => {
-    const pedir = (): request.Test =>
-      autenticado(request(app).post(`/users/${representanteBId}/redefinicao-de-senha`), tokenGestor);
-    expect((await pedir()).status).toBe(204);
-    const anterior = caixaDeSaida().enviados.at(-1)?.texto.match(/#([A-Za-z0-9_-]{43})$/)?.[1] ?? '';
-    jest.spyOn(caixaDeSaida(), 'enviar').mockRejectedValueOnce(new Error('SMTP fora do ar'));
-
-    const res = await pedir();
-
-    expect(res.status).toBe(503);
-    expect(res.body.error.code).toBe('SERVICE_UNAVAILABLE');
-    expect(res.body.error.message).toBe('Não foi possível enviar o e-mail.');
-    expect(await prisma.passwordResetToken.count({ where: { userId: representanteBId } })).toBe(2);
-    const abertos = await prisma.passwordResetToken.findMany({ where: { userId: representanteBId, usadoEm: null } });
-    expect(abertos.map((registro) => registro.tokenHash)).toEqual([hashDoToken(anterior)]);
-
-    const redefinir = await request(app).post('/auth/redefinir-senha').send({ token: anterior, novaSenha: 'senha-nova' });
-    expect(redefinir.status).toBe(204);
   });
 });
 
@@ -610,7 +581,7 @@ describe('representante em qualquer rota de /users', () => {
       }),
       request(app).patch(`/users/${representanteAId}`).send({ role: 'GESTOR' }),
       request(app).post(`/users/${representanteBId}/transferir-carteira`).send({ destinoId: representanteAId }),
-      request(app).post(`/users/${representanteBId}/redefinicao-de-senha`),
+      request(app).put(`/users/${representanteBId}/senha`).send({ senha: 'provisoria1' }),
     ];
 
     for (const chamada of chamadas) {
@@ -622,6 +593,6 @@ describe('representante em qualquer rota de /users', () => {
     const salvo = await prisma.user.findUniqueOrThrow({ where: { id: representanteAId } });
     expect(salvo.role).toBe('REPRESENTANTE');
     expect(await prisma.user.count()).toBe(4);
-    expect(caixaDeSaida().enviados).toHaveLength(0);
+    expect((await logar(REPRESENTANTE_B.email)).status).toBe(200);
   });
 });

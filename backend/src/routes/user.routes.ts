@@ -1,11 +1,5 @@
 import { Router } from 'express';
-import {
-  getUsers,
-  patchUser,
-  postRedefinicaoDeSenha,
-  postTransferirCarteira,
-  postUser,
-} from '../controllers/user.controller';
+import { getUsers, patchUser, postTransferirCarteira, postUser, putSenha } from '../controllers/user.controller';
 import { authJwt } from '../middlewares/authJwt';
 import { requireRole } from '../middlewares/requireRole';
 import { requireRoleAtual } from '../middlewares/requireRoleAtual';
@@ -23,4 +17,5 @@ usersRouter.get('/', getUsers);
 usersRouter.post('/', postUser);
 usersRouter.patch('/:id', patchUser);
 usersRouter.post('/:id/transferir-carteira', postTransferirCarteira);
-usersRouter.post('/:id/redefinicao-de-senha', postRedefinicaoDeSenha);
+// Senha provisória definida pelo gestor (o app não manda e-mail).
+usersRouter.put('/:id/senha', putSenha);

@@ -1,22 +1,18 @@
 import { Prisma, type Role, type User } from '@prisma/client';
-import { env } from '../config/env';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
-import { logger } from '../lib/logger';
-import { emailProvider } from '../providers/email';
 import * as clientRepository from '../repositories/client.repository';
 import * as userRepository from '../repositories/user.repository';
 import type { UsuarioComCarteira } from '../repositories/user.repository';
 import type { CreateUserInput, UpdateUserInput } from '../schemas/user.schema';
 import { hashDaSenha } from './auth.service';
 import type { UsuarioAutenticado } from './carteira';
-import { emailDeRedefinicaoDeSenha } from './email.templates';
-import { expiracaoDoToken, gerarTokenDeRedefinicao } from './redefinicao-senha.regras';
 
 /**
  * Gestão de usuários pelo gestor (spec da Etapa 8, 7.13). Quem pode chamar
  * já foi barrado nas rotas (`requireRole('GESTOR')`); aqui ficam as regras
- * que dependem de quem é o alvo.
+ * que dependem de quem é o alvo. O app não manda e-mail: senha esquecida
+ * volta pela senha provisória que o gestor define (`definirSenhaProvisoria`).
  */
 
 const MENSAGEM_USUARIO_NAO_ENCONTRADO = 'Usuário não encontrado.';
@@ -27,9 +23,6 @@ const MENSAGEM_TRANSFIRA_ANTES = 'Transfira a carteira antes de mudar o papel.';
 const MENSAGEM_REPRESENTANTE_INVALIDO = 'Representante informado não existe ou não é representante.';
 const MENSAGEM_REPRESENTANTE_INATIVO = 'Representante inativo.';
 const MENSAGEM_DESTINO_IGUAL_A_ORIGEM = 'Escolha outro representante para receber a carteira.';
-const MENSAGEM_REATIVE_ANTES = 'Reative a conta antes de redefinir a senha.';
-const MENSAGEM_EMAIL_NAO_CONFIGURADO = 'Envio de e-mail não configurado.';
-const MENSAGEM_FALHA_NO_ENVIO = 'Não foi possível enviar o e-mail.';
 
 export type UsuarioDTO = {
   id: string;
@@ -158,13 +151,8 @@ export async function atualizarUsuario(
     await exigirEmailLivre(input.email, alvo.id);
   }
 
-  // Inativar a conta ou trocar o e-mail (o link foi para o endereço antigo)
-  // tira a validade dos links de redefinição abertos.
-  const invalidarLinksDeRedefinicao =
-    input.ativo === false || (input.email !== undefined && input.email !== alvo.email);
-
   try {
-    await userRepository.update(id, input, { invalidarLinksDeRedefinicao });
+    await userRepository.update(id, input);
   } catch (err) {
     throw traduzirEmailDuplicado(err);
   }
@@ -197,63 +185,13 @@ export async function transferirCarteira(origemId: string, destinoId: string): P
   return { transferidos };
 }
 
-/** Só o que ajuda a diagnosticar: nada do conteúdo da mensagem nem das credenciais. */
-function resumoDoErroDeEnvio(err: unknown): Record<string, unknown> {
-  if (!(err instanceof Error)) {
-    return { erro: String(err) };
-  }
-  const { code, responseCode } = err as Error & { code?: unknown; responseCode?: unknown };
-  return { nome: err.name, mensagem: err.message, code, responseCode };
-}
-
 /**
- * Manda ao e-mail de cadastro da pessoa um link para ela mesma definir a
- * senha nova. Sem provedor de e-mail (produção sem SMTP), 503 antes de
- * gravar qualquer token.
- *
- * Ordem: grava o link novo, envia e só então invalida os anteriores. Se o
- * envio falha, o link novo (que ninguém recebeu) é descartado e os
- * anteriores continuam valendo — a pessoa nunca fica sem link por causa de
- * uma falha do SMTP — e a resposta é 503. Entre a gravação e o fim do envio
- * os dois links valem por alguns segundos, ambos na caixa da própria pessoa.
+ * Senha provisória definida pelo gestor (qualquer conta, inclusive a dele e
+ * as inativas), com o mesmo hash do cadastro. Não há revogação de JWT: a
+ * sessão já aberta da pessoa continua até expirar; o próximo login só entra
+ * com a senha nova.
  */
-export async function enviarRedefinicaoDeSenha(id: string): Promise<void> {
-  const usuario = await exigirUsuario(id);
-
-  if (!usuario.ativo) {
-    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_REATIVE_ANTES, 400);
-  }
-
-  const provedor = emailProvider;
-  if (!provedor) {
-    throw new AppError(ErrorCode.SERVICE_UNAVAILABLE, MENSAGEM_EMAIL_NAO_CONFIGURADO, 503);
-  }
-
-  const { token, tokenHash } = gerarTokenDeRedefinicao();
-  const novo = await userRepository.createTokenDeRedefinicao({
-    userId: usuario.id,
-    tokenHash,
-    // relógio real: validade do token de redefinição (segurança).
-    expiraEm: expiracaoDoToken(new Date()),
-  });
-
-  try {
-    await provedor.enviar(
-      emailDeRedefinicaoDeSenha({ para: usuario.email, nome: usuario.nome, appUrl: env.APP_URL, token }),
-    );
-  } catch (err) {
-    logger.error(
-      { userId: usuario.id, erro: resumoDoErroDeEnvio(err) },
-      'Falha ao enviar o e-mail de redefinição de senha',
-    );
-    // Se nem o descarte gravar, o link novo fica aberto, mas ninguém o recebeu.
-    // relógio real: descarte do token de redefinição (segurança).
-    await userRepository.descartarTokenDeRedefinicao(novo.id, new Date()).catch((erroDoDescarte: unknown) => {
-      logger.error({ userId: usuario.id, err: erroDoDescarte }, 'Falha ao descartar o link não enviado');
-    });
-    throw new AppError(ErrorCode.SERVICE_UNAVAILABLE, MENSAGEM_FALHA_NO_ENVIO, 503);
-  }
-
-  // relógio real: invalidação dos tokens de redefinição (segurança).
-  await userRepository.invalidarLinksAnteriores({ userId: usuario.id, novo, agora: new Date() });
+export async function definirSenhaProvisoria(id: string, senha: string): Promise<void> {
+  await exigirUsuario(id);
+  await userRepository.updateSenha(id, await hashDaSenha(senha));
 }

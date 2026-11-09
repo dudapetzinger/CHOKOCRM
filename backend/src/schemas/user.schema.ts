@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 export const MENSAGEM_SENHA_CURTA = 'A senha deve ter pelo menos 6 caracteres.';
 
-/** Mínimo de 6 caracteres em todo lugar: criar conta, alterar e redefinir senha. */
+/** Mínimo de 6 caracteres em todo lugar: criar conta, alterar a própria senha e a senha provisória. */
 export const senhaSchema = z.string().min(6, MENSAGEM_SENHA_CURTA);
 
 const emailSchema = z.string().trim().toLowerCase().email('E-mail inválido.');
@@ -67,7 +67,7 @@ export const alterarSenhaSchema = z.object({
   novaSenha: senhaSchema,
 });
 
-export const redefinirSenhaSchema = z.object({
-  token: z.string().min(1, 'Link de redefinição inválido.'),
-  novaSenha: senhaSchema,
+/** Senha provisória que o gestor define para uma conta (`PUT /users/:id/senha`). */
+export const definirSenhaSchema = z.object({
+  senha: senhaSchema,
 });

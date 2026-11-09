@@ -100,9 +100,6 @@ async function criarDadosDoApp(): Promise<{ id: string; senhaHash: string }> {
       metaVendas: 100,
     },
   });
-  await prisma.passwordResetToken.create({
-    data: { userId: usuario.id, tokenHash: 'hash-de-teste', expiraEm: HOJE },
-  });
   return { id: usuario.id, senhaHash };
 }
 
@@ -216,7 +213,6 @@ describe('seed de demonstração', () => {
     expect(mantido?.email).toBe('joana@empresa.com.br');
     expect(await prisma.client.count({ where: { cnpj: '99888777000155' } })).toBe(0);
     expect(await prisma.campaign.count({ where: { nome: 'Campanha criada pelo app' } })).toBe(0);
-    expect(await prisma.passwordResetToken.count()).toBe(0);
     expect(await prisma.goal.count({ where: { representanteId: joana.id } })).toBe(0);
     expect(await prisma.reminder.count({ where: { texto: 'Lembrete criado pelo app.' } })).toBe(0);
     expect(await prisma.user.count()).toBe(4);
@@ -243,13 +239,12 @@ describe('seed de demonstração', () => {
   it('se o reinício falha no meio, nada é apagado (uma transação só)', async () => {
     await reiniciarDemonstracao(prisma, HOJE);
     const antes = await totais();
-    const joana = await criarDadosDoApp();
+    await criarDadosDoApp();
 
     // Data inválida: os deletes já rodaram quando o `semear` falha ao calcular o dia.
     await expect(reiniciarDemonstracao(prisma, new Date('data inválida'))).rejects.toThrow();
 
     expect(await prisma.client.count({ where: { cnpj: '99888777000155' } })).toBe(1);
-    expect(await prisma.passwordResetToken.count({ where: { userId: joana.id } })).toBe(1);
     expect(await totais()).toEqual({
       ...antes,
       usuarios: antes.usuarios + 1,
@@ -288,7 +283,6 @@ describe('seed de demonstração', () => {
       lembretesAbertos: primeira.lembretesAbertos + 1,
     });
     expect((await prisma.user.findUniqueOrThrow({ where: { id: joana.id } })).senhaHash).toBe(joana.senhaHash);
-    expect(await prisma.passwordResetToken.count()).toBe(1);
   });
 
   it('cria a conta compartilhada Gestão Chokolaten (GESTOR, ativa) e não cria a conta antiga do gestor', async () => {

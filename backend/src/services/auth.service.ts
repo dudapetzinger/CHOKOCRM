@@ -4,20 +4,12 @@ import type { Role, User } from '@prisma/client';
 import { env } from '../config/env';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
-import {
-  consumirTokenERedefinirSenha,
-  findByEmail,
-  findById,
-  findTokenDeRedefinicao,
-  updateSenhaEInvalidarLinks,
-} from '../repositories/user.repository';
-import { hashDoToken, tokenAindaVale } from './redefinicao-senha.regras';
+import { findByEmail, findById, updateSenha } from '../repositories/user.repository';
 
 const MENSAGEM_CREDENCIAIS_INVALIDAS = 'E-mail ou senha inválidos';
 const MENSAGEM_CONTA_INATIVA = 'Conta inativa. Fale com o gestor.';
 const MENSAGEM_SESSAO_INVALIDA = 'Token de autenticação ausente ou inválido.';
 const MENSAGEM_SENHA_ATUAL_INCORRETA = 'Senha atual incorreta.';
-const MENSAGEM_LINK_INVALIDO = 'Este link não vale mais. Peça um novo ao gestor.';
 
 const CUSTO_BCRYPT = 10;
 
@@ -92,7 +84,7 @@ export async function obterUsuarioDaSessao(id: string): Promise<UsuarioDaSessao>
   return toUsuarioDaSessao(usuario);
 }
 
-/** Troca da própria senha, conferindo a atual. Links de redefinição abertos deixam de valer. */
+/** Troca da própria senha, conferindo a atual. */
 export async function alterarSenha(id: string, senhaAtual: string, novaSenha: string): Promise<void> {
   const usuario = await findById(id);
   if (!usuario) {
@@ -105,32 +97,5 @@ export async function alterarSenha(id: string, senhaAtual: string, novaSenha: st
     throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_SENHA_ATUAL_INCORRETA, 400);
   }
 
-  await updateSenhaEInvalidarLinks(id, await hashDaSenha(novaSenha));
-}
-
-/**
- * Redefinição pelo link do e-mail (rota pública). O token é procurado pelo
- * hash; inexistente, usado, vencido ou de conta inativa respondem a mesma
- * mensagem. Não desloga ninguém: o JWT vigente expira sozinho.
- */
-export async function redefinirSenha(token: string, novaSenha: string): Promise<void> {
-  // relógio real: o token de redefinição vence pelo relógio real (segurança).
-  const agora = new Date();
-  const registro = await findTokenDeRedefinicao(hashDoToken(token));
-
-  if (!registro || !registro.user.ativo || !tokenAindaVale(registro, agora)) {
-    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_LINK_INVALIDO, 400);
-  }
-
-  const redefinida = await consumirTokenERedefinirSenha({
-    tokenId: registro.id,
-    userId: registro.userId,
-    senhaHash: await hashDaSenha(novaSenha),
-    agora,
-  });
-
-  // Outro pedido usou ou invalidou o link entre a consulta e a gravação.
-  if (!redefinida) {
-    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_LINK_INVALIDO, 400);
-  }
+  await updateSenha(id, await hashDaSenha(novaSenha));
 }

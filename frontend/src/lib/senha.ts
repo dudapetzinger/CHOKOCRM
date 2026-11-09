@@ -1,5 +1,5 @@
 /**
- * Regras da senha nova no front (criar usuário, alterar e redefinir senha),
+ * Regras da senha nova no front (criar usuário, alterar a senha e senha provisória),
  * espelhando o backend (`senhaSchema`, mínimo de 6). A senha não é aparada:
  * vale exatamente o que foi digitado, como no backend.
  */

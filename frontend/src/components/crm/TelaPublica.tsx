@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
 /**
- * Telas abertas sem sessão e sem a moldura (login e redefinição de senha):
- * logotipo de 96 px e slogan centralizados, com o cartão de cada tela abaixo
+ * Tela aberta sem sessão e sem a moldura (login):
+ * logotipo de 96 px e slogan centralizados, com o cartão da tela abaixo
  * (spec 7.14).
  */
 export function TelaPublica({ children }: { children: ReactNode }) {

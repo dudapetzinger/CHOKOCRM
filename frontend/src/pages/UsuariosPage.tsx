@@ -6,7 +6,8 @@
  *   - Editar dados: nome, e-mail, telefone e — para os outros — o papel;
  *   - Transferir carteira (representante com clientes): para um
  *     representante ativo;
- *   - Redefinir senha: o link vai ao e-mail de cadastro da pessoa;
+ *   - Definir senha provisória: "Nova senha" e "Confirmar"; a pessoa a
+ *     troca depois no perfil (a sessão já aberta dela continua);
  *   - Inativar (com confirmação, podendo transferir a carteira antes) ou
  *     Reativar. Na própria linha, "Inativar" fica desabilitado.
  * As ações abrem um painel abaixo da linha, um de cada vez; o foco vai para
@@ -38,12 +39,13 @@ import { useUsuarios } from '../hooks/useUsuarios';
 import { descreverClientes } from '../lib/descreverClientesAtivos';
 import { OPCOES_PAPEL, ROTULO_PAPEL } from '../lib/papel';
 import { primeiroNome } from '../lib/primeiroNome';
+import { validarNovaSenha, type ErrosNovaSenha } from '../lib/senha';
 import { useFocoNoPrimeiroErro } from '../lib/useFoco';
 import { ApiError } from '../services/api';
 import { mensagemErroApi } from '../services/clients';
 import {
   atualizarUsuario,
-  enviarRedefinicaoDeSenha,
+  definirSenha,
   transferirCarteira,
   validarDadosUsuario,
   type AtualizarUsuarioInput,
@@ -56,9 +58,10 @@ const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar os dados. Tente novament
 const MENSAGEM_ERRO_TRANSFERIR = 'Não foi possível transferir a carteira. Tente novamente.';
 const MENSAGEM_ERRO_INATIVAR = 'Não foi possível inativar o usuário. Tente novamente.';
 const MENSAGEM_ERRO_REATIVAR = 'Não foi possível reativar o usuário. Tente novamente.';
-const MENSAGEM_ERRO_REDEFINIR = 'Não foi possível enviar o link de redefinição. Tente novamente.';
+const MENSAGEM_ERRO_SENHA = 'Não foi possível definir a senha. Tente novamente.';
+const AVISO_SENHA_DEFINIDA = 'Senha provisória definida. Peça para a pessoa trocá-la no perfil.';
 
-type TipoDePainel = 'editar' | 'transferir' | 'inativar';
+type TipoDePainel = 'editar' | 'transferir' | 'senha' | 'inativar';
 
 /** Contagens e listas de usuários (tela de Usuários e seletor de representante). */
 const CHAVES_DOS_USUARIOS = [['usuarios'], ['users']];
@@ -162,12 +165,6 @@ function LinhaUsuario({ usuario, ehAPropriaConta, destinos, painelAberto, abrirP
     onError: (erro) => toast.error(mensagemErroApi(erro, MENSAGEM_ERRO_REATIVAR)),
   });
 
-  const redefinirSenha = useMutation({
-    mutationFn: () => enviarRedefinicaoDeSenha(usuario.id),
-    onSuccess: () => toast.success(`Link de redefinição enviado para ${usuario.email}`),
-    onError: (erro) => toast.error(mensagemErroApi(erro, MENSAGEM_ERRO_REDEFINIR)),
-  });
-
   function abrir(tipo: TipoDePainel): void {
     abrindoPainel.current = true;
     abrirPainel(tipo);
@@ -236,9 +233,9 @@ function LinhaUsuario({ usuario, ehAPropriaConta, destinos, painelAberto, abrirP
                   Transferir carteira
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem disabled={redefinirSenha.isPending} onSelect={() => redefinirSenha.mutate()}>
+              <DropdownMenuItem onSelect={() => abrir('senha')}>
                 <KeyRound aria-hidden="true" />
-                Redefinir senha
+                Definir senha provisória
               </DropdownMenuItem>
               {usuario.ativo ? (
                 <DropdownMenuItem disabled={ehAPropriaConta} onSelect={() => abrir('inativar')}>
@@ -260,6 +257,7 @@ function LinhaUsuario({ usuario, ehAPropriaConta, destinos, painelAberto, abrirP
         <PainelEditar usuario={usuario} ehAPropriaConta={ehAPropriaConta} aoFechar={fechar} />
       )}
       {painelAberto === 'transferir' && <PainelTransferir usuario={usuario} destinos={destinos} aoFechar={fechar} />}
+      {painelAberto === 'senha' && <PainelSenhaProvisoria usuario={usuario} aoFechar={fechar} />}
       {painelAberto === 'inativar' && <PainelInativar usuario={usuario} destinos={destinos} aoFechar={fechar} />}
     </li>
   );
@@ -388,6 +386,93 @@ function PainelEditar({
           </div>
         )}
         <span className="hidden flex-1 @xl:block" />
+        <Button type="submit" size="sm" disabled={salvar.isPending}>
+          {salvar.isPending ? 'Salvando...' : 'Salvar'}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={aoFechar}>
+          Cancelar
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Senha provisória: o gestor digita a senha nova e a confirmação (mesmas
+ * regras do cadastro, `validarNovaSenha`). Vale para qualquer conta,
+ * inclusive a própria; a sessão já aberta da pessoa continua até expirar.
+ */
+function PainelSenhaProvisoria({ usuario, aoFechar }: { usuario: Usuario; aoFechar: () => void }) {
+  const [senha, setSenha] = useState('');
+  const [confirmacao, setConfirmacao] = useState('');
+  const [erros, setErros] = useState<ErrosNovaSenha>({});
+  const { ref: formulario, focarPrimeiroErro } = useFocoNoPrimeiroErro<HTMLFormElement>();
+  const prefixo = `senha-${usuario.id}`;
+
+  const salvar = useMutation({
+    mutationFn: (novaSenha: string) => definirSenha(usuario.id, novaSenha),
+    onSuccess: () => {
+      toast.success(AVISO_SENHA_DEFINIDA);
+      aoFechar();
+    },
+  });
+
+  function enviar(evento: FormEvent<HTMLFormElement>): void {
+    evento.preventDefault();
+    if (salvar.isPending) return;
+
+    const errosAtuais = validarNovaSenha(senha, confirmacao);
+    setErros(errosAtuais);
+    if (Object.keys(errosAtuais).length > 0) {
+      focarPrimeiroErro();
+      return;
+    }
+
+    salvar.mutate(senha);
+  }
+
+  return (
+    <form
+      ref={formulario}
+      aria-label={`Definir senha provisória de ${usuario.nome}`}
+      noValidate
+      autoComplete="off"
+      onSubmit={enviar}
+      className="mt-3 grid gap-3 rounded-lg border bg-card p-4 @xl:grid-cols-2"
+    >
+      <Campo rotulo="Nova senha" htmlFor={`${prefixo}-nova`} erro={erros.senha}>
+        <Input
+          id={`${prefixo}-nova`}
+          type="password"
+          data-foco-inicial
+          autoComplete="new-password"
+          value={senha}
+          onChange={(evento) => {
+            setSenha(evento.target.value);
+            setErros((anteriores) => ({ ...anteriores, senha: undefined }));
+          }}
+        />
+      </Campo>
+      <Campo rotulo="Confirmar" htmlFor={`${prefixo}-confirmar`} erro={erros.confirmacao}>
+        <Input
+          id={`${prefixo}-confirmar`}
+          type="password"
+          autoComplete="new-password"
+          value={confirmacao}
+          onChange={(evento) => {
+            setConfirmacao(evento.target.value);
+            setErros((anteriores) => ({ ...anteriores, confirmacao: undefined }));
+          }}
+        />
+      </Campo>
+
+      {salvar.isError && (
+        <Aviso tom="erro" role="alert" className="@xl:col-span-2">
+          {mensagemErroApi(salvar.error, MENSAGEM_ERRO_SENHA)}
+        </Aviso>
+      )}
+
+      <div className="flex flex-wrap justify-end gap-2 @xl:col-span-2">
         <Button type="submit" size="sm" disabled={salvar.isPending}>
           {salvar.isPending ? 'Salvando...' : 'Salvar'}
         </Button>
