@@ -98,14 +98,25 @@ afterEach(() => {
 });
 
 describe('Moldura', () => {
-  // Ordens finais (spec 2026-11-06, §3 B): Importar notas e Usuários ficam no menu da conta.
-  it('celular, gestor: barra com Painel, Clientes, Agenda e Campanhas, sem o botão de check-in nem Usuários/Importar notas', () => {
+  // Gestão (spec 2026-11-09, §3): Importar notas é o botão central; Usuários fica no menu da conta.
+  it('celular, gestor: barra com Painel, Clientes, o botão central Importar notas, Agenda e Campanhas', () => {
     renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
 
-    expect(posicoes()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas']);
+    expect(posicoes()).toEqual(['Painel', 'Clientes', 'Importar notas', 'Agenda', 'Campanhas']);
+    expect(atalhos()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas']);
+    expect(screen.getByRole('button', { name: 'Importar notas' })).toHaveTextContent('Importar notas');
     expect(screen.queryByRole('button', { name: 'Novo check-in' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Usuários' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Importar notas' })).not.toBeInTheDocument();
+  });
+
+  it('celular, gestor: o botão central leva a /importacoes', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
+
+    await usuario.click(screen.getByRole('button', { name: 'Importar notas' }));
+
+    expect(screen.getByText('tela de importações')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Importar notas' })).toBeInTheDocument();
   });
 
   it('celular, representante: barra com Clientes, Agenda, o check-in no meio, Painel e Campanhas', () => {
@@ -130,20 +141,22 @@ describe('Moldura', () => {
     expect(posicoes()).toEqual(['Clientes', 'Agenda', 'Novo check-in', 'Painel', 'Campanhas']);
   });
 
-  it('celular: o conteúdo do representante tem espaço embaixo também para o botão central elevado; o do gestor, só para a barra', () => {
+  it('celular: o conteúdo do representante tem espaço embaixo também para o botão central elevado; o do gestor também, pelo botão central', () => {
     const { unmount } = renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });
     expect(screen.getByRole('main')).toHaveClass('pb-[calc(6.5rem+env(safe-area-inset-bottom))]');
     unmount();
 
     renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
-    expect(screen.getByRole('main')).toHaveClass('pb-[calc(4.5rem+env(safe-area-inset-bottom))]');
-    expect(screen.getByRole('main')).not.toHaveClass('pb-[calc(6.5rem+env(safe-area-inset-bottom))]');
+    expect(screen.getByRole('main')).toHaveClass('pb-[calc(6.5rem+env(safe-area-inset-bottom))]');
+    expect(screen.getByRole('main')).not.toHaveClass('pb-[calc(4.5rem+env(safe-area-inset-bottom))]');
   });
 
-  it('desktop: as mesmas listas no menu lateral, sem o botão central', () => {
+  it('desktop: as listas no menu lateral, sem o botão central (Importar notas é o quinto item do gestor)', () => {
     simularLargura(true);
     const { unmount } = renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
-    expect(posicoes()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas']);
+    expect(posicoes()).toEqual(['Painel', 'Clientes', 'Agenda', 'Campanhas', 'Importar notas']);
+    expect(screen.getByRole('link', { name: 'Importar notas' })).toHaveAttribute('href', '/importacoes');
+    expect(screen.queryByRole('button', { name: 'Importar notas' })).not.toBeInTheDocument();
     unmount();
 
     renderizar({ papel: 'REPRESENTANTE', entradas: ['/agenda'] });

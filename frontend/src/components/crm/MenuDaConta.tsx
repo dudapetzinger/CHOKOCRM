@@ -1,6 +1,6 @@
 import { startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileUp, KeyRound, LogOut, UserCog } from 'lucide-react';
+import { KeyRound, LogOut, UserCog } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
 import {
   DropdownMenu,
@@ -16,8 +16,8 @@ import { Avatar } from './ui';
 /**
  * Menu da conta, à direita da barra superior (spec 6.5): as iniciais num
  * círculo de 36 px (alvo de 44 px no celular) abrem nome, papel, "Alterar
- * senha" e "Sair". Para o gestor, o menu também leva a "Importar notas" e
- * "Usuários", que não têm lugar na barra de navegação.
+ * senha" e "Sair". Para o gestor, o menu também leva a "Usuários", que não tem
+ * lugar na barra de navegação ("Importar notas" é o botão central da barra).
  */
 export function MenuDaConta() {
   const { user, logout } = useAuth();
@@ -52,10 +52,6 @@ export function MenuDaConta() {
         <DropdownMenuSeparator />
         {user.role === 'GESTOR' && (
           <>
-            <DropdownMenuItem onSelect={() => navigate('/importacoes')}>
-              <FileUp aria-hidden="true" />
-              Importar notas
-            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => navigate('/usuarios')}>
               <UserCog aria-hidden="true" />
               Usuários

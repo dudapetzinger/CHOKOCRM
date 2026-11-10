@@ -58,13 +58,14 @@ describe('MenuDaConta', () => {
     expect(logout).not.toHaveBeenCalled();
   });
 
-  it('gestor abre "Importar notas" pelo menu', async () => {
+  it('gestor não tem "Importar notas" no menu (é o botão central da barra)', async () => {
     const usuario = userEvent.setup({ delay: null });
     renderizar('GESTOR', 'Gestão Chokolaten');
 
     await usuario.click(screen.getByRole('button', { name: 'Conta de Gestão Chokolaten' }));
-    await usuario.click(await screen.findByRole('menuitem', { name: 'Importar notas' }));
-    expect(await screen.findByText('tela de importações')).toBeInTheDocument();
+    await screen.findByRole('menu');
+    expect(screen.queryByRole('menuitem', { name: 'Importar notas' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Usuários' })).toBeInTheDocument();
   });
 
   it('gestor abre "Usuários" pelo menu', async () => {

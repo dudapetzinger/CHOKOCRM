@@ -7,13 +7,14 @@
  * existe de cada vez (pela mesma largura de `useLarguraDesktop`), para o
  * leitor de tela não achar dois menus iguais.
  *
- * Barra inferior (spec 2026-11-06, §3 B): o representante tem 5 posições —
- * Clientes, Agenda, o `BotaoCheckIn` no meio (círculo primário elevado que
- * abre "Para qual cliente?") e Painel, Campanhas; o gestor tem 4 — Painel,
- * Clientes, Agenda, Campanhas, sem o botão. "Importar notas" e "Usuários"
- * ficam no menu da conta. O menu lateral do desktop mostra a mesma lista de
- * atalhos do papel, sem o botão central (no desktop o check-in começa pela
- * ficha do cliente).
+ * Barra inferior (specs 2026-11-06 §3 B e 2026-11-09 §3): os dois papéis têm
+ * 5 posições, com um botão central (`BotaoCentral`, círculo primário elevado).
+ * Representante: Clientes, Agenda, `BotaoCheckIn` (abre "Para qual cliente?"),
+ * Painel, Campanhas. Gestor: Painel, Clientes, "Importar notas" (navega para
+ * `/importacoes`), Agenda, Campanhas; "Usuários" fica no menu da conta. O menu
+ * lateral do desktop mostra a lista de atalhos do papel sem o botão central
+ * (no desktop o check-in começa pela ficha do cliente; "Importar notas" é o
+ * quinto item do gestor).
  *
  * Relógio de demonstração: a moldura carrega `GET /sistema/relogio`
  * (`useRelogio`) e só mostra a tela da rota depois da primeira resposta (ou
@@ -24,13 +25,14 @@
  * porque `useRelogio` já voltou o deslocamento a 0.
  */
 import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3, CalendarDays, Megaphone, Users, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, BarChart3, CalendarDays, FileUp, Megaphone, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
 import { useRelogio } from '@/hooks/useRelogio';
 import type { Role } from '@/auth/auth-context';
 import { Button } from '@/components/ui/button';
 import { useLarguraDesktop } from '@/lib/useLarguraDesktop';
 import { cn } from '@/lib/utils';
+import { BotaoCentral } from './BotaoCentral';
 import { BotaoCheckIn } from './BotaoCheckIn';
 import { FaixaDataSimulada } from './FaixaDataSimulada';
 import { MenuDaConta } from './MenuDaConta';
@@ -39,20 +41,22 @@ type ItemNavegacao = { para: string; rotulo: string; icone: LucideIcon; papeis: 
 
 /**
  * Atalhos da navegação e quem vê cada um, na ordem do representante
- * (Clientes, Agenda, Painel, Campanhas; o botão de check-in entra depois de
- * `ATALHOS_ANTES_DO_CHECK_IN`). O gestor vê o Painel, a tela inicial dele,
- * na frente: Painel, Clientes, Agenda, Campanhas. As ordens estão fixadas em
- * Moldura.test.tsx.
+ * (Clientes, Agenda, Painel, Campanhas; o botão central entra depois de
+ * `ATALHOS_ANTES_DO_BOTAO_CENTRAL`). O gestor vê o Painel, a tela inicial
+ * dele, na frente e Importar notas no fim (no celular esse item vira o botão
+ * central): Painel, Clientes, Agenda, Campanhas, Importar notas. As ordens
+ * estão fixadas em Moldura.test.tsx.
  */
 export const ITENS_NAVEGACAO: ItemNavegacao[] = [
   { para: '/clientes', rotulo: 'Clientes', icone: Users, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/agenda', rotulo: 'Agenda', icone: CalendarDays, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/painel', rotulo: 'Painel', icone: BarChart3, papeis: ['GESTOR', 'REPRESENTANTE'] },
   { para: '/campanhas', rotulo: 'Campanhas', icone: Megaphone, papeis: ['GESTOR', 'REPRESENTANTE'] },
+  { para: '/importacoes', rotulo: 'Importar notas', icone: FileUp, papeis: ['GESTOR'] },
 ];
 
-/** Na barra do representante, o botão central fica depois destes dois atalhos (Clientes, Agenda). */
-const ATALHOS_ANTES_DO_CHECK_IN = 2;
+/** Nas barras do celular, o botão central fica depois destes dois atalhos. */
+const ATALHOS_ANTES_DO_BOTAO_CENTRAL = 2;
 
 function itensDoPapel(role: Role): ItemNavegacao[] {
   const itens = ITENS_NAVEGACAO.filter((item) => item.papeis.includes(role));
@@ -116,6 +120,8 @@ export function Moldura() {
   if (!user) return null;
 
   const itens = itensDoPapel(user.role);
+  // No celular, "Importar notas" do gestor é o botão central, não um atalho.
+  const atalhosDaBarra = itens.filter((item) => item.para !== '/importacoes');
   const { titulo, interna } = tituloDaRota(pathname);
 
   return (
@@ -178,15 +184,12 @@ export function Moldura() {
 
         {/* No celular, espaço embaixo para o conteúdo não ficar atrás da
             navegação inferior (56 px + a área segura do aparelho); no
-            representante, também atrás do botão central, elevado 24 px
-            acima da barra */}
+            representante e no gestor, também atrás do botão central,
+            elevado 24 px acima da barra */}
         <main
           className={cn(
             'flex-1 p-4 md:p-6',
-            !desktop &&
-              (user.role === 'REPRESENTANTE'
-                ? 'pb-[calc(6.5rem+env(safe-area-inset-bottom))]'
-                : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'),
+            !desktop && 'pb-[calc(6.5rem+env(safe-area-inset-bottom))]',
           )}
         >
           {relogio.isPending ? <p className="text-sm text-muted-foreground">Carregando...</p> : <Outlet />}
@@ -198,21 +201,24 @@ export function Moldura() {
           aria-label="Navegação principal"
           className="fixed inset-x-0 bottom-0 z-20 flex border-t bg-card pb-[env(safe-area-inset-bottom)] print:hidden"
         >
-          {user.role === 'REPRESENTANTE' ? (
-            <>
-              {itens.slice(0, ATALHOS_ANTES_DO_CHECK_IN).map((item) => (
-                <AtalhoDaBarra key={item.para} item={item} />
-              ))}
-              <div className="flex flex-1 justify-center">
-                <BotaoCheckIn representanteId={user.id} />
-              </div>
-              {itens.slice(ATALHOS_ANTES_DO_CHECK_IN).map((item) => (
-                <AtalhoDaBarra key={item.para} item={item} />
-              ))}
-            </>
-          ) : (
-            itens.map((item) => <AtalhoDaBarra key={item.para} item={item} />)
-          )}
+          {atalhosDaBarra.slice(0, ATALHOS_ANTES_DO_BOTAO_CENTRAL).map((item) => (
+            <AtalhoDaBarra key={item.para} item={item} />
+          ))}
+          <div className="flex flex-1 justify-center">
+            {user.role === 'REPRESENTANTE' ? (
+              <BotaoCheckIn representanteId={user.id} />
+            ) : (
+              <BotaoCentral
+                rotulo="Importar notas"
+                ariaLabel="Importar notas"
+                icone={FileUp}
+                onClick={() => navigate('/importacoes')}
+              />
+            )}
+          </div>
+          {atalhosDaBarra.slice(ATALHOS_ANTES_DO_BOTAO_CENTRAL).map((item) => (
+            <AtalhoDaBarra key={item.para} item={item} />
+          ))}
         </nav>
       )}
     </div>
