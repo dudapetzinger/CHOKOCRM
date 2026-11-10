@@ -1,15 +1,35 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, type InitialEntry } from 'react-router-dom';
 import { AuthContext, type UsuarioAutenticado } from '../auth/auth-context';
 import { ApiError } from '../services/api';
+import { definirDeslocamento } from '../lib/relogio';
+import { buscarRelogio, type Relogio } from '../services/sistema';
 import { LoginPage } from './LoginPage';
+
+vi.mock('../services/sistema', () => ({
+  buscarRelogio: vi.fn(),
+  definirDemonstracao: vi.fn(),
+}));
+
+const RELOGIO_REAL: Relogio = {
+  agora: '2026-11-09T15:00:00.000Z',
+  simulado: false,
+  dataDeDemonstracao: null,
+  deslocamentoDias: 0,
+};
 
 // Sem atraso entre as teclas: o teste não depende da velocidade da máquina.
 let usuario: ReturnType<typeof userEvent.setup>;
 
 beforeEach(() => {
   usuario = userEvent.setup({ delay: null });
+  vi.mocked(buscarRelogio).mockReset().mockResolvedValue(RELOGIO_REAL);
+});
+
+afterEach(() => {
+  definirDeslocamento(0);
 });
 
 const GESTOR: UsuarioAutenticado = {
@@ -34,17 +54,20 @@ function renderizar(
   entrada: InitialEntry = '/login',
 ) {
   const auth = { user: null, login, logout: vi.fn(), recarregarUsuario: vi.fn(async () => {}) };
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <AuthContext.Provider value={auth}>
-      <MemoryRouter initialEntries={[entrada]}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/painel" element={<p>painel</p>} />
-          <Route path="/agenda" element={<p>agenda</p>} />
-          <Route path="/clientes/:id" element={<p>ficha do cliente</p>} />
-        </Routes>
-      </MemoryRouter>
-    </AuthContext.Provider>,
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={auth}>
+        <MemoryRouter initialEntries={[entrada]}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/painel" element={<p>painel</p>} />
+            <Route path="/agenda" element={<p>agenda</p>} />
+            <Route path="/clientes/:id" element={<p>ficha do cliente</p>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
   );
 }
 
@@ -145,5 +168,33 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText('agenda')).toBeInTheDocument();
     expect(screen.queryByText('E-mail ou senha inválidos')).not.toBeInTheDocument();
+  });
+
+  it('no topo, antes do logotipo, o botão discreto "Modo demonstração" abre o painel', async () => {
+    renderizar(vi.fn());
+
+    const botao = await screen.findByRole('button', { name: 'Modo demonstração' });
+    const logotipo = screen.getByRole('img', { name: 'ChokoCRM' });
+    expect(botao.compareDocumentPosition(logotipo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    await usuario.click(botao);
+
+    expect(screen.getByRole('dialog', { name: 'Modo demonstração' })).toBeInTheDocument();
+  });
+
+  it('com a data da demonstração ativa, o topo mostra a faixa com "alterar"', async () => {
+    vi.mocked(buscarRelogio).mockResolvedValue({
+      agora: '2027-03-15T15:00:00.000Z',
+      simulado: true,
+      dataDeDemonstracao: '2027-03-15',
+      diaDeReferencia: '2026-11-09',
+      deslocamentoDias: 126,
+    });
+    renderizar(vi.fn());
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Modo demonstração · 15/03/2027');
+    expect(screen.getByRole('button', { name: 'alterar' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Modo demonstração' })).not.toBeInTheDocument();
   });
 });

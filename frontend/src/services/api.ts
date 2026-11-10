@@ -12,6 +12,10 @@
  *   sessão e redirecionar para `/login`. Um 401 de `/auth/login` (sem
  *   token, credenciais erradas) não passa por essa checagem: quem chama
  *   trata o erro localmente (ver `LoginPage`).
+ * - `api.postSemSessao` é para rotas públicas chamadas da tela de login
+ *   (`POST /sistema/demonstracao`): não manda o token salvo, então um 401
+ *   (senha da Gestão errada) nunca encerra uma sessão antiga que ainda
+ *   estivesse guardada.
  * - Sem rede (o `fetch` rejeita, sem resposta nenhuma), a exceção é
  *   `ApiError('NETWORK', 'Você está sem internet.')`, e a falha fica
  *   registrada em `pwa/estadoRede` para o aviso de sem internet; a próxima
@@ -74,9 +78,14 @@ type ApiErrorBody = {
   };
 };
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  opcoes: { semSessao?: boolean } = {},
+): Promise<T> {
   const headers: Record<string, string> = {};
-  const token = getToken();
+  const token = opcoes.semSessao ? null : getToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -173,6 +182,9 @@ async function requestNaoJson(
 export const api = {
   get: <T>(path: string): Promise<T> => request<T>('GET', path),
   post: <T>(path: string, body?: unknown): Promise<T> => request<T>('POST', path, body),
+  /** POST público sem o token salvo: um 401 volta para quem chamou e não desloga ninguém. */
+  postSemSessao: <T>(path: string, body?: unknown): Promise<T> =>
+    request<T>('POST', path, body, { semSessao: true }),
   put: <T>(path: string, body?: unknown): Promise<T> => request<T>('PUT', path, body),
   patch: <T>(path: string, body?: unknown): Promise<T> => request<T>('PATCH', path, body),
   del: <T>(path: string): Promise<T> => request<T>('DELETE', path),

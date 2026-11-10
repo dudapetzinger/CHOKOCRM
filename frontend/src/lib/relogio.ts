@@ -9,7 +9,9 @@
  * relógio do aparelho (a diferença entre os dois relógios vazaria para cá).
  * Fica só em memória (sem `localStorage`); antes de carregar, ou se a
  * chamada falhar (também numa nova busca, ver `useRelogio`), o deslocamento
- * é 0. A faixa "Modo demonstração" sai da resposta da API na `Moldura`.
+ * é 0. A faixa "Modo demonstração" sai da resposta da API na `Moldura` (e
+ * no topo da tela de login, `ModoDemonstracao`, que também aplica aqui o
+ * relógio devolvido pela recriação da demonstração).
  * Usa `Date.now()`, então o relógio
  * falso dos testes (`vi.setSystemTime`) continua valendo.
  */

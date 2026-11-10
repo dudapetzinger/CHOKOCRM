@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { removerSimulacaoDeLargura, simularLargura } from './test/simularLargura';
 import { api } from './services/api';
+import { buscarRelogio } from './services/sistema';
 import { getCliente, listClients, type ClienteCompleto, type ClienteListItem } from './services/clients';
 
 /**
@@ -100,6 +101,7 @@ vi.mock('./services/sistema', () => ({
     dataDeDemonstracao: null,
     deslocamentoDias: 0,
   })),
+  definirDemonstracao: vi.fn(),
 }));
 // O Painel tem testes próprios; aqui só importa a rota em que se chega.
 vi.mock('./pages/PainelPage', () => ({ default: () => <p>conteúdo do painel</p> }));
@@ -357,5 +359,12 @@ describe('rotas da gestão de usuários', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Entrar' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 1, name: 'Redefinir senha' })).not.toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
+  });
+
+  it('sem sessão, o login busca o relógio público e mostra o botão "Modo demonstração" no topo', async () => {
+    abrirApp('/login', null);
+
+    expect(await screen.findByRole('button', { name: 'Modo demonstração' })).toBeInTheDocument();
+    expect(buscarRelogio).toHaveBeenCalled();
   });
 });

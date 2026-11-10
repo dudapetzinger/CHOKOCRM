@@ -7,7 +7,9 @@
  *   demonstração numa data (ou o desliga, com `data: null`) e recria a
  *   demonstração; responde `{ relogio }`. Erros: 401 `E-mail ou senha
  *   inválidos`, 403 `Só a conta Gestão pode fazer isso.`, 409 `Já existe uma
- *   recriação em andamento.` (chamada sem token: o 401 não desloga ninguém).
+ *   recriação em andamento.` Vai por `api.postSemSessao`, sem o token salvo:
+ *   o 401 da senha errada não desloga ninguém. Usado pelo painel
+ *   `components/ModoDemonstracao.tsx` da tela de login.
  */
 import { api } from './api';
 
@@ -38,5 +40,5 @@ export function buscarRelogio(): Promise<Relogio> {
 }
 
 export function definirDemonstracao(input: DefinirDemonstracaoInput): Promise<{ relogio: Relogio }> {
-  return api.post<{ relogio: Relogio }>('/sistema/demonstracao', input);
+  return api.postSemSessao<{ relogio: Relogio }>('/sistema/demonstracao', input);
 }

@@ -6,13 +6,16 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Campo } from '../components/crm/ui';
 import { TelaPublica } from '../components/crm/TelaPublica';
+import { ModoDemonstracao } from '../components/ModoDemonstracao';
 import { rotaInicialDoPapel } from '../lib/rotaInicial';
 
 const MENSAGEM_ERRO_PADRAO = 'Não foi possível entrar. Tente novamente.';
 
 /**
  * Login no layout do protótipo (spec 7.14): logotipo, slogan e cartão com
- * e-mail, senha e "Entrar", sem dica de contas de teste. Depois de entrar,
+ * e-mail, senha e "Entrar", sem dica de contas de teste. No topo, o
+ * `ModoDemonstracao` (botão discreto, ou a faixa da data com "alterar"),
+ * que a Gestão usa para recriar a demonstração. Depois de entrar,
  * volta para a tela que pediu o login (`RequireAuth` guarda em
  * `location.state.from`) ou vai para a tela inicial do papel.
  */
@@ -43,7 +46,7 @@ export function LoginPage() {
   }
 
   return (
-    <TelaPublica>
+    <TelaPublica topo={<ModoDemonstracao />}>
       <section aria-labelledby="titulo-login" className="mt-6 w-full max-w-sm rounded-xl border bg-card p-6">
         <h1 id="titulo-login" className="sr-only">
           Entrar

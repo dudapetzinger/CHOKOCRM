@@ -1,5 +1,5 @@
 import { semRedeNaApi, registrarRespostaDaApi } from '../pwa/estadoRede';
-import { api, ApiError } from './api';
+import { api, ApiError, clearToken, setToken, setUnauthorizedHandler } from './api';
 import { mensagemErroApi } from './clients';
 
 afterEach(() => {
@@ -53,5 +53,47 @@ describe('api: falha de rede', () => {
     expect((erro as ApiError).code).toBe('NOT_FOUND');
     expect((erro as ApiError).message).toBe('Cliente não encontrado.');
     expect(semRedeNaApi()).toBe(false);
+  });
+});
+
+describe('api: chamada sem sessão (postSemSessao)', () => {
+  afterEach(() => {
+    clearToken();
+    setUnauthorizedHandler(null);
+  });
+
+  it('não manda o token salvo e um 401 não encerra a sessão', async () => {
+    setToken('token-antigo');
+    const aoDeslogar = vi.fn();
+    setUnauthorizedHandler(aoDeslogar);
+    const buscar = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'E-mail ou senha inválidos' } }), {
+        status: 401,
+      }),
+    );
+    vi.stubGlobal('fetch', buscar);
+
+    const erro = await api.postSemSessao('/sistema/demonstracao', { senha: 'x' }).catch((e: unknown) => e);
+
+    expect((erro as ApiError).message).toBe('E-mail ou senha inválidos');
+    expect(aoDeslogar).not.toHaveBeenCalled();
+    const [, opcoes] = buscar.mock.calls[0] as [string, RequestInit];
+    expect(opcoes.headers).not.toHaveProperty('Authorization');
+    expect(opcoes.headers).toHaveProperty('Content-Type', 'application/json');
+    expect(opcoes.body).toBe(JSON.stringify({ senha: 'x' }));
+  });
+
+  it('o post comum, com token salvo, continua encerrando a sessão no 401', async () => {
+    setToken('token-antigo');
+    const aoDeslogar = vi.fn();
+    setUnauthorizedHandler(aoDeslogar);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'x' } }), { status: 401 })),
+    );
+
+    await api.post('/clients', {}).catch(() => undefined);
+
+    expect(aoDeslogar).toHaveBeenCalledTimes(1);
   });
 });
