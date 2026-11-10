@@ -354,3 +354,16 @@ model ErpProduct {
 
   @@map("erp_products")
 }
+
+/// Configurações do sistema, uma linha por chave. Hoje só `demonstracao`: a
+/// data do modo demonstração (`lib/relogio.ts`), com o dia real em que foi
+/// definida (`diaDeReferencia`); as duas nulas = relógio real.
+model Configuracao {
+  chave           String    @id
+  dataSimulada    DateTime? @map("data_simulada") @db.Date
+  diaDeReferencia DateTime? @map("dia_de_referencia") @db.Date
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
+  atualizadoPor   String?   @map("atualizado_por")
+
+  @@map("configuracoes")
+}

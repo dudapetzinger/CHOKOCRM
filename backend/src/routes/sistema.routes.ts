@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { getRelogio } from '../controllers/sistema.controller';
-import { authJwt } from '../middlewares/authJwt';
+import { getRelogio, postDemonstracao } from '../controllers/sistema.controller';
 
 /**
- * Informações do sistema abertas a qualquer usuário autenticado, montadas em
- * `/sistema`: o relógio (`GET /sistema/relogio`), com a data de demonstração
- * quando o relógio é simulado.
+ * Rotas de sistema montadas em `/sistema`, PÚBLICAS (sem `authJwt`): a tela
+ * de login lê o relógio (`GET /sistema/relogio`) e liga o modo demonstração
+ * (`POST /sistema/demonstracao`, que confere a senha da conta Gestão no
+ * corpo). Ver `controllers/sistema.controller.ts`.
  */
 export const sistemaRouter = Router();
 
-sistemaRouter.use(authJwt);
 sistemaRouter.get('/relogio', getRelogio);
+sistemaRouter.post('/demonstracao', postDemonstracao);

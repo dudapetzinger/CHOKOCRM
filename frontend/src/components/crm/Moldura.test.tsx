@@ -266,7 +266,7 @@ describe('Moldura: relógio de demonstração', () => {
     expect(buscarRelogio).toHaveBeenCalledTimes(1);
   });
 
-  it('relógio simulado: faixa "Data simulada" acima do conteúdo e agora() deslocado', async () => {
+  it('relógio simulado: faixa "Modo demonstração" acima do conteúdo e agora() deslocado', async () => {
     vi.mocked(buscarRelogio).mockResolvedValue({
       agora: '2027-03-15T18:00:00.000Z',
       simulado: true,
@@ -276,7 +276,7 @@ describe('Moldura: relógio de demonstração', () => {
     renderizar({ entradas: ['/agenda'], relogioCarregado: false });
 
     expect(await screen.findByText('tela da agenda')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(/^Data simulada: 15\/03\/2027$/);
+    expect(screen.getByRole('status')).toHaveTextContent(/^Modo demonstração · 15\/03\/2027$/);
     expect(agora().getTime() - Date.now()).toBeGreaterThan(128 * 86_400_000);
   });
 
@@ -285,7 +285,7 @@ describe('Moldura: relógio de demonstração', () => {
     renderizar({ entradas: ['/agenda'], relogioCarregado: false });
 
     expect(await screen.findByText('tela da agenda')).toBeInTheDocument();
-    expect(screen.queryByText(/Data simulada/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Modo demonstração/)).not.toBeInTheDocument();
   });
 
   it('erro no relógio: conteúdo sem faixa e agora() sem deslocamento', async () => {
@@ -293,7 +293,7 @@ describe('Moldura: relógio de demonstração', () => {
     renderizar({ entradas: ['/agenda'], relogioCarregado: false });
 
     expect(await screen.findByText('tela da agenda')).toBeInTheDocument();
-    expect(screen.queryByText(/Data simulada/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Modo demonstração/)).not.toBeInTheDocument();
     expect(Math.abs(agora().getTime() - Date.now())).toBeLessThan(1000);
     // `retry: 1`: uma tentativa e mais uma
     expect(buscarRelogio).toHaveBeenCalledTimes(2);
@@ -338,7 +338,7 @@ describe('Moldura: relógio de demonstração', () => {
       focusManager.setFocused(true);
     });
 
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^Data simulada: 15\/03\/2027$/));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^Modo demonstração · 15\/03\/2027$/));
     expect(buscarRelogio).toHaveBeenCalledTimes(2);
     expect(screen.getByText('tela da agenda')).toBeInTheDocument();
   });
@@ -351,14 +351,14 @@ describe('Moldura: relógio de demonstração', () => {
       deslocamentoDias: 129,
     });
     const { queryClient } = renderizar({ entradas: ['/agenda'], relogioCarregado: false });
-    expect(await screen.findByRole('status')).toHaveTextContent(/^Data simulada: 15\/03\/2027$/);
+    expect(await screen.findByRole('status')).toHaveTextContent(/^Modo demonstração · 15\/03\/2027$/);
     vi.mocked(buscarRelogio).mockRejectedValue(new Error('falhou'));
 
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: ['sistema', 'relogio'] });
     });
 
-    await waitFor(() => expect(screen.queryByText(/Data simulada/)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Modo demonstração/)).not.toBeInTheDocument());
     expect(Math.abs(agora().getTime() - Date.now())).toBeLessThan(1000);
     expect(screen.getByText('tela da agenda')).toBeInTheDocument();
   });

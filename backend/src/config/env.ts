@@ -4,32 +4,11 @@ import { z } from 'zod';
 
 /**
  * Variáveis de ambiente validadas com Zod na subida: valor inválido = a API
- * não sobe. Inclui a data de demonstração opcional (`DATA_DE_DEMONSTRACAO`,
- * `AAAA-MM-DD` ou ancorada `AAAA-MM-DD@AAAA-MM-DD`),
- * que `lib/relogio.ts` usa para deslocar o "hoje" do sistema. O app não
+ * não sobe. A data do modo demonstração não é variável de ambiente: mora no
+ * banco (tabela `configuracoes`, ver `lib/relogio.ts`). O app não
  * manda e-mail (senha provisória pelo gestor): sem `SMTP_*`, `EMAIL_FROM` e
  * `APP_URL`, que, se ainda estiverem no ambiente, são ignoradas.
  */
-
-const MENSAGEM_DATA_DE_DEMONSTRACAO =
-  'DATA_DE_DEMONSTRACAO deve ser uma data AAAA-MM-DD, opcionalmente seguida de @ e do dia real de referência (AAAA-MM-DD).';
-
-/** `AAAA-MM-DD` que existe no calendário (`2027-02-30` não existe). */
-function dataAaaaMmDdValida(valor: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
-  const [ano, mes, dia] = valor.split('-').map(Number) as [number, number, number];
-  const data = new Date(Date.UTC(ano, mes - 1, dia));
-  return data.getUTCFullYear() === ano && data.getUTCMonth() === mes - 1 && data.getUTCDate() === dia;
-}
-
-/**
- * `DATA_DE_DEMONSTRACAO`: `AAAA-MM-DD` ou, ancorada, `AAAA-MM-DD@AAAA-MM-DD`
- * (data simulada `@` dia real de referência), com as duas datas existentes.
- */
-function dataDeDemonstracaoValida(valor: string): boolean {
-  const partes = valor.split('@');
-  return partes.length <= 2 && partes.every(dataAaaaMmDdValida);
-}
 
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -74,17 +53,6 @@ export const envSchema = z.object({
   // Pasta com o build do frontend (frontend/dist) servida pela própria API.
   // Vazia = a API não serve o frontend (dev, testes, CI).
   WEB_DIR: z.string().default(''),
-  // Data de demonstração (relógio simulado, ver lib/relogio.ts): o app vive
-  // nesse dia com o horário real e o calendário andando. `AAAA-MM-DD@AAAA-MM-DD`
-  // ancora o deslocamento num dia real de referência. Ausente ou vazia =
-  // relógio real. Vale em qualquer NODE_ENV (a apresentação roda em produção).
-  DATA_DE_DEMONSTRACAO: z
-    .string()
-    .optional()
-    .transform((valor) => valor || undefined)
-    .refine((valor) => valor === undefined || dataDeDemonstracaoValida(valor), {
-      message: MENSAGEM_DATA_DE_DEMONSTRACAO,
-    }),
 });
 
 export type Env = z.infer<typeof envSchema>;

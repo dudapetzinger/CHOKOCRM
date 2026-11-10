@@ -51,13 +51,24 @@ export async function hashDaSenha(senha: string): Promise<string> {
   return bcrypt.hash(senha, CUSTO_BCRYPT);
 }
 
-export async function login(email: string, senha: string): Promise<LoginResultado> {
+/**
+ * Confere e-mail e senha e devolve a conta, sem olhar papel nem situação
+ * (quem chama decide): 401 genérico se o e-mail não existe ou a senha não
+ * confere. Usado pelo login e pelo modo demonstração
+ * (`demonstracao.service.ts`), que não emite token.
+ */
+export async function conferirCredenciais(email: string, senha: string): Promise<User> {
   const usuario = await findByEmail(email.toLowerCase());
   const senhaConfere = await bcrypt.compare(senha, usuario?.senhaHash ?? HASH_DUMMY);
 
   if (!usuario || !senhaConfere) {
     throw new AppError(ErrorCode.UNAUTHORIZED, MENSAGEM_CREDENCIAIS_INVALIDAS, 401);
   }
+  return usuario;
+}
+
+export async function login(email: string, senha: string): Promise<LoginResultado> {
+  const usuario = await conferirCredenciais(email, senha);
 
   // Só depois de conferir a senha: quem não a sabe recebe o 401 genérico e
   // não descobre que a conta existe e está inativa.

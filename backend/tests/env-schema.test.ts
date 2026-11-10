@@ -81,42 +81,9 @@ describe('envSchema — provedor de ERP', () => {
 });
 
 describe('envSchema — data de demonstração', () => {
-  const OBRIGATORIAS = { DATABASE_URL: 'x', JWT_SECRET: 'y' };
-  const MENSAGEM =
-    'DATA_DE_DEMONSTRACAO deve ser uma data AAAA-MM-DD, opcionalmente seguida de @ e do dia real de referência (AAAA-MM-DD).';
-
-  it('ausente (ou vazia) fica undefined: relógio real', () => {
-    expect(envSchema.parse(OBRIGATORIAS).DATA_DE_DEMONSTRACAO).toBeUndefined();
-    expect(envSchema.parse({ ...OBRIGATORIAS, DATA_DE_DEMONSTRACAO: '' }).DATA_DE_DEMONSTRACAO).toBeUndefined();
+  it('DATA_DE_DEMONSTRACAO não existe mais: a data mora na tabela configuracoes', () => {
+    expect(Object.keys(envSchema.shape)).not.toContain('DATA_DE_DEMONSTRACAO');
+    const resultado = envSchema.parse({ DATABASE_URL: 'x', JWT_SECRET: 'y', DATA_DE_DEMONSTRACAO: '2027-03-15' });
+    expect(resultado).not.toHaveProperty('DATA_DE_DEMONSTRACAO');
   });
-
-  it('data válida é preservada, em qualquer NODE_ENV', () => {
-    expect(envSchema.parse({ ...OBRIGATORIAS, DATA_DE_DEMONSTRACAO: '2027-03-15' }).DATA_DE_DEMONSTRACAO).toBe(
-      '2027-03-15',
-    );
-    expect(
-      envSchema.parse({
-        ...OBRIGATORIAS,
-        NODE_ENV: 'production',
-        FRONTEND_URL: 'https://app.exemplo.com',
-        DATA_DE_DEMONSTRACAO: '2027-03-15',
-      }).DATA_DE_DEMONSTRACAO,
-    ).toBe('2027-03-15');
-  });
-
-  it('ancorada (data simulada @ dia real de referência) é preservada', () => {
-    expect(
-      envSchema.parse({ ...OBRIGATORIAS, DATA_DE_DEMONSTRACAO: '2027-03-15@2026-11-06' }).DATA_DE_DEMONSTRACAO,
-    ).toBe('2027-03-15@2026-11-06');
-  });
-
-  it.each(['2027-02-30', '15/03/2027', '2027-03-15@2026-13-01', '2027-03-15@', '2027-03-15@2026-11-06@2026-11-07'])(
-    '%s falha com a mensagem da variável',
-    (valor) => {
-      const resultado = envSchema.safeParse({ ...OBRIGATORIAS, DATA_DE_DEMONSTRACAO: valor });
-
-      expect(resultado.success).toBe(false);
-      expect(resultado.error?.issues.map((issue) => issue.message)).toEqual([MENSAGEM]);
-    },
-  );
 });

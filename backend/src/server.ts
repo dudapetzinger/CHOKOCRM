@@ -9,7 +9,7 @@ import { app } from './app';
 import { iniciarAgendaDiaria } from './jobs/agendaDiaria.job';
 import { iniciarLimpezaDeFotos } from './jobs/limpezaDeFotos.job';
 import { logger } from './lib/logger';
-import { mensagemDeSubida } from './lib/relogio';
+import { carregarRelogio, mensagemDeSubida } from './lib/relogio';
 
 logger.info(
   telemetriaAtiva
@@ -17,11 +17,23 @@ logger.info(
     : 'Telemetria do Application Insights desativada',
 );
 
-app.listen(env.PORT, () => {
-  logger.info(`API do ChokoCRM disponível em http://localhost:${env.PORT}`);
-  // Relógio de demonstração (DATA_DE_DEMONSTRACAO): lembra do reset do seed.
-  const relogioSimulado = mensagemDeSubida();
-  if (relogioSimulado !== null) logger.warn(relogioSimulado);
-  iniciarAgendaDiaria();
-  iniciarLimpezaDeFotos();
+/**
+ * Carrega o modo demonstração do banco (`configuracoes`) antes de escutar:
+ * nenhuma requisição nem job vê o relógio real por engano. Sem banco, a API
+ * não sobe.
+ */
+async function subir(): Promise<void> {
+  await carregarRelogio();
+  app.listen(env.PORT, () => {
+    logger.info(`API do ChokoCRM disponível em http://localhost:${env.PORT}`);
+    const modoDemonstracao = mensagemDeSubida();
+    if (modoDemonstracao !== null) logger.warn(modoDemonstracao);
+    iniciarAgendaDiaria();
+    iniciarLimpezaDeFotos();
+  });
+}
+
+subir().catch((err: unknown) => {
+  logger.fatal({ err }, 'Falha ao carregar o relógio do banco; a API não subiu');
+  process.exit(1);
 });

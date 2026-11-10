@@ -1,5 +1,3 @@
-// Primeiro import: liga DATA_DE_DEMONSTRACAO antes de config/env e lib/relogio.
-import { DATA_SIMULADA, deslocamentoEsperado } from './helpers/data-de-demonstracao';
 import bcrypt from 'bcryptjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,19 +13,26 @@ import * as agendaService from '../src/services/agenda.service';
 import { dataCalendario, inicioDoDia, somarDias } from '../src/services/classificacao.service';
 import { extrairTextoDoPdf } from '../src/services/importacao-nf/pdf-texto';
 import { fileStorage } from '../src/storage';
+import {
+  ativarDataDeDemonstracao,
+  DATA_SIMULADA,
+  desativarDataDeDemonstracao,
+  deslocamentoEsperado,
+} from './helpers/data-de-demonstracao';
 import { truncateAllTables } from './helpers/db';
 import { fixarRelogio, liberarRelogio } from './helpers/relogio';
 
 /**
- * Comportamento de ponta a ponta com o relógio de demonstração ligado
- * (`DATA_DE_DEMONSTRACAO=2027-03-15`): seed, cadastro de cliente, check-in,
+ * Comportamento de ponta a ponta com o modo demonstração ligado (data
+ * 2027-03-15 na tabela `configuracoes`): seed, cadastro de cliente, check-in,
  * virada da meia-noite, importação de notas, jobs e campanhas vivem na data
  * simulada, não na real.
  *
- * O deslocamento é calculado na carga de `lib/relogio.ts` contra o dia real;
- * o relógio falso (`fixarRelogio`) é posto no dia real da carga
- * (`DATA_SIMULADA - deslocamentoDias()`), para `agora()` cair exatamente em
- * `DATA_SIMULADA` em qualquer dia em que a suíte rode.
+ * Cada caso fixa o relógio falso (`fixarRelogio`) ao meio-dia do dia real de
+ * hoje, trunca o banco (o que volta o relógio ao real) e liga a data com
+ * `ativarDataDeDemonstracao`: a referência gravada é o dia real, então
+ * `agora()` cai exatamente em `DATA_SIMULADA` em qualquer dia em que a suíte
+ * rode.
  */
 
 // O extrator de PDF (pdf.js num worker) é trocado pelas linhas do fixture da NF 2455.
@@ -41,8 +46,8 @@ const EMAIL_GESTOR = 'ricardo.relogio-teste@chokolaten.com.br';
 const MILISSEGUNDOS_POR_DIA = 86_400_000;
 const MILISSEGUNDOS_POR_MINUTO = 60_000;
 
-/** Dia real (São Paulo) em que `lib/relogio.ts` calculou o deslocamento. */
-const DIA_REAL = somarDias(DATA_SIMULADA, -deslocamentoDias());
+/** Dia real (São Paulo) em que a suíte roda: a referência gravada ao ligar a data. */
+const DIA_REAL = dataCalendario(new Date());
 
 /** Instante no dia real da carga, `minutos` depois da meia-noite de São Paulo. */
 function noDiaReal(minutos: number): Date {
@@ -76,14 +81,11 @@ async function criarClienteNoBanco(nomeFantasia: string, cnpj: string, recorrenc
   return cliente.id;
 }
 
-beforeAll(() => {
-  // Antes de fixar o relógio: deslocamentoEsperado() lê o dia real.
-  expect(deslocamentoDias()).toBe(deslocamentoEsperado());
-});
-
 beforeEach(async () => {
   fixarRelogio(noDiaReal(MEIO_DIA));
   await truncateAllTables();
+  await ativarDataDeDemonstracao();
+  expect(deslocamentoDias()).toBe(deslocamentoEsperado());
   extrairMock.mockReset();
   extrairMock.mockResolvedValue([{ numero: 1, linhas: LINHAS_NF_2455 }]);
 
@@ -103,10 +105,11 @@ afterEach(() => {
 
 afterAll(async () => {
   liberarRelogio();
+  await desativarDataDeDemonstracao();
   await prisma.$disconnect();
 });
 
-describe('relógio de demonstração ligado (DATA_DE_DEMONSTRACAO=2027-03-15)', () => {
+describe('modo demonstração ligado (2027-03-15)', () => {
   it('agora() cai na data simulada', () => {
     expect(simulado()).toBe(true);
     expect(dataDeDemonstracao()).toBe(DATA_SIMULADA);
@@ -138,9 +141,9 @@ describe('relógio de demonstração ligado (DATA_DE_DEMONSTRACAO=2027-03-15)', 
     expect(dataCalendario(indaial.criadoEm)).toBe(DATA_SIMULADA);
   });
 
-  it('prisma/seed.ts passa agora() como hoje para o seed', () => {
+  it('prisma/seed.ts carrega o relógio do banco e passa agora() como hoje para o seed', () => {
     const fonte = readFileSync(join(__dirname, '..', 'prisma', 'seed.ts'), 'utf8');
-    expect(fonte).toMatch(/const hoje = agora\(\);/);
+    expect(fonte).toMatch(/await carregarRelogio\(\);\s+const hoje = agora\(\);/);
     expect(fonte).not.toMatch(/new Date\(|Date\.now\(/);
   });
 

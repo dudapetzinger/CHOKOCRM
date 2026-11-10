@@ -27,7 +27,7 @@ import { periodoDaMeta } from '../services/goal.regras';
  * `config/eventosSazonaisSeed.ts`. Todas as datas são relativas ao `hoje`
  * recebido, para a demonstração nascer com cores, agenda, campanhas e metas
  * do dia em que roda; `prisma/seed.ts` passa `agora()` (`lib/relogio.ts`), a
- * data de demonstração quando `DATA_DE_DEMONSTRACAO` está definida. Até o
+ * data do modo demonstração quando ligado (tabela `configuracoes`). Até o
  * `criadoEm` dos clientes novos é `hoje` (base da primeira visita de quem
  * nunca foi visitado). Os pedidos usam o catálogo de demonstração direto
  * (`CATALOGO`), seja qual for o `ERP_PROVIDER`: o seed roda igual no mock e

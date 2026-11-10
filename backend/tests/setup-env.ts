@@ -9,7 +9,3 @@
  */
 process.env.ERP_MOCK_FALHAR = 'false';
 process.env.ERP_PROVIDER = 'mock';
-// Os testes rodam no relógio real: vazia = sem data de demonstração, mesmo que o
-// `.env` local tenha DATA_DE_DEMONSTRACAO. Quem testa a data simulada importa
-// `tests/helpers/data-de-demonstracao` primeiro.
-process.env.DATA_DE_DEMONSTRACAO = '';
