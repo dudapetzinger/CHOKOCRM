@@ -7,7 +7,8 @@
  * vínculo das notas ligadas ao cliente criado pela nota fiscal
  * (`decidirVinculoDaNotaLigada`, usado por `cliente-pela-nota.service.ts`) ou
  * cadastrado pelo representante (`adotarNotasSemCliente`, usado por
- * `client.service.ts`).
+ * `client.service.ts`). A leitura (`lerPdf`) só mostra o que o PDF traz, sem
+ * gravar nada, para o gestor conferir antes de importar.
  */
 import type { Prisma, ResultadoVisita, VinculoNota } from '@prisma/client';
 import { z } from 'zod';
@@ -15,6 +16,7 @@ import { AppError } from '../../errors/AppError';
 import { ErrorCode } from '../../errors/errorCodes';
 import { prisma } from '../../lib/prisma';
 import { somarItens } from '../../lib/somarItens';
+import * as clientRepository from '../../repositories/client.repository';
 import * as erpSaleRepository from '../../repositories/erp-sale.repository';
 import type { Banco, ImportacaoComRelacoes, NotaComRelacoes } from '../../repositories/erp-sale.repository';
 import * as visitRepository from '../../repositories/visit.repository';
@@ -69,6 +71,24 @@ export type NotaDTO = {
   visitaSugerida: VisitaSugeridaDTO | null;
   visitaVinculadaId: string | null;
 };
+
+/** Nota lida do PDF para conferência; nada disto foi gravado. */
+export type NotaLidaDTO = {
+  chaveAcesso: string;
+  numero: string;
+  serie: string;
+  /** AAAA-MM-DD */
+  dataEmissao: string;
+  destinatarioNome: string;
+  destinatarioCnpj: string;
+  cliente: { id: string; nomeFantasia: string } | null;
+  valorTotal: number;
+  itens: { codigo: string; descricao: string; quantidade: number; precoUnitario: number; valorTotal: number }[];
+  /** Já existe uma nota com esta chave de acesso (importar de novo a atualiza). */
+  jaImportada: boolean;
+};
+
+export type LeituraDTO = { notas: NotaLidaDTO[]; ignoradas: NotaIgnorada[] };
 
 export type CnpjSemClienteDTO = { cnpj: string; razaoSocial: string };
 
@@ -329,6 +349,43 @@ async function lerNotas(conteudo: Buffer): Promise<{ notas: NotaFiscalLida[]; ig
     throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_SEM_DANFE, 400);
   }
   return lidas;
+}
+
+/** Lê as DANFEs de um PDF sem gravar nada: cliente do CNPJ e se a nota já foi importada. */
+export async function lerPdf(conteudo: Buffer): Promise<LeituraDTO> {
+  const { notas, ignoradas } = await lerNotas(conteudo);
+
+  // Uma busca por CNPJ distinto, não por nota.
+  const cnpjs = [...new Set(notas.map((n) => n.destinatario.cnpj.replace(/\D/g, '')))];
+  const clientes = new Map<string, { id: string; nomeFantasia: string } | null>();
+  for (const cnpj of cnpjs) {
+    const cliente = await clientRepository.findByCnpj(cnpj);
+    clientes.set(cnpj, cliente === null ? null : { id: cliente.id, nomeFantasia: cliente.nomeFantasia });
+  }
+
+  const lidas: NotaLidaDTO[] = [];
+  for (const nota of notas) {
+    const cnpj = nota.destinatario.cnpj.replace(/\D/g, '');
+    lidas.push({
+      chaveAcesso: nota.chaveAcesso,
+      numero: nota.numero,
+      serie: nota.serie,
+      dataEmissao: nota.dataEmissao,
+      destinatarioNome: nota.destinatario.nome,
+      destinatarioCnpj: cnpj,
+      cliente: clientes.get(cnpj) ?? null,
+      valorTotal: nota.valorTotal,
+      itens: nota.itens.map((i) => ({
+        codigo: i.codigo,
+        descricao: i.descricao,
+        quantidade: i.quantidade,
+        precoUnitario: i.precoUnitario,
+        valorTotal: i.valorTotal,
+      })),
+      jaImportada: (await erpSaleRepository.findByChave(nota.chaveAcesso)) !== null,
+    });
+  }
+  return { notas: lidas, ignoradas };
 }
 
 /** Importa as DANFEs de um PDF numa transação só: ou o arquivo entra inteiro, ou nada muda. */

@@ -13,22 +13,38 @@ const idParamSchema = z.string().uuid('Identificador inválido.');
 const MENSAGEM_TIPO_NAO_SUPORTADO = 'Envie o arquivo como application/pdf.';
 const MENSAGEM_CORPO_VAZIO = 'O corpo da requisição deve conter os bytes do PDF.';
 
+/** Confere o Content-Type e o corpo do PDF; devolve os bytes (415/400 como na importação). */
+function pdfDaRequisicao(req: Request): Buffer {
+  const contentType = (req.headers['content-type'] ?? '').split(';')[0]?.trim() ?? '';
+  if (contentType !== 'application/pdf') {
+    throw new AppError(ErrorCode.UNSUPPORTED_MEDIA_TYPE, MENSAGEM_TIPO_NAO_SUPORTADO, 415);
+  }
+  // `express.raw` só popula `req.body` com Buffer quando o Content-Type casa com o filtro.
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_CORPO_VAZIO, 400);
+  }
+  return req.body;
+}
+
 export async function postImportacao(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const usuario = usuarioAutenticado(req);
-
-    const contentType = (req.headers['content-type'] ?? '').split(';')[0]?.trim() ?? '';
-    if (contentType !== 'application/pdf') {
-      throw new AppError(ErrorCode.UNSUPPORTED_MEDIA_TYPE, MENSAGEM_TIPO_NAO_SUPORTADO, 415);
-    }
-    // `express.raw` só popula `req.body` com Buffer quando o Content-Type casa com o filtro.
-    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
-      throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_CORPO_VAZIO, 400);
-    }
-
+    const conteudo = pdfDaRequisicao(req);
     const nome = nomeArquivoSchema.parse(typeof req.query.nome === 'string' ? req.query.nome : undefined);
-    const importacao = await importacaoService.importarPdf(req.body, nome, usuario);
+    const importacao = await importacaoService.importarPdf(conteudo, nome, usuario);
     res.status(201).json(importacao);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Lê o PDF sem gravar nada, para o gestor conferir as notas antes de importar. */
+export async function postLeitura(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    usuarioAutenticado(req);
+    const conteudo = pdfDaRequisicao(req);
+    nomeArquivoSchema.parse(typeof req.query.nome === 'string' ? req.query.nome : undefined);
+    res.status(200).json(await importacaoService.lerPdf(conteudo));
   } catch (err) {
     next(err);
   }
