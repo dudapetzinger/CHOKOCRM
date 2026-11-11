@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from '../components/ui/sonner';
 import { AuthContext, type Role } from '../auth/auth-context';
 import { ApiError } from '../services/api';
@@ -10,18 +10,22 @@ import {
   criarClientePelaNota,
   desvincularNota,
   importarPdf,
+  lerPdf,
   listarImportacoes,
   listarPendencias,
   listarSemCliente,
   vincularNota,
   type CnpjSemCliente,
   type Importacao,
+  type Leitura,
   type Nota,
+  type NotaLida,
 } from '../services/importacoes';
 import { listRepresentantes } from '../services/users';
 import { ImportacoesPage } from './ImportacoesPage';
 
 vi.mock('../services/importacoes', () => ({
+  lerPdf: vi.fn(),
   importarPdf: vi.fn(),
   listarImportacoes: vi.fn(),
   listarPendencias: vi.fn(),
@@ -104,6 +108,7 @@ let usuario: ReturnType<typeof userEvent.setup>;
 
 beforeEach(() => {
   usuario = userEvent.setup({ delay: null });
+  vi.mocked(lerPdf).mockReset();
   vi.mocked(importarPdf).mockReset();
   vi.mocked(listarImportacoes).mockReset().mockResolvedValue([]);
   vi.mocked(listarPendencias).mockReset().mockResolvedValue([]);
@@ -121,6 +126,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function Local() {
+  const local = useLocation();
+  return <p data-testid="local">{`${local.pathname}${local.search}`}</p>;
+}
+
 function renderizar(role: Role = 'GESTOR') {
   const auth = {
     user: { id: 'g1', nome: 'Marina Gestora', email: 'g@x.com', telefone: null, role, ativo: true },
@@ -132,8 +142,11 @@ function renderizar(role: Role = 'GESTOR') {
   render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={auth}>
-        <MemoryRouter>
-          <ImportacoesPage />
+        <MemoryRouter initialEntries={['/importacoes']}>
+          <Routes>
+            <Route path="/importacoes" element={<ImportacoesPage />} />
+            <Route path="/clientes/:id" element={<Local />} />
+          </Routes>
         </MemoryRouter>
       </AuthContext.Provider>
       <Toaster />
@@ -145,19 +158,98 @@ function pdf(nome: string) {
   return new File(['%PDF'], nome, { type: 'application/pdf' });
 }
 
-async function escolherEImportar(...nomes: string[]) {
-  await usuario.upload(screen.getByLabelText('Notas fiscais (PDF)'), nomes.map(pdf));
-  await usuario.click(screen.getByRole('button', { name: 'Importar' }));
+const POMERODE = { id: 'c1', nomeFantasia: 'Empório Pomerode' };
+const JARAGUA = { id: 'c2', nomeFantasia: 'Doceria Jaraguá' };
+const CHAVE_A = '1'.repeat(44);
+const CHAVE_B = '2'.repeat(44);
+const CHAVE_C = '3'.repeat(44);
+
+/** Uma nota como a leitura sem gravar a devolve. */
+function notaLida(extra: Partial<NotaLida> = {}): NotaLida {
+  return {
+    chaveAcesso: CHAVE_A,
+    numero: '2455',
+    serie: '1',
+    dataEmissao: '2026-11-05',
+    destinatarioNome: 'EMPORIO POMERODE LTDA',
+    destinatarioCnpj: '12345678000190',
+    cliente: POMERODE,
+    valorTotal: 1284,
+    itens: [{ codigo: 'T70', descricao: 'Tablete 70% 100 g', quantidade: 2, precoUnitario: 25.9, valorTotal: 51.8 }],
+    jaImportada: false,
+    ...extra,
+  };
 }
 
-/** O item do resultado de um arquivo, achado pelo nome (o rótulo da lista de resultados). */
-async function resultadoDe(nome: string) {
-  const lista = await screen.findByRole('list', { name: 'Resultado da importação' });
+/** Leitura de a.pdf (nota de Empório Pomerode) e de b.pdf (nota sem cliente). */
+const LEITURAS: Record<string, Leitura> = {
+  'a.pdf': { notas: [notaLida()], ignoradas: [] },
+  'b.pdf': {
+    notas: [
+      notaLida({
+        chaveAcesso: CHAVE_B,
+        numero: '2456',
+        destinatarioNome: 'PADARIA E CIA LTDA',
+        destinatarioCnpj: '99888777000166',
+        cliente: null,
+        valorTotal: 300,
+      }),
+    ],
+    ignoradas: [],
+  },
+};
+
+/** O que a gravação devolve para a.pdf e b.pdf, coerente com `LEITURAS`. */
+const GRAVACOES: Record<string, Importacao> = {
+  'a.pdf': importacao({ nomeArquivo: 'a.pdf', notas: [nota({ chaveAcesso: CHAVE_A, cliente: POMERODE })] }),
+  'b.pdf': importacao({
+    id: 'i2',
+    nomeArquivo: 'b.pdf',
+    notas: [nota({ id: 'n2', chaveAcesso: CHAVE_B, numero: '2456', cliente: null, vinculo: 'SEM_CLIENTE' })],
+    cnpjsSemCliente: [{ cnpj: '99888777000166', razaoSocial: 'PADARIA E CIA LTDA' }],
+  }),
+};
+
+function lerDe(leituras: Record<string, Leitura>) {
+  vi.mocked(lerPdf).mockImplementation(async (arquivo) => {
+    const leitura = leituras[arquivo.name];
+    if (!leitura) throw new Error(`Leitura de ${arquivo.name} não preparada`);
+    return leitura;
+  });
+}
+
+function gravarDe(gravacoes: Record<string, Importacao>) {
+  vi.mocked(importarPdf).mockImplementation(async (arquivo) => {
+    const gravacao = gravacoes[arquivo.name];
+    if (!gravacao) throw new Error(`Gravação de ${arquivo.name} não preparada`);
+    return gravacao;
+  });
+}
+
+async function escolherELer(...nomes: string[]) {
+  await usuario.upload(screen.getByLabelText('Notas fiscais (PDF)'), nomes.map(pdf));
+  await usuario.click(screen.getByRole('button', { name: 'Ler notas' }));
+  await screen.findByRole('button', { name: 'Confirmar importação' });
+  await waitFor(() => expect(screen.queryByText(/Lendo…|Aguardando…/)).not.toBeInTheDocument());
+}
+
+/** O item de um arquivo na conferência, achado pelo nome. */
+function arquivoLido(nome: string) {
+  const lista = screen.getByRole('list', { name: 'Arquivos lidos' });
   const item = within(lista)
     .getAllByRole('listitem')
-    .find((li) => li.textContent?.includes(nome));
-  if (!item) throw new Error(`Resultado de "${nome}" não encontrado`);
+    .find((li) => li.firstElementChild?.textContent === nome);
+  if (!item) throw new Error(`Arquivo "${nome}" não encontrado`);
   return item;
+}
+
+/** Uma promessa resolvida de fora, para ver os estados intermediários. */
+function adiada<T>() {
+  let resolver: (valor: T) => void = () => {};
+  const promessa = new Promise<T>((r) => {
+    resolver = r;
+  });
+  return { promessa, resolver: (valor: T) => resolver(valor) };
 }
 
 describe('ImportacoesPage', () => {
@@ -167,98 +259,251 @@ describe('ImportacoesPage', () => {
     expect(screen.queryByLabelText('Notas fiscais (PDF)')).not.toBeInTheDocument();
   });
 
-  it('"Importar" começa desabilitado, sem arquivo escolhido', () => {
+  it('"Ler notas" começa desabilitado, sem arquivo escolhido', () => {
     renderizar();
 
-    expect(screen.getByRole('button', { name: 'Importar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Ler notas' })).toBeDisabled();
   });
 
-  it('importa os arquivos em sequência e mostra um resultado por arquivo', async () => {
+  it('lê os arquivos um a um ("Lendo…") e mostra as notas lidas para conferir, sem gravar', async () => {
+    const leituraA = adiada<Leitura>();
+    const leituraB = adiada<Leitura>();
+    vi.mocked(lerPdf).mockImplementation((arquivo) => (arquivo.name === 'a.pdf' ? leituraA.promessa : leituraB.promessa));
+    renderizar();
+
+    await usuario.upload(screen.getByLabelText('Notas fiscais (PDF)'), [pdf('a.pdf'), pdf('b.pdf')]);
+    await usuario.click(screen.getByRole('button', { name: 'Ler notas' }));
+
+    expect(await screen.findByText('Lendo…')).toBeInTheDocument();
+    expect(arquivoLido('a.pdf')).toHaveTextContent('Lendo…');
+    expect(arquivoLido('b.pdf')).toHaveTextContent('Aguardando…');
+    expect(lerPdf).toHaveBeenCalledTimes(1);
+    leituraA.resolver(LEITURAS['a.pdf']);
+    await waitFor(() => expect(arquivoLido('b.pdf')).toHaveTextContent('Lendo…'));
+    expect(lerPdf).toHaveBeenCalledTimes(2);
+    leituraB.resolver(LEITURAS['b.pdf']);
+
+    await waitFor(() => expect(screen.queryByText('Lendo…')).not.toBeInTheDocument());
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Notas lidas (2)' }));
+    const a = within(arquivoLido('a.pdf')).getByRole('listitem', { name: 'NF 2455' });
+    expect(a).toHaveTextContent(/NF 2455 · 05\/11\/2026 · R\$\s1\.284,00/);
+    expect(a).toHaveTextContent('EMPORIO POMERODE LTDA · 12.345.678/0001-90');
+    expect(a).toHaveTextContent('Cliente: Empório Pomerode');
+    expect(within(a).getByText(/^2 × Tablete 70% 100 g · R\$\s25,90$/)).toBeInTheDocument();
+    const b = within(arquivoLido('b.pdf')).getByRole('listitem', { name: 'NF 2456' });
+    expect(b).toHaveTextContent('Sem cliente no CRM');
+    expect(screen.queryByLabelText('Notas fiscais (PDF)')).not.toBeInTheDocument();
+    expect(importarPdf).not.toHaveBeenCalled();
+  });
+
+  it('nota já importada aparece como "Já importada · será atualizada"', async () => {
+    lerDe({ 'a.pdf': { notas: [notaLida({ jaImportada: true })], ignoradas: [] } });
+    renderizar();
+
+    await escolherELer('a.pdf');
+
+    expect(within(arquivoLido('a.pdf')).getByText('Já importada · será atualizada')).toBeInTheDocument();
+  });
+
+  it('"Confirmar importação" grava cada arquivo em ordem ("Importando…") e conclui com o resumo e "Ver cliente"', async () => {
+    lerDe({
+      'a.pdf': LEITURAS['a.pdf'],
+      'b.pdf': { notas: [notaLida({ chaveAcesso: CHAVE_C, numero: '2457' })], ignoradas: [] },
+    });
     const ordem: string[] = [];
+    const gravacaoA = adiada<Importacao>();
     vi.mocked(importarPdf).mockImplementation(async (arquivo) => {
-      ordem.push(`inicio ${arquivo.name}`);
-      await Promise.resolve();
-      ordem.push(`fim ${arquivo.name}`);
-      return arquivo.name === 'a.pdf'
-        ? importacao({
-            nomeArquivo: 'a.pdf',
-            notas: [nota(), nota({ id: 'n2', vinculo: 'PENDENTE' }), nota({ id: 'n3', vinculo: 'VINCULADA' })],
-            ignoradas: [{ numero: '9', motivo: 'Devolução' }],
-          })
-        : importacao({ nomeArquivo: 'b.pdf', notas: [nota({ id: 'n4' })] });
+      ordem.push(arquivo.name);
+      if (arquivo.name === 'a.pdf') return gravacaoA.promessa;
+      return importacao({
+        id: 'i2',
+        nomeArquivo: 'b.pdf',
+        notas: [nota({ id: 'n2', chaveAcesso: CHAVE_C, cliente: POMERODE, vinculo: 'SEM_VISITA' })],
+      });
     });
     renderizar();
 
-    await escolherEImportar('a.pdf', 'b.pdf');
+    await escolherELer('a.pdf', 'b.pdf');
+    await usuario.click(screen.getByRole('button', { name: 'Confirmar importação' }));
 
-    const a = await resultadoDe('a.pdf');
-    expect(within(a).getByText('3 notas · 2 vinculadas · 1 pendente · 1 ignorada')).toBeInTheDocument();
-    const b = await resultadoDe('b.pdf');
-    expect(within(b).getByText('1 nota · 1 vinculada · 0 pendentes · 0 ignoradas')).toBeInTheDocument();
-    expect(ordem).toEqual(['inicio a.pdf', 'fim a.pdf', 'inicio b.pdf', 'fim b.pdf']);
+    expect(await screen.findByText('Importando…')).toBeInTheDocument();
+    expect(arquivoLido('a.pdf')).toHaveTextContent('Importando…');
+    expect(ordem).toEqual(['a.pdf']);
+    gravacaoA.resolver(GRAVACOES['a.pdf']);
+
+    const titulo = await screen.findByRole('heading', { name: 'Importação concluída.' });
+    expect(titulo).toHaveFocus();
+    expect(ordem).toEqual(['a.pdf', 'b.pdf']);
+    expect(screen.getByText('2 notas novas · 1 vinculada · 1 só no ERP')).toBeInTheDocument();
+    expect(screen.getByText('Deseja verificar?')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Notas lidas/ })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('link', { name: 'Ver cliente' }));
+    expect(screen.getByTestId('local')).toHaveTextContent('/clientes/c1?aba=erp');
   });
 
-  it('as contagens fecham: vinculadas + pendentes + só no ERP = notas, e as ignoradas aparecem com o motivo', async () => {
-    vi.mocked(importarPdf).mockResolvedValue(
-      importacao({
-        notas: [
-          nota({ id: 'a', vinculo: 'AUTOMATICO' }),
-          nota({ id: 'b', vinculo: 'VINCULADA' }),
-          nota({ id: 'c', vinculo: 'PENDENTE' }),
-          nota({ id: 'd', vinculo: 'RECUSADA' }),
-          nota({ id: 'e', vinculo: 'SEM_VISITA' }),
-          nota({ id: 'f', vinculo: 'SEM_CLIENTE' }),
-        ],
-        ignoradas: [
-          { numero: '2455', motivo: 'natureza não é venda' },
-          { numero: null, motivo: 'sem chave de acesso' },
-        ],
-      }),
-    );
-    renderizar();
-
-    await escolherEImportar('a.pdf');
-
-    const item = await resultadoDe('a.pdf');
-    expect(within(item).getByText('6 notas · 2 vinculadas · 1 pendente · 3 só no ERP · 2 ignoradas')).toBeInTheDocument();
-    expect(within(item).getByText('Ignoradas: 2455 — natureza não é venda')).toBeInTheDocument();
-    expect(within(item).getByText('Ignoradas: sem número — sem chave de acesso')).toBeInTheDocument();
-  });
-
-  it('erro num arquivo aparece só nele e o outro segue', async () => {
-    vi.mocked(importarPdf).mockImplementation(async (arquivo) => {
-      if (arquivo.name === 'ruim.pdf') {
-        throw new ApiError('VALIDATION_ERROR', 'Não encontrei uma DANFE legível neste PDF.');
-      }
-      return importacao({ nomeArquivo: 'boa.pdf' });
+  it('notas de dois clientes: um link por cliente, e o link do bloco das notas sem cliente', async () => {
+    lerDe({
+      'a.pdf': LEITURAS['a.pdf'],
+      'b.pdf': { notas: [notaLida({ chaveAcesso: CHAVE_C, cliente: JARAGUA })], ignoradas: [] },
+      'c.pdf': LEITURAS['b.pdf'],
+    });
+    gravarDe({
+      'a.pdf': GRAVACOES['a.pdf'],
+      'b.pdf': importacao({ id: 'i3', notas: [nota({ id: 'n3', chaveAcesso: CHAVE_C, cliente: JARAGUA })] }),
+      'c.pdf': GRAVACOES['b.pdf'],
     });
     renderizar();
 
-    await escolherEImportar('ruim.pdf', 'boa.pdf');
+    await escolherELer('a.pdf', 'b.pdf', 'c.pdf');
+    await usuario.click(screen.getByRole('button', { name: 'Confirmar importação' }));
 
-    const ruim = await resultadoDe('ruim.pdf');
-    expect(within(ruim).getByText('Não encontrei uma DANFE legível neste PDF.')).toBeInTheDocument();
-    const boa = await resultadoDe('boa.pdf');
-    expect(within(boa).getByText('1 nota · 1 vinculada · 0 pendentes · 0 ignoradas')).toBeInTheDocument();
-    expect(within(boa).queryByText(/DANFE/)).not.toBeInTheDocument();
-    expect(importarPdf).toHaveBeenCalledTimes(2);
-  });
-
-  it('o resultado da importação lista os CNPJs sem cliente e leva ao bloco onde se cria o cliente', async () => {
-    vi.mocked(importarPdf).mockResolvedValue(
-      importacao({ cnpjsSemCliente: [{ cnpj: '99888777000166', razaoSocial: 'Padaria & Cia' }] }),
-    );
-    renderizar();
-
-    await escolherEImportar('a.pdf');
-
-    const item = await resultadoDe('a.pdf');
-    expect(item).toHaveTextContent('Sem cliente no CRM: Padaria & Cia · 99888777000166.');
-    expect(within(item).getByRole('link', { name: 'Criar o cliente no bloco "CNPJs sem cliente no CRM"' })).toHaveAttribute(
+    await screen.findByRole('heading', { name: 'Importação concluída.' });
+    expect(screen.queryByRole('link', { name: 'Ver cliente' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver Empório Pomerode' })).toHaveAttribute('href', '/clientes/c1?aba=erp');
+    expect(screen.getByRole('link', { name: 'Ver Doceria Jaraguá' })).toHaveAttribute('href', '/clientes/c2?aba=erp');
+    expect(screen.getByRole('link', { name: 'Criar o cliente no bloco "CNPJs sem cliente no CRM"' })).toHaveAttribute(
       'href',
       '#cnpjs-sem-cliente',
     );
-    expect(within(item).queryByRole('button', { name: 'Criar cliente' })).not.toBeInTheDocument();
+  });
+
+  it('Review Focus 3: nota nova e nota já importada → "1 nota nova · 1 atualizada"', async () => {
+    lerDe({
+      'a.pdf': {
+        notas: [notaLida(), notaLida({ chaveAcesso: CHAVE_B, numero: '2456', jaImportada: true })],
+        ignoradas: [],
+      },
+    });
+    gravarDe({
+      'a.pdf': importacao({
+        notas: [
+          nota({ chaveAcesso: CHAVE_A, cliente: POMERODE }),
+          nota({ id: 'n2', chaveAcesso: CHAVE_B, numero: '2456', cliente: POMERODE, vinculo: 'SEM_VISITA' }),
+        ],
+      }),
+    });
+    renderizar();
+
+    await escolherELer('a.pdf');
+    expect(within(arquivoLido('a.pdf')).getByRole('listitem', { name: 'NF 2455' })).not.toHaveTextContent('Já importada');
+    expect(within(arquivoLido('a.pdf')).getByRole('listitem', { name: 'NF 2456' })).toHaveTextContent(
+      'Já importada · será atualizada',
+    );
+    await usuario.click(screen.getByRole('button', { name: 'Confirmar importação' }));
+
+    expect(await screen.findByText('1 nota nova · 1 atualizada · 1 vinculada · 1 só no ERP')).toBeInTheDocument();
+    expect(importarPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('Review Focus 4: três PDFs e o segundo não é DANFE — o erro fica na linha dele e só os dois lidos são gravados', async () => {
+    vi.mocked(lerPdf).mockImplementation(async (arquivo) => {
+      if (arquivo.name === 'ruim.pdf') {
+        throw new ApiError('VALIDATION_ERROR', 'Não encontrei uma DANFE legível neste PDF.');
+      }
+      return LEITURAS[arquivo.name];
+    });
+    gravarDe(GRAVACOES);
+    renderizar();
+
+    await escolherELer('a.pdf', 'ruim.pdf', 'b.pdf');
+
+    expect(within(arquivoLido('ruim.pdf')).getByRole('alert')).toHaveTextContent(
+      'Não encontrei uma DANFE legível neste PDF.',
+    );
+    expect(within(arquivoLido('a.pdf')).queryByRole('alert')).not.toBeInTheDocument();
+    expect(within(arquivoLido('b.pdf')).getByRole('listitem', { name: 'NF 2456' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Notas lidas (2)' })).toBeInTheDocument();
+    expect(lerPdf).toHaveBeenCalledTimes(3);
+    const confirmar = screen.getByRole('button', { name: 'Confirmar importação' });
+    expect(confirmar).toBeEnabled();
+
+    await usuario.click(confirmar);
+
+    await screen.findByRole('heading', { name: 'Importação concluída.' });
+    expect(vi.mocked(importarPdf).mock.calls.map(([arquivo]) => arquivo.name)).toEqual(['a.pdf', 'b.pdf']);
+  });
+
+  it('"Confirmar importação" fica desabilitado quando nenhum arquivo tem nota', async () => {
+    lerDe({ 'a.pdf': { notas: [], ignoradas: [{ numero: '9', motivo: 'Devolução' }] } });
+    renderizar();
+
+    await escolherELer('a.pdf');
+
+    expect(arquivoLido('a.pdf')).toHaveTextContent('Ignoradas: 9 — Devolução');
+    expect(screen.getByRole('button', { name: 'Confirmar importação' })).toBeDisabled();
+  });
+
+  it('"Cancelar" na conferência volta ao início, sem gravar e com o input vazio', async () => {
+    lerDe(LEITURAS);
+    renderizar();
+
+    await escolherELer('a.pdf');
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    const entrada = screen.getByLabelText<HTMLInputElement>('Notas fiscais (PDF)');
+    expect(entrada.files).toHaveLength(0);
+    expect(entrada).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Ler notas' })).toBeDisabled();
+    expect(screen.queryByRole('heading', { name: /Notas lidas/ })).not.toBeInTheDocument();
+    expect(importarPdf).not.toHaveBeenCalled();
+  });
+
+  it('Review Focus 5: "Nova importação" limpa a tela e as listas de baixo já refletem a gravação', async () => {
+    lerDe(LEITURAS);
+    gravarDe(GRAVACOES);
+    vi.mocked(listarImportacoes).mockResolvedValueOnce([]).mockResolvedValue([importacao({ nomeArquivo: 'a.pdf' })]);
+    const invalidar = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    renderizar();
+    expect(await screen.findByText('Nenhuma importação ainda.')).toBeInTheDocument();
+
+    await escolherELer('a.pdf');
+    expect(invalidar).not.toHaveBeenCalledWith({ queryKey: ['erp'] });
+    expect(invalidar).not.toHaveBeenCalledWith({ queryKey: ['client'] });
+    await usuario.click(screen.getByRole('button', { name: 'Confirmar importação' }));
+    await screen.findByRole('heading', { name: 'Importação concluída.' });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ['erp'] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ['client'] });
+    expect(await screen.findByText(/a\.pdf — 1 nota/)).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: 'Nova importação' }));
+
+    const entrada = screen.getByLabelText<HTMLInputElement>('Notas fiscais (PDF)');
+    expect(entrada.files).toHaveLength(0);
+    expect(entrada).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Ler notas' })).toBeDisabled();
+    expect(screen.queryByRole('heading', { name: /Notas lidas/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Importação concluída.' })).not.toBeInTheDocument();
+    expect(screen.getByText(/a\.pdf — 1 nota/)).toBeInTheDocument();
+  });
+
+  it('arquivo que falha ao gravar: os outros concluem e o erro aparece no fecho', async () => {
+    lerDe(LEITURAS);
+    vi.mocked(importarPdf).mockImplementation(async (arquivo) => {
+      if (arquivo.name === 'b.pdf') throw new ApiError('VALIDATION_ERROR', 'Falhou a gravação.');
+      return GRAVACOES['a.pdf'];
+    });
+    renderizar();
+
+    await escolherELer('a.pdf', 'b.pdf');
+    await usuario.click(screen.getByRole('button', { name: 'Confirmar importação' }));
+
+    await screen.findByRole('heading', { name: 'Importação concluída.' });
+    expect(screen.getByText('1 nota nova · 1 vinculada')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('b.pdf: Falhou a gravação.');
+  });
+
+  it('se nenhum arquivo é gravado, a conferência fica com o erro na linha de cada um', async () => {
+    lerDe(LEITURAS);
+    vi.mocked(importarPdf).mockRejectedValue(new ApiError('VALIDATION_ERROR', 'Falhou a gravação.'));
+    renderizar();
+
+    await escolherELer('a.pdf');
+    await usuario.click(screen.getByRole('button', { name: 'Confirmar importação' }));
+
+    expect(await within(arquivoLido('a.pdf')).findByRole('alert')).toHaveTextContent('Falhou a gravação.');
+    expect(screen.queryByRole('heading', { name: 'Importação concluída.' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar importação' })).toBeEnabled();
   });
 
   it('bloco persistente "CNPJs sem cliente no CRM (N)": razão social, CNPJ, município, notas, "Criar cliente" e "Copiar CNPJ"', async () => {

@@ -1,12 +1,24 @@
 /**
  * "Importar notas" do gestor (Etapa 12b): sobe as DANFEs em PDF e traz as
- * vendas reais para o CRM.
- *   - Escolher vários PDFs e "Importar": os arquivos vão um a um, em
- *     sequência (um por requisição), e cada um ganha o seu resultado — notas,
- *     vinculadas, pendentes, ignoradas — ou o seu erro, sem derrubar os
+ * vendas reais para o CRM. O cartão do topo tem três estados:
+ *   - Escolher: um ou vários PDFs e "Ler notas". Os arquivos são lidos um a
+ *     um, em sequência (`lerPdf`, sem gravar nada), com "Lendo…" na linha de
+ *     cada um; o erro de um arquivo fica na linha dele e não derruba os
  *     outros;
- *     O resultado de um arquivo lista também os CNPJs das notas sem cliente,
- *     com um link para o bloco abaixo;
+ *   - Conferir (`ConferenciaDeNotas`): "Notas lidas (N)", nota a nota com os
+ *     produtos, "Sem cliente no CRM" e "Já importada · será atualizada".
+ *     "Confirmar importação" reenvia, em ordem e um por requisição
+ *     (`importarPdf`, "Importando…"), cada arquivo que foi lido; "Cancelar"
+ *     volta ao início, limpo. Gravado pelo menos um arquivo, tudo do ERP
+ *     (`['erp']`) e a ficha dos clientes (`['client']`) são buscados de novo
+ *     e a tela passa ao fecho; nenhum, a
+ *     conferência fica com o erro de cada arquivo;
+ *   - Concluída (`ImportacaoConcluida`): "Importação concluída.", o resumo
+ *     somado (novas × atualizadas, vínculos, ignoradas), "Deseja verificar?"
+ *     com "Ver cliente" (ou um "Ver {cliente}" por cliente) até a ficha na aba
+ *     ERP e sugestões, o link para o bloco dos CNPJs sem cliente e "Nova
+ *     importação", que limpa o cartão e devolve o foco à escolha de arquivos.
+ * Os blocos de baixo ficam sempre na tela:
  *   - "CNPJs sem cliente no CRM (N)": bloco persistente (`GET /erp/sem-cliente`,
  *     lido como as pendências), um item por CNPJ das notas cujo destinatário
  *     ainda não é cliente — razão social, CNPJ formatado, município, quantas notas. O
@@ -36,7 +48,9 @@ import { Button } from '@/components/ui/button';
 import { contar } from '@/lib/contar';
 import { useAuth } from '../auth/useAuth';
 import { AvisoExclusivoDoGestor } from '../components/AvisoExclusivoDoGestor';
+import { ConferenciaDeNotas, type ArquivoLido } from '../components/crm/ConferenciaDeNotas';
 import { CriarClientePelaNota } from '../components/crm/CriarClientePelaNota';
+import { ID_SEM_CLIENTE, ImportacaoConcluida, type ArquivoGravado } from '../components/crm/ImportacaoConcluida';
 import { Aviso, Cartao } from '../components/crm/ui';
 import { useImportacoes, usePendencias, useSemCliente } from '../hooks/useImportacoes';
 import { formatarCnpj } from '../lib/formatarCnpj';
@@ -47,18 +61,23 @@ import { mensagemErroApi } from '../services/clients';
 import {
   desvincularNota,
   importarPdf,
+  lerPdf,
   vincularNota,
   type CnpjSemCliente,
-  type Importacao,
   type Nota,
   type VinculoNota,
 } from '../services/importacoes';
 import { ROTULO_RESULTADO } from '../services/visits';
 
+const MENSAGEM_ERRO_LER = 'Não foi possível ler este arquivo.';
 const MENSAGEM_ERRO_IMPORTAR = 'Não foi possível importar este arquivo.';
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar a lista.';
-/** Âncora do bloco "CNPJs sem cliente no CRM", para o link do resultado da importação. */
-const ID_SEM_CLIENTE = 'cnpjs-sem-cliente';
+
+/** Os três estados do cartão "Importar notas". */
+type Etapa = 'escolher' | 'conferir' | 'concluida';
+
+/** O que o fecho mostra: os arquivos gravados e os que falharam ao gravar. */
+type Conclusao = { gravados: ArquivoGravado[]; falhas: { nome: string; mensagem: string }[] };
 
 /** Estado do vínculo da nota no histórico, nas palavras do resumo da importação. */
 const ROTULO_VINCULO: Record<VinculoNota, string> = {
@@ -69,11 +88,6 @@ const ROTULO_VINCULO: Record<VinculoNota, string> = {
   SEM_VISITA: 'Só no ERP',
   SEM_CLIENTE: 'Só no ERP',
 };
-
-type ResultadoDoArquivo =
-  | { nome: string; estado: 'aguardando' | 'enviando' }
-  | { nome: string; estado: 'ok'; importacao: Importacao }
-  | { nome: string; estado: 'erro'; mensagem: string };
 
 async function copiarCnpj(cnpj: string): Promise<void> {
   try {
@@ -89,20 +103,6 @@ function diaMes(iso: string): string {
   return formatarData(iso).slice(0, 5);
 }
 
-function resumo({ notas, ignoradas }: Importacao): string {
-  const vinculadas = notas.filter(({ vinculo }) => vinculo === 'AUTOMATICO' || vinculo === 'VINCULADA').length;
-  const pendentes = notas.filter(({ vinculo }) => vinculo === 'PENDENTE').length;
-  // Só no ERP: o que não tem vínculo nem espera decisão (recusada, sem visita ou sem cliente).
-  const soNoErp = notas.length - vinculadas - pendentes;
-  return [
-    contar(notas.length, 'nota'),
-    contar(vinculadas, 'vinculada'),
-    contar(pendentes, 'pendente'),
-    ...(soNoErp > 0 ? [`${soNoErp} só no ERP`] : []),
-    contar(ignoradas.length, 'ignorada'),
-  ].join(' · ');
-}
-
 export function ImportacoesPage() {
   const { user } = useAuth();
 
@@ -115,96 +115,124 @@ export function ImportacoesPage() {
 
 function Importacoes() {
   const queryClient = useQueryClient();
-  const entrada = useRef<HTMLInputElement>(null);
+  const [etapa, setEtapa] = useState<Etapa>('escolher');
   const [arquivos, setArquivos] = useState<File[]>([]);
-  const [resultados, setResultados] = useState<ResultadoDoArquivo[]>([]);
-  const [importando, setImportando] = useState(false);
+  const [lidos, setLidos] = useState<ArquivoLido[]>([]);
+  const [ocupado, setOcupado] = useState(false);
+  const [concluida, setConcluida] = useState<Conclusao>({ gravados: [], falhas: [] });
+  // A entrada some fora de "escolher"; ao voltar (Cancelar, Nova importação) ela recebe o foco.
+  const { ref: entrada, devolverFoco } = useDevolverFoco<HTMLInputElement>(etapa !== 'escolher');
 
-  function atualizar(indice: number, resultado: ResultadoDoArquivo) {
-    setResultados((atuais) => atuais.map((atual, i) => (i === indice ? resultado : atual)));
+  function atualizar(indice: number, lido: ArquivoLido) {
+    setLidos((atuais) => atuais.map((atual, i) => (i === indice ? lido : atual)));
   }
 
-  async function importar() {
+  /** Lê os PDFs um a um, sem gravar; o erro de um arquivo fica na linha dele. */
+  async function lerNotas() {
     const fila = arquivos;
-    setImportando(true);
-    setResultados(fila.map((arquivo) => ({ nome: arquivo.name, estado: 'aguardando' })));
+    setOcupado(true);
+    setLidos(fila.map((arquivo) => ({ nome: arquivo.name, estado: 'aguardando' })));
+    setEtapa('conferir');
     for (const [indice, arquivo] of fila.entries()) {
-      atualizar(indice, { nome: arquivo.name, estado: 'enviando' });
+      atualizar(indice, { nome: arquivo.name, estado: 'lendo' });
       try {
-        const importacao = await importarPdf(arquivo);
-        atualizar(indice, { nome: arquivo.name, estado: 'ok', importacao });
+        const leitura = await lerPdf(arquivo);
+        atualizar(indice, { nome: arquivo.name, estado: 'lido', leitura });
       } catch (erro) {
-        atualizar(indice, { nome: arquivo.name, estado: 'erro', mensagem: mensagemErroApi(erro, MENSAGEM_ERRO_IMPORTAR) });
+        atualizar(indice, { nome: arquivo.name, estado: 'erro', mensagem: mensagemErroApi(erro, MENSAGEM_ERRO_LER) });
       }
     }
-    setImportando(false);
-    setArquivos([]);
-    if (entrada.current) entrada.current.value = '';
+    setOcupado(false);
+  }
+
+  /**
+   * Grava, em ordem, cada arquivo que foi lido (os que falharam na leitura
+   * ficam de fora). Gravado pelo menos um, a tela passa ao fecho; nenhum, a
+   * conferência fica com o erro na linha de cada arquivo.
+   */
+  async function confirmar() {
+    const fila = lidos.flatMap((lido, indice) => (lido.estado === 'lido' ? [{ lido, indice }] : []));
+    setOcupado(true);
+    setLidos((atuais) => atuais.map((atual) => (atual.estado === 'lido' ? { ...atual, gravacao: 'aguardando' } : atual)));
+    const gravados: ArquivoGravado[] = [];
+    const falhas: Conclusao['falhas'] = [];
+    for (const { lido, indice } of fila) {
+      const arquivo = arquivos[indice];
+      atualizar(indice, { ...lido, gravacao: 'importando' });
+      try {
+        const importacao = await importarPdf(arquivo);
+        gravados.push({ leitura: lido.leitura, importacao });
+        atualizar(indice, { ...lido, gravacao: 'importada' });
+      } catch (erro) {
+        const mensagem = mensagemErroApi(erro, MENSAGEM_ERRO_IMPORTAR);
+        falhas.push({ nome: lido.nome, mensagem });
+        atualizar(indice, { ...lido, gravacao: { erro: mensagem } });
+      }
+    }
+    setOcupado(false);
+    if (gravados.length === 0) return;
+    // Tudo do ERP (listas de baixo) e a ficha dos clientes (vendas e sugestões), para "Ver cliente" abrir atualizada.
     void queryClient.invalidateQueries({ queryKey: ['erp'] });
+    void queryClient.invalidateQueries({ queryKey: ['client'] });
+    setConcluida({ gravados, falhas });
+    setEtapa('concluida');
+  }
+
+  /** "Cancelar" e "Nova importação": tela limpa, pronta para os próximos PDFs. */
+  function recomecar() {
+    devolverFoco();
+    setArquivos([]);
+    setLidos([]);
+    setConcluida({ gravados: [], falhas: [] });
+    setEtapa('escolher');
   }
 
   return (
     <div className="space-y-4">
       <Cartao titulo="Importar notas">
-        <p className="mb-3 text-sm text-muted-foreground">
-          Escolha os PDFs das notas fiscais (DANFE) de venda. Cada arquivo é lido e as vendas entram no CRM.
-        </p>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="max-sm:w-full">
-            <label htmlFor="arquivos-de-notas" className="mb-1 block text-sm font-medium">
-              Notas fiscais (PDF)
-            </label>
-            <input
-              id="arquivos-de-notas"
-              ref={entrada}
-              type="file"
-              accept=".pdf,application/pdf"
-              multiple
-              disabled={importando}
-              onChange={(evento) => setArquivos(Array.from(evento.target.files ?? []))}
-              className="block w-full text-sm file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-2 file:text-sm"
-            />
-          </div>
-          <Button type="button" onClick={() => void importar()} disabled={importando || arquivos.length === 0} className="max-sm:w-full">
-            <FileUp aria-hidden="true" />
-            Importar
-          </Button>
-        </div>
-
-        {resultados.length > 0 && (
-          <ul aria-label="Resultado da importação" className="mt-4 divide-y rounded-lg border">
-            {resultados.map((resultado, indice) => (
-              <li key={`${indice}-${resultado.nome}`} className="px-4 py-3 text-sm">
-                <p className="font-medium">{resultado.nome}</p>
-                {resultado.estado === 'aguardando' && <p className="text-muted-foreground">Aguardando...</p>}
-                {resultado.estado === 'enviando' && <p className="text-muted-foreground">Importando...</p>}
-                {resultado.estado === 'ok' && <p>{resumo(resultado.importacao)}</p>}
-                {resultado.estado === 'ok' && resultado.importacao.cnpjsSemCliente.length > 0 && (
-                  <p className="text-muted-foreground">
-                    Sem cliente no CRM:{' '}
-                    {resultado.importacao.cnpjsSemCliente
-                      .map(({ cnpj, razaoSocial }) => `${razaoSocial} · ${cnpj}`)
-                      .join('; ')}
-                    .{' '}
-                    <a href={`#${ID_SEM_CLIENTE}`} className="font-medium text-primary underline-offset-4 hover:underline">
-                      Criar o cliente no bloco "CNPJs sem cliente no CRM"
-                    </a>
-                  </p>
-                )}
-                {resultado.estado === 'ok' &&
-                  resultado.importacao.ignoradas.map(({ numero, motivo }, i) => (
-                    <p key={i} className="text-muted-foreground">
-                      Ignoradas: {numero ?? 'sem número'} — {motivo}
-                    </p>
-                  ))}
-                {resultado.estado === 'erro' && (
-                  <p role="alert" className="text-st-red-text">
-                    {resultado.mensagem}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
+        {etapa === 'escolher' && (
+          <>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Escolha os PDFs das notas fiscais (DANFE) de venda. As notas são lidas para você conferir antes de entrarem
+              no CRM.
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="max-sm:w-full">
+                <label htmlFor="arquivos-de-notas" className="mb-1 block text-sm font-medium">
+                  Notas fiscais (PDF)
+                </label>
+                <input
+                  id="arquivos-de-notas"
+                  ref={entrada}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  multiple
+                  onChange={(evento) => setArquivos(Array.from(evento.target.files ?? []))}
+                  className="block w-full text-sm file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-2 file:text-sm"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={() => void lerNotas()}
+                disabled={arquivos.length === 0}
+                className="max-sm:w-full"
+              >
+                <FileUp aria-hidden="true" />
+                Ler notas
+              </Button>
+            </div>
+          </>
+        )}
+        {etapa === 'conferir' && (
+          <ConferenciaDeNotas
+            arquivos={lidos}
+            ocupado={ocupado}
+            aoConfirmar={() => void confirmar()}
+            aoCancelar={recomecar}
+          />
+        )}
+        {etapa === 'concluida' && (
+          <ImportacaoConcluida gravados={concluida.gravados} falhas={concluida.falhas} aoNovaImportacao={recomecar} />
         )}
       </Cartao>
 

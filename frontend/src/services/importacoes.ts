@@ -4,6 +4,8 @@
  * e `/erp/sem-cliente` do backend. Um PDF por requisição: a página manda os
  * arquivos um a um. "Cliente pela nota": o gestor cria o cliente de um CNPJ
  * sem cadastro com os dados da DANFE, escolhendo o representante.
+ * Conferência: `lerPdf` lê o PDF sem gravar (`/erp/importacoes/leitura`)
+ * para o gestor conferir; confirmado, o mesmo arquivo vai a `importarPdf`.
  */
 import { api } from './api';
 import type { ClienteCompleto } from './clients';
@@ -55,6 +57,37 @@ export type Importacao = {
   ignoradas: { numero: string | null; motivo: string }[];
   cnpjsSemCliente: { cnpj: string; razaoSocial: string }[];
 };
+
+/** Nota como a leitura sem gravar a devolve (`NotaLidaDTO` do backend). */
+export type NotaLida = {
+  chaveAcesso: string;
+  numero: string;
+  serie: string;
+  /** Data de calendário 'AAAA-MM-DD'. */
+  dataEmissao: string;
+  destinatarioNome: string;
+  /** Só dígitos. */
+  destinatarioCnpj: string;
+  cliente: { id: string; nomeFantasia: string } | null;
+  valorTotal: number;
+  itens: ItemDaNota[];
+  /** A chave de acesso já existe no CRM: confirmar atualiza a nota. */
+  jaImportada: boolean;
+};
+
+export type Leitura = {
+  notas: NotaLida[];
+  ignoradas: { numero: string | null; motivo: string }[];
+};
+
+/** Lê as notas de um PDF sem gravar nada (conferência antes de importar). */
+export function lerPdf(arquivo: File): Promise<Leitura> {
+  return api.postBinario<Leitura>(
+    `/erp/importacoes/leitura?nome=${encodeURIComponent(arquivo.name)}`,
+    arquivo,
+    'application/pdf',
+  );
+}
 
 export function importarPdf(arquivo: File): Promise<Importacao> {
   return api.postBinario<Importacao>(
