@@ -54,7 +54,7 @@ export async function listarProdutos(): Promise<Produto[]> {
 
 /** Situação da fonte de vendas do ERP (`GET /erp/situacao`, qualquer papel). */
 export type SituacaoErp = {
-  provedor: 'mock' | 'importado';
+  provedor: 'mock' | 'importado' | 'hibrido';
   simulado: boolean;
   estoqueDisponivel: boolean;
   /** 'AAAA-MM-DD' da venda mais recente; `null` sem notas. */

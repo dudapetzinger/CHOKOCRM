@@ -228,7 +228,7 @@ function renderizarComo(role: 'GESTOR' | 'REPRESENTANTE', url = '/painel') {
 }
 
 describe('PainelPage (gestor)', () => {
-  it('barra com o select de representante e o segmentado de período; faixa de dados simulados', () => {
+  it('barra com o select de representante e o segmentado de período; sem faixa de aviso do ERP', () => {
     renderizarComo('GESTOR');
 
     expect(screen.getByRole('combobox', { name: 'Filtrar por representante' })).toBeInTheDocument();
@@ -239,10 +239,11 @@ describe('PainelPage (gestor)', () => {
       '365 dias',
       'Personalizado',
     ]);
-    expect(screen.getByText('Dados simulados — integração com o ERP ainda não está disponível')).toBeInTheDocument();
+    expect(screen.queryByText(/Dados simulados/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/integração com o ERP/)).not.toBeInTheDocument();
   });
 
-  it('com o provedor importado, a faixa diz até quando as vendas foram importadas', () => {
+  it('com o provedor importado, também não há faixa sobre a fonte do ERP', () => {
     vi.mocked(useSituacaoErp).mockReturnValue(
       consulta({
         provedor: 'importado',
@@ -255,7 +256,8 @@ describe('PainelPage (gestor)', () => {
     renderizarComo('GESTOR');
 
     expect(screen.queryByText(/Dados simulados/)).not.toBeInTheDocument();
-    expect(screen.getByText('Vendas do ERP importadas até 04/11/2026')).toBeInTheDocument();
+    expect(screen.queryByText(/Vendas do ERP importadas/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nenhuma nota/)).not.toBeInTheDocument();
   });
 
   it('título "Quem está visitando pouco?" com o período e os clientes ativos, e os quatro indicadores', () => {

@@ -8,6 +8,7 @@
  * estoque); a linha "Estoque baixo: …" com links saiu (decisão da parceira).
  * No celular, o gatilho é um invólucro com 44 px de toque (`TOQUE_NA_BARRA`).
  * A tabela escondida lista evento, produto e clientes para leitores de tela.
+ * Desde 11/11/2026 não há frase sobre o ERP não informar o estoque.
  *
  * O segmentado fica fora da área de resultados: continua na tela enquanto o
  * horizonte novo carrega e depois de um erro, para sempre dar para escolher
@@ -134,10 +135,6 @@ export function AlertasProducao({ horizonteDias, onHorizonteChange, alertas, car
           <p className="text-sm text-muted-foreground">
             ERP indisponível para {alertas.clientesIndisponiveis} de {contar(alertas.clientesConsultados, 'cliente')}.
           </p>
-        )}
-
-        {alertas?.estoqueIndisponivel && (
-          <p className="text-sm text-muted-foreground">O ERP não informa o estoque do cliente.</p>
         )}
 
         {alertas && <ListaDeAlertas alertas={alertas} />}

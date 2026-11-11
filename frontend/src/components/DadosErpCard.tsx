@@ -7,10 +7,14 @@
  * etiqueta vermelha.
  * Etapa 12b (notas importadas): a seção "Últimas vendas" lista as 5 vendas mais
  * recentes (notas ou pedidos; data, valor e os itens, "16× BARRA AO LEITE 35%
- * 500 G") e só aparece quando há vendas, então o card dos dados simulados não muda; quando o
- * ERP não informa estoque, uma frase fica no lugar do nível de estoque.
+ * 500 G") e só aparece quando há vendas.
  * Cada venda mostra a origem em texto miúdo ("NF 2455" ou "Pedido do
- * check-in"); sem `origem` (dados simulados) nada é exibido.
+ * check-in"); sem `origem` nada é exibido.
+ * Desde 11/11/2026 o card não mostra aviso sobre a fonte dos dados (nada de
+ * "dados simulados"): a coluna "Estoque" só existe quando há estoque a mostrar
+ * (`!estoqueIndisponivel && estoque`), sem frase no lugar; sem compras, a frase é
+ * "Nenhuma compra registrada." e, sem histórico, "Sem histórico de compras
+ * para este cliente.".
  */
 import { useId, type ReactElement } from 'react';
 import { Package } from 'lucide-react';
@@ -19,7 +23,6 @@ import { mensagemErroApi } from '../services/clients';
 import { formatarData, formatarDataCalendario } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
 import type { DadosErp, NivelEstoque, VendaErp } from '../services/erp';
-import { AvisoErp } from './AvisoErp';
 import { Aviso, Cartao, Etiqueta } from './crm/ui';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os dados do ERP.';
@@ -88,7 +91,7 @@ function renderizarConteudo(dadosErp: DadosErp): ReactElement {
   switch (dadosErp.status) {
     case 'SEM_ERP_ID':
       return (
-        <p className="text-sm text-muted-foreground">Cliente sem identificador de ERP. Informe-o em Editar dados.</p>
+        <p className="text-sm text-muted-foreground">Sem histórico de compras para este cliente.</p>
       );
 
     case 'NAO_ENCONTRADO':
@@ -100,8 +103,6 @@ function renderizarConteudo(dadosErp: DadosErp): ReactElement {
     case 'OK':
       return (
         <>
-          <AvisoErp />
-
           <div className="grid gap-4 @lg:grid-cols-2">
             <div>
               <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Compras</h3>
@@ -109,7 +110,7 @@ function renderizarConteudo(dadosErp: DadosErp): ReactElement {
                 <li>
                   {dadosErp.ultimaVenda
                     ? `Última venda: ${formatarData(dadosErp.ultimaVenda.data)} — ${formatarMoeda(dadosErp.ultimaVenda.valor)}`
-                    : 'Nenhuma venda registrada.'}
+                    : 'Nenhuma compra registrada.'}
                 </li>
                 <li>
                   Volume de compras (90 dias): {formatarMoeda(dadosErp.volume90Dias.total)} (
@@ -118,33 +119,28 @@ function renderizarConteudo(dadosErp: DadosErp): ReactElement {
               </ul>
             </div>
 
-            <div>
-              <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Estoque</h3>
-              {dadosErp.estoqueIndisponivel ? (
-                <p className="text-sm text-muted-foreground">O ERP não informa o estoque do cliente.</p>
-              ) : (
-                <p className="text-sm">
-                  Estoque estimado:{' '}
-                  {dadosErp.estoque ? ROTULO_NIVEL_ESTOQUE[dadosErp.estoque.nivel] : 'sem dados'}
-                </p>
-              )}
-              {dadosErp.estoque && dadosErp.estoque.itensBaixos.length > 0 && (
-                <>
-                  <p className="mt-3 mb-1.5 text-sm">Itens em baixa:</p>
-                  <ul className="space-y-1.5 text-sm">
-                    {dadosErp.estoque.itensBaixos.map((item) => (
-                      <li key={item.sku} className="flex items-center justify-between gap-2">
-                        <span className="flex min-w-0 items-center gap-2">
-                          <Package aria-hidden="true" className="size-4 shrink-0 text-primary" />
-                          {item.nome}
-                        </span>
-                        <Etiqueta tom="vermelho">{item.quantidade} un.</Etiqueta>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
+            {!dadosErp.estoqueIndisponivel && dadosErp.estoque && (
+              <div>
+                <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Estoque</h3>
+                <p className="text-sm">Estoque estimado: {ROTULO_NIVEL_ESTOQUE[dadosErp.estoque.nivel]}</p>
+                {dadosErp.estoque.itensBaixos.length > 0 && (
+                  <>
+                    <p className="mt-3 mb-1.5 text-sm">Itens em baixa:</p>
+                    <ul className="space-y-1.5 text-sm">
+                      {dadosErp.estoque.itensBaixos.map((item) => (
+                        <li key={item.sku} className="flex items-center justify-between gap-2">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <Package aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                            {item.nome}
+                          </span>
+                          <Etiqueta tom="vermelho">{item.quantidade} un.</Etiqueta>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {dadosErp.ultimasVendas.length > 0 && <UltimasVendas vendas={dadosErp.ultimasVendas} />}

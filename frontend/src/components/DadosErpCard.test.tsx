@@ -1,11 +1,10 @@
 import { render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { buscarDadosErp, buscarSituacaoErp, type DadosErp } from '../services/erp';
+import { buscarDadosErp, type DadosErp } from '../services/erp';
 import { DadosErpCard } from './DadosErpCard';
 
 vi.mock('../services/erp', () => ({
   buscarDadosErp: vi.fn(),
-  buscarSituacaoErp: vi.fn(),
 }));
 
 type DadosOk = Extract<DadosErp, { status: 'OK' }>;
@@ -26,16 +25,6 @@ function dadosOk(sobrescrever: Partial<DadosOk> = {}): DadosOk {
 function venda(data: string, valor: number, nome: string, quantidade: number): DadosOk['ultimasVendas'][number] {
   return { data, valor, produtos: [{ sku: `SKU-${data}`, nome, quantidade }] };
 }
-
-beforeEach(() => {
-  vi.mocked(buscarSituacaoErp).mockReset().mockResolvedValue({
-    provedor: 'importado',
-    simulado: false,
-    estoqueDisponivel: false,
-    ultimaVendaEm: '2026-11-03',
-    ultimaImportacaoEm: '2026-11-04T12:00:00.000Z',
-  });
-});
 
 function renderizar() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -109,13 +98,42 @@ describe('DadosErpCard', () => {
     expect(vendas[2]).not.toHaveTextContent('Pedido do check-in');
   });
 
-  it('estoque indisponível: mostra a frase no lugar do nível de estoque', async () => {
+  it('estoque indisponível: não existe a coluna Estoque nem a frase antiga', async () => {
     vi.mocked(buscarDadosErp).mockResolvedValue(dadosOk({ estoque: null, estoqueIndisponivel: true }));
 
     renderizar();
 
-    expect(await screen.findByText('O ERP não informa o estoque do cliente.')).toBeInTheDocument();
+    expect(await screen.findByText('Compras')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Estoque' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/não informa o estoque/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Estoque estimado/)).not.toBeInTheDocument();
+  });
+
+  it('sem última venda: "Nenhuma compra registrada."', async () => {
+    vi.mocked(buscarDadosErp).mockResolvedValue(dadosOk({ ultimaVenda: null }));
+
+    renderizar();
+
+    expect(await screen.findByText('Nenhuma compra registrada.')).toBeInTheDocument();
+    expect(screen.queryByText(/Nenhuma venda/)).not.toBeInTheDocument();
+  });
+
+  it('SEM_ERP_ID: "Sem histórico de compras para este cliente."', async () => {
+    vi.mocked(buscarDadosErp).mockResolvedValue({ status: 'SEM_ERP_ID' });
+
+    renderizar();
+
+    expect(await screen.findByText('Sem histórico de compras para este cliente.')).toBeInTheDocument();
+    expect(screen.queryByText(/sem identificador de ERP/)).not.toBeInTheDocument();
+  });
+
+  it('OK com simulado true não mostra aviso de dados simulados', async () => {
+    vi.mocked(buscarDadosErp).mockResolvedValue(dadosOk({ simulado: true }));
+
+    renderizar();
+
+    expect(await screen.findByText('Compras')).toBeInTheDocument();
+    expect(screen.queryByText(/Dados simulados/)).not.toBeInTheDocument();
   });
 
   it('dados simulados: mantém o nível de estoque e não mostra a seção de últimas vendas', async () => {
@@ -125,14 +143,14 @@ describe('DadosErpCard', () => {
 
     expect(await screen.findByText('Estoque estimado: Normal')).toBeInTheDocument();
     expect(screen.queryByText('Últimas vendas')).not.toBeInTheDocument();
-    expect(screen.queryByText('O ERP não informa o estoque do cliente.')).not.toBeInTheDocument();
   });
 
-  it('sem estoque e sem a marca de indisponível, segue "sem dados"', async () => {
+  it('sem estoque, mesmo sem a marca de indisponível, a coluna Estoque não aparece', async () => {
     vi.mocked(buscarDadosErp).mockResolvedValue(dadosOk({ estoque: null }));
 
     renderizar();
 
-    expect(await screen.findByText('Estoque estimado: sem dados')).toBeInTheDocument();
+    expect(await screen.findByText('Compras')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Estoque' })).not.toBeInTheDocument();
   });
 });

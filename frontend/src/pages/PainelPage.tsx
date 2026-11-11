@@ -7,10 +7,10 @@
  *
  * Fora das abas, no topo: a barra com o seletor (gestor), o período (30, 90,
  * 365 dias ou personalizado) e, à direita (linha própria no celular),
- * "Planilha" e "PDF" (spec 7.12); a faixa da fonte do ERP (simulada ou importada); e as abas
+ * "Planilha" e "PDF" (spec 7.12); e as abas
  * "Metas e resultados" e "Produção e sazonalidade", com a aba na URL
  * (`?aba=producao`; sem o parâmetro, a primeira). Só o painel da aba aberta
- * fica montado.
+ * fica montado. Desde 11/11/2026 não há faixa sobre a fonte do ERP no topo.
  *
  * "Metas e resultados", nesta ordem: "Quem está visitando pouco?" (gestor) ou
  * "Como está a minha carteira?" (representante) com os quatro indicadores; as
@@ -41,7 +41,6 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../auth/useAuth';
 import { Abas, PainelDaAba, type Aba } from '../components/Abas';
-import { AvisoErp } from '../components/AvisoErp';
 import { AlertasProducao } from '../components/crm/graficos/AlertasProducao';
 import { DistribuicaoPorCor } from '../components/crm/graficos/DistribuicaoPorCor';
 import { MapaPorCidade } from '../components/crm/graficos/MapaPorCidade';
@@ -485,8 +484,6 @@ export function PainelPage() {
         />
         <BotoesDeExportar periodo={periodoDaPlanilha} representanteId={representanteId} />
       </div>
-
-      <AvisoErp className="" />
 
       <div className="print:hidden">
         <Abas idBase={ID_DAS_ABAS} ariaLabel="Seções do Painel" abas={ABAS} valor={aba} onChange={trocarAba} />

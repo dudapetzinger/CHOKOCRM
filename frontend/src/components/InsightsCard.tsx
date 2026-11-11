@@ -5,7 +5,8 @@
  * (aumentar oferta, criar promoção ou ofertar desconto), com os números que
  * sustentam a sugestão em "Como calculamos". Visível para todos os papéis
  * (representante e gestor). Visual do protótipo (Etapa 8): cada sugestão
- * numa caixa com a ação numa etiqueta.
+ * numa caixa com a ação numa etiqueta. Desde 11/11/2026 o card não mostra aviso
+ * sobre a fonte dos dados (simulada ou importada).
  */
 import { useState, type ReactElement } from 'react';
 import { Sparkles } from 'lucide-react';
@@ -16,7 +17,6 @@ import { formatarDataCalendario } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
 import { descreverPrazo } from '../lib/descreverPrazo';
 import type { AcaoSugerida, Insights, Sugestao } from '../services/insights';
-import { AvisoErp } from './AvisoErp';
 import { FiltroHorizonte, HORIZONTE_PADRAO_DIAS } from './FiltroHorizonte';
 import { EstadoVazio } from './EstadoVazio';
 import { Aviso, Cartao, Etiqueta } from './crm/ui';
@@ -73,7 +73,7 @@ function renderizarConteudo(insights: Insights): ReactElement {
   switch (insights.status) {
     case 'SEM_ERP_ID':
       return (
-        <p className="text-sm text-muted-foreground">Cliente sem identificador de ERP. Informe-o em Editar dados.</p>
+        <p className="text-sm text-muted-foreground">Sem histórico de compras para este cliente.</p>
       );
 
     case 'INDISPONIVEL':
@@ -136,8 +136,6 @@ export function InsightsCard({ clienteId }: Props) {
         </span>
       }
     >
-      {insights?.status === 'OK' && <AvisoErp />}
-
       {mostrarFiltro && <FiltroHorizonte valor={horizonteDias} onChange={setHorizonteDias} />}
 
       {/* `isPlaceholderData`: o resultado do horizonte anterior segue visível, esmaecido, até o novo chegar. */}

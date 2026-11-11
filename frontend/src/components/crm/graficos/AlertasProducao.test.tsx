@@ -56,16 +56,16 @@ function renderizar(props: Props = {}) {
 }
 
 describe('AlertasProducao', () => {
-  it('provedor sem estoque: avisa que o ERP não informa o estoque do cliente', () => {
+  it('provedor sem estoque: não mostra a frase antiga sobre o estoque do cliente', () => {
     renderizar({ alertas: alertas([], 0, true) });
 
-    expect(screen.getByText('O ERP não informa o estoque do cliente.')).toBeInTheDocument();
+    expect(screen.queryByText(/não informa o estoque/)).not.toBeInTheDocument();
   });
 
   it('com estoque disponível, o aviso do estoque não aparece', () => {
     renderizar();
 
-    expect(screen.queryByText('O ERP não informa o estoque do cliente.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/não informa o estoque/)).not.toBeInTheDocument();
   });
 
   it('título e o segmentado "Próximos 30 · 60 · 90 · 180", com o horizonte atual marcado', async () => {
