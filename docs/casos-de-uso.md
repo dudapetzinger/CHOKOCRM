@@ -18,7 +18,7 @@ Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protó
 | **Gestor** (a conta compartilhada "Gestão Chokolaten", usada pelo dono e pelo escritório, ou qualquer conta com papel Gestor) | Principal, humano | Acompanha KPIs de vendas e visitas e recebe alertas de produção. Consulta, em modo somente leitura e para todas as carteiras — ou para a de um representante, escolhido no seletor de representante —, a lista de clientes, a ficha, o histórico e a agenda do dia, além da recorrência de visitas e seu histórico de alterações; pode transferir um cliente entre representantes. Desde a Etapa 8, gerencia os usuários, as campanhas e as metas; desde a Etapa 9, também conclui lembretes (UC27). |
 | **Sistema (Agendador)** | Secundário, automatizado | Processo executado diariamente (job agendado, sem intervenção humana) que recalcula a lista de visitas previstas e atrasadas por representante e registra os alertas em log, sem persistir nada. |
 
-**Observação sobre permissões do Gestor:** o Gestor **não** possui todas as permissões do Representante Comercial. Ele autentica-se no sistema (UC01); consulta, em modo somente leitura e para todas as carteiras, a lista de clientes com classificação por cores (UC05), a ficha do cliente (UC06), o histórico de interações (UC08), a agenda do dia (UC10) e as sugestões sazonais da ficha (UC13); visualiza a recorrência de visitas e seu histórico de alterações, sem poder alterá-la; possui o painel de KPIs (UC14) e recebe os alertas de produção (UC15) — desde a Etapa 8 o representante também tem o painel e os alertas, limitados à própria carteira —; pode transferir um cliente entre representantes através de `PUT /clients/:id` (campo `representanteId`); e, desde a Etapa 8, é o único que gerencia usuários (UC20), transfere carteiras inteiras (UC23), dispara a redefinição de senha (UC22) e cria ou altera campanhas (UC18) e metas (UC19). O Gestor **não** cadastra clientes (UC02 responde 400), não registra check-ins de visita (UC07) e não altera a recorrência de visitas (UC09 responde 403).
+**Observação sobre permissões do Gestor:** o Gestor **não** possui todas as permissões do Representante Comercial. Ele autentica-se no sistema (UC01); consulta, em modo somente leitura e para todas as carteiras, a lista de clientes com classificação por cores (UC05), a ficha do cliente (UC06), o histórico de interações (UC08), a agenda do dia (UC10) e as sugestões sazonais da ficha (UC13); visualiza a recorrência de visitas e seu histórico de alterações, sem poder alterá-la; possui o painel de KPIs (UC14) e recebe os alertas de produção (UC15) — desde a Etapa 8 o representante também tem o painel e os alertas, limitados à própria carteira —; pode transferir um cliente entre representantes através de `PUT /clients/:id` (campo `representanteId`); e, desde a Etapa 8, é o único que gerencia usuários (UC20), transfere carteiras inteiras (UC23), define senha provisória para quem a esqueceu (UC22) e cria ou altera campanhas (UC18) e metas (UC19). O Gestor **não** cadastra clientes (UC02 responde 400), não registra check-ins de visita (UC07) e não altera a recorrência de visitas (UC09 responde 403).
 
 **Observação sobre a carteira do Representante (Etapa 7):** o Representante Comercial só enxerga e altera os clientes da própria carteira (`Client.representanteId`), regra concentrada em `backend/src/services/carteira.ts` ([ADR-011](arquitetura.md#adr-011--carteira-por-representante-e-agenda-calculada-em-tempo-de-consulta)). Nas leituras — lista (UC05), ficha (UC06), histórico e foto de visita (UC08), dados do ERP (UC11), insights (UC13) e histórico de mensagens de estoque (UC12) —, um cliente de outra carteira responde como inexistente (404, com a mesma mensagem de um registro que não existe — "Cliente não encontrado." ou, na foto, "Visita não encontrada."), para não revelar que existe; a listagem de mensagens de estoque simplesmente não traz as de outra carteira; nas escritas — edição do cliente (UC03), contatos (UC04), check-in, correção de descrição e foto (UC07 e UC08), recorrência (UC09) e mensagem de estoque (UC12) —, a API responde 403 `FORBIDDEN` com a mensagem "Cliente de outra carteira.". O Gestor continua vendo todas as carteiras.
 
@@ -27,11 +27,12 @@ Os identificadores **UC01 a UC15** definidos aqui são referenciados pelo protó
 ```mermaid
 graph LR
   R[Representante] --> UC05 & UC07 & UC10 & UC12 & UC13 & UC16 & UC17 & UC25 & UC27
-  G[Gestor] --> UC14 & UC15 & UC18 & UC19 & UC20 & UC27 & UC28
+  G[Gestor] --> UC14 & UC15 & UC18 & UC19 & UC20 & UC22 & UC27 & UC28
+  Q[Quem sabe a senha da Gestão] --> UC29
   S[Agendador] --> UC10
 ```
 
-O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator no uso cotidiano do sistema. A tabela a seguir complementa a visão geral, associando **todos** os 28 casos de uso ao(s) ator(es) principal(is), para fins de rastreabilidade:
+O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator no uso cotidiano do sistema. A tabela a seguir complementa a visão geral, associando **todos** os 29 casos de uso ao(s) ator(es) principal(is), para fins de rastreabilidade:
 
 | UC | Nome | Ator(es) |
 |---|---|---|
@@ -56,13 +57,14 @@ O diagrama acima destaca, de forma simplificada, os fluxos centrais de cada ator
 | UC19 | Gerenciar metas de visitas e vendas | Gestor; Representante (só as próprias, consulta) |
 | UC20 | Gerenciar usuários | Gestor |
 | UC21 | Alterar a própria senha | Representante, Gestor |
-| UC22 | Redefinir senha por link | Representante, Gestor (quem esqueceu); Gestor (pede o link) |
+| UC22 | Definir senha provisória | Gestor (define); Representante, Gestor (quem esqueceu a senha, pede ao gestor) |
 | UC23 | Transferir carteira | Gestor |
 | UC24 | Ver o calendário da agenda | Representante; Gestor |
 | UC25 | Ver o roteiro do dia | Representante; Gestor (com um representante escolhido) |
 | UC26 | Exportar o relatório do Painel | Gestor; Representante (própria carteira) |
 | UC27 | Concluir lembrete | Representante (própria carteira); Gestor |
 | UC28 | Importar notas fiscais | Gestor |
+| UC29 | Ativar o modo demonstração | Quem souber a senha da conta Gestão (na tela de login, sem estar autenticado) |
 
 ## 4. Especificação dos casos de uso
 
@@ -82,6 +84,9 @@ Cada caso de uso é descrito com: identificador e nome, ator principal (e secund
 3. O sistema valida as credenciais informadas.
 4. O sistema emite um token JWT contendo o identificador do usuário e o seu papel (Representante ou Gestor).
 5. O sistema redireciona o ator para a tela inicial correspondente ao seu papel (desde a Etapa 8: o gestor para o Painel e o representante para a Agenda).
+
+**Fluxo alternativo:**
+- **A1** (passo 1, desde 09/11/2026): antes ou em vez de entrar, o ator toca em "Modo demonstração" no topo da tela de login para ativar, trocar ou desligar a data de demonstração: ver UC29.
 
 **Fluxo de exceção:**
 - **E1** (passo 3): credenciais inválidas — o sistema exibe mensagem de erro ("E-mail ou senha inválidos"), mantém o ator na tela de login e não emite token.
@@ -411,7 +416,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 **Fluxo principal:**
 1. O ator acessa a seção "Dados do ERP" na ficha do cliente (UC06).
-2. O sistema consulta o provedor de ERP (`GET /clients/:id/erp`) utilizando a chave do cliente conforme o provedor: o identificador de ERP no provedor simulado (`mock`, o de desenvolvimento) e o CNPJ do cliente no provedor `importado` (Etapa 12, o de produção), que lê as notas fiscais importadas (UC28).
+2. O sistema consulta o provedor de ERP (`GET /clients/:id/erp`) utilizando a chave do cliente conforme o provedor: o identificador de ERP no provedor simulado (`mock`, o de desenvolvimento) e o CNPJ do cliente no provedor `importado` (Etapa 12; foi o de produção até 09/11/2026, hoje a produção usa `mock`), que lê as notas fiscais importadas (UC28).
 3. Encontrado dado no provedor — sob o provedor importado, o histórico de compras une as notas importadas e os pedidos dos check-ins de venda sem nota vinculada (desde 06/11/2026), cada venda com a origem "NF <número>" ou "Pedido do check-in" —, o sistema exibe a última venda (data e valor), o volume de compras dos últimos 90 dias e o nível de estoque estimado do cliente, com os itens em falta quando o nível for baixo. Sob o provedor importado, exibe também as "Últimas vendas" — as 5 vendas mais recentes (notas ou pedidos), com data, valor e os itens (por exemplo "16× BARRA AO LEITE 35% 500 G") — e, no lugar do estoque, a frase "O ERP não informa o estoque do cliente.".
 4. O sistema exibe, em todas as telas que mostram dados do ERP, o aviso da situação da fonte (`GET /erp/situacao`): com o provedor simulado, que os dados são simulados; com o importado, "Vendas do ERP importadas até dd/mm/aaaa" (a data da última nota) ou "Nenhuma nota importada ainda.".
 
@@ -731,12 +736,12 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 1. O gestor abre "Usuários" pelo menu da conta (o ícone da pessoa logada).
 2. O sistema lista as contas: avatar, nome, "e-mail · telefone", papel, Ativo/Inativo e "N clientes" na carteira, com um menu por linha.
 3. O gestor escolhe "Novo usuário" e informa nome, e-mail, telefone, papel e a senha inicial com a confirmação.
-4. O sistema valida, cria a conta e mostra o aviso "Usuário criado"; o gestor passa o e-mail e a senha inicial à pessoa, que pode trocá-la em "Alterar senha" (UC21).
+4. O sistema valida, cria a conta e mostra o aviso "Usuário criado"; o gestor passa o e-mail e a senha inicial à pessoa, que pode trocá-la em "Alterar senha" (UC21). Quem esquecer a senha depois pede ao gestor uma senha provisória (UC22).
 
 **Fluxos alternativos:**
 - **A1** (menu da linha, "Editar dados"): o gestor muda nome, e-mail, telefone e — para os outros — o papel; aviso "Dados atualizados". Se editar a si mesmo, o menu da conta passa a mostrar os dados novos.
 - **A2** (menu da linha, "Transferir carteira"): ver UC23.
-- **A3** (menu da linha, "Redefinir senha"): ver UC22.
+- **A3** (menu da linha, "Definir senha provisória"): ver UC22.
 - **A4** (menu da linha, "Inativar"): o sistema pede confirmação ("Fulano tem N clientes na carteira; eles continuam na carteira até você transferi-los. Inativar?"), com as opções de manter a carteira ou transferi-la antes; aviso "Usuário inativado". "Reativar" devolve o acesso (aviso "Usuário reativado").
 - **A5** (passo 1, representante): o representante não vê o item nem na navegação nem no menu da conta; aberta pelo endereço, a tela mostra "Esta tela é exclusiva do gestor." e a API responde 403.
 
@@ -772,30 +777,32 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 ---
 
-### UC22 — Redefinir senha por link
+### UC22 — Definir senha provisória
 
-**Ator principal:** Representante Comercial e Gestor (quem esqueceu a senha). **Ator secundário:** Gestor (pede o link).
+**Ator principal:** Gestor. **Ator secundário:** Representante Comercial ou Gestor (quem esqueceu a senha e a recebe do gestor).
 
-**Pré-condições:** a conta está ativa e tem e-mail válido; o envio de e-mail está configurado (ou, em desenvolvimento, o link sai no log da API).
+**Pré-condições:** o gestor está autenticado (UC01) e a conta dele está ativa; a pessoa que esqueceu a senha tem conta cadastrada (UC20).
 
 **Fluxo principal:**
-1. Em "Usuários" (UC20), o gestor escolhe "Redefinir senha" na linha da pessoa.
-2. O sistema gera um link de uso único, válido por 24 horas, envia por e-mail ao endereço de cadastro ("Olá, Nome. O gestor do ChokoCRM pediu a redefinição da sua senha…") e mostra ao gestor o aviso "Link de redefinição enviado para fulano@…".
-3. A pessoa abre o link, que leva à página pública "Redefinir senha" (fora do login, sem menu).
-4. A pessoa informa a nova senha e a confirmação.
-5. O sistema grava a senha nova, invalida o link e mostra "Senha redefinida. Entre com a nova senha.", levando ao login.
+1. A pessoa que esqueceu a senha pede ao gestor uma senha provisória (pessoalmente ou por outro canal; o app não envia e-mail).
+2. Em "Usuários" (UC20), o gestor escolhe "Definir senha provisória" no menu da linha da pessoa.
+3. O sistema mostra o painel "Definir senha provisória de Fulano", com os campos "Nova senha" e "Confirmar".
+4. O gestor informa a senha provisória, repete-a e salva.
+5. O sistema grava a senha (`PUT /users/:id/senha`) e mostra o aviso "Senha provisória definida. Peça para a pessoa trocá-la no perfil."
+6. O gestor passa a senha provisória à pessoa, que entra (UC01) e a troca pela senha dela em "Alterar senha" (UC21, que pede a senha atual: a provisória).
 
 **Fluxos alternativos:**
-- **A1** (passo 1): o gestor pede um link novo — os anteriores ainda não usados deixam de valer.
+- **A1** (passo 2): o gestor pode definir a senha provisória de qualquer conta, inclusive a dele mesmo e as inativas (a conta inativa continua inativa).
+- **A2** (passo 4): "Cancelar" fecha o painel sem alterar nada.
 
 **Fluxo de exceção:**
-- **E1** (passo 3 ou 5): link inválido, já usado ou vencido — "Este link não vale mais. Peça um novo ao gestor.".
-- **E2** (passo 2): conta inativa — 400 "Reative a conta antes de redefinir a senha.".
-- **E3** (passo 2): produção sem SMTP configurado — 503 "Envio de e-mail não configurado.", mostrado ao gestor.
+- **E1** (passo 4): senha com menos de 6 caracteres ("A senha deve ter pelo menos 6 caracteres.") ou confirmação diferente ("As senhas não conferem.") — erro junto do campo, sem gravar.
+- **E2** (passo 5): usuário inexistente — 404 "Usuário não encontrado."; representante tentando a rota — 403.
 
 **Regras de negócio associadas:**
-- O token (32 bytes aleatórios) vai no fragmento da URL (`/redefinir-senha#<token>`), que o navegador não envia ao servidor; a página o lê e o tira da barra de endereço. O banco guarda só o hash (ADR-014 do documento de arquitetura).
-- Redefinir não desloga ninguém à força: o token de sessão vigente expira sozinho.
+- Só o gestor define senhas de outras contas, e a API confere no banco que quem chama continua ativo e gestor.
+- O sistema guarda só o hash da senha (bcrypt). Não há e-mail, link nem token: a redefinição por e-mail da Etapa 8 foi removida em 09/11/2026 ([ADR-018](arquitetura.md#adr-018--relógio-de-demonstração-no-banco-recriação-pela-api-e-fim-do-e-mail)).
+- Definir a senha não desloga ninguém à força: o token de sessão vigente da pessoa expira sozinho, e só o próximo login exige a senha nova.
 
 ---
 
@@ -928,10 +935,10 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 **Ator principal:** Gestor.
 
-**Pré-condições:** o gestor está autenticado (UC01); ele tem em mãos os PDFs das DANFEs (nota fiscal eletrônica de venda), exportados do ERP da Senior; o provedor de ERP em uso é o `importado` para que as notas alimentem as telas (com o `mock` as notas são gravadas, mas a ficha continua mostrando os dados simulados).
+**Pré-condições:** o gestor está autenticado (UC01); ele tem em mãos os PDFs das DANFEs (nota fiscal eletrônica de venda), exportados do ERP da Senior; para que as notas alimentem as telas o provedor de ERP em uso precisa ser o `importado`; na produção desta fase (`ERP_PROVIDER=mock`, tudo é demonstração) as notas são gravadas, mas a ficha continua mostrando os dados simulados.
 
 **Fluxo principal:**
-1. O gestor abre "Importar notas" no menu da conta (`/importacoes`) e escolhe um ou mais arquivos PDF.
+1. O gestor toca em "Importar notas", o botão redondo central da barra inferior (no desktop, o quinto item do menu lateral; `/importacoes`), e escolhe um ou mais arquivos PDF.
 2. O gestor aciona "Importar". O sistema envia os arquivos um a um (`POST /erp/importacoes?nome=`, corpo `application/pdf`, até 10 MB cada) e mostra o progresso por arquivo.
 3. Para cada arquivo, o sistema lê o texto da DANFE (uma nota por página, ou uma nota em mais de uma folha, agrupada pela chave de acesso de 44 dígitos) e reconhece número, série, chave, natureza da operação, protocolo de autorização, data de emissão, destinatário (razão social e CNPJ), totais e os itens (código, descrição, quantidade, valor unitário e total).
 4. O sistema grava cada nota pela chave de acesso, junto dos itens e dos produtos vistos (o catálogo do pedido e das campanhas) e procura o cliente pelo CNPJ do destinatário (14 dígitos = `Client.cnpj`).
@@ -968,6 +975,37 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 ---
 
+### UC29 — Ativar o modo demonstração
+
+**Ator principal:** quem souber a senha da conta Gestão (na prática, a parceira ou o escritório), na tela de login, **sem estar autenticado**.
+
+**Pré-condições:** a conta Gestão (`gestao@chokolaten.com.br`) existe, está ativa e tem papel Gestor; a pessoa conhece a senha dela.
+
+**Fluxo principal:**
+1. Na tela de login (UC01), o ator toca em "Modo demonstração" no topo (se já houver data ativa, a faixa "Modo demonstração · dd/mm/aaaa" mostra "alterar").
+2. O sistema abre o painel "Modo demonstração" com o campo "Data da demonstração" (a data ativa ou hoje), a opção "Voltar ao real", o aviso "Isto apaga clientes, contatos, visitas, pedidos, lembretes, campanhas e metas e recria a demonstração nessa data. As contas de acesso são mantidas." e o campo "Senha da conta Gestão".
+3. O ator escolhe a data, informa a senha e toca em "Aplicar".
+4. O sistema autentica a conta Gestão, grava a data (`POST /sistema/demonstracao`) e recria a demonstração em volta dela, numa transação: o seed gerador cria os clientes das rotas, 13 semanas de visitas, pedidos, lembretes, campanhas e metas da época. Durante a recriação, o painel mostra "Recriando a demonstração…".
+5. O sistema fecha o painel e mostra o aviso "Demonstração recriada em dd/mm/aaaa"; a faixa "Modo demonstração · dd/mm/aaaa" passa a aparecer em todas as telas, e as cores, a agenda, as campanhas e as sugestões sazonais seguem a data escolhida.
+
+**Fluxos alternativos:**
+- **A1** (passo 3): "Voltar ao real" desabilita a data; ao aplicar, o sistema limpa a configuração, recria a demonstração em volta de hoje e mostra "Modo demonstração desligado".
+- **A2** (passos 2 e 3): "Cancelar" (ou Esc) fecha o painel sem alterar nada.
+
+**Fluxo de exceção:**
+- **E1** (passo 3): data ou senha em branco — "Informe a data da demonstração." ou "Informe a senha da conta Gestão.", sem chamar a API.
+- **E2** (passo 4): senha errada — 401 "E-mail ou senha inválidos"; a conta não é de gestor ou está inativa — 403 "Só a conta Gestão pode fazer isso."; nos dois casos nada é apagado e o erro aparece no painel.
+- **E3** (passo 4): já existe uma recriação em andamento — 409 "Já existe uma recriação em andamento."; o ator espera e tenta de novo.
+- **E4** (passo 4): a recriação falha — 500; o sistema restaura a data anterior (nada fica pela metade: a recriação roda numa transação) e o painel mostra "Não foi possível recriar a demonstração. Confira a data e a senha.".
+
+**Regras de negócio associadas:**
+- É a única proteção contra recriar a demonstração por engano ou por quem só abriu o link do app: sem a senha da Gestão, nada acontece.
+- Apaga os clientes, contatos, visitas, pedidos, lembretes, campanhas e metas — inclusive o que os representantes registraram pelo app —, e mantém as contas de acesso, com as senhas delas (a da Gestão inclusive).
+- A data fica guardada no banco (tabela `configuracoes`) até ser trocada ou desligada; o calendário simulado anda um dia por dia real e sobrevive a reinícios e a desligar a produção. Só o "agora" de negócio muda: tokens de login, logs e telemetria seguem o relógio real.
+- Para a sazonalidade, o ERP precisa ser o simulado (`ERP_PROVIDER=mock`, o valor da produção nesta fase). Depois de trocar a data, os aparelhos devem fechar e abrir o app.
+
+---
+
 ## 5. Matriz de rastreabilidade (UC × Etapa de entrega)
 
 | UC | Nome | Etapa de entrega |
@@ -993,13 +1031,14 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 | UC19 | Gerenciar metas de visitas e vendas | Etapa 8 |
 | UC20 | Gerenciar usuários | Etapa 8 |
 | UC21 | Alterar a própria senha | Etapa 8 |
-| UC22 | Redefinir senha por link | Etapa 8 |
+| UC22 | Definir senha provisória | Etapa 8 (por link de e-mail); revisto em 09/11/2026 (senha provisória pelo gestor) |
 | UC23 | Transferir carteira | Etapa 8 |
 | UC24 | Ver o calendário da agenda | Etapa 8 |
 | UC25 | Ver o roteiro do dia | Etapa 8 |
 | UC26 | Exportar o relatório do Painel | Etapa 8 |
 | UC27 | Concluir lembrete | Etapa 9 |
 | UC28 | Importar notas fiscais | Etapa 12 |
+| UC29 | Ativar o modo demonstração | Modo demonstração (09/11/2026) |
 
 A Etapa 7 (refino de UX, gráficos e PWA — seção 11 da [especificação técnica](especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)) não cria caso de uso novo; revisa os existentes: a regra de carteira do representante vale para UC03 a UC09 e UC11 a UC13; a lista (UC05) ganha abas por ação, etiqueta de situação e ordem por urgência; a ficha (UC06) é reordenada; o check-in (UC07) e a recorrência (UC09) ganham controles de toque; a agenda (UC10), o painel (UC14) e os alertas (UC15) ganham o seletor de representante do gestor; e o painel (UC14) ganha os gráficos.
 
@@ -1017,7 +1056,9 @@ A Etapa 12 (05/11/2026 — [spec da etapa](superpowers/specs/2026-11-04-etapa-12
 
 O "cliente pela nota" (06/11/2026 — [spec](superpowers/specs/2026-11-06-cliente-pela-nota-design.md)) não cria caso de uso novo; revisa o UC28 (A2 com "Criar cliente", exceção E5 e regras), o UC02 (o gestor também cria cliente, pela nota) e o UC03 (e-mail opcional na edição).
 
-A rodada "gestão, navegação e compras" (06/11/2026 — [spec](superpowers/specs/2026-11-06-gestao-navegacao-compras-design.md)) não cria caso de uso novo; revisa: o ator Gestor (conta compartilhada "Gestão Chokolaten"; o menu da conta ganha "Importar notas" e "Usuários"), o UC07 (check-in também pelo botão central da barra inferior, com o seletor "Para qual cliente?"), o UC11 (histórico de compras que une notas e pedidos dos check-ins, com a origem de cada venda) e, por consequência, o UC05 e o UC15 (o rebaixamento por última compra e os insights passam a contar os pedidos dos check-ins).
+A rodada "gestão, navegação e compras" (06/11/2026 — [spec](superpowers/specs/2026-11-06-gestao-navegacao-compras-design.md)) não cria caso de uso novo; revisa: o ator Gestor (conta compartilhada "Gestão Chokolaten"; o menu da conta ganhava "Importar notas" e "Usuários" — superado em 09/11/2026: "Importar notas" está na barra da Gestão), o UC07 (check-in também pelo botão central da barra inferior, com o seletor "Para qual cliente?"), o UC11 (histórico de compras que une notas e pedidos dos check-ins, com a origem de cada venda) e, por consequência, o UC05 e o UC15 (o rebaixamento por última compra e os insights passam a contar os pedidos dos check-ins).
+
+O modo demonstração (09/11/2026 — [spec](superpowers/specs/2026-11-09-modo-demonstracao-design.md)) cria o UC29 e revisa: o UC01 (A1: o botão "Modo demonstração" na tela de login), o UC22 (a redefinição por link de e-mail é substituída pela senha provisória que o gestor define), o UC20 (A3 passa a "Definir senha provisória"; "Usuários" segue no menu da conta, que perdeu o item "Importar notas") e o UC28 (passo 1: "Importar notas" é o botão central da barra inferior da Gestão, que fica Painel, Clientes, Importar notas, Agenda, Campanhas). O UC07 (check-in) não muda.
 
 ## 6. Cobertura das regras de negócio da especificação (seção 6)
 
@@ -1030,7 +1071,7 @@ Esta seção verifica que cada regra de negócio principal descrita na seção 6
 | 6.3 | Mensagem de consulta de estoque (template + link `wa.me` + registro; na Etapa 11, abertura com o texto no primeiro toque) | UC12, UC06 (cabeçalho) |
 | 6.4 | Módulo de insights (sugestões ao representante, alertas ao gestor, painel de KPIs e, na Etapa 7, gráficos por representante e de vendas mensais) | UC13 (sugestões), UC15 (alertas), UC14 (painel de KPIs e gráficos) |
 | 6.5 | Carteira do representante (Etapa 7: leitura e escrita restritas à própria carteira; gestor vê todas e filtra por representante) | UC03 a UC09, UC11 a UC13 (restrição do representante), UC05, UC10, UC14 e UC15 (filtro do gestor; desde a Etapa 8, painel e alertas do representante limitados à própria carteira), UC24 a UC27 |
-| 6.6 | Usuários, pedido, campanhas e metas (Etapa 8) | UC20 a UC23 (usuários e senhas), UC16 (pedido), UC17 (próxima visita), UC18 (campanhas), UC19 (metas) |
+| 6.6 | Usuários, pedido, campanhas e metas (Etapa 8) | UC20 a UC23 (usuários e senhas provisórias), UC16 (pedido), UC17 (próxima visita), UC18 (campanhas), UC19 (metas) |
 | 6.8 | Importação de notas fiscais (Etapa 12: DANFE em PDF, casamento por CNPJ, vínculo com a visita, provedor importado) | UC28 (importação e vínculo), UC11 (dados do ERP e estoque indisponível), UC08 (pedido conforme a nota), UC15 (alertas sem estoque) |
 
 Todas as regras de negócio da seção 6 possuem caso de uso correspondente; não foram identificadas lacunas de cobertura.

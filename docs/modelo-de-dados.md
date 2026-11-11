@@ -25,7 +25,6 @@ erDiagram
   CLIENT ||--o{ STOCK_MESSAGE : recebe
   CONTACT |o--o{ VISIT : atendida_por
   SEASONAL_EVENT |o--o{ STOCK_MESSAGE : contextualiza
-  USER ||--o{ PASSWORD_RESET_TOKEN : pede
   VISIT ||--o{ VISIT_ITEM : "tem no pedido"
   CAMPAIGN |o--o{ VISIT : vincula
   CAMPAIGN |o--o{ CLIENT : "vincula a próxima visita"
@@ -39,6 +38,13 @@ erDiagram
   ERP_SALE ||--o{ ERP_SALE_ITEM : tem
   CLIENT |o--o{ ERP_SALE : "recebe notas pelo CNPJ"
   ERP_SALE |o--o| VISIT : "é vinculada a"
+  CONFIGURACAO {
+    texto chave PK "demonstracao"
+    data data_simulada
+    data dia_de_referencia
+    data_hora atualizado_em
+    texto atualizado_por
+  }
 ```
 
 Leitura das cardinalidades:
@@ -48,13 +54,13 @@ Leitura das cardinalidades:
 - Um **Client** possui vários `Contact`, recebe várias `Visit` e várias `StockMessage`, e tem várias `VisitScheduleChange`; cada uma dessas ocorrências pertence a exatamente um cliente.
 - Um **Contact** pode ser atendido em zero ou várias `Visit` (campo `contact_id` opcional em `Visit` — nem toda visita identifica um contato específico); cada visita está associada a no máximo um contato.
 - Um **SeasonalEvent** pode contextualizar zero ou várias `StockMessage` (campo `evento_sazonal` opcional em `StockMessage` — a mensagem pode ser gerada sem evento sazonal vigente); cada mensagem está associada a no máximo um evento sazonal.
-- Um **User** pode ter vários `PasswordResetToken` (links de redefinição pedidos pelo gestor; só o último vale) e várias `Goal` (metas de visitas e vendas); cada token e cada meta pertencem a exatamente um usuário.
+- Um **User** pode ter várias `Goal` (metas de visitas e vendas); cada meta pertence a exatamente um usuário. (Até a etapa do modo demonstração, 09/11/2026, o usuário também tinha vários `PasswordResetToken`, os links de redefinição de senha por e-mail; a tabela foi removida.)
 - Uma **Visit** com resultado `VENDA` pode ter vários `VisitItem` (o pedido do check-in); cada item pertence a exatamente uma visita e é apagado com ela.
 - Uma **Campaign** pode estar vinculada a zero ou várias `Visit` (`campanha_id`), a zero ou vários `Client` pela próxima visita (`proxima_campanha_id`) e a zero ou várias `Goal` (metas da campanha). Excluir a campanha desvincula visitas e clientes e apaga as metas dela.
 - Um **Client** tem zero ou vários `Reminder` (lembretes, Etapa 9); cada lembrete pertence a exatamente um cliente e é apagado com ele. Um **User** cria vários `Reminder` (`criado_por_id`) e uma **Visit** pode ser a origem de zero ou vários (`visit_id`, opcional: apagar a visita só solta o vínculo).
 - Um **User** (gestor) importa vários `ErpImport` (Etapa 12); cada importação grava várias `ErpSale` e cada `ErpSale` tem vários `ErpSaleItem`, apagados com ela. Uma `ErpSale` pode apontar para um `Client` (o dono do CNPJ do destinatário, nulo se ainda não cadastrado) e liga a no máximo uma `Visit`, pela coluna `Visit.erp_sale_id`. `ErpProduct` não tem relação com as outras: é o catálogo de produtos visto nas notas.
 
-As entidades do diagrama (em maiúsculas, convenção do Mermaid) correspondem uma a uma às entidades do dicionário de dados da seção 3: `USER` → `User`, `CLIENT` → `Client`, `CONTACT` → `Contact`, `VISIT` → `Visit`, `VISIT_SCHEDULE_CHANGE` → `VisitScheduleChange`, `STOCK_MESSAGE` → `StockMessage`, `SEASONAL_EVENT` → `SeasonalEvent`, `PASSWORD_RESET_TOKEN` → `PasswordResetToken`, `VISIT_ITEM` → `VisitItem`, `CAMPAIGN` → `Campaign`, `GOAL` → `Goal`, `REMINDER` → `Reminder`, `ERP_IMPORT` → `ErpImport`, `ERP_SALE` → `ErpSale` e `ERP_SALE_ITEM` → `ErpSaleItem`. A décima sexta, `ErpProduct` (seção 3.16), não tem relação com as outras e por isso não aparece no diagrama.
+As entidades do diagrama (em maiúsculas, convenção do Mermaid) correspondem uma a uma às entidades do dicionário de dados da seção 3: `USER` → `User`, `CLIENT` → `Client`, `CONTACT` → `Contact`, `VISIT` → `Visit`, `VISIT_SCHEDULE_CHANGE` → `VisitScheduleChange`, `STOCK_MESSAGE` → `StockMessage`, `SEASONAL_EVENT` → `SeasonalEvent`, `VISIT_ITEM` → `VisitItem`, `CAMPAIGN` → `Campaign`, `GOAL` → `Goal`, `REMINDER` → `Reminder`, `ERP_IMPORT` → `ErpImport`, `ERP_SALE` → `ErpSale` e `ERP_SALE_ITEM` → `ErpSaleItem` e `CONFIGURACAO` → `Configuracao`. A décima quinta, `ErpProduct` (seção 3.16), não tem relação com as outras e por isso não aparece ligada a nenhuma no diagrama; `Configuracao` (seção 3.8) também não tem relação com as outras e aparece isolada.
 
 ## 3. Dicionário de dados
 
@@ -172,18 +178,21 @@ O pedido da visita fica em `VisitItem` (seção 3.9); o total do pedido (soma de
 
 **Migration da `chave` (Etapa 6B):** `20261007141059_seasonal_event_chave` cria o enum `EventoSazonal` e a coluna `chave` em quatro passos, para não quebrar bancos já semeados pela Etapa 6A: (1) cria o tipo; (2) adiciona a coluna como anulável; (3) preenche as linhas existentes a partir do prefixo de `nome` ("Páscoa ", "Dia das Mães ", "Dia dos Namorados ", "Dia dos Pais ", "Natal "); (4) torna a coluna `NOT NULL`. Um `nome` fora desse padrão deixaria a `chave` nula e o passo 4 falharia — comportamento desejado, porque a migration não inventa chave. O `SeasonalEvent` também ganhou a consulta `findNoIntervalo(de, ate)` no repository (eventos com `data_fim` no intervalo, ambos os limites inclusivos, em ordem de data).
 
-### 3.8 PasswordResetToken
+### 3.8 Configuracao
 
-Link de redefinição de senha (Etapa 8, UC22), enviado por e-mail quando o gestor pede a redefinição da senha de alguém.
+Configurações do sistema guardadas no banco (tabela `configuracoes`, modelo `Configuracao`; migration `20261109130000_configuracoes`, aditiva). Hoje há uma única linha, de `chave` `demonstracao`: o relógio de demonstração, que antes era a variável de ambiente `DATA_DE_DEMONSTRACAO` (modo demonstração, 09/11/2026; ver UC29 e a seção 6.9 da especificação técnica). Sem linha, ou com as duas datas nulas, o relógio é o real.
 
 | Campo | Tipo | Obrigatório | Descrição / Regra |
 |---|---|---|---|
-| id | Identificador único (UUID) | Sim | Chave primária. |
-| user_id | Chave estrangeira → `User.id` | Sim | Dono da conta; apagar o usuário apaga os tokens dele (`ON DELETE CASCADE`). |
-| token_hash | Texto (único) | Sim | Hash SHA-256 do token. O token em si (32 bytes aleatórios) só existe no link do e-mail, no fragmento da URL (`/redefinir-senha#<token>`), e nunca é gravado. |
-| expira_em | Data/hora | Sim | Validade de 24 horas a partir do pedido. |
-| usado_em | Data/hora | Não | Momento em que o link foi usado; o link vale uma vez só. Pedir um novo invalida os anteriores ainda não usados. |
-| criado_em | Data/hora | Sim | Momento do pedido. |
+| chave | Texto (chave primária) | Sim | Nome da configuração; hoje só `demonstracao`. |
+| data_simulada | Data (`DATE`) | Não | Dia que o sistema passa a viver (a "data de demonstração"). Nulo = relógio real. |
+| dia_de_referencia | Data (`DATE`) | Não | Dia real em que a data simulada foi definida; o deslocamento do relógio é `data_simulada − dia_de_referencia`, e por isso o calendário simulado continua andando um dia por dia real. Gravada junto com `data_simulada`; linha com só uma das duas é tratada como relógio real. |
+| atualizado_em | Data/hora (`TIMESTAMP(3)`) | Sim | Última alteração (`@updatedAt`). |
+| atualizado_por | Texto | Não | Id do usuário que ativou ou desligou o modo demonstração. Sem chave estrangeira, de propósito: o reset e os testes truncam `users` sem quebrar a configuração. |
+
+**Quem grava:** só `POST /sistema/demonstracao` (UC29), com a senha da conta Gestão; o `db:seed:reset` apenas lê. O reset de demonstração (`reiniciarDemonstracao`) **não** apaga `configuracoes`.
+
+**Removida: `PasswordResetToken`.** A tabela `password_reset_tokens` (links de redefinição de senha por e-mail, Etapa 8) foi apagada pela migration `20261109120000_remove_password_reset_tokens` (`DROP TABLE`, destrutiva, mas só guardava links vencidos ou usados, sem dados de negócio) quando a redefinição por e-mail saiu; a senha provisória (UC22) não precisa de tabela, grava só o hash em `users`.
 
 ### 3.9 VisitItem
 
