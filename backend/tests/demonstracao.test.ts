@@ -141,7 +141,9 @@ describe('POST /sistema/demonstracao — recriação', () => {
       expect(await relogioPublico()).toMatchObject({ simulado: true, dataDeDemonstracao: DATA_SIMULADA });
 
       // A demonstração renasceu em março de 2027, e as contas foram mantidas
-      expect(await prisma.client.count()).toBe(26);
+      expect(await prisma.client.count()).toBe(
+        seedDemonstracao.CLIENTES_ANCORA.length + seedDemonstracao.CLIENTES_GERADOS.length,
+      );
       const maisRecente = await diaDaVisitaMaisRecente();
       expect(maisRecente.slice(0, 7)).toBe('2027-03');
       expect(maisRecente <= DATA_SIMULADA).toBe(true);
@@ -167,7 +169,9 @@ describe('POST /sistema/demonstracao — recriação', () => {
       expect(await relogioPublico()).toMatchObject({ simulado: false, deslocamentoDias: 0 });
       expect(await linhaDaConfiguracao()).toMatchObject({ dataSimulada: null, diaDeReferencia: null });
 
-      expect(await prisma.client.count()).toBe(26);
+      expect(await prisma.client.count()).toBe(
+        seedDemonstracao.CLIENTES_ANCORA.length + seedDemonstracao.CLIENTES_GERADOS.length,
+      );
       const hojeReal = dataCalendario(new Date());
       const maisRecente = await diaDaVisitaMaisRecente();
       expect(maisRecente <= hojeReal).toBe(true);

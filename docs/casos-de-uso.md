@@ -996,7 +996,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - **E1** (passo 3): data ou senha em branco — "Informe a data da demonstração." ou "Informe a senha da conta Gestão.", sem chamar a API.
 - **E2** (passo 4): senha errada — 401 "E-mail ou senha inválidos"; a conta não é de gestor ou está inativa — 403 "Só a conta Gestão pode fazer isso."; nos dois casos nada é apagado e o erro aparece no painel.
 - **E3** (passo 4): já existe uma recriação em andamento — 409 "Já existe uma recriação em andamento."; o ator espera e tenta de novo.
-- **E4** (passo 4): a recriação falha — 500; o sistema restaura a data anterior (nada fica pela metade: a recriação roda numa transação) e o painel mostra "Não foi possível recriar a demonstração. Confira a data e a senha.".
+- **E4** (passo 4): a recriação falha — 500; o sistema restaura a data anterior (nada fica pela metade: a recriação roda numa transação) e o painel mostra a mensagem da API ("Erro interno do servidor.").
 
 **Regras de negócio associadas:**
 - É a única proteção contra recriar a demonstração por engano ou por quem só abriu o link do app: sem a senha da Gestão, nada acontece.
