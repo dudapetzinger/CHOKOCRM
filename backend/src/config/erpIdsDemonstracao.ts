@@ -35,6 +35,10 @@
  *   em dia ser rebaixado sem querer; `valorBase` variado deixa o histórico de
  *   vendas da ficha diferente em cada um.
  *
+ * Estes são os 26 clientes âncora; os gerados (`seed/clientes-gerados.ts`)
+ * trazem o próprio `erpId`, escolhido com a mesma varredura a partir de
+ * 12201, sempre com `mesesSemCompra` 0.
+ *
  * Nenhum código termina em "-0" (`erpIdDesconhecido`): o caso
  * `NAO_ENCONTRADO` não está no seed (os testes o cobrem com ids próprios).
  */

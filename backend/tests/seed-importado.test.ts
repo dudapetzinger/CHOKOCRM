@@ -66,15 +66,16 @@ describe('seed de demonstração com o provedor importado', () => {
     expect(produtos.body.data).toContainEqual({ sku: '777', nome: 'Produto da nota', precoUnitario: 12.5 });
 
     const campanhas = await request(app).get('/campaigns').set('Authorization', `Bearer ${token}`);
-    const blackFriday = (
+    // A campanha sazonal do mês (Oktoberfest em outubro de 2026)
+    const campanhaDoMes = (
       campanhas.body.data as { id: string; nome: string; produtos: { sku: string; nome: string }[] }[]
-    ).find((campanha) => campanha.nome === 'Black Friday do Cacau');
-    expect(blackFriday).toBeDefined();
-    for (const produto of blackFriday!.produtos) {
+    ).find((campanha) => campanha.nome === 'Oktoberfest Chokolaten 2026');
+    expect(campanhaDoMes).toBeDefined();
+    for (const produto of campanhaDoMes!.produtos) {
       expect(produto.nome).toBe(CATALOGO.find((item) => item.sku === produto.sku)?.nome);
     }
 
-    const salva = await prisma.campaign.findUniqueOrThrow({ where: { id: blackFriday!.id } });
+    const salva = await prisma.campaign.findUniqueOrThrow({ where: { id: campanhaDoMes!.id } });
     const edicao = await request(app)
       .put(`/campaigns/${salva.id}`)
       .set('Authorization', `Bearer ${token}`)

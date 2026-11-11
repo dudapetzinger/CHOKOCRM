@@ -132,9 +132,11 @@ describe('modo demonstração ligado (2027-03-15)', () => {
     expect(maisRecente.slice(0, 7)).toBe('2027-03');
     expect(maisRecente <= DATA_SIMULADA).toBe(true);
     // Nenhuma visita no "futuro real" além do dia simulado, e o histórico
-    // inteiro fica dentro de um ano antes da data simulada.
+    // são as 13 semanas até a data simulada (desde a segunda-feira de 12
+    // semanas antes), só em dias úteis.
     const maisAntiga = dias[dias.length - 1] ?? '';
-    expect(maisAntiga >= somarDias(DATA_SIMULADA, -366)).toBe(true);
+    expect(maisAntiga).toBe(somarDias(DATA_SIMULADA, -84));
+    expect(dias.every((dia) => ![0, 6].includes(new Date(`${dia}T12:00:00Z`).getUTCDay()))).toBe(true);
 
     // Cliente nunca visitado: a base da primeira visita é o dia simulado.
     const indaial = await prisma.client.findUniqueOrThrow({ where: { cnpj: '20952813000199' } });
