@@ -28,7 +28,11 @@ export type VendasMensaisDTO = {
   /** Eventos sazonais que caem nesses meses, por data. */
   eventos: MarcadorDeEvento[];
   simulado: boolean;
-  /** Clientes ativos com chave no ERP (os que ele pode responder: no mock, os com `erpId`; no importado, todos). */
+  /**
+   * Clientes ativos com chave no ERP (os que ele pode responder: no mock, os
+   * com `erpId`; no importado e no híbrido, todos — no híbrido, os de fonte
+   * `nenhuma` entram com vendas vazias).
+   */
   clientesConsultados: number;
   /** Dos consultados, quantos o ERP não conseguiu responder. */
   clientesIndisponiveis: number;

@@ -70,9 +70,11 @@ describe('envSchema — limpeza das fotos', () => {
 describe('envSchema — provedor de ERP', () => {
   const OBRIGATORIAS = { DATABASE_URL: 'x', JWT_SECRET: 'y' };
 
-  it('padrão mock; aceita importado (notas fiscais importadas, Etapa 12b)', () => {
-    expect(envSchema.parse(OBRIGATORIAS).ERP_PROVIDER).toBe('mock');
+  it('padrão hibrido (notas por CNPJ, simulado para os demais); aceita mock e importado', () => {
+    expect(envSchema.parse(OBRIGATORIAS).ERP_PROVIDER).toBe('hibrido');
+    expect(envSchema.parse({ ...OBRIGATORIAS, ERP_PROVIDER: 'mock' }).ERP_PROVIDER).toBe('mock');
     expect(envSchema.parse({ ...OBRIGATORIAS, ERP_PROVIDER: 'importado' }).ERP_PROVIDER).toBe('importado');
+    expect(envSchema.parse({ ...OBRIGATORIAS, ERP_PROVIDER: 'hibrido' }).ERP_PROVIDER).toBe('hibrido');
   });
 
   it('provedor desconhecido falha', () => {

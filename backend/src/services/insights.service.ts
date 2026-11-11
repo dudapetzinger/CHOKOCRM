@@ -17,6 +17,7 @@ import {
   consultarVendas,
   erpSimulado,
   estoqueDisponivel,
+  fonteDoCliente,
 } from './erp.service';
 import {
   acaoPorVariacao,
@@ -45,8 +46,9 @@ import { agora } from '../lib/relogio';
  * `agenda.service.ts` sobre `agenda.montagem.ts`. Não fala com o provedor de
  * ERP diretamente: indisponibilidade chega como `null` (vendas) ou em
  * `indisponiveis` (estoque), já registrada por `erp.service`; a chave do
- * cliente no ERP (`erpId` no mock, CNPJ no importado) vem de
- * `erp.service.chaveDoCliente`.
+ * cliente no ERP (`erpId` no mock, CNPJ no importado, `cnpj|erpId` no
+ * híbrido) vem de `erp.service.chaveDoCliente`, e a fonte do cliente (notas,
+ * simulado ou nenhuma) de `erp.service.fonteDoCliente`.
  */
 export type SugestaoDTO = {
   /** `dataEvento` em 'AAAA-MM-DD'. */
@@ -84,7 +86,11 @@ export type AlertasDTO = {
   horizonteDias: number;
   eventos: { id: string; nome: string; dataEvento: string; diasAteEvento: number; produtosSugeridos: string[] }[];
   alertas: AlertaProducaoDTO[];
-  /** Clientes ativos com chave no ERP (no mock, os com `erpId`). */
+  /**
+   * Clientes ativos com chave no ERP (no mock, os com `erpId`). No híbrido a
+   * chave composta existe para todos: entram também os de fonte `nenhuma`
+   * (e os de fonte `notas`), com estoque vazio.
+   */
   clientesConsultados: number;
   /** Dentre os consultados, os que ficaram sem resposta do ERP. */
   clientesIndisponiveis: number;
@@ -138,7 +144,8 @@ export async function obterInsights(
   const cliente = exigirClienteVisivel(await clientRepository.findById(clientId), usuario);
   const chave = chaveDoCliente(cliente);
 
-  if (!chave) {
+  // No híbrido a chave composta existe sempre; sem nota e sem `erpId` não há fonte.
+  if (!chave || (await fonteDoCliente(cliente)) === 'nenhuma') {
     return { status: 'SEM_ERP_ID' };
   }
 
@@ -207,7 +214,10 @@ export async function obterInsights(
  * ativos com chave no ERP, dos SKUs sugeridos para os eventos do horizonte.
  * Sem evento no horizonte não há o que cruzar, e nem clientes nem ERP são
  * consultados; com o ERP sem estoque (importado, Etapa 12b), também não:
- * vão os eventos, nenhum alerta e `estoqueIndisponivel`. Clientes que o ERP
+ * vão os eventos, nenhum alerta e `estoqueIndisponivel`. No híbrido o
+ * estoque é por cliente: o de fonte `notas` devolve histórico vazio, então
+ * entra sem item baixo (nem alerta, nem indisponível), e o
+ * `estoqueIndisponivel` global fica falso. Clientes que o ERP
  * não respondeu ficam fora do cruzamento (não se sabe o estoque deles) e
  * entram em `clientesIndisponiveis`, para a tela avisar que a lista pode
  * estar incompleta. Com `representanteId`, só os clientes da carteira dele.

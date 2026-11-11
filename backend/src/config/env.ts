@@ -41,9 +41,11 @@ export const envSchema = z.object({
       message: 'FOTOS_JOB_CRON deve ser uma expressão cron válida.',
     }),
   FOTOS_RETENCAO_DIAS: z.coerce.number().int().positive().default(90),
-  // mock = ERP simulado de demonstração; importado = notas fiscais importadas
-  // (DANFEs em PDF, Etapa 12b), o usado em produção.
-  ERP_PROVIDER: z.enum(['mock', 'importado']).default('mock'),
+  // mock = ERP simulado de demonstração (pelo erpId); importado = só as notas
+  // fiscais importadas (DANFEs em PDF, Etapa 12b, pelo CNPJ); hibrido = as
+  // notas para o cliente que tem nota do CNPJ e o simulado para os demais (o
+  // padrão e o de produção). Os testes fixam mock (tests/setup-env.ts).
+  ERP_PROVIDER: z.enum(['mock', 'importado', 'hibrido']).default('hibrido'),
   ERP_MOCK_FALHAR: z
     .enum(['true', 'false'])
     .default('false')

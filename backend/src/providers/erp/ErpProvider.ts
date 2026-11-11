@@ -1,9 +1,11 @@
 /**
- * Contrato do provedor de ERP (Adapter) da Etapa 5. Duas implementações:
+ * Contrato do provedor de ERP (Adapter) da Etapa 5. Três implementações:
  * `MockErpProvider` simula um ERP para demonstração (chave = `erpId` do
- * cliente) e `ImportadoErpProvider` (Etapa 12b) lê as notas fiscais
+ * cliente), `ImportadoErpProvider` (Etapa 12b) lê as notas fiscais
  * importadas e os pedidos dos check-ins sem nota (chave = CNPJ do
- * cliente). Quem escolhe a chave é `erp.service.chaveDoCliente`; services e
+ * cliente) e `HibridoErpProvider` compõe os dois por cliente (chave =
+ * `cnpj|erpId`, ver `chave-hibrida.ts`: notas se há nota do CNPJ, senão o
+ * simulado). Quem escolhe a chave é `erp.service.chaveDoCliente`; services e
  * controllers não mudam com o provedor — mesmo padrão Adapter de
  * `FileStorage` (ver `storage/FileStorage.ts`).
  */
@@ -45,7 +47,7 @@ export type StockSnapshot = {
 
 /**
  * `chave` é o identificador do cliente no provedor (`erpId` no mock, CNPJ
- * no importado). `getSales` devolve as vendas da mais recente para a mais
+ * no importado, `cnpj|erpId` no híbrido). `getSales` devolve as vendas da mais recente para a mais
  * antiga. Sem estoque (`estoqueDisponivel = false`), `getStockHistory`
  * devolve sempre `[]`.
  */

@@ -2,7 +2,9 @@
  * Notas fiscais importadas (`ErpSale`), seus itens, o catálogo aprendido e as
  * importações. `salvarNota` grava ou atualiza a nota pela chave de acesso,
  * incluindo o endereço do destinatário lido da DANFE; as notas `SEM_CLIENTE`
- * são agrupadas por CNPJ e ligadas ao cliente criado pela nota fiscal.
+ * são agrupadas por CNPJ e ligadas ao cliente criado pela nota fiscal. A
+ * leitura por CNPJ alimenta os provedores `importado` e `hibrido`; neste,
+ * `existeNotaDoCnpj` decide se o cliente usa as notas ou o ERP simulado.
  */
 import type { Prisma, PrismaClient, VinculoNota } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -185,7 +187,7 @@ export async function listarPendentes(): Promise<NotaComRelacoes[]> {
   });
 }
 
-// --- Leitura das notas pelo provedor `importado` (Etapa 12b) ---------------
+// --- Leitura das notas pelos provedores `importado` e `hibrido` ------------
 // Sempre pelo CNPJ do destinatário, nunca por `clientId`: uma nota importada
 // antes de o cliente existir passa a contar assim que ele é cadastrado.
 
@@ -220,6 +222,16 @@ export async function listarNotasDoCnpj(
     take: limite,
     select: SELECT_VENDA,
   });
+}
+
+/**
+ * Há nota importada para o CNPJ? Decide a fonte do cliente no provedor
+ * `hibrido` (notas ou simulado): uma consulta de existência pelo índice
+ * `[destinatarioCnpj, dataEmissao]`, a cada chamada ao provedor.
+ */
+export async function existeNotaDoCnpj(cnpj: string, banco: Banco = prisma): Promise<boolean> {
+  const quantidade = await banco.erpSale.count({ where: { destinatarioCnpj: cnpj } });
+  return quantidade > 0;
 }
 
 /** Soma do valor total e quantidade de notas do CNPJ entre os dias `de` e `ate` (inclusivos). */

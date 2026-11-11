@@ -1,5 +1,6 @@
 import { env, type Env } from '../config/env';
 import { erpProvider } from '../providers/erp';
+import { chaveHibrida } from '../providers/erp/chave-hibrida';
 import {
   ErpIndisponivelError,
   type NivelEstoque,
@@ -18,7 +19,7 @@ import { dataCalendario, dataDaColunaDate, fimDoDia, inicioDoDia, somarDias } fr
 import { agora } from '../lib/relogio';
 
 const DIAS_DE_VOLUME = 90;
-/** Quantas vendas a ficha lista em `ultimasVendas` (só no provedor importado). */
+/** Quantas vendas a ficha lista em `ultimasVendas` (só para clientes com fonte `notas`). */
 const QUANTIDADE_DE_ULTIMAS_VENDAS = 5;
 
 /**
@@ -28,13 +29,17 @@ const QUANTIDADE_DE_ULTIMAS_VENDAS = 5;
  * campanhas, `buscarProduto`. Nunca o provider diretamente. Exceção
  * autorizada: o seed de demonstração (`seed/demonstracao.ts`) lê o catálogo
  * de demonstração (`CATALOGO`) direto, seja qual for o provedor, e o grava
- * em `ErpProduct` para o importado também o oferecer. Dois provedores
- * (`ERP_PROVIDER`): `mock`, que identifica o cliente pelo `erpId` e tem o
- * catálogo fixo de demonstração, e `importado` (Etapa 12b), que identifica o
- * cliente pelo CNPJ, lê as notas fiscais importadas mais os pedidos dos
- * check-ins sem nota e o catálogo aprendido das notas (`ErpProduct`), sem
- * estoque. Quem chama nunca escolhe a chave: passa
- * o cliente a `chaveDoCliente`.
+ * em `ErpProduct` para o importado e o híbrido também o oferecerem. Três
+ * provedores (`ERP_PROVIDER`): `mock`, que identifica o cliente pelo `erpId`
+ * e tem o catálogo fixo de demonstração; `importado` (Etapa 12b), que
+ * identifica o cliente pelo CNPJ, lê as notas fiscais importadas mais os
+ * pedidos dos check-ins sem nota e o catálogo aprendido das notas
+ * (`ErpProduct`), sem estoque; e `hibrido` (o padrão), com chave composta
+ * `cnpj|erpId`: o cliente com nota do CNPJ usa as notas, o sem nota e com
+ * `erpId` usa o simulado, e o catálogo é o `ErpProduct`. A fonte de cada
+ * cliente (`notas`, `simulado` ou `nenhuma`) sai de `fonteDoCliente` e decide
+ * a ficha (`obterDadosErp`) e os insights. Quem chama nunca escolhe a chave:
+ * passa o cliente a `chaveDoCliente`.
  */
 export type DadosErpDTO =
   | {
@@ -47,9 +52,9 @@ export type DadosErpDTO =
         atualizadoEm: string;
         itensBaixos: { sku: string; nome: string; quantidade: number }[];
       } | null;
-      /** O provedor não informa estoque (importado): `estoque` é sempre `null`. */
+      /** O cliente tem fonte `notas` (as notas não informam estoque): `estoque` é sempre `null`. */
       estoqueIndisponivel: boolean;
-      /** As vendas mais recentes, `data` em 'AAAA-MM-DD'; só no importado (`[]` no mock). */
+      /** As vendas mais recentes, `data` em 'AAAA-MM-DD'; só com fonte `notas` (`[]` no simulado). */
       ultimasVendas: VendaDTO[];
     }
   | { status: 'SEM_ERP_ID' }
@@ -68,14 +73,24 @@ export type SituacaoErpDTO = {
   provedor: Env['ERP_PROVIDER'];
   simulado: boolean;
   estoqueDisponivel: boolean;
-  /** Emissão da nota mais recente, 'AAAA-MM-DD'; `null` sem notas ou no mock. */
+  /** Emissão da nota mais recente (de qualquer cliente), 'AAAA-MM-DD'; `null` sem notas ou no mock. */
   ultimaVendaEm: string | null;
   /** Instante (ISO) da importação mais recente; `null` se nunca houve. */
   ultimaImportacaoEm: string | null;
 };
 
-/** O que o ERP precisa do cliente para identificá-lo: `erpId` (mock) ou CNPJ (importado). */
+/**
+ * O que o ERP precisa do cliente para identificá-lo: `erpId` (mock), CNPJ
+ * (importado) ou os dois (híbrido).
+ */
 export type ClienteDoErp = { erpId: string | null; cnpj: string };
+
+/**
+ * De onde vêm os dados de venda de um cliente: as notas importadas do CNPJ
+ * (mais os pedidos dos check-ins sem nota), o ERP simulado pelo `erpId`, ou
+ * nenhuma fonte (sem nota e sem `erpId`: `SEM_ERP_ID`).
+ */
+export type FonteDoCliente = 'notas' | 'simulado' | 'nenhuma';
 
 /** Item de estoque em nível BAIXO; `atualizadoEm` é a data do snapshot de onde veio. */
 export type ItemBaixo = { sku: string; nome: string; quantidade: number; atualizadoEm: Date };
@@ -140,23 +155,57 @@ async function consultarEmLote<T>(
   return { resultados, indisponiveis };
 }
 
-/** O provedor em uso é o das notas fiscais importadas (Etapa 12b)? */
-function provedorImportado(): boolean {
-  return env.ERP_PROVIDER === 'importado';
+/**
+ * O catálogo de produtos e a situação das notas vêm do banco (`ErpProduct`,
+ * `ErpSale`) no importado e no híbrido; só o mock usa o catálogo fixo.
+ */
+export function usaCatalogoDasNotas(): boolean {
+  return env.ERP_PROVIDER !== 'mock';
+}
+
+function cnpjSoDigitos(cliente: ClienteDoErp): string {
+  return cliente.cnpj.replace(/\D/g, '');
 }
 
 /**
  * Identificador do cliente no provedor em uso: o `erpId` no mock (`null`
- * sem ele: o cliente não está no ERP simulado) e o CNPJ, só dígitos, no
- * importado (todo cliente tem). Todo chamador que consulta o ERP por cliente
- * resolve a chave aqui.
+ * sem ele: o cliente não está no ERP simulado), o CNPJ, só dígitos, no
+ * importado (todo cliente tem) e, no híbrido, a chave composta
+ * `cnpj|erpId` (`chaveHibrida`), com a qual o provedor decide a fonte a cada
+ * consulta. Síncrona e uma string, para os lotes deduplicarem por
+ * `Set`/`Map`. Todo chamador que consulta o ERP por cliente resolve a chave
+ * aqui.
  */
 export function chaveDoCliente(cliente: ClienteDoErp): string | null {
-  if (provedorImportado()) {
-    return cliente.cnpj.replace(/\D/g, '');
+  switch (env.ERP_PROVIDER) {
+    case 'importado':
+      return cnpjSoDigitos(cliente);
+    case 'hibrido':
+      return chaveHibrida(cnpjSoDigitos(cliente), cliente.erpId || null);
+    case 'mock':
+      return cliente.erpId || null;
   }
+}
 
-  return cliente.erpId || null;
+/**
+ * Fonte dos dados de venda do cliente (ver `FonteDoCliente`): no mock,
+ * `simulado` com `erpId`; no importado, sempre `notas` (cliente sem nota é
+ * `OK` sem venda); no híbrido, `notas` se há nota importada do CNPJ (uma
+ * consulta de existência), senão `simulado` com `erpId`, senão `nenhuma` —
+ * a mesma regra que `HibridoErpProvider` aplica a cada chamada.
+ */
+export async function fonteDoCliente(cliente: ClienteDoErp): Promise<FonteDoCliente> {
+  switch (env.ERP_PROVIDER) {
+    case 'mock':
+      return cliente.erpId ? 'simulado' : 'nenhuma';
+    case 'importado':
+      return 'notas';
+    case 'hibrido':
+      if (await erpSaleRepository.existeNotaDoCnpj(cnpjSoDigitos(cliente))) {
+        return 'notas';
+      }
+      return cliente.erpId ? 'simulado' : 'nenhuma';
+  }
 }
 
 /** Indica se o ERP em uso é o simulado (mock de demonstração), para telas e insights sinalizarem isso. */
@@ -164,19 +213,23 @@ export function erpSimulado(): boolean {
   return erpProvider.simulado;
 }
 
-/** Indica se o ERP em uso informa estoque (o mock sim; as notas importadas não). */
+/**
+ * Indica se o ERP em uso informa estoque (o mock e o híbrido sim; só as notas
+ * importadas não). No híbrido o estoque é por cliente: o de fonte `notas`
+ * não tem snapshots (`getStockHistory` vazio).
+ */
 export function estoqueDisponivel(): boolean {
   return erpProvider.estoqueDisponivel;
 }
 
 /**
- * Situação da fonte de vendas para os avisos das telas (`GET /erp/situacao`):
- * o provedor e, no importado, até que dia há notas. A última importação vem
- * do banco em qualquer provedor.
+ * Situação da fonte de vendas (`GET /erp/situacao`): o provedor e, no
+ * importado e no híbrido, até que dia há notas. A última importação vem do
+ * banco em qualquer provedor.
  */
 export async function obterSituacao(): Promise<SituacaoErpDTO> {
   const [ultimaEmissao, ultimaImportacao] = await Promise.all([
-    provedorImportado() ? erpSaleRepository.ultimaDataDeEmissao() : Promise.resolve(null),
+    usaCatalogoDasNotas() ? erpSaleRepository.ultimaDataDeEmissao() : Promise.resolve(null),
     erpSaleRepository.ultimaImportacaoEm(),
   ]);
 
@@ -193,11 +246,12 @@ export type ProdutoDTO = { sku: string; nome: string; precoUnitario: number };
 
 /**
  * Produtos que o check-in oferece no pedido (spec 7.5), com o preço do dia:
- * no mock, o catálogo fixo de demonstração, na ordem dele; no importado, o
- * catálogo aprendido das notas (`ErpProduct`), por nome.
+ * no mock, o catálogo fixo de demonstração, na ordem dele; no importado e no
+ * híbrido, o catálogo das notas (`ErpProduct`, que o seed também preenche),
+ * por nome.
  */
 export async function listarProdutos(): Promise<ProdutoDTO[]> {
-  if (provedorImportado()) {
+  if (usaCatalogoDasNotas()) {
     const produtos = await erpSaleRepository.listarProdutos();
     return produtos.map(({ codigo, nome, precoUnitario }) => ({
       sku: codigo,
@@ -210,13 +264,13 @@ export async function listarProdutos(): Promise<ProdutoDTO[]> {
 }
 
 /**
- * Um produto do catálogo pelo SKU (no importado, o código do produto na
- * nota), com o preço do dia; `null` se o SKU não existe. É por aqui que o
+ * Um produto do catálogo pelo SKU (no importado e no híbrido, o código do
+ * produto na nota), com o preço do dia; `null` se o SKU não existe. É por aqui que o
  * pedido do check-in e as campanhas validam os SKUs: nenhum outro módulo lê
  * o catálogo do ERP direto.
  */
 export async function buscarProduto(sku: string): Promise<ProdutoDTO | null> {
-  if (provedorImportado()) {
+  if (usaCatalogoDasNotas()) {
     const produto = await erpSaleRepository.findProdutoPorCodigo(sku);
     return produto
       ? { sku: produto.codigo, nome: produto.nome, precoUnitario: produto.precoUnitario.toNumber() }
@@ -351,13 +405,16 @@ function paraVendaDTO(venda: Sale): VendaDTO {
 }
 
 /**
- * Dados de venda/estoque do cliente no ERP (UC11): busca o cliente, resolve
- * a chave (`chaveDoCliente`) e consulta o provedor. Cliente de outra
- * carteira responde ao representante como inexistente (404). Qualquer
- * `ErpIndisponivelError` vira `{ status: 'INDISPONIVEL' }` — outros erros
- * propagam para o errorHandler. No importado a chave é o CNPJ, que todo
- * cliente tem: nunca há `SEM_ERP_ID` nem `NAO_ENCONTRADO` (cliente sem nota
- * é `OK` sem última venda), e a ficha recebe as últimas vendas.
+ * Dados de venda/estoque do cliente no ERP (UC11): busca o cliente, decide a
+ * fonte (`fonteDoCliente`), resolve a chave (`chaveDoCliente`) e consulta o
+ * provedor. Cliente de outra carteira responde ao representante como
+ * inexistente (404). Qualquer `ErpIndisponivelError` vira
+ * `{ status: 'INDISPONIVEL' }` — outros erros propagam para o errorHandler.
+ * Por fonte: `nenhuma` → `SEM_ERP_ID`; `notas` (importado, ou híbrido com
+ * nota do CNPJ) → nunca `NAO_ENCONTRADO` (cliente sem nota é `OK` sem última
+ * venda), a ficha recebe as últimas vendas e o estoque é indisponível;
+ * `simulado` → só a última venda, com estoque, e `NAO_ENCONTRADO` quando o
+ * ERP simulado não conhece o `erpId`.
  */
 export async function obterDadosErp(
   clientId: string,
@@ -365,13 +422,14 @@ export async function obterDadosErp(
   hoje: Date = agora(),
 ): Promise<DadosErpDTO> {
   const cliente = exigirClienteVisivel(await clientRepository.findById(clientId), usuario);
+  const fonte = await fonteDoCliente(cliente);
   const chave = chaveDoCliente(cliente);
 
-  if (!chave) {
+  if (fonte === 'nenhuma' || !chave) {
     return { status: 'SEM_ERP_ID' };
   }
 
-  const importado = provedorImportado();
+  const comNotas = fonte === 'notas';
   const hojeCal = dataCalendario(hoje);
   const periodo = {
     inicio: inicioDoDia(somarDias(hojeCal, -DIAS_DE_VOLUME)),
@@ -379,10 +437,10 @@ export async function obterDadosErp(
   };
 
   try {
-    // No importado, uma consulta só traz as últimas vendas, e a primeira é a
-    // última venda; no mock, só a última venda (a ficha não lista vendas).
+    // Com notas, uma consulta só traz as últimas vendas, e a primeira é a
+    // última venda; no simulado, só a última venda (a ficha não lista vendas).
     const [recentes, historicoDeEstoque, volume90Dias] = await Promise.all([
-      importado
+      comNotas
         ? erpProvider.getRecentSales(chave, QUANTIDADE_DE_ULTIMAS_VENDAS)
         : erpProvider.getLastSale(chave).then((venda) => (venda ? [venda] : [])),
       erpProvider.getStockHistory(chave),
@@ -390,7 +448,7 @@ export async function obterDadosErp(
     ]);
     const ultimaVenda = recentes[0] ?? null;
 
-    if (!importado && ultimaVenda === null && historicoDeEstoque.length === 0) {
+    if (!comNotas && ultimaVenda === null && historicoDeEstoque.length === 0) {
       return { status: 'NAO_ENCONTRADO' };
     }
 
@@ -406,8 +464,8 @@ export async function obterDadosErp(
         ...resumoDeEstoque,
         itensBaixos: resumoDeEstoque.itensBaixos.map(({ sku, nome, quantidade }) => ({ sku, nome, quantidade })),
       },
-      estoqueIndisponivel: !erpProvider.estoqueDisponivel,
-      ultimasVendas: importado ? recentes.map(paraVendaDTO) : [],
+      estoqueIndisponivel: comNotas,
+      ultimasVendas: comNotas ? recentes.map(paraVendaDTO) : [],
     };
   } catch (err) {
     if (err instanceof ErpIndisponivelError) {
