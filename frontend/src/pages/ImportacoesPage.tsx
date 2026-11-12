@@ -1,32 +1,38 @@
 /**
- * "Importar notas" do gestor (Etapa 12b): sobe as DANFEs em PDF e traz as
- * vendas reais para o CRM. O cartão do topo tem três estados:
- *   - Escolher: um ou vários PDFs e "Ler notas". Os arquivos são lidos um a
- *     um, em sequência (`lerPdf`, sem gravar nada), com "Lendo…" na linha de
- *     cada um; o erro de um arquivo fica na linha dele e não derruba os
- *     outros;
- *   - Conferir (`ConferenciaDeNotas`): "Notas lidas (N)", nota a nota com os
- *     produtos, "Sem cliente no CRM" e "Já importada · será atualizada".
- *     "Confirmar importação" reenvia, em ordem e um por requisição
- *     (`importarPdf`, "Importando…"), cada arquivo que foi lido; "Cancelar"
- *     volta ao início, limpo. Gravado pelo menos um arquivo, tudo do ERP
- *     (`['erp']`) e a ficha dos clientes (`['client']`) são buscados de novo
- *     e a tela passa ao fecho; nenhum, a
- *     conferência fica com o erro de cada arquivo;
- *   - Concluída (`ImportacaoConcluida`): "Importação concluída.", o resumo
- *     somado (novas × atualizadas, vínculos, ignoradas), "Deseja verificar?"
- *     com "Ver cliente" (ou um "Ver {cliente}" por cliente) até a ficha na aba
- *     ERP e sugestões, o link para o bloco dos CNPJs sem cliente e "Nova
- *     importação", que limpa o cartão e devolve o foco à escolha de arquivos.
+ * "Importar notas" do gestor (Etapa 12b; diálogo na rodada 2026-11-12): sobe
+ * as DANFEs em PDF e traz as vendas reais para o CRM. A importação tem três
+ * estados:
+ *   - Escolher (cartão do topo, sempre na tela): um ou vários PDFs e "Ler
+ *     notas", que abre o diálogo "Importar notas" (`Dialogo`). Os arquivos
+ *     são lidos um a um, em sequência (`lerPdf`, sem gravar nada), com
+ *     "Lendo…" na linha de cada um; o erro de um arquivo fica na linha dele e
+ *     não derruba os outros;
+ *   - Conferir (`ConferenciaDeNotas`, no diálogo): "Notas lidas (N)", nota a
+ *     nota com os produtos, "Sem cliente no CRM · será criado ao concluir" e
+ *     "Já importada · será atualizada". "Confirmar importação" reenvia, em
+ *     ordem e um por requisição (`importarPdf`, "Importando…"), cada arquivo
+ *     que foi lido; "Cancelar" fecha sem gravar. Gravado pelo menos um
+ *     arquivo, tudo do ERP (`['erp']`) e a ficha dos clientes (`['client']`)
+ *     são buscados de novo e o diálogo passa ao fecho; nenhum, a conferência
+ *     fica com o erro de cada arquivo;
+ *   - Concluída (`ImportacaoConcluida`, no mesmo diálogo): "Importação
+ *     concluída.", o resumo somado (novas × atualizadas, vínculos,
+ *     ignoradas), para cada CNPJ sem cliente "Criar cliente para {razão
+ *     social} · {CNPJ}" com o formulário (criado o cliente, as notas do CNPJ
+ *     passam a ele e aparece "Ver {nomeFantasia}"), "Deseja verificar?" com
+ *     "Ver cliente" (ou um "Ver {cliente}" por cliente) até a ficha na aba ERP
+ *     e "Nova importação".
+ * Fechar o diálogo ("Cancelar", "Nova importação", "Fechar", Esc ou um toque
+ * no fundo) volta a "Escolher" limpo, com o foco na escolha de arquivos.
+ * Enquanto lê ou grava (`ocupado`), Esc, "Fechar" e o fundo não fecham.
  * Os blocos de baixo ficam sempre na tela:
  *   - "CNPJs sem cliente no CRM (N)": bloco persistente (`GET /erp/sem-cliente`,
  *     lido como as pendências), um item por CNPJ das notas cujo destinatário
  *     ainda não é cliente — razão social, CNPJ formatado, município, quantas notas. O
  *     gestor cria o cliente pela nota ali mesmo ("Criar cliente",
  *     `CriarClientePelaNota`): escolhe o representante, e o cadastro vem da
- *     DANFE; as notas do CNPJ passam ao cliente novo e o item some. "Copiar
- *     CNPJ" continua, para quem preferir que o representante cadastre (o
- *     cadastro dele também adota as notas do CNPJ e o item some);
+ *     DANFE; as notas do CNPJ passam ao cliente novo e o item some. Serve às
+ *     notas de importações anteriores (as de agora ganham o cliente no fecho);
  *   - "Pendências": notas com uma visita sugerida, à espera de o gestor
  *     vincular ou deixar só no ERP; a linha avisa que os itens do pedido
  *     passam a ser os da nota e, se a visita não é Venda, que ela passa a ser
@@ -50,7 +56,8 @@ import { useAuth } from '../auth/useAuth';
 import { AvisoExclusivoDoGestor } from '../components/AvisoExclusivoDoGestor';
 import { ConferenciaDeNotas, type ArquivoLido } from '../components/crm/ConferenciaDeNotas';
 import { CriarClientePelaNota } from '../components/crm/CriarClientePelaNota';
-import { ID_SEM_CLIENTE, ImportacaoConcluida, type ArquivoGravado } from '../components/crm/ImportacaoConcluida';
+import { Dialogo } from '../components/crm/Dialogo';
+import { ImportacaoConcluida, type ArquivoGravado } from '../components/crm/ImportacaoConcluida';
 import { Aviso, Cartao } from '../components/crm/ui';
 import { useImportacoes, usePendencias, useSemCliente } from '../hooks/useImportacoes';
 import { formatarCnpj } from '../lib/formatarCnpj';
@@ -73,6 +80,9 @@ const MENSAGEM_ERRO_LER = 'Não foi possível ler este arquivo.';
 const MENSAGEM_ERRO_IMPORTAR = 'Não foi possível importar este arquivo.';
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar a lista.';
 
+/** Âncora do bloco "CNPJs sem cliente no CRM". */
+const ID_SEM_CLIENTE = 'cnpjs-sem-cliente';
+
 /** Os três estados do cartão "Importar notas". */
 type Etapa = 'escolher' | 'conferir' | 'concluida';
 
@@ -88,15 +98,6 @@ const ROTULO_VINCULO: Record<VinculoNota, string> = {
   SEM_VISITA: 'Só no ERP',
   SEM_CLIENTE: 'Só no ERP',
 };
-
-async function copiarCnpj(cnpj: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(cnpj);
-    toast.success('CNPJ copiado');
-  } catch {
-    toast.error('Não foi possível copiar o CNPJ.');
-  }
-}
 
 /** Instante ISO (a data/hora da visita) como "dd/mm" no fuso local. */
 function diaMes(iso: string): string {
@@ -120,7 +121,9 @@ function Importacoes() {
   const [lidos, setLidos] = useState<ArquivoLido[]>([]);
   const [ocupado, setOcupado] = useState(false);
   const [concluida, setConcluida] = useState<Conclusao>({ gravados: [], falhas: [] });
-  // A entrada some fora de "escolher"; ao voltar (Cancelar, Nova importação) ela recebe o foco.
+  // Trocar a chave recria a entrada de arquivos, vazia, ao recomeçar.
+  const [versaoDaEntrada, setVersaoDaEntrada] = useState(0);
+  // Fechado o diálogo (Cancelar, Nova importação, Fechar, Esc, fundo), a entrada recebe o foco.
   const { ref: entrada, devolverFoco } = useDevolverFoco<HTMLInputElement>(etapa !== 'escolher');
 
   function atualizar(indice: number, lido: ArquivoLido) {
@@ -178,9 +181,10 @@ function Importacoes() {
     setEtapa('concluida');
   }
 
-  /** "Cancelar" e "Nova importação": tela limpa, pronta para os próximos PDFs. */
+  /** Fechar o diálogo, de qualquer jeito: tela limpa, pronta para os próximos PDFs. */
   function recomecar() {
     devolverFoco();
+    setVersaoDaEntrada((versao) => versao + 1);
     setArquivos([]);
     setLidos([]);
     setConcluida({ gravados: [], falhas: [] });
@@ -190,39 +194,39 @@ function Importacoes() {
   return (
     <div className="space-y-4">
       <Cartao titulo="Importar notas">
-        {etapa === 'escolher' && (
-          <>
-            <p className="mb-3 text-sm text-muted-foreground">
-              Escolha os PDFs das notas fiscais (DANFE) de venda. As notas são lidas para você conferir antes de entrarem
-              no CRM.
-            </p>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="max-sm:w-full">
-                <label htmlFor="arquivos-de-notas" className="mb-1 block text-sm font-medium">
-                  Notas fiscais (PDF)
-                </label>
-                <input
-                  id="arquivos-de-notas"
-                  ref={entrada}
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  multiple
-                  onChange={(evento) => setArquivos(Array.from(evento.target.files ?? []))}
-                  className="block w-full text-sm file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-2 file:text-sm"
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={() => void lerNotas()}
-                disabled={arquivos.length === 0}
-                className="max-sm:w-full"
-              >
-                <FileUp aria-hidden="true" />
-                Ler notas
-              </Button>
-            </div>
-          </>
-        )}
+        <p className="mb-3 text-sm text-muted-foreground">
+          Escolha os PDFs das notas fiscais (DANFE) de venda. As notas são lidas para você conferir antes de entrarem no
+          CRM.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="max-sm:w-full">
+            <label htmlFor="arquivos-de-notas" className="mb-1 block text-sm font-medium">
+              Notas fiscais (PDF)
+            </label>
+            <input
+              key={versaoDaEntrada}
+              id="arquivos-de-notas"
+              ref={entrada}
+              type="file"
+              accept=".pdf,application/pdf"
+              multiple
+              onChange={(evento) => setArquivos(Array.from(evento.target.files ?? []))}
+              className="block w-full text-sm file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-2 file:text-sm"
+            />
+          </div>
+          <Button
+            type="button"
+            onClick={() => void lerNotas()}
+            disabled={arquivos.length === 0 || etapa !== 'escolher'}
+            className="max-sm:w-full"
+          >
+            <FileUp aria-hidden="true" />
+            Ler notas
+          </Button>
+        </div>
+      </Cartao>
+
+      <Dialogo titulo="Importar notas" aberto={etapa !== 'escolher'} aoFechar={recomecar} bloqueado={ocupado}>
         {etapa === 'conferir' && (
           <ConferenciaDeNotas
             arquivos={lidos}
@@ -234,7 +238,7 @@ function Importacoes() {
         {etapa === 'concluida' && (
           <ImportacaoConcluida gravados={concluida.gravados} falhas={concluida.falhas} aoNovaImportacao={recomecar} />
         )}
-      </Cartao>
+      </Dialogo>
 
       <SemCliente />
       <Pendencias />
@@ -244,7 +248,7 @@ function Importacoes() {
 }
 
 /**
- * CNPJs das notas sem cliente no CRM, com "Criar cliente" e "Copiar CNPJ".
+ * CNPJs das notas sem cliente no CRM, com "Criar cliente".
  * Sem nenhum, o bloco não aparece; criado o cliente, a lista é buscada de
  * novo (`['erp']`) e o item some.
  */
@@ -272,9 +276,7 @@ function SemCliente() {
         </ul>
         <p className="mt-3 text-sm text-muted-foreground">
           "Criar cliente" cadastra o cliente com os dados da nota, na carteira do representante escolhido, e as notas
-          deste CNPJ passam a ser dele; o representante completa e-mail e contatos na ficha. Se preferir que o
-          representante cadastre, use "Copiar CNPJ": cadastrado o cliente pelo representante, as notas deste CNPJ
-          passam a ser dele e o CNPJ sai desta lista.
+          deste CNPJ passam a ser dele; o representante completa e-mail e contatos na ficha.
         </p>
       </Cartao>
     </div>
@@ -293,11 +295,7 @@ function ItemSemCliente({ item }: { item: CnpjSemCliente }) {
           {[formatarCnpj(item.cnpj), local, contar(item.notas, 'nota')].filter(Boolean).join(' · ')}
         </span>
       </p>
-      <CriarClientePelaNota item={item}>
-        <Button type="button" variant="outline" size="sm" onClick={() => void copiarCnpj(item.cnpj)}>
-          Copiar CNPJ
-        </Button>
-      </CriarClientePelaNota>
+      <CriarClientePelaNota item={item} />
     </li>
   );
 }

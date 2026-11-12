@@ -1,10 +1,11 @@
 /**
- * Conferência da importação de notas: o que foi lido de cada PDF, antes de
- * gravar. Um item por arquivo, na ordem escolhida, com o andamento
+ * Conferência da importação de notas, dentro do diálogo da página "Importar
+ * notas": o que foi lido de cada PDF, antes de gravar. Um item por arquivo, na ordem escolhida, com o andamento
  * ("Aguardando…", "Lendo…", "Importando…"), o erro de leitura (ou de
  * gravação) na linha do próprio arquivo e, lido o arquivo, as notas: número,
  * emissão e valor, destinatário (nome e CNPJ), "Cliente: …" ou "Sem cliente
- * no CRM", "Já importada · será atualizada" quando a chave de acesso já
+ * no CRM · será criado ao concluir" (só informativo: o fecho oferece criar o
+ * cliente do CNPJ), "Já importada · será atualizada" quando a chave de acesso já
  * existe, e todos os produtos (sem recolher: é a conferência). As ignoradas
  * aparecem com o motivo.
  * "Confirmar importação" só se habilita quando algum arquivo lido tem nota;
@@ -132,7 +133,7 @@ function NotaConferida({ nota }: { nota: NotaLida }) {
       <p className="text-muted-foreground">
         {nota.destinatarioNome} · {formatarCnpj(nota.destinatarioCnpj)}
       </p>
-      <p>{nota.cliente ? `Cliente: ${nota.cliente.nomeFantasia}` : 'Sem cliente no CRM'}</p>
+      <p>{nota.cliente ? `Cliente: ${nota.cliente.nomeFantasia}` : 'Sem cliente no CRM · será criado ao concluir'}</p>
       {nota.jaImportada && <p className="w-fit rounded bg-st-yellow-soft px-1.5 font-medium">Já importada · será atualizada</p>}
       {nota.itens.length > 0 && (
         <ul aria-label={`Produtos da NF ${nota.numero}`} className="list-disc space-y-0.5 pl-5">

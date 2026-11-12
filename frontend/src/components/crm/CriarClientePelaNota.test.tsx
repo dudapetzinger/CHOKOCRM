@@ -54,7 +54,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function renderizar(queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })) {
+function renderizar(
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }),
+  extra: Partial<Pick<Parameters<typeof CriarClientePelaNota>[0], 'aoCriar' | 'abertoDeInicio'>> = {},
+) {
   const auth = {
     user: { id: 'g1', nome: 'Marina Gestora', email: 'g@x.com', telefone: null, role: 'GESTOR' as const, ativo: true },
     login: vi.fn(),
@@ -64,7 +67,7 @@ function renderizar(queryClient = new QueryClient({ defaultOptions: { queries: {
   render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={auth}>
-        <CriarClientePelaNota item={ITEM} />
+        <CriarClientePelaNota item={ITEM} {...extra} />
       </AuthContext.Provider>
       <Toaster />
     </QueryClientProvider>,
@@ -150,5 +153,53 @@ describe('CriarClientePelaNota', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Já existe um cliente com este CNPJ.');
     expect(screen.getByLabelText('Representante')).toBeInTheDocument();
+  });
+
+  it('aoCriar recebe o id e o nome fantasia do cliente criado, depois do sucesso', async () => {
+    const aoCriar = vi.fn();
+    renderizar(undefined, { aoCriar });
+    await abrir();
+
+    await usuario.selectOptions(screen.getByLabelText('Representante'), 'Eduarda Fischer');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => expect(aoCriar).toHaveBeenCalledWith({ id: 'c9', nomeFantasia: 'Padaria Estrela' }));
+    expect(await screen.findByText('Cliente criado na carteira de Eduarda Fischer')).toBeInTheDocument();
+  });
+
+  it('aoCriar não é chamado quando a API recusa', async () => {
+    vi.mocked(criarClientePelaNota).mockRejectedValue(new ApiError('CONFLICT', 'Já existe um cliente com este CNPJ.'));
+    const aoCriar = vi.fn();
+    renderizar(undefined, { aoCriar });
+    await abrir();
+
+    await usuario.selectOptions(screen.getByLabelText('Representante'), 'Carlos Weber');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Já existe um cliente com este CNPJ.');
+    expect(aoCriar).not.toHaveBeenCalled();
+  });
+
+  it('abertoDeInicio: o formulário já vem aberto, sem tirar o foco de onde está; só com cnpj e razão social', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const auth = {
+      user: { id: 'g1', nome: 'Marina Gestora', email: 'g@x.com', telefone: null, role: 'GESTOR' as const, ativo: true },
+      login: vi.fn(),
+      logout: vi.fn(),
+      recarregarUsuario: vi.fn(async () => {}),
+    };
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={auth}>
+          <CriarClientePelaNota item={{ cnpj: '25382906000149', razaoSocial: 'Don Giacomo Ltda' }} abertoDeInicio />
+        </AuthContext.Provider>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByLabelText('Representante')).not.toHaveFocus();
+    expect(screen.getByLabelText('Nome fantasia')).toHaveValue('Don Giacomo Ltda');
+    expect(screen.queryByRole('button', { name: 'Criar cliente' })).not.toBeInTheDocument();
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.getByRole('button', { name: 'Criar cliente' })).toHaveFocus();
   });
 });

@@ -53,7 +53,7 @@ describe('ConferenciaDeNotas', () => {
     expect(nota).not.toHaveTextContent('Já importada');
   });
 
-  it('nota sem cliente diz "Sem cliente no CRM"; nota já importada avisa que será atualizada', () => {
+  it('nota sem cliente diz "Sem cliente no CRM · será criado ao concluir"; nota já importada avisa que será atualizada', () => {
     renderizar([
       lido('a.pdf', {
         notas: [notaLida({ numero: '2456', cliente: null, jaImportada: true, chaveAcesso: '5'.repeat(44) })],
@@ -61,7 +61,7 @@ describe('ConferenciaDeNotas', () => {
     ]);
 
     const nota = within(arquivo('a.pdf')).getByRole('listitem', { name: 'NF 2456' });
-    expect(nota).toHaveTextContent('Sem cliente no CRM');
+    expect(within(nota).getByText('Sem cliente no CRM · será criado ao concluir')).toBeInTheDocument();
     expect(nota).not.toHaveTextContent('Cliente:');
     expect(within(nota).getByText('Já importada · será atualizada')).toBeInTheDocument();
   });

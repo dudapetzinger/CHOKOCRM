@@ -1,7 +1,8 @@
 /**
  * "Criar cliente" de um CNPJ sem cliente no CRM ("cliente pela nota"), na
- * página "Importar notas" do gestor. O botão abre, no próprio item, um
- * formulário curto: "Representante" (obrigatório, entre os ativos),
+ * página "Importar notas" do gestor: no bloco "CNPJs sem cliente no CRM" e no
+ * fecho da importação (`ImportacaoConcluida`, dentro do diálogo). O botão
+ * abre, no próprio item, um formulário curto: "Representante" (obrigatório, entre os ativos),
  * "Nome fantasia" (vem com a razão social da nota) e "Recorrência (dias)"
  * (15). O resto do cadastro (endereço, cidade, telefone) vem da nota, no
  * backend; o cliente nasce sem e-mail e sem contatos, que o representante
@@ -14,8 +15,14 @@
  * aparece no formulário, que continua aberto. O foco vai para "Representante"
  * ao abrir e volta a "Criar cliente" em "Cancelar".
  *
- * `children` são as outras ações do item (ex.: "Copiar CNPJ"), que ficam ao
- * lado de "Criar cliente" e continuam visíveis com o formulário aberto.
+ * Só usa o CNPJ e a razão social do item (`Pick<CnpjSemCliente, …>`), o que
+ * deixa o fecho da importação montá-lo a partir da nota gravada.
+ * `abertoDeInicio`: o formulário já vem aberto (o fecho da importação), sem
+ * mexer no foco; "Cancelar" mostra o botão "Criar cliente" e leva o foco a ele.
+ * `aoCriar(cliente)`: chamado depois do sucesso (com o toast e as buscas de
+ * novo já disparados), com o id e o nome fantasia do cliente criado.
+ * `children` são outras ações do item, que ficam ao lado de "Criar cliente" e
+ * continuam visíveis com o formulário aberto.
  */
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -45,20 +52,38 @@ function validar(representanteId: string, nomeFantasia: string, recorrenciaDias:
   return erros;
 }
 
+/** O que o formulário usa do CNPJ sem cliente. */
+type ItemSemCliente = Pick<CnpjSemCliente, 'cnpj' | 'razaoSocial'>;
+
+/** O cliente que acabou de ser criado, para quem usa o formulário mostrar o caminho até ele. */
+export type ClienteCriado = { id: string; nomeFantasia: string };
+
 type Props = {
-  item: CnpjSemCliente;
+  item: ItemSemCliente;
+  abertoDeInicio?: boolean;
+  aoCriar?: (cliente: ClienteCriado) => void;
   children?: ReactNode;
 };
 
-export function CriarClientePelaNota({ item, children }: Props) {
-  const [aberto, setAberto] = useState(false);
+export function CriarClientePelaNota({ item, abertoDeInicio = false, aoCriar, children }: Props) {
+  const [aberto, setAberto] = useState(abertoDeInicio);
+  // O foco vai para "Representante" só quando o próprio gestor abre o formulário.
+  const [focarAoAbrir, setFocarAoAbrir] = useState(false);
   const { ref: botaoCriar, devolverFoco } = useDevolverFoco<HTMLButtonElement>(aberto);
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
         {!aberto && (
-          <Button ref={botaoCriar} type="button" size="sm" onClick={() => setAberto(true)}>
+          <Button
+            ref={botaoCriar}
+            type="button"
+            size="sm"
+            onClick={() => {
+              setFocarAoAbrir(true);
+              setAberto(true);
+            }}
+          >
             Criar cliente
           </Button>
         )}
@@ -67,6 +92,8 @@ export function CriarClientePelaNota({ item, children }: Props) {
       {aberto && (
         <Formulario
           item={item}
+          focarAoAbrir={focarAoAbrir}
+          aoCriar={aoCriar}
           aoFechar={() => {
             devolverFoco();
             setAberto(false);
@@ -77,7 +104,17 @@ export function CriarClientePelaNota({ item, children }: Props) {
   );
 }
 
-function Formulario({ item, aoFechar }: { item: CnpjSemCliente; aoFechar: () => void }) {
+function Formulario({
+  item,
+  focarAoAbrir,
+  aoCriar,
+  aoFechar,
+}: {
+  item: ItemSemCliente;
+  focarAoAbrir: boolean;
+  aoCriar?: (cliente: ClienteCriado) => void;
+  aoFechar: () => void;
+}) {
   const queryClient = useQueryClient();
   const prefixo = useId();
   const { data: representantes = [] } = useRepresentantes();
@@ -89,18 +126,21 @@ function Formulario({ item, aoFechar }: { item: CnpjSemCliente; aoFechar: () => 
   const seletor = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
-    seletor.current?.focus();
-  }, []);
+    if (focarAoAbrir) seletor.current?.focus();
+  }, [focarAoAbrir]);
 
   const criar = useMutation({
     mutationFn: (dados: DadosClientePelaNota) => criarClientePelaNota(item.cnpj, dados),
     onSuccess: (cliente) => {
       toast.success(`Cliente criado na carteira de ${cliente.representante.nome}`);
-      return Promise.all([
+      const buscasDeNovo = Promise.all([
         queryClient.invalidateQueries({ queryKey: ['erp'] }),
         queryClient.invalidateQueries({ queryKey: ['client'] }),
         queryClient.invalidateQueries({ queryKey: ['clients'] }),
       ]);
+      // Depois de disparar as buscas: quem usa pode tirar o formulário da tela.
+      aoCriar?.({ id: cliente.id, nomeFantasia: cliente.nomeFantasia });
+      return buscasDeNovo;
     },
   });
 

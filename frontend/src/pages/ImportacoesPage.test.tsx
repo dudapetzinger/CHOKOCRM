@@ -205,7 +205,17 @@ const GRAVACOES: Record<string, Importacao> = {
   'b.pdf': importacao({
     id: 'i2',
     nomeArquivo: 'b.pdf',
-    notas: [nota({ id: 'n2', chaveAcesso: CHAVE_B, numero: '2456', cliente: null, vinculo: 'SEM_CLIENTE' })],
+    notas: [
+      nota({
+        id: 'n2',
+        chaveAcesso: CHAVE_B,
+        numero: '2456',
+        destinatarioNome: 'PADARIA E CIA LTDA',
+        destinatarioCnpj: '99888777000166',
+        cliente: null,
+        vinculo: 'SEM_CLIENTE',
+      }),
+    ],
     cnpjsSemCliente: [{ cnpj: '99888777000166', razaoSocial: 'PADARIA E CIA LTDA' }],
   }),
 };
@@ -284,15 +294,17 @@ describe('ImportacoesPage', () => {
     leituraB.resolver(LEITURAS['b.pdf']);
 
     await waitFor(() => expect(screen.queryByText('Lendo…')).not.toBeInTheDocument());
-    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Notas lidas (2)' }));
+    const dialogo = screen.getByRole('dialog', { name: 'Importar notas' });
+    expect(dialogo).toHaveAttribute('aria-modal', 'true');
+    expect(within(dialogo).getByRole('heading', { name: 'Notas lidas (2)' })).toHaveFocus();
     const a = within(arquivoLido('a.pdf')).getByRole('listitem', { name: 'NF 2455' });
     expect(a).toHaveTextContent(/NF 2455 · 05\/11\/2026 · R\$\s1\.284,00/);
     expect(a).toHaveTextContent('EMPORIO POMERODE LTDA · 12.345.678/0001-90');
     expect(a).toHaveTextContent('Cliente: Empório Pomerode');
     expect(within(a).getByText(/^2 × Tablete 70% 100 g · R\$\s25,90$/)).toBeInTheDocument();
     const b = within(arquivoLido('b.pdf')).getByRole('listitem', { name: 'NF 2456' });
-    expect(b).toHaveTextContent('Sem cliente no CRM');
-    expect(screen.queryByLabelText('Notas fiscais (PDF)')).not.toBeInTheDocument();
+    expect(b).toHaveTextContent('Sem cliente no CRM · será criado ao concluir');
+    expect(within(dialogo).queryByLabelText('Notas fiscais (PDF)')).not.toBeInTheDocument();
     expect(importarPdf).not.toHaveBeenCalled();
   });
 
@@ -342,7 +354,7 @@ describe('ImportacoesPage', () => {
     expect(screen.getByTestId('local')).toHaveTextContent('/clientes/c1?aba=erp');
   });
 
-  it('notas de dois clientes: um link por cliente, e o link do bloco das notas sem cliente', async () => {
+  it('notas de dois clientes: um link por cliente, e o formulário para criar o cliente da nota sem cliente', async () => {
     lerDe({
       'a.pdf': LEITURAS['a.pdf'],
       'b.pdf': { notas: [notaLida({ chaveAcesso: CHAVE_C, cliente: JARAGUA })], ignoradas: [] },
@@ -362,10 +374,8 @@ describe('ImportacoesPage', () => {
     expect(screen.queryByRole('link', { name: 'Ver cliente' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver Empório Pomerode' })).toHaveAttribute('href', '/clientes/c1?aba=erp');
     expect(screen.getByRole('link', { name: 'Ver Doceria Jaraguá' })).toHaveAttribute('href', '/clientes/c2?aba=erp');
-    expect(screen.getByRole('link', { name: 'Criar o cliente no bloco "CNPJs sem cliente no CRM"' })).toHaveAttribute(
-      'href',
-      '#cnpjs-sem-cliente',
-    );
+    expect(screen.getByText('Criar cliente para PADARIA E CIA LTDA · 99.888.777/0001-66')).toBeInTheDocument();
+    expect(screen.queryByText(/Criar o cliente no bloco/)).not.toBeInTheDocument();
   });
 
   it('Review Focus 3: nota nova e nota já importada → "1 nota nova · 1 atualizada"', async () => {
@@ -434,13 +444,14 @@ describe('ImportacoesPage', () => {
     expect(screen.getByRole('button', { name: 'Confirmar importação' })).toBeDisabled();
   });
 
-  it('"Cancelar" na conferência volta ao início, sem gravar e com o input vazio', async () => {
+  it('"Cancelar" na conferência fecha o diálogo e volta ao início, sem gravar e com o input vazio', async () => {
     lerDe(LEITURAS);
     renderizar();
 
     await escolherELer('a.pdf');
-    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await usuario.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancelar' }));
 
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const entrada = screen.getByLabelText<HTMLInputElement>('Notas fiscais (PDF)');
     expect(entrada.files).toHaveLength(0);
     expect(entrada).toHaveFocus();
@@ -468,6 +479,7 @@ describe('ImportacoesPage', () => {
 
     await usuario.click(screen.getByRole('button', { name: 'Nova importação' }));
 
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const entrada = screen.getByLabelText<HTMLInputElement>('Notas fiscais (PDF)');
     expect(entrada.files).toHaveLength(0);
     expect(entrada).toHaveFocus();
@@ -475,6 +487,123 @@ describe('ImportacoesPage', () => {
     expect(screen.queryByRole('heading', { name: /Notas lidas/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Importação concluída.' })).not.toBeInTheDocument();
     expect(screen.getByText(/a\.pdf — 1 nota/)).toBeInTheDocument();
+  });
+
+  it('o "X" do diálogo na conferência fecha sem gravar e devolve o foco à escolha de arquivos', async () => {
+    lerDe(LEITURAS);
+    renderizar();
+
+    await escolherELer('a.pdf');
+    await usuario.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Fechar' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const entrada = screen.getByLabelText<HTMLInputElement>('Notas fiscais (PDF)');
+    expect(entrada.files).toHaveLength(0);
+    expect(entrada).toHaveFocus();
+    expect(importarPdf).not.toHaveBeenCalled();
+  });
+
+  it('Review Focus 4: Esc e "X" durante "Importando…" não fecham; a gravação termina e o fecho aparece no mesmo diálogo', async () => {
+    lerDe(LEITURAS);
+    const gravacaoA = adiada<Importacao>();
+    vi.mocked(importarPdf).mockReturnValue(gravacaoA.promessa);
+    renderizar();
+
+    await escolherELer('a.pdf');
+    const dialogo = screen.getByRole('dialog', { name: 'Importar notas' });
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Confirmar importação' }));
+    expect(await within(dialogo).findByText('Importando…')).toBeInTheDocument();
+
+    await usuario.keyboard('{Escape}');
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Fechar' }));
+    await usuario.click(screen.getByTestId('fundo-do-dialogo'));
+    expect(screen.getByRole('dialog', { name: 'Importar notas' })).toBe(dialogo);
+    expect(within(dialogo).getByText('Importando…')).toBeInTheDocument();
+
+    gravacaoA.resolver(GRAVACOES['a.pdf']);
+
+    expect(await within(dialogo).findByRole('heading', { name: 'Importação concluída.' })).toHaveFocus();
+    expect(within(dialogo).getByText('Deseja verificar?')).toBeInTheDocument();
+    expect(within(dialogo).getByRole('button', { name: 'Fechar' })).toBeEnabled();
+  });
+
+  it('Review Focus 3: nota de CNPJ sem cliente — cria o cliente no fecho, "Ver {nome}" no lugar do formulário e o CNPJ sai do bloco de baixo', async () => {
+    const DON_GIACOMO = semCliente({ cnpj: '25382906000149', razaoSocial: 'Don Giacomo Ltda', notas: 1 });
+    lerDe({
+      'd.pdf': {
+        notas: [
+          notaLida({
+            chaveAcesso: CHAVE_C,
+            numero: '2470',
+            destinatarioNome: 'Don Giacomo Ltda',
+            destinatarioCnpj: '25382906000149',
+            cliente: null,
+          }),
+        ],
+        ignoradas: [],
+      },
+    });
+    const gravacao = importacao({
+      id: 'i4',
+      nomeArquivo: 'd.pdf',
+      notas: [
+        nota({
+          id: 'n4',
+          chaveAcesso: CHAVE_C,
+          numero: '2470',
+          destinatarioNome: 'Don Giacomo Ltda',
+          destinatarioCnpj: '25382906000149',
+          cliente: null,
+          vinculo: 'SEM_CLIENTE',
+        }),
+      ],
+      cnpjsSemCliente: [{ cnpj: '25382906000149', razaoSocial: 'Don Giacomo Ltda' }],
+    });
+    // Antes de gravar não há CNPJ sem cliente; depois da gravação, o de Don Giacomo; depois de criar o cliente, nenhum.
+    let gravado = false;
+    let criado = false;
+    vi.mocked(listarSemCliente).mockImplementation(async () => (gravado && !criado ? [DON_GIACOMO] : []));
+    vi.mocked(importarPdf).mockImplementation(async () => {
+      gravado = true;
+      return gravacao;
+    });
+    vi.mocked(criarClientePelaNota).mockImplementation(async () => {
+      criado = true;
+      return {
+        id: 'c9',
+        nomeFantasia: 'Don Giacomo',
+        representante: { id: 'r2', nome: 'Eduarda Fischer' },
+      } as ClienteCompleto;
+    });
+    renderizar();
+
+    await escolherELer('d.pdf');
+    const dialogo = screen.getByRole('dialog', { name: 'Importar notas' });
+    expect(within(dialogo).getByRole('listitem', { name: 'NF 2470' })).toHaveTextContent(
+      'Sem cliente no CRM · será criado ao concluir',
+    );
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Confirmar importação' }));
+    await within(dialogo).findByRole('heading', { name: 'Importação concluída.' });
+
+    const bloco = within(dialogo).getByRole('group', { name: 'Criar cliente para Don Giacomo Ltda · 25.382.906/0001-49' });
+    expect(within(bloco).getByLabelText('Representante')).toBeInTheDocument();
+    // O bloco de baixo também lista o CNPJ, até o cliente ser criado.
+    expect(await screen.findByRole('heading', { name: 'CNPJs sem cliente no CRM (1)' })).toBeInTheDocument();
+
+    await within(bloco).findByRole('option', { name: 'Eduarda Fischer' });
+    await usuario.selectOptions(within(bloco).getByLabelText('Representante'), 'Eduarda Fischer');
+    await usuario.click(within(bloco).getByRole('button', { name: 'Salvar' }));
+
+    expect(criarClientePelaNota).toHaveBeenCalledWith('25382906000149', {
+      representanteId: 'r2',
+      nomeFantasia: 'Don Giacomo Ltda',
+      recorrenciaDias: 15,
+    });
+    expect(await screen.findByText('Cliente criado na carteira de Eduarda Fischer')).toBeInTheDocument();
+    const ver = await within(dialogo).findByRole('link', { name: 'Ver Don Giacomo' });
+    expect(ver).toHaveAttribute('href', '/clientes/c9?aba=erp');
+    expect(within(dialogo).queryByLabelText('Representante')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/CNPJs sem cliente no CRM/)).not.toBeInTheDocument());
   });
 
   it('arquivo que falha ao gravar: os outros concluem e o erro aparece no fecho', async () => {
@@ -506,7 +635,7 @@ describe('ImportacoesPage', () => {
     expect(screen.getByRole('button', { name: 'Confirmar importação' })).toBeEnabled();
   });
 
-  it('bloco persistente "CNPJs sem cliente no CRM (N)": razão social, CNPJ, município, notas, "Criar cliente" e "Copiar CNPJ"', async () => {
+  it('bloco persistente "CNPJs sem cliente no CRM (N)": razão social, CNPJ, município, notas e só "Criar cliente"', async () => {
     vi.mocked(listarSemCliente).mockResolvedValue([semCliente(), MERCADO]);
     renderizar();
 
@@ -518,10 +647,8 @@ describe('ImportacoesPage', () => {
     expect(within(estrela).getByRole('button', { name: 'Criar cliente' })).toBeInTheDocument();
     expect(mercado).toHaveTextContent('11.222.333/0001-44 · 1 nota');
     expect(screen.queryByText(/Peça ao representante da carteira/)).not.toBeInTheDocument();
-
-    await usuario.click(within(estrela).getByRole('button', { name: 'Copiar CNPJ' }));
-    expect(await screen.findByText('CNPJ copiado')).toBeInTheDocument();
-    expect(await navigator.clipboard.readText()).toBe('99888777000166');
+    expect(screen.queryByRole('button', { name: 'Copiar CNPJ' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Copiar CNPJ/)).not.toBeInTheDocument();
   });
 
   it('sem CNPJs sem cliente, o bloco não aparece', async () => {

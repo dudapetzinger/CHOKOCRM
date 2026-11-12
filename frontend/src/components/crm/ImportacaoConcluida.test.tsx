@@ -1,8 +1,27 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import type { Importacao, Leitura, Nota, NotaLida } from '../../services/importacoes';
+import { AuthContext } from '../../auth/auth-context';
+import type { ClienteCompleto } from '../../services/clients';
+import { criarClientePelaNota, type Importacao, type Leitura, type Nota, type NotaLida } from '../../services/importacoes';
+import { listRepresentantes } from '../../services/users';
 import { ImportacaoConcluida, type ArquivoGravado } from './ImportacaoConcluida';
+
+vi.mock('../../services/importacoes', () => ({
+  criarClientePelaNota: vi.fn(),
+}));
+
+vi.mock('../../services/users', () => ({
+  listRepresentantes: vi.fn(),
+}));
+
+beforeEach(() => {
+  vi.mocked(criarClientePelaNota).mockReset();
+  vi.mocked(listRepresentantes)
+    .mockReset()
+    .mockResolvedValue([{ id: 'r2', nome: 'Eduarda Fischer' }]);
+});
 
 const POMERODE = { id: 'c1', nomeFantasia: 'Empório Pomerode' };
 const JARAGUA = { id: 'c2', nomeFantasia: 'Doceria Jaraguá' };
@@ -71,16 +90,27 @@ function Local() {
 
 function renderizar(gravados: ArquivoGravado[], falhas: { nome: string; mensagem: string }[] = []) {
   const aoNovaImportacao = vi.fn();
+  const auth = {
+    user: { id: 'g1', nome: 'Marina Gestora', email: 'g@x.com', telefone: null, role: 'GESTOR' as const, ativo: true },
+    login: vi.fn(),
+    logout: vi.fn(),
+    recarregarUsuario: vi.fn(async () => {}),
+  };
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(
-    <MemoryRouter initialEntries={['/importacoes']}>
-      <Routes>
-        <Route
-          path="/importacoes"
-          element={<ImportacaoConcluida gravados={gravados} falhas={falhas} aoNovaImportacao={aoNovaImportacao} />}
-        />
-        <Route path="/clientes/:id" element={<Local />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={auth}>
+        <MemoryRouter initialEntries={['/importacoes']}>
+          <Routes>
+            <Route
+              path="/importacoes"
+              element={<ImportacaoConcluida gravados={gravados} falhas={falhas} aoNovaImportacao={aoNovaImportacao} />}
+            />
+            <Route path="/clientes/:id" element={<Local />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
   );
   return { aoNovaImportacao };
 }
@@ -143,12 +173,12 @@ describe('ImportacaoConcluida', () => {
     expect(screen.getByText('1 nota nova · 1 vinculada')).toBeInTheDocument();
   });
 
-  it('notas sem cliente levam ao bloco "CNPJs sem cliente no CRM"; as ignoradas aparecem com o motivo', () => {
+  it('nota sem cliente: "Criar cliente para {razão social} · {CNPJ}" com o formulário aberto; as ignoradas aparecem com o motivo', () => {
     renderizar([
       gravado(
         { notas: [notaLida({ cliente: null })], ignoradas: [{ numero: '9', motivo: 'Devolução' }] },
         {
-          notas: [nota({ cliente: null, vinculo: 'SEM_CLIENTE' })],
+          notas: [nota({ cliente: null, destinatarioNome: 'Padaria & Cia', destinatarioCnpj: '99888777000166', vinculo: 'SEM_CLIENTE' })],
           ignoradas: [{ numero: '9', motivo: 'Devolução' }],
           cnpjsSemCliente: [{ cnpj: '99888777000166', razaoSocial: 'Padaria & Cia' }],
         },
@@ -156,28 +186,67 @@ describe('ImportacaoConcluida', () => {
     ]);
 
     expect(screen.getByText('1 nota nova · 1 só no ERP · 1 ignorada')).toBeInTheDocument();
-    expect(screen.getByText(/Sem cliente no CRM: Padaria & Cia · 99\.888\.777\/0001-66\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Criar o cliente no bloco "CNPJs sem cliente no CRM"' })).toHaveAttribute(
-      'href',
-      '#cnpjs-sem-cliente',
-    );
+    const bloco = screen.getByRole('group', { name: 'Criar cliente para Padaria & Cia · 99.888.777/0001-66' });
+    expect(within(bloco).getByLabelText('Representante')).toBeInTheDocument();
+    expect(within(bloco).getByLabelText('Nome fantasia')).toHaveValue('Padaria & Cia');
+    expect(within(bloco).getByLabelText('Recorrência (dias)')).toHaveValue(15);
+    // O título do fecho continua com o foco: o formulário aberto não o tira.
+    expect(screen.getByRole('heading', { name: 'Importação concluída.' })).toHaveFocus();
+    expect(screen.queryByText(/Criar o cliente no bloco/)).not.toBeInTheDocument();
+    expect(document.querySelector('a[href="#cnpjs-sem-cliente"]')).toBeNull();
     expect(screen.queryByRole('link', { name: /^Ver / })).not.toBeInTheDocument();
     expect(screen.getByText('Ignoradas: 9 — Devolução')).toBeInTheDocument();
   });
 
-  it('um cliente e uma nota sem cliente: link pelo nome do cliente e o link do bloco', () => {
+  it('duas notas do mesmo CNPJ sem cliente: um só formulário; dois CNPJs, dois', () => {
+    const semCliente = (n: number, cnpj: string, nome: string) =>
+      nota({ id: `n${n}`, chaveAcesso: chave(n), cliente: null, destinatarioCnpj: cnpj, destinatarioNome: nome, vinculo: 'SEM_CLIENTE' });
     renderizar([
       gravado(
-        { notas: [notaLida(), notaLida({ chaveAcesso: chave(2), cliente: null })] },
+        { notas: [] },
         {
-          notas: [nota(), nota({ id: 'n2', chaveAcesso: chave(2), cliente: null, vinculo: 'SEM_CLIENTE' })],
-          cnpjsSemCliente: [{ cnpj: '99888777000166', razaoSocial: 'Padaria & Cia' }],
+          notas: [
+            semCliente(1, '99888777000166', 'Padaria & Cia'),
+            semCliente(2, '99888777000166', 'Padaria & Cia'),
+            semCliente(3, '25382906000149', 'Don Giacomo Ltda'),
+          ],
         },
       ),
     ]);
 
+    expect(screen.getAllByRole('group', { name: /^Criar cliente para / })).toHaveLength(2);
+    expect(screen.getByRole('group', { name: 'Criar cliente para Don Giacomo Ltda · 25.382.906/0001-49' })).toBeInTheDocument();
+  });
+
+  it('criado o cliente, o formulário dá lugar a "Ver {nomeFantasia}" na aba ERP da ficha', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    vi.mocked(criarClientePelaNota).mockResolvedValue({
+      id: 'c9',
+      nomeFantasia: 'Don Giacomo',
+      representante: { id: 'r2', nome: 'Eduarda Fischer' },
+    } as ClienteCompleto);
+    renderizar([
+      gravado(
+        { notas: [notaLida()] },
+        {
+          notas: [
+            nota(),
+            nota({ id: 'n2', chaveAcesso: chave(2), cliente: null, destinatarioNome: 'Don Giacomo Ltda', destinatarioCnpj: '25382906000149', vinculo: 'SEM_CLIENTE' }),
+          ],
+        },
+      ),
+    ]);
+
+    const bloco = screen.getByRole('group', { name: 'Criar cliente para Don Giacomo Ltda · 25.382.906/0001-49' });
+    await within(bloco).findByRole('option', { name: 'Eduarda Fischer' });
+    await usuario.selectOptions(within(bloco).getByLabelText('Representante'), 'Eduarda Fischer');
+    await usuario.click(within(bloco).getByRole('button', { name: 'Salvar' }));
+
+    const ver = await screen.findByRole('link', { name: 'Ver Don Giacomo' });
+    expect(ver).toHaveAttribute('href', '/clientes/c9?aba=erp');
+    expect(ver).toHaveFocus();
+    expect(screen.queryByLabelText('Representante')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver Empório Pomerode' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Criar o cliente no bloco "CNPJs sem cliente no CRM"' })).toBeInTheDocument();
   });
 
   it('arquivo que falhou ao gravar aparece com o erro', () => {
