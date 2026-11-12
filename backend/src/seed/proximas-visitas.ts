@@ -131,7 +131,9 @@ export function escolherVisitasMarcadas(
   );
   // Sem data natural no horizonte conta como a mais longe de todas.
   const natural = (cliente: ClienteDoGerador): DataCalendario => naturais.get(cliente.cnpj) ?? '9999-12-31';
-  const representantes = [...new Set(candidatos.map((cliente) => cliente.representanteEmail))].sort();
+  const representantes = [...new Set(candidatos.map((cliente) => cliente.representanteEmail))].sort((a, b) =>
+    a.localeCompare(b, 'pt-BR'),
+  );
   const marcadas = new Map<string, DataCalendario>();
 
   for (const representanteEmail of representantes) {

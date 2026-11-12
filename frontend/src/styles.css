@@ -43,8 +43,8 @@
    bordas, texto) é neutro. Cartões e listas têm borda, sem sombra; sombra
    só no que flutua (menus, banner de instalar, tooltip). */
 @import "tailwindcss" source(none);
-@source "./";
 @import "tw-animate-css";
+@source "./";
 
 @theme inline {
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;

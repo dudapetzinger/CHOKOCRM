@@ -109,14 +109,22 @@ async function eventosDoHorizonte(hoje: DataCalendario, horizonteDias: number): 
  * Período da única consulta de vendas ao ERP: do primeiro dia da base mais
  * antiga ao último dia da janela mais recente, como instantes locais do dia
  * inteiro. Datas 'AAAA-MM-DD' comparam como texto na ordem do calendário.
+ * Quem chama garante ao menos uma comparação (há evento no horizonte); a
+ * primeira dá o valor inicial das duas buscas.
  */
 function periodoDaConsulta(comparacoes: { janela: Janela; base: Janela }[]): { inicio: Date; fim: Date } {
-  const inicios = comparacoes.map(({ base }) => base.inicio);
-  const fins = comparacoes.map(({ janela }) => janela.fim);
+  const [primeira] = comparacoes;
+  if (!primeira) {
+    throw new Error('periodoDaConsulta exige ao menos uma comparação.');
+  }
 
   return {
-    inicio: inicioDoDia(inicios.reduce((menor, dia) => (dia < menor ? dia : menor))),
-    fim: fimDoDia(fins.reduce((maior, dia) => (dia > maior ? dia : maior))),
+    inicio: inicioDoDia(
+      comparacoes.reduce((menor, { base }) => (base.inicio < menor ? base.inicio : menor), primeira.base.inicio),
+    ),
+    fim: fimDoDia(
+      comparacoes.reduce((maior, { janela }) => (janela.fim > maior ? janela.fim : maior), primeira.janela.fim),
+    ),
   };
 }
 

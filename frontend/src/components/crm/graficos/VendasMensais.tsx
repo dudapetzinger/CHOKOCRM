@@ -133,8 +133,8 @@ function resumir(meses: VendaDoMes[], marcados: Map<string, string>, hoje: strin
   }
   const primeiro = meses[0];
   const ultimo = meses[meses.length - 1];
-  const maior = meses.reduce((atual, mes) => (mes.total > atual.total ? mes : atual));
-  const menor = meses.reduce((atual, mes) => (mes.total < atual.total ? mes : atual));
+  const maior = meses.reduce((atual, mes) => (mes.total > atual.total ? mes : atual), primeiro);
+  const menor = meses.reduce((atual, mes) => (mes.total < atual.total ? mes : atual), primeiro);
   const partes = [
     `Vendas de ${formatarMesCurto(primeiro.mes)} a ${formatarMesCurto(ultimo.mes)}`,
     `maior em ${formatarMesCurto(maior.mes)}, ${formatarMoeda(maior.total)}`,

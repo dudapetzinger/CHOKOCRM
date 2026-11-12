@@ -16,12 +16,14 @@ export type EventoVigente = {
  * `null` sem candidatos.
  */
 export function escolherVigente(candidatos: SeasonalEvent[]): EventoVigente | null {
-  if (candidatos.length === 0) {
+  const [primeiro, ...demais] = candidatos;
+  if (!primeiro) {
     return null;
   }
 
-  const escolhido = candidatos.reduce((menor, atual) =>
-    atual.dataFim.getTime() < menor.dataFim.getTime() ? atual : menor,
+  const escolhido = demais.reduce(
+    (menor, atual) => (atual.dataFim.getTime() < menor.dataFim.getTime() ? atual : menor),
+    primeiro,
   );
 
   return {
