@@ -91,7 +91,7 @@ describe('seed de demonstração com o provedor importado', () => {
     expect(edicao.status).toBe(200);
   });
 
-  it('notas vinculadas ou pendentes voltam a SEM_VISITA, sem visita sugerida; as recusadas ficam como estão', async () => {
+  it('notas de um CNPJ que saiu do seed ficam SEM_CLIENTE, sem visita sugerida (inclusive as recusadas)', async () => {
     const gestor = await prisma.user.create({
       data: { nome: 'Gestor do teste', email: 'gestor.reset@chokolaten.com.br', role: 'GESTOR', senhaHash: 'x' },
     });
@@ -150,9 +150,15 @@ describe('seed de demonstração com o provedor importado', () => {
 
     const depois = await prisma.erpSale.findMany({ include: { visita: true } });
     const porId = new Map(depois.map((n) => [n.id, n]));
-    for (const id of [vinculada.id, automatica.id, pendente.id]) {
-      expect(porId.get(id)).toMatchObject({ vinculoStatus: 'SEM_VISITA', visitaSugeridaId: null, visita: null });
+    // O CNPJ não está no seed: depois do reset ninguém é dono das notas, e todas vão
+    // para "CNPJs sem cliente no CRM" (a recusada inclusive: a visita recusada não existe mais).
+    for (const id of [vinculada.id, automatica.id, pendente.id, recusada.id]) {
+      expect(porId.get(id)).toMatchObject({
+        vinculoStatus: 'SEM_CLIENTE',
+        clientId: null,
+        visitaSugeridaId: null,
+        visita: null,
+      });
     }
-    expect(porId.get(recusada.id)?.vinculoStatus).toBe('RECUSADA');
   });
 });
