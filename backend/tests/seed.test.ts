@@ -279,7 +279,7 @@ describe('seed de demonstração', () => {
     expect(colunas.map((coluna) => coluna.column_name)).not.toContain('lembrete');
   });
 
-  it('apaga o que o app gravou, mas mantém o usuário criado pelo app com a mesma senha', async () => {
+  it('apaga metas e campanhas do app, mas mantém o usuário criado pelo app com a mesma senha e o cliente real dele com visita e lembrete', async () => {
     await reiniciarDemonstracao(prisma, HOJE);
     const joana = await criarDadosDoApp();
 
@@ -288,7 +288,9 @@ describe('seed de demonstração', () => {
     const mantido = await prisma.user.findUnique({ where: { id: joana.id } });
     expect(mantido?.senhaHash).toBe(joana.senhaHash);
     expect(mantido?.email).toBe('joana@empresa.com.br');
-    expect(await prisma.client.count({ where: { cnpj: '99888777000155' } })).toBe(0);
+    // Cliente real (CNPJ fora do seed): sobrevive ao reset com a visita e o lembrete.
+    expect(await prisma.client.count({ where: { cnpj: '99888777000155' } })).toBe(1);
+    expect(await prisma.visit.count({ where: { client: { cnpj: '99888777000155' } } })).toBe(1);
     expect(
       await prisma.campaign.count({
         where: { nome: 'Campanha criada pelo app' },
@@ -299,7 +301,7 @@ describe('seed de demonstração', () => {
       await prisma.reminder.count({
         where: { texto: 'Lembrete criado pelo app.' },
       }),
-    ).toBe(0);
+    ).toBe(1);
     expect(await prisma.user.count()).toBe(4);
   });
 

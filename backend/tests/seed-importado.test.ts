@@ -91,7 +91,7 @@ describe('seed de demonstração com o provedor importado', () => {
     expect(edicao.status).toBe(200);
   });
 
-  it('notas de um CNPJ que saiu do seed ficam SEM_CLIENTE, sem visita sugerida (inclusive as recusadas)', async () => {
+  it('notas de um cliente real (CNPJ fora do seed) continuam dele, com o vínculo e a visita de antes (inclusive as recusadas)', async () => {
     const gestor = await prisma.user.create({
       data: { nome: 'Gestor do teste', email: 'gestor.reset@chokolaten.com.br', role: 'GESTOR', senhaHash: 'x' },
     });
@@ -150,15 +150,20 @@ describe('seed de demonstração com o provedor importado', () => {
 
     const depois = await prisma.erpSale.findMany({ include: { visita: true } });
     const porId = new Map(depois.map((n) => [n.id, n]));
-    // O CNPJ não está no seed: depois do reset ninguém é dono das notas, e todas vão
-    // para "CNPJs sem cliente no CRM" (a recusada inclusive: a visita recusada não existe mais).
-    for (const id of [vinculada.id, automatica.id, pendente.id, recusada.id]) {
-      expect(porId.get(id)).toMatchObject({
-        vinculoStatus: 'SEM_CLIENTE',
-        clientId: null,
-        visitaSugeridaId: null,
-        visita: null,
-      });
-    }
+    // O CNPJ não está no seed: o cliente é real e sobrevive ao reset com a visita; as notas
+    // continuam dele, com o mesmo vínculo (a vinculada segue ligada à visita, a pendente
+    // mantém a visita sugerida) e nenhuma vai para "CNPJs sem cliente no CRM".
+    expect(porId.get(vinculada.id)).toMatchObject({
+      vinculoStatus: 'VINCULADA',
+      clientId: cliente.id,
+      visita: { id: visita.id },
+    });
+    expect(porId.get(automatica.id)).toMatchObject({ vinculoStatus: 'AUTOMATICO', clientId: cliente.id });
+    expect(porId.get(pendente.id)).toMatchObject({
+      vinculoStatus: 'PENDENTE',
+      clientId: cliente.id,
+      visitaSugeridaId: visita.id,
+    });
+    expect(porId.get(recusada.id)).toMatchObject({ vinculoStatus: 'RECUSADA', clientId: cliente.id });
   });
 });

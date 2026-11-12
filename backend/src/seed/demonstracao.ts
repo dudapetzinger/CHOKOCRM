@@ -38,7 +38,9 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  * Dados de demonstração do ChokoCRM, usados por `prisma/seed.ts` e pelo
  * "Modo demonstração" da tela de login (`POST /sistema/demonstracao`):
  * `semear` só acrescenta (`npm run db:seed`) e `reiniciarDemonstracao` apaga
- * e recria (`npm run db:seed:reset`). Fica em `src/` (não em `prisma/`)
+ * e recria (`npm run db:seed:reset`) só os clientes da demonstração (CNPJ em
+ * `CLIENTES`), com metas e campanhas; os clientes reais (cadastrados à mão ou
+ * pela nota fiscal) ficam com tudo que é deles. Fica em `src/` (não em `prisma/`)
  * porque `tsconfig.json` só inclui `src` e `tests`. Tudo é relativo ao `hoje`
  * recebido (`agora()`, a data do modo demonstração quando ligado), nunca ao
  * relógio da máquina: a demonstração nasce como se o sistema rodasse há 3
@@ -786,6 +788,15 @@ export const CLIENTES_GERADOS: readonly ClienteSeed[] = gerarClientes(
 
 /** Clientes da demonstração: os 26 âncoras e os gerados, que completam as carteiras para cerca de 40. */
 const CLIENTES: readonly ClienteSeed[] = [...CLIENTES_ANCORA, ...CLIENTES_GERADOS];
+
+/**
+ * CNPJs dos clientes da demonstração: o que `reiniciarDemonstracao` apaga e
+ * recria. Todo cliente com outro CNPJ é real (cadastrado à mão ou pela nota)
+ * e sobrevive ao reset.
+ */
+export function cnpjsDaDemonstracao(): Set<string> {
+  return new Set(CLIENTES.map((cliente) => cliente.cnpj));
+}
 
 /**
  * Casos de propósito, todos em clientes âncora (valem para qualquer `hoje`):
@@ -1611,21 +1622,29 @@ async function religarNotasOrfas(tx: Banco): Promise<void> {
 /**
  * Renova a demonstração (`npm run db:seed:reset` ou o "Modo demonstração" da
  * tela de login), numa transação só: se algo falhar no meio (inclusive no
- * `semear`), nada é apagado. Apaga, nesta ordem (quem depende antes de quem é
- * referenciado), metas, lembretes, itens de pedido, visitas, mensagens de
- * estoque, mudanças de recorrência, contatos, clientes e campanhas —
- * inclusive o que o app gravou — e recria tudo com `semear`, com datas
- * relativas a `hoje`. Os representantes de demonstração voltam à senha de
- * demonstração e ficam ativos; a conta Gestão (conta real) fica ativa e
- * mantém a senha dela; a conta antiga do gestor fica inativa; os demais
- * usuários (criados pelo app) ficam intactos, com a senha deles. Os eventos
- * sazonais não são apagados (o upsert os mantém em dia). Nada do ERP
- * importado é apagado — notas, importações e produtos (`ErpProduct`) ficam;
- * os produtos de demonstração voltam ao nome e preço do catálogo pelo upsert.
- * Antes de apagar as visitas, as notas vinculadas (`AUTOMATICO`, `VINCULADA`)
- * ou pendentes voltam a `SEM_VISITA`, sem visita sugerida: a visita delas some,
- * e uma reimportação decide o vínculo de novo. As `RECUSADA` ficam como estão.
- * Apagar os clientes deixa as notas sem cliente (`SetNull`); no fim da
+ * `semear`), nada é apagado. Só os clientes da demonstração (CNPJ em
+ * `cnpjsDaDemonstracao()`) são apagados e recriados, com o que é deles —
+ * inclusive o que o app gravou neles; o cliente real (outro CNPJ, cadastrado
+ * à mão ou pela nota fiscal) fica com contatos, visitas e itens, lembretes,
+ * mensagens de estoque, mudanças de recorrência e notas vinculadas. Apaga,
+ * nesta ordem (quem depende antes de quem é referenciado): metas (todas),
+ * lembretes, itens de pedido, visitas, mensagens de estoque, mudanças de
+ * recorrência e contatos dos clientes da demonstração, esses clientes e as
+ * campanhas (todas: a visita e a próxima visita do cliente real só perdem a
+ * campanha, pelo `SetNull`). Recria tudo com `semear`, com datas relativas a
+ * `hoje`. Os representantes de demonstração voltam à senha de demonstração e
+ * ficam ativos; a conta Gestão (conta real) fica ativa e mantém a senha dela;
+ * a conta antiga do gestor fica inativa; os demais usuários (criados pelo
+ * app) ficam intactos, com a senha deles. Os eventos sazonais não são
+ * apagados (o upsert os mantém em dia). Nada do ERP importado é apagado —
+ * notas, importações e produtos (`ErpProduct`) ficam; os produtos de
+ * demonstração voltam ao nome e preço do catálogo pelo upsert. Antes de
+ * apagar as visitas, as notas sem cliente ou de cliente da demonstração que
+ * estavam vinculadas (`AUTOMATICO`, `VINCULADA`) ou pendentes voltam a
+ * `SEM_VISITA`, sem visita sugerida: a visita delas some, e uma reimportação
+ * decide o vínculo de novo; as do cliente real ficam como estão (a visita
+ * dele não some). As `RECUSADA` ficam como estão. Apagar os clientes da
+ * demonstração deixa as notas deles sem cliente (`SetNull`); no fim da
  * transação, depois do `semear`, a nota cujo CNPJ voltou a ter cliente é
  * religada a ele (segue alimentando a ficha, pela regra do híbrido) e a que
  * continua sem cliente vira `SEM_CLIENTE`, sem visita sugerida, para aparecer
@@ -1634,20 +1653,28 @@ async function religarNotasOrfas(tx: Banco): Promise<void> {
 export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): Promise<void> {
   await prisma.$transaction(
     async (tx) => {
+      const demonstracao = await tx.client.findMany({
+        where: { cnpj: { in: [...cnpjsDaDemonstracao()] } },
+        select: { id: true },
+      });
+      const idsDemo = demonstracao.map((cliente) => cliente.id);
+      const doCliente = { clientId: { in: idsDemo } };
+
       await tx.goal.deleteMany();
-      await tx.reminder.deleteMany();
+      await tx.reminder.deleteMany({ where: doCliente });
       await tx.erpSale.updateMany({
         where: {
           vinculoStatus: { in: ['AUTOMATICO', 'VINCULADA', 'PENDENTE'] },
+          OR: [{ clientId: null }, doCliente],
         },
         data: { vinculoStatus: 'SEM_VISITA', visitaSugeridaId: null },
       });
-      await tx.visitItem.deleteMany();
-      await tx.visit.deleteMany();
-      await tx.stockMessage.deleteMany();
-      await tx.visitScheduleChange.deleteMany();
-      await tx.contact.deleteMany();
-      await tx.client.deleteMany();
+      await tx.visitItem.deleteMany({ where: { visit: doCliente } });
+      await tx.visit.deleteMany({ where: doCliente });
+      await tx.stockMessage.deleteMany({ where: doCliente });
+      await tx.visitScheduleChange.deleteMany({ where: doCliente });
+      await tx.contact.deleteMany({ where: doCliente });
+      await tx.client.deleteMany({ where: { id: { in: idsDemo } } });
       await tx.campaign.deleteMany();
 
       await semear(tx, hoje);
