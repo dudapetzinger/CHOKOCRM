@@ -348,7 +348,7 @@ O seed de demonstração grava o catálogo do mock (`providers/erp/mock/catalogo
 
 ## 4. Dados externos (ERP)
 
-Dados de **venda e estoque** chegam por meio da interface `ErpProvider` (padrão Adapter, seção 4.3 da especificação). Com o provedor simulado (`mock`) nada é persistido: os dados são gerados sob demanda. Com o provedor `importado` (Etapa 12, `ERP_PROVIDER=importado`) as vendas são lidas das notas fiscais que o gestor importou (`ErpSale` e `ErpSaleItem`, seções 3.14 e 3.15), pelo CNPJ do cliente, e o estoque não existe. Em nenhum dos dois a cor, as vendas mensais ou os insights são gravados.
+Dados de **venda e estoque** chegam por meio da interface `ErpProvider` (padrão Adapter, seção 4.3 da especificação). Com o provedor simulado (`mock`) nada é persistido: os dados são gerados sob demanda. Com o provedor `importado` (Etapa 12, `ERP_PROVIDER=importado`) as vendas são lidas das notas fiscais que o gestor importou (`ErpSale` e `ErpSaleItem`, seções 3.14 e 3.15), pelo CNPJ do cliente, e o estoque não existe. Com o provedor `hibrido` (padrão e produção desde 11/11/2026), a fonte é escolhida por cliente: as notas quando o CNPJ do cliente tem nota importada, e os dados simulados (pelo `erpId`) quando não tem. Em nenhum deles a cor, as vendas mensais ou os insights são gravados.
 
 ```ts
 interface ErpProvider {

@@ -416,7 +416,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 **Fluxo principal:**
 1. O ator acessa a seção "Dados do ERP" na ficha do cliente (UC06).
-2. O sistema consulta o provedor de ERP (`GET /clients/:id/erp`) utilizando a chave do cliente conforme o provedor: o identificador de ERP no provedor simulado (`mock`, o de desenvolvimento) e o CNPJ do cliente no provedor `importado` (Etapa 12; foi o de produção até 09/11/2026, hoje a produção usa `mock`), que lê as notas fiscais importadas (UC28).
+2. O sistema consulta o provedor de ERP (`GET /clients/:id/erp`) utilizando a chave do cliente conforme a **fonte do cliente**: no provedor `hibrido` (padrão e produção desde 11/11/2026), o CNPJ quando o cliente tem nota importada (UC28), e o identificador de ERP (dados simulados) quando não tem; nunca as duas fontes juntas. No `mock` (testes) vale sempre o identificador de ERP, e no `importado` (Etapa 12) sempre o CNPJ.
 3. Encontrado dado no provedor — sob o provedor importado, o histórico de compras une as notas importadas e os pedidos dos check-ins de venda sem nota vinculada (desde 06/11/2026), cada venda com a origem "NF <número>" ou "Pedido do check-in" —, o sistema exibe a última venda (data e valor), o volume de compras dos últimos 90 dias e o nível de estoque estimado do cliente, com os itens em falta quando o nível for baixo. Sob o provedor importado, exibe também as "Últimas vendas" — as 5 vendas mais recentes (notas ou pedidos), com data, valor e os itens (por exemplo "16× BARRA AO LEITE 35% 500 G") — e a ficha não mostra a coluna de estoque (não há estoque de cliente nas notas).
 4. O sistema não exibe aviso sobre a fonte dos dados (simulada ou importada) em nenhuma tela; até 11/11/2026 havia uma faixa com a situação da fonte (`GET /erp/situacao`). Sem compras, a ficha diz "Nenhuma compra registrada.".
 
@@ -934,15 +934,15 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 **Ator principal:** Gestor.
 
-**Pré-condições:** o gestor está autenticado (UC01); ele tem em mãos os PDFs das DANFEs (nota fiscal eletrônica de venda), exportados do ERP da Senior; para que as notas alimentem as telas o provedor de ERP em uso precisa ser o `importado`; na produção desta fase (`ERP_PROVIDER=mock`, tudo é demonstração) as notas são gravadas, mas a ficha continua mostrando os dados simulados.
+**Pré-condições:** o gestor está autenticado (UC01); ele tem em mãos os PDFs das DANFEs (nota fiscal eletrônica de venda), exportados do ERP da Senior; com o provedor `hibrido` (padrão e produção desde 11/11/2026), as notas alimentam a ficha, as vendas e as sugestões dos clientes cujo CNPJ as tem (UC11).
 
 **Fluxo principal:**
 1. O gestor toca em "Importar notas", o botão redondo central da barra inferior (no desktop, o quinto item do menu lateral; `/importacoes`), e escolhe um ou mais arquivos PDF.
-2. O gestor aciona "Importar". O sistema envia os arquivos um a um (`POST /erp/importacoes?nome=`, corpo `application/pdf`, até 10 MB cada) e mostra o progresso por arquivo.
+2. O gestor aciona "Ler notas". O sistema lê os arquivos um a um (`POST /erp/importacoes/leitura?nome=`, corpo `application/pdf`, até 10 MB cada), **sem gravar nada**, mostra "Lendo…" por arquivo e depois a lista "Notas lidas (N)" para conferência: número, data e valor, destinatário (nome e CNPJ), o cliente do CRM (ou "Sem cliente no CRM"), "Já importada" quando for o caso, os produtos de cada nota e as ignoradas com o motivo. O gestor confere e aciona "Confirmar importação" (ou "Cancelar", que volta à tela limpa); só então o sistema grava, arquivo a arquivo (`POST /erp/importacoes`, "Importando…").
 3. Para cada arquivo, o sistema lê o texto da DANFE (uma nota por página, ou uma nota em mais de uma folha, agrupada pela chave de acesso de 44 dígitos) e reconhece número, série, chave, natureza da operação, protocolo de autorização, data de emissão, destinatário (razão social e CNPJ), totais e os itens (código, descrição, quantidade, valor unitário e total).
 4. O sistema grava cada nota pela chave de acesso, junto dos itens e dos produtos vistos (o catálogo do pedido e das campanhas) e procura o cliente pelo CNPJ do destinatário (14 dígitos = `Client.cnpj`).
 5. Havendo cliente, o sistema compara a data da nota com a da última visita dele (a mais recente, de qualquer resultado, no calendário de São Paulo): se for a mesma, vincula a nota à visita sozinho — os itens do pedido da visita passam a ser os da nota e o resultado vira "Venda" (UC16); se for outra, deixa a nota pendente.
-6. O sistema mostra, por arquivo, o resumo "N notas · V vinculadas · P pendentes · S só no ERP · I ignoradas", as notas ignoradas com o motivo e os CNPJs sem cliente no CRM, com um link para o bloco "CNPJs sem cliente no CRM (N)" (A2).
+6. Concluída a gravação, o sistema mostra "Importação concluída." e "Deseja verificar?": "Ver cliente" (um só cliente; vários, um "Ver {nome}" por cliente) abre a ficha na aba ERP e sugestões, e "Nova importação" deixa a tela limpa para o próximo lote. Junto, mostra, por arquivo, o resumo "N notas · V vinculadas · P pendentes · S só no ERP · I ignoradas", as notas ignoradas com o motivo e os CNPJs sem cliente no CRM, com um link para o bloco "CNPJs sem cliente no CRM (N)" (A2).
 7. O gestor responde às pendências no bloco "Pendências (N)", abaixo do resultado por arquivo (o resultado só mostra as contagens): "Vincular à visita de dd/mm (Resultado)" faz o mesmo que o vínculo automático; "Deixar só no ERP" mantém a nota fora da visita.
 
 **Fluxos alternativos:**
@@ -1001,7 +1001,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 - É a única proteção contra recriar a demonstração por engano ou por quem só abriu o link do app: sem a senha da Gestão, nada acontece.
 - Apaga os clientes, contatos, visitas, pedidos, lembretes, campanhas e metas — inclusive o que os representantes registraram pelo app —, e mantém as contas de acesso, com as senhas delas (a da Gestão inclusive).
 - A data fica guardada no banco (tabela `configuracoes`) até ser trocada ou desligada; o calendário simulado anda um dia por dia real e sobrevive a reinícios e a desligar a produção. Só o "agora" de negócio muda: tokens de login, logs e telemetria seguem o relógio real.
-- Para a sazonalidade, o ERP precisa ser o simulado (`ERP_PROVIDER=mock`, o valor da produção nesta fase). Depois de trocar a data, os aparelhos devem fechar e abrir o app.
+- Para a sazonalidade, o cliente precisa estar na fonte simulada (`ERP_PROVIDER=hibrido`, o valor de produção desde 11/11/2026, vale para os clientes sem nota importada). Depois de trocar a data, os aparelhos devem fechar e abrir o app.
 
 ---
 

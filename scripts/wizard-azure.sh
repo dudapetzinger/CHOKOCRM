@@ -445,7 +445,7 @@ _configuracoes_app() {
     "UPLOADS_DIR = /home/uploads" \
     "AGENDA_JOB_ENABLED = true" \
     "AGENDA_JOB_CRON = 0 6 * * *" \
-    "ERP_PROVIDER = mock" \
+    "ERP_PROVIDER = hibrido" \
     "ERP_MOCK_FALHAR = false" \
     "APPLICATIONINSIGHTS_CONNECTION_STRING = (segredo — a do passo 3)" \
     "SCM_DO_BUILD_DURING_DEPLOYMENT = false" \
@@ -470,7 +470,7 @@ _checklist_religar() {
     "- [ ] Deploy: gh workflow run deploy.yml (ou um push na main)." \
     "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Habilitar (Enable) (o nome pode variar)." \
     "- [ ] Conferir o job smoke verde em $URL_GITHUB/actions e o teste de disponibilidade verde no $AI." \
-    "- [ ] Provedor de ERP: conferir ERP_PROVIDER=mock nas configurações do App Service (nesta fase a produção é demonstração). Se o App Service ainda tiver DATA_DE_DEMONSTRACAO ou variáveis de e-mail de versões antigas, remova-as." \
+    "- [ ] Provedor de ERP: conferir ERP_PROVIDER=hibrido nas configurações do App Service (notas importadas na ficha dos clientes que as têm; dados simulados nos demais). Se o App Service ainda tiver DATA_DE_DEMONSTRACAO ou variáveis de e-mail de versões antigas, remova-as." \
     "- [ ] Modo demonstração: a data fica no banco e sobrevive a desligar e religar (a faixa \"Modo demonstração · dd/mm/aaaa\" confirma). Antes da validação com os representantes e de novo 1 ou 2 dias antes da apresentação (depois de religar o B1), renovar a demonstração pela tela de login: \"Modo demonstração\" → data → senha da conta Gestão → Aplicar (substitui o seed reset por SSH; o comando cd /home/site/wwwroot && npm run db:seed:reset -- --confirmar continua valendo como plano B). Conferir no Painel as cores, a agenda, as campanhas, as metas, o seletor \"Todos · Eduarda · Rafael\" e os alertas de produção. A recriação apaga e recria clientes, visitas, pedidos, campanhas e metas com a data escolhida; as contas ficam, com a senha delas (a da Gestão inclusive), mas os dados que os representantes registraram durante a validação (clientes, visitas e pedidos) são apagados — antes da apresentação, só recriar se eles não precisarem ficar."
 }
 
@@ -659,7 +659,7 @@ step "Configurações → Variáveis de ambiente → Configurações de aplicati
 step "uma por vez (nome = valor):"
 note "(o nome do menu pode variar; em portais antigos fica em Configuração → Configurações de aplicativo)"
 _configuracoes_app tela | sed 's/^/      /'
-note "ERP_PROVIDER = mock: nesta fase tudo no app é demonstração. Não há configurações de e-mail nem de data de demonstração (a data é trocada pela tela de login)."
+note "ERP_PROVIDER = hibrido: notas importadas na ficha de quem as tem, dados simulados nos demais. Não há configurações de e-mail nem de data de demonstração (a data é trocada pela tela de login)."
 warn "O JWT_SECRET acima foi gerado agora: cole-o só no portal. Ele não é gravado em disco nem no resumo."
 note "Re-execução: se o App Service já tem JWT_SECRET, mantenha o existente (trocar encerra as sessões abertas)."
 _copiar DATABASE_URL "$DATABASE_URL"
