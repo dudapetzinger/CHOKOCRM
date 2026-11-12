@@ -143,6 +143,77 @@ describe('modo demonstração ligado (2027-03-15)', () => {
     expect(dataCalendario(indaial.criadoEm)).toBe(DATA_SIMULADA);
   });
 
+  it('as visitas marcadas acompanham a janela da data simulada: agenda de hoje e calendário cheios', async () => {
+    await reiniciarDemonstracao(prisma, agora());
+    const fimDaJanela = somarDias(DATA_SIMULADA, 23);
+    const diasUteis: string[] = [];
+    for (let dia = DATA_SIMULADA; dia <= fimDaJanela; dia = somarDias(dia, 1)) {
+      if (![0, 6].includes(new Date(`${dia}T12:00:00Z`).getUTCDay())) diasUteis.push(dia);
+    }
+    expect(diasUteis).toHaveLength(18);
+
+    for (const email of ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br']) {
+      const token = await logar(email);
+      const agenda = await request(app).get('/agenda/today').set('Authorization', `Bearer ${token}`);
+      expect(agenda.status).toBe(200);
+      const marcadasHoje = (agenda.body.data.hoje as { proximaVisita: string; marcadaNoCheckIn: boolean }[]).filter(
+        (item) => item.marcadaNoCheckIn && item.proximaVisita === DATA_SIMULADA,
+      );
+      expect(marcadasHoje.length).toBeGreaterThanOrEqual(2);
+
+      const itens: { data: string; tipo: string }[] = [];
+      for (const mes of ['2027-03', '2027-04']) {
+        const calendario = await request(app)
+          .get(`/agenda/calendario?mes=${mes}`)
+          .set('Authorization', `Bearer ${token}`);
+        expect(calendario.status).toBe(200);
+        itens.push(...calendario.body.data.itens);
+      }
+      for (const dia of diasUteis) {
+        expect(itens.filter((item) => item.tipo === 'VISITA' && item.data === dia).length).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it('as visitas marcadas da janela não tiram ninguém da agenda de hoje e tiram no máximo 3 da de amanhã', async () => {
+    await reiniciarDemonstracao(prisma, agora());
+    const amanha = new Date(agora().getTime() + MILISSEGUNDOS_POR_DIA);
+    const representantes = await prisma.user.findMany({
+      where: { email: { in: ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br'] } },
+    });
+    const nomesDoDia = async (usuario: { id: string }, instante: Date): Promise<string[]> =>
+      (await agendaService.getAgendaDoDia({ id: usuario.id, role: 'REPRESENTANTE' }, instante)).hoje
+        .map((item) => item.nomeFantasia)
+        .sort();
+
+    const comMarcacoes = new Map<string, { hoje: string[]; amanha: string[] }>();
+    for (const usuario of representantes) {
+      comMarcacoes.set(usuario.id, {
+        hoje: await nomesDoDia(usuario, agora()),
+        amanha: await nomesDoDia(usuario, amanha),
+      });
+    }
+    // Sem as marcações da janela: só ficam os três casos de propósito.
+    await prisma.client.updateMany({
+      where: {
+        email: {
+          notIn: ['contato@doceriajaragua.com.br', 'contato@cafeblumenau.com.br', 'contato@emporiodovalebrusque.com.br'],
+        },
+      },
+      data: { proximaVisita: null, proximaCampanhaId: null },
+    });
+
+    for (const usuario of representantes) {
+      const com = comMarcacoes.get(usuario.id) as { hoje: string[]; amanha: string[] };
+      const semHoje = await nomesDoDia(usuario, agora());
+      const semAmanha = await nomesDoDia(usuario, amanha);
+      // Hoje: ninguém sai (quem entra é antecipado da janela para hoje).
+      expect(semHoje.filter((nome) => !com.hoje.includes(nome))).toEqual([]);
+      // Amanhã: no máximo 3 adiados (último recurso da escolha).
+      expect(semAmanha.filter((nome) => !com.amanha.includes(nome)).length).toBeLessThanOrEqual(3);
+    }
+  });
+
   it('prisma/seed.ts carrega o relógio do banco e passa agora() como hoje para o seed', () => {
     const fonte = readFileSync(join(__dirname, '..', 'prisma', 'seed.ts'), 'utf8');
     expect(fonte).toMatch(/await carregarRelogio\(\);\s+const hoje = agora\(\);/);

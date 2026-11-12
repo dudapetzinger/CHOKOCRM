@@ -22,6 +22,7 @@ import {
   type Proposito,
   type VisitaGerada,
 } from './gerador-visitas';
+import { escolherVisitasMarcadas, JANELA_DAS_VISITAS_MARCADAS, proximoDiaUtil } from './proximas-visitas';
 import { AGENDA_DAS_ANCORAS, diaDaSemana } from './rotas';
 import type { ClienteSeed, ContatoSeed } from './tipos';
 
@@ -51,8 +52,16 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  * - Campanhas: a sazonal do mês de `hoje` (em andamento) e a do mês seguinte
  *   (agendada); metas mensais compatíveis com o ritmo gerado (vendas 10 %
  *   acima da média mensal; 5 visitas por dia útil) e uma da campanha.
- * - Próximas visitas (3, uma vencida na Doceria Jaraguá) e lembretes (4, um
- *   vencido e um concluído), com texto coerente com a última visita.
+ * - Próximas visitas marcadas: os casos de propósito (+2 e +3 adiante, no
+ *   próximo dia útil se cair em fim de semana, e uma vencida na Doceria
+ *   Jaraguá) e, para cada representante, 2 em cada dia útil de `hoje` a
+ *   `hoje + 23`, de preferência na data natural do cliente (a próxima que a
+ *   rota prevê; `proximas-visitas.ts`). O calendário fica cheio; ninguém sai
+ *   da agenda de hoje (ela pode ganhar 1–2 clientes); amanhã pode perder até
+ *   3 (até 4 num reset antes das 9h); nos dias seguintes alguns clientes
+ *   aparecem na data marcada em vez da data da recorrência.
+ *   Lembretes (4, um vencido e um concluído), com texto coerente com
+ *   a última visita.
  *
  * Os pedidos usam o catálogo de demonstração direto (`CATALOGO`), seja qual
  * for o `ERP_PROVIDER`; o mesmo catálogo vai para `ErpProduct`. Os usuários
@@ -947,15 +956,55 @@ function campanhasDemo(hoje: DataCalendario): CampanhaSeed[] {
 type ProximaVisitaSeed = { nomeFantasia: string; diasAFrente: number };
 
 /**
- * Próximas visitas marcadas no check-in: duas adiante (com a campanha que
- * estiver valendo na data, se houver) e uma vencida há 2 dias na Doceria
- * Jaraguá, atrasada (nenhuma visita depois de marcá-la). Nenhuma no inativo.
+ * Próximas visitas marcadas de propósito no check-in: duas adiante (+2 e +3,
+ * ou o próximo dia útil se cair em fim de semana; só a do Empório do Vale
+ * Brusque leva a campanha que estiver valendo na data, se houver) e uma
+ * vencida há 2 dias na Doceria Jaraguá, atrasada (nenhuma visita depois de
+ * marcá-la). Nenhuma no inativo. As demais marcações (2 por representante em
+ * cada dia útil da janela) vêm de `escolherVisitasMarcadas`.
  */
 const PROXIMAS_VISITAS_DEMO: ProximaVisitaSeed[] = [
   { nomeFantasia: 'Café Blumenau', diasAFrente: 2 },
   { nomeFantasia: 'Empório do Vale Brusque', diasAFrente: 3 },
   { nomeFantasia: 'Doceria Jaraguá', diasAFrente: -2 },
 ];
+
+/** O único caso de propósito que leva a campanha na próxima visita. */
+const MARCADA_COM_CAMPANHA = 'Empório do Vale Brusque';
+
+function cnpjDoCliente(nomeFantasia: string): string {
+  const cliente = CLIENTES.find((candidato) => candidato.nomeFantasia === nomeFantasia);
+  if (!cliente) throw new Error(`Cliente de demonstração não encontrado: ${nomeFantasia}`);
+  return cliente.cnpj;
+}
+
+/**
+ * Todas as próximas visitas marcadas da demonstração, CNPJ → dia: os casos de
+ * propósito (`PROXIMAS_VISITAS_DEMO`) e, para cada representante, 2 em cada
+ * dia útil de `hoje` a `hoje + 23`, de preferência na data natural do
+ * cliente (`escolherVisitasMarcadas`; os casos de propósito contam na cota do
+ * dia deles; os "sempre com venda" entram só em dia previsto pela rota).
+ * Fora os inativos. `visitadosHoje`: CNPJs com visita gerada em `hoje`, que
+ * não são marcados para hoje (a marcação já estaria cumprida).
+ */
+export function visitasMarcadasDaDemonstracao(
+  hoje: DataCalendario,
+  visitadosHoje: ReadonlySet<string> = new Set(),
+): Map<string, DataCalendario> {
+  const casosDeProposito = new Map(
+    PROXIMAS_VISITAS_DEMO.map(({ nomeFantasia, diasAFrente }): [string, DataCalendario] => {
+      const data = somarDias(hoje, diasAFrente);
+      return [cnpjDoCliente(nomeFantasia), diasAFrente > 0 ? proximoDiaUtil(data) : data];
+    }),
+  );
+  const inativos = new Set(CLIENTES.filter((cliente) => cliente.ativo === false).map((cliente) => cliente.cnpj));
+  const ativos = clientesDaDemonstracao().filter((cliente) => !inativos.has(cliente.cnpj));
+  const escolhidas = escolherVisitasMarcadas(hoje, ativos, JANELA_DAS_VISITAS_MARCADAS, {
+    jaMarcadas: casosDeProposito,
+    visitadosHoje,
+  });
+  return new Map([...casosDeProposito, ...escolhidas]);
+}
 
 type LembreteSeed = {
   nomeFantasia: string;
@@ -1212,17 +1261,40 @@ async function seedVisitas(
   await prisma.visitItem.createMany({ data: dadosDosItens });
 }
 
-/** Só marca a próxima visita em cliente que ainda não tem uma (não sobrescreve check-in do app). */
-async function seedProximasVisitas(prisma: Banco, hoje: DataCalendario, campanhas: CampanhaGravada[]): Promise<void> {
-  for (const { nomeFantasia, diasAFrente } of PROXIMAS_VISITAS_DEMO) {
-    const data = somarDias(hoje, diasAFrente);
-    const campanha = diasAFrente > 0 ? campanhas.find(({ inicio, fim }) => inicio <= data && data <= fim) : undefined;
-    const cnpj = CLIENTES.find((cliente) => cliente.nomeFantasia === nomeFantasia)?.cnpj;
-    // Só a que fica adiante leva campanha, e uma só (a do Empório do Vale Brusque).
-    const proximaCampanhaId = campanha && nomeFantasia === 'Empório do Vale Brusque' ? campanha.id : null;
+/**
+ * Grava as próximas visitas marcadas (`visitasMarcadasDaDemonstracao`), uma
+ * gravação por dia. Só marca cliente que ainda não tem uma (não sobrescreve
+ * check-in do app): idempotente. Só o Empório do Vale Brusque, adiante, leva
+ * a campanha vigente na data.
+ */
+async function seedProximasVisitas(
+  prisma: Banco,
+  hoje: DataCalendario,
+  campanhas: CampanhaGravada[],
+  visitas: readonly VisitaGerada[],
+): Promise<void> {
+  const visitadosHoje = new Set(visitas.filter((visita) => visita.data === hoje).map((visita) => visita.cnpj));
+  const marcadas = visitasMarcadasDaDemonstracao(hoje, visitadosHoje);
+  const comCampanha = cnpjDoCliente(MARCADA_COM_CAMPANHA);
+
+  const porDia = new Map<DataCalendario, string[]>();
+  for (const [cnpj, data] of marcadas) {
+    if (cnpj === comCampanha) continue;
+    porDia.set(data, [...(porDia.get(data) ?? []), cnpj]);
+  }
+  for (const [data, cnpjs] of porDia) {
     await prisma.client.updateMany({
-      where: { cnpj, proximaVisita: null },
-      data: { proximaVisita: colunaDateDaData(data), proximaCampanhaId },
+      where: { cnpj: { in: cnpjs }, proximaVisita: null },
+      data: { proximaVisita: colunaDateDaData(data), proximaCampanhaId: null },
+    });
+  }
+
+  const dataDaCampanha = marcadas.get(comCampanha);
+  if (dataDaCampanha) {
+    const campanha = campanhas.find(({ inicio, fim }) => inicio <= dataDaCampanha && dataDaCampanha <= fim);
+    await prisma.client.updateMany({
+      where: { cnpj: comCampanha, proximaVisita: null },
+      data: { proximaVisita: colunaDateDaData(dataDaCampanha), proximaCampanhaId: campanha?.id ?? null },
     });
   }
 }
@@ -1367,7 +1439,7 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
   const campanhaAtual = campanhas[0];
   const gravados = await clientesGravados(prisma);
   await seedVisitas(prisma, visitas, gravados, campanhaAtual);
-  await seedProximasVisitas(prisma, dia, campanhas);
+  await seedProximasVisitas(prisma, dia, campanhas, visitas);
   await seedLembretes(prisma, hoje, visitas, gravados, campanhaAtual);
   await seedMetas(prisma, metasDemo(hoje, visitas, campanhaAtual), representantes, dia);
 }

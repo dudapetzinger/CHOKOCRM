@@ -5,9 +5,18 @@ import { ERP_IDS_DEMONSTRACAO } from '../src/config/erpIdsDemonstracao';
 import { prisma } from '../src/lib/prisma';
 import { CATALOGO } from '../src/providers/erp/mock/catalogo';
 import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
-import { CLIENTES_ANCORA, CLIENTES_GERADOS, EMAIL_GESTAO, reiniciarDemonstracao, semear } from '../src/seed/demonstracao';
-import { dataCalendario, diasEntre, somarDias } from '../src/services/classificacao.service';
+import {
+  CLIENTES_ANCORA,
+  CLIENTES_GERADOS,
+  EMAIL_GESTAO,
+  reiniciarDemonstracao,
+  semear,
+  visitasMarcadasDaDemonstracao,
+} from '../src/seed/demonstracao';
+import { proximoDiaUtil } from '../src/seed/proximas-visitas';
+import { dataCalendario, diasEntre, inicioDoDia, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
+import { fixarRelogio, liberarRelogio } from './helpers/relogio';
 
 const SENHA_DEMONSTRACAO = 'chokocrm123';
 /** Clientes da demonstração: os 26 âncoras escritos à mão e os gerados (cerca de 40 por representante). */
@@ -171,7 +180,9 @@ describe('seed de demonstração', () => {
       clientes: CLIENTES_DA_DEMONSTRACAO,
       campanhas: 2,
       metas: 3,
-      proximasVisitas: 3,
+      // 2 por representante em cada um dos 18 dias úteis de 19/10 a 11/11 (os
+      // dois casos de propósito adiante contam na cota) e a vencida da Doceria
+      proximasVisitas: 2 * 2 * 18 + 1,
       lembretesAbertos: 3,
       lembretesConcluidos: 1,
       eventosSazonais: 10,
@@ -617,10 +628,18 @@ function diasUteisDoMes(data: string): number {
 describe('histórico realista', () => {
   let agora: Date;
 
+  // Relógio fixo ao meio-dia de São Paulo do dia real: antes da primeira
+  // visita do dia (de manhã cedo) os clientes de hoje não podem ser movidos e
+  // a carteira não cobre a janela inteira de visitas marcadas.
   beforeAll(async () => {
+    fixarRelogio(new Date(inicioDoDia(dataCalendario(new Date())).getTime() + 12 * 60 * 60 * 1000));
     await truncateAllTables();
     agora = new Date();
     await reiniciarDemonstracao(prisma, agora);
+  });
+
+  afterAll(() => {
+    liberarRelogio();
   });
 
   async function tokenDoGestor(): Promise<string> {
@@ -788,7 +807,7 @@ describe('histórico realista', () => {
     }
   });
 
-  it('campanhas do mês e do seguinte, visitas de campanha com produto dela, três próximas visitas e quatro lembretes', async () => {
+  it('campanhas do mês e do seguinte, visitas de campanha com produto dela, próximas visitas em todo dia útil da janela e quatro lembretes', async () => {
     const hoje = dataCalendario(agora);
     const campanhas = await prisma.campaign.findMany({
       orderBy: { inicio: 'asc' },
@@ -811,16 +830,52 @@ describe('histórico realista', () => {
       expect(visita.itens.some((item) => atual.produtos.includes(item.sku))).toBe(true);
     }
 
+    // Próximas visitas: casos de propósito relativos a `hoje` (adiante, no
+    // próximo dia útil se cair em fim de semana) e 2 por representante em
+    // cada dia útil de `hoje` a `hoje + 23`.
     const comProxima = await prisma.client.findMany({
       where: { proximaVisita: { not: null } },
+      include: { representante: true },
     });
-    expect(comProxima.map((cliente) => cliente.email).sort()).toEqual([
-      'contato@cafeblumenau.com.br',
-      'contato@doceriajaragua.com.br',
-      'contato@emporiodovalebrusque.com.br',
-    ]);
-    const doceria = comProxima.find((cliente) => cliente.email === 'contato@doceriajaragua.com.br');
-    expect(dia(doceria?.proximaVisita as Date)).toBe(somarDias(hoje, -2));
+    const porEmail = new Map(comProxima.map((cliente) => [cliente.email, dia(cliente.proximaVisita as Date)]));
+    expect(porEmail.get('contato@doceriajaragua.com.br')).toBe(somarDias(hoje, -2));
+    expect(porEmail.get('contato@cafeblumenau.com.br')).toBe(proximoDiaUtil(somarDias(hoje, 2)));
+    expect(porEmail.get('contato@emporiodovalebrusque.com.br')).toBe(proximoDiaUtil(somarDias(hoje, 3)));
+    const comCampanha = comProxima.filter((cliente) => cliente.proximaCampanhaId);
+    expect(comCampanha.every((cliente) => cliente.email === 'contato@emporiodovalebrusque.com.br')).toBe(true);
+    // O banco tem exatamente as marcações da função pura, com os visitados de hoje do banco.
+    const visitadosHoje = new Set(
+      (await prisma.visit.findMany({ include: { client: true } }))
+        .filter((visita) => dataCalendario(visita.dataHora) === hoje)
+        .map((visita) => visita.client.cnpj),
+    );
+    const esperadas = visitasMarcadasDaDemonstracao(hoje, visitadosHoje);
+    expect(new Map(comProxima.map((cliente) => [cliente.cnpj, dia(cliente.proximaVisita as Date)]))).toEqual(esperadas);
+    const fimDaJanela = somarDias(hoje, 23);
+    for (const representante of ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br']) {
+      for (let data = hoje; data <= fimDaJanela; data = somarDias(data, 1)) {
+        if ([0, 6].includes(diaDaSemanaDe(data))) continue;
+        const doDia = comProxima.filter(
+          (cliente) => cliente.representante.email === representante && dia(cliente.proximaVisita as Date) === data,
+        );
+        expect(doDia.length).toBeGreaterThanOrEqual(2);
+      }
+    }
+    for (const cliente of comProxima) {
+      if (cliente.email === 'contato@doceriajaragua.com.br') continue;
+      const data = dia(cliente.proximaVisita as Date);
+      expect([0, 6]).not.toContain(diaDaSemanaDe(data));
+      expect(data >= hoje && data <= fimDaJanela).toBe(true);
+    }
+    // Marcadas para hoje: nenhuma já cumprida por uma visita de hoje
+    const marcadasHoje = await prisma.client.findMany({
+      where: { proximaVisita: new Date(`${hoje}T00:00:00.000Z`) },
+      include: { visits: { orderBy: { dataHora: 'desc' }, take: 1 } },
+    });
+    for (const cliente of marcadasHoje) {
+      const ultima = cliente.visits[0];
+      expect(ultima === undefined || dataCalendario(ultima.dataHora) < hoje).toBe(true);
+    }
 
     const lembretes = await prisma.reminder.findMany({
       include: { client: true },
