@@ -7,7 +7,7 @@
  *
  * Fora das abas, no topo: a barra com o seletor (gestor), o período (30, 90,
  * 365 dias ou personalizado) e, à direita (linha própria no celular),
- * "Planilha" e "PDF" (spec 7.12); e as abas
+ * "Planilha" (spec 7.12), ao lado do período (abaixo dele no celular); e as abas
  * "Metas e resultados" e "Produção e sazonalidade", com a aba na URL
  * (`?aba=producao`; sem o parâmetro, a primeira). Só o painel da aba aberta
  * fica montado. Desde 11/11/2026 não há faixa sobre a fonte do ERP no topo.
@@ -31,12 +31,11 @@
  * (rede caída) aparece como aviso acima do conteúdo, que continua visível
  * (spec 5.7). "Planilha" baixa o CSV do relatório do backend (mesmo período
  * e mesma carteira; a faixa personalizada acima de 365 dias só vale para
- * ela, o Painel segue no período anterior); "PDF" abre a impressão do
- * navegador, que imprime a aba aberta, esconde a moldura e os controles
- * (`print:hidden`) e mantém cartões e gráficos.
+ * ela, o Painel segue no período anterior). Não há botão "PDF": o app
+ * instalado não imprime (removido em 12/11/2026).
  */
 import { useState, type ReactNode } from 'react';
-import { Download, Printer } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../auth/useAuth';
@@ -320,7 +319,7 @@ function CartaoEpocaDoAno({ alertas }: { alertas: Alertas }) {
   );
 }
 
-/** "Planilha" e "PDF", à direita da barra; no celular, numa linha só deles. Fora da impressão. */
+/** "Planilha", à direita do seletor de período; no celular, numa linha só dela. */
 function BotoesDeExportar({ periodo, representanteId }: { periodo: Periodo; representanteId?: string }) {
   const relatorio = useRelatorio();
 
@@ -340,27 +339,16 @@ function BotoesDeExportar({ periodo, representanteId }: { periodo: Periodo; repr
   }
 
   return (
-    <div className="flex w-full gap-2 md:ml-auto md:w-auto print:hidden">
+    <div className="w-full md:ml-auto md:w-auto print:hidden">
       <Button
         variant="outline"
         size="sm"
-        className="max-md:flex-1"
+        className="max-md:w-full"
         disabled={relatorio.isPending}
         onClick={gerarPlanilha}
       >
         <Download aria-hidden="true" />
         Planilha
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className="max-md:flex-1"
-        aria-label="PDF da aba aberta"
-        title="PDF da aba aberta"
-        onClick={() => window.print()}
-      >
-        <Printer aria-hidden="true" />
-        PDF
       </Button>
     </div>
   );
@@ -473,16 +461,18 @@ export function PainelPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
         <SeletorRepresentante className="w-full md:w-auto print:hidden" />
-        <FiltroPeriodo
-          valor={periodo}
-          onChange={(novo) => {
-            setPeriodo(novo);
-            setPeriodoDaPlanilha(novo);
-          }}
-          onPeriodoDaPlanilha={setPeriodoDaPlanilha}
-          className="print:hidden"
-        />
-        <BotoesDeExportar periodo={periodoDaPlanilha} representanteId={representanteId} />
+        <div data-testid="barra-do-periodo" className="flex w-full flex-wrap items-start gap-3 md:flex-1">
+          <FiltroPeriodo
+            valor={periodo}
+            onChange={(novo) => {
+              setPeriodo(novo);
+              setPeriodoDaPlanilha(novo);
+            }}
+            onPeriodoDaPlanilha={setPeriodoDaPlanilha}
+            className="print:hidden"
+          />
+          <BotoesDeExportar periodo={periodoDaPlanilha} representanteId={representanteId} />
+        </div>
       </div>
 
       <div className="print:hidden">

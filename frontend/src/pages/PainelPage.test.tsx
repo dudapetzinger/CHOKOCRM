@@ -298,9 +298,7 @@ describe('PainelPage (gestor)', () => {
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
     expect(screen.queryByText('Época do ano')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Planilha' })).toBeInTheDocument();
-    const pdf = screen.getByRole('button', { name: 'PDF da aba aberta' });
-    expect(pdf).toHaveTextContent('PDF');
-    expect(pdf).toHaveAttribute('title', 'PDF da aba aberta');
+    expect(screen.queryByRole('button', { name: /PDF/ })).not.toBeInTheDocument();
   });
 
   it('?aba=producao abre "Produção e sazonalidade" com o próximo evento à frente da época do ano', () => {
@@ -395,14 +393,13 @@ describe('PainelPage (gestor)', () => {
     expect(baixarCsv).not.toHaveBeenCalled();
   });
 
-  it('"PDF" abre a impressão do navegador', async () => {
-    const imprimir = vi.spyOn(window, 'print').mockImplementation(() => {});
+  it('não há botão "PDF" e "Planilha" fica no mesmo contêiner do seletor "Período"', () => {
     renderizarComo('GESTOR');
 
-    await userEvent.click(screen.getByRole('button', { name: 'PDF da aba aberta' }));
-
-    expect(imprimir).toHaveBeenCalledTimes(1);
-    imprimir.mockRestore();
+    expect(screen.queryByRole('button', { name: /PDF/ })).not.toBeInTheDocument();
+    const barra = screen.getByTestId('barra-do-periodo');
+    expect(within(barra).getByRole('radiogroup', { name: 'Período de análise dos indicadores' })).toBeInTheDocument();
+    expect(within(barra).getByRole('button', { name: 'Planilha' })).toBeInTheDocument();
   });
 
   it('resultado por representante em barra empilhada e ritmo de visitas no período com a nota', () => {
@@ -649,17 +646,12 @@ describe('PainelPage (representante)', () => {
     });
   });
 
-  it('"Planilha" gera o CSV da própria carteira e "PDF" imprime', async () => {
-    const imprimir = vi.spyOn(window, 'print').mockImplementation(() => {});
+  it('"Planilha" gera o CSV da própria carteira', async () => {
     renderizarComo('REPRESENTANTE');
 
     await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
     expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
     expect(buscarRelatorio).toHaveBeenCalledWith({ dias: 30 }, undefined);
     expect(baixarCsv).toHaveBeenCalledTimes(1);
-
-    await userEvent.click(screen.getByRole('button', { name: 'PDF da aba aberta' }));
-    expect(imprimir).toHaveBeenCalledTimes(1);
-    imprimir.mockRestore();
   });
 });
