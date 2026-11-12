@@ -2,6 +2,7 @@ import { clientesDaDemonstracao, visitasMarcadasDaDemonstracao } from '../../src
 import { gerarVisitas, type ClienteDoGerador } from '../../src/seed/gerador-visitas';
 import {
   dataNatural,
+  diaUtilAnterior,
   escolherVisitasMarcadas,
   JANELA_DAS_VISITAS_MARCADAS,
   proximoDiaUtil,
@@ -223,5 +224,13 @@ describe('proximoDiaUtil', () => {
     expect(proximoDiaUtil('2026-11-13')).toBe('2026-11-13');
     expect(proximoDiaUtil('2026-11-14')).toBe('2026-11-16');
     expect(proximoDiaUtil('2026-11-15')).toBe('2026-11-16');
+  });
+});
+
+describe('diaUtilAnterior', () => {
+  it('mantém o dia útil e leva sábado e domingo para a sexta', () => {
+    expect(diaUtilAnterior('2026-11-13')).toBe('2026-11-13');
+    expect(diaUtilAnterior('2026-11-14')).toBe('2026-11-13');
+    expect(diaUtilAnterior('2026-11-15')).toBe('2026-11-13');
   });
 });

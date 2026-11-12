@@ -6,20 +6,18 @@ import * as userRepository from '../repositories/user.repository';
 import type { GerarMensagemInput } from '../schemas/stock-message.schema';
 import { exigirClienteDaCarteira, representanteEfetivo, type UsuarioAutenticado } from './carteira';
 import { eventoVigente } from './seasonal-event.service';
-import { montarLinkWhatsapp, montarMensagemDeEstoque, normalizarTelefone } from './stock-message.template';
+import {
+  montarLinkWhatsapp,
+  montarMensagemDeEstoque,
+  nomeDoEventoNoTemplate,
+  normalizarTelefone,
+} from './stock-message.template';
 import { agora } from '../lib/relogio';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CLIENTE_INATIVO = 'Cliente inativo não recebe mensagem de estoque.';
 const MENSAGEM_CONTATO_NAO_PERTENCE = 'Contato informado não pertence a este cliente.';
 const MENSAGEM_TELEFONE_INVALIDO = 'Telefone inválido para gerar o link do WhatsApp.';
-
-/** Nome do evento no template (sem o ano): o DB grava "Páscoa 2026", o template recebe "Páscoa". */
-const REGEX_ANO_FINAL = / \d{4}$/;
-
-function nomeSemAno(nome: string): string {
-  return nome.replace(REGEX_ANO_FINAL, '');
-}
 
 export type PropostaDTO = {
   evento: { id: string; nome: string; produtosSugeridos: string[] } | null;
@@ -64,7 +62,7 @@ export async function propor(
   const usuarioLogado = await userRepository.findById(usuario.id);
   const evento = await eventoVigente(hoje);
   const eventoTemplate = evento
-    ? { nome: nomeSemAno(evento.nome), produtosSugeridos: evento.produtosSugeridos }
+    ? { nome: nomeDoEventoNoTemplate(evento.nome), produtosSugeridos: evento.produtosSugeridos }
     : null;
   const nomeRepresentante = usuarioLogado?.nome ?? '';
 

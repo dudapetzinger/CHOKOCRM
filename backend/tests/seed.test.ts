@@ -96,6 +96,7 @@ async function totais() {
       where: { concluidoEm: { not: null } },
     }),
     eventosSazonais: await prisma.seasonalEvent.count(),
+    mensagensDeEstoque: await prisma.stockMessage.count(),
   };
 }
 
@@ -171,7 +172,7 @@ describe('seed de demonstração', () => {
     await truncateAllTables();
   });
 
-  it('reiniciarDemonstracao recria clientes, visitas com pedido, campanhas, metas, próximas visitas e lembretes', async () => {
+  it('reiniciarDemonstracao recria clientes, visitas com pedido, campanhas, metas, próximas visitas, lembretes e mensagens de estoque', async () => {
     await reiniciarDemonstracao(prisma, HOJE);
 
     const t = await totais();
@@ -179,13 +180,15 @@ describe('seed de demonstração', () => {
       usuarios: 3,
       clientes: CLIENTES_DA_DEMONSTRACAO,
       campanhas: 2,
-      metas: 3,
+      // Mensal do mês e do seguinte por representante e a da campanha
+      metas: 5,
       // 2 por representante em cada um dos 18 dias úteis de 19/10 a 11/11 (os
       // dois casos de propósito adiante contam na cota) e a vencida da Doceria
       proximasVisitas: 2 * 2 * 18 + 1,
-      lembretesAbertos: 3,
-      lembretesConcluidos: 1,
+      lembretesAbertos: 6,
+      lembretesConcluidos: 2,
       eventosSazonais: 10,
+      mensagensDeEstoque: 6,
     });
     // ~25 visitas por semana por representante, 13 semanas (a corrente pela metade)
     expect(t.visitas).toBeGreaterThan(500);
@@ -221,13 +224,16 @@ describe('seed de demonstração', () => {
       include: { representante: true },
     });
     const mensais = metas.filter((meta) => meta.periodo === 'MENSAL');
-    expect(mensais.map((meta) => meta.representante.email).sort()).toEqual([
-      'eduarda@chokolaten.com.br',
-      'rafael@chokolaten.com.br',
+    expect(mensais.map((meta) => `${meta.representante.email} ${dia(meta.inicio)}..${dia(meta.fim)}`).sort()).toEqual([
+      'eduarda@chokolaten.com.br 2026-10-01..2026-10-31',
+      'eduarda@chokolaten.com.br 2026-11-01..2026-11-30',
+      'rafael@chokolaten.com.br 2026-10-01..2026-10-31',
+      'rafael@chokolaten.com.br 2026-11-01..2026-11-30',
     ]);
-    expect(mensais.every((meta) => dia(meta.inicio) === '2026-10-01' && dia(meta.fim) === '2026-10-31')).toBe(true);
-    // 22 dias úteis em outubro de 2026, 5 visitas por dia
-    expect(mensais.every((meta) => meta.metaVisitas === 110)).toBe(true);
+    // 22 dias úteis em outubro de 2026 e 21 em novembro, 5 visitas por dia
+    for (const meta of mensais) {
+      expect(meta.metaVisitas).toBe(dia(meta.inicio) === '2026-10-01' ? 110 : 105);
+    }
     const daCampanha = metas.filter((meta) => meta.periodo === 'CAMPANHA');
     expect(daCampanha).toHaveLength(1);
     expect(daCampanha[0]?.campanhaId).toBe(atual?.id);
@@ -248,13 +254,22 @@ describe('seed de demonstração', () => {
     });
     expect(dataCalendario((doceria.visits[0] as { dataHora: Date }).dataHora) < '2026-10-17').toBe(true);
 
-    // Lembretes: três abertos (um vencido há 3 dias), um concluído, todos do dono da carteira
+    // Lembretes: por representante, três abertos (um vencido) e um concluído, todos do dono da carteira
     const lembretes = await prisma.reminder.findMany({
       include: { client: true },
       orderBy: { data: 'asc' },
     });
     const abertos = lembretes.filter((lembrete) => lembrete.concluidoEm === null);
-    expect(abertos.map((lembrete) => dia(lembrete.data))).toEqual(['2026-10-16', '2026-10-21', '2026-10-25']);
+    expect(abertos.map((lembrete) => dia(lembrete.data))).toEqual([
+      // −3 (sexta) e −1 (domingo, recua para a sexta)
+      '2026-10-16',
+      '2026-10-16',
+      '2026-10-20',
+      '2026-10-21',
+      // +6 (domingo, avança para a segunda)
+      '2026-10-26',
+      '2026-10-28',
+    ]);
     expect(lembretes.every((lembrete) => lembrete.criadoPorId === lembrete.client.representanteId)).toBe(true);
     expect(lembretes.every((lembrete) => lembrete.texto.length > 0 && lembrete.texto.length <= 200)).toBe(true);
 
@@ -549,13 +564,12 @@ describe('cadastro realista', () => {
     }
   });
 
-  it('erpId é código numérico de 5 dígitos e único, exceto os dois clientes sem ERP', async () => {
+  it('todo cliente tem erpId, código numérico de 5 dígitos e único', async () => {
     const clientes = await clientesDoSeed();
-    const semErp = ['Confeitaria Rota das Cachoeiras', 'Padaria Vale Europeu'];
 
-    expect(clientes.filter((cliente) => cliente.erpId === null).map((cliente) => cliente.nomeFantasia)).toEqual(semErp);
+    expect(clientes.filter((cliente) => cliente.erpId === null).map((cliente) => cliente.nomeFantasia)).toEqual([]);
     const comErp = clientes.filter((cliente) => cliente.erpId !== null).map((cliente) => cliente.erpId as string);
-    expect(comErp).toHaveLength(clientes.length - 2);
+    expect(comErp).toHaveLength(clientes.length);
     for (const erpId of comErp) {
       expect(erpId).toMatch(/^\d{5}$/);
       expect(erpId).not.toMatch(/-0$/);
@@ -575,6 +589,9 @@ describe('cadastro realista', () => {
     expect(meses('Empório do Vale Brusque')).toBe(0);
     expect(meses('Mercearia Alto Vale')).toBe(0);
     expect(meses('Panificadora Vila Lenzi')).toBe(0);
+    // Os dois âncoras que ficavam sem ERP até 12/11/2026: compram em dia
+    expect(meses('Padaria Vale Europeu')).toBe(0);
+    expect(meses('Confeitaria Rota das Cachoeiras')).toBe(0);
 
     const clientes = await clientesDoSeed();
     const comTresOuMais = clientes
@@ -807,7 +824,7 @@ describe('histórico realista', () => {
     }
   });
 
-  it('campanhas do mês e do seguinte, visitas de campanha com produto dela, próximas visitas em todo dia útil da janela e quatro lembretes', async () => {
+  it('campanhas do mês e do seguinte, visitas de campanha com produto dela, próximas visitas em todo dia útil da janela e lembretes por representante', async () => {
     const hoje = dataCalendario(agora);
     const campanhas = await prisma.campaign.findMany({
       orderBy: { inicio: 'asc' },
@@ -878,14 +895,17 @@ describe('histórico realista', () => {
     }
 
     const lembretes = await prisma.reminder.findMany({
-      include: { client: true },
+      include: { client: { include: { representante: true } } },
     });
-    expect(lembretes).toHaveLength(4);
-    expect(lembretes.filter((lembrete) => lembrete.concluidoEm !== null)).toHaveLength(1);
-    const vencidos = lembretes.filter(
-      (lembrete) => lembrete.concluidoEm === null && dia(lembrete.data) === somarDias(hoje, -3),
-    );
-    expect(vencidos).toHaveLength(1);
+    expect(lembretes).toHaveLength(8);
+    for (const representante of ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br']) {
+      const doRepresentante = lembretes.filter((lembrete) => lembrete.client.representante.email === representante);
+      expect(doRepresentante.filter((lembrete) => lembrete.concluidoEm !== null)).toHaveLength(1);
+      const abertos = doRepresentante.filter((lembrete) => lembrete.concluidoEm === null);
+      expect(abertos).toHaveLength(3);
+      // Um vencido: ontem (Eduarda) ou há 3 dias (Rafael), recuado para dia útil
+      expect(abertos.filter((lembrete) => dia(lembrete.data) < hoje)).toHaveLength(1);
+    }
 
     // O cliente inativo guarda o histórico, mas não tem próxima visita nem lembrete
     const inativo = await prisma.client.findFirstOrThrow({
@@ -903,7 +923,8 @@ describe('histórico realista', () => {
       orderBy: { dataHora: 'asc' },
     });
     const dias = diasEntre(dataCalendario(maisAntiga.dataHora), hoje) + 1;
-    const metas = await prisma.goal.findMany({ where: { periodo: 'MENSAL' } });
+    // As do mês de hoje (as do mês seguinte seguem a mesma fórmula)
+    const metas = await prisma.goal.findMany({ where: { periodo: 'MENSAL', inicio: new Date(`${hoje.slice(0, 7)}-01`) } });
     expect(metas).toHaveLength(2);
     for (const meta of metas) {
       const itens = await prisma.visitItem.findMany({

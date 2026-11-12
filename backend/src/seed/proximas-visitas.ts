@@ -30,6 +30,13 @@ export function proximoDiaUtil(data: DataCalendario): DataCalendario {
   return dia;
 }
 
+/** Último dia útil até a data (a própria, se for de segunda a sexta). */
+export function diaUtilAnterior(data: DataCalendario): DataCalendario {
+  let dia = data;
+  while (diaDaSemana(dia) > 5) dia = somarDias(dia, -1);
+  return dia;
+}
+
 export type OpcoesDaEscolha = {
   jaMarcadas?: ReadonlyMap<string, DataCalendario>;
   visitadosHoje?: ReadonlySet<string>;

@@ -25,8 +25,12 @@
  * - Mercearia Alto Vale → `11062` (0) e Padaria Confeitaria Indaial →
  *   `11143` (2): mesmos perfis de antes; a Indaial nunca foi visitada (VERMELHO),
  *   cor que a compra não muda.
- * - Padaria Vale Europeu e Confeitaria Rota das Cachoeiras → sem `erpId`
- *   (`null`): a consulta retorna `SEM_ERP_ID`.
+ * - Padaria Vale Europeu → `12168` e Confeitaria Rota das Cachoeiras →
+ *   `12187` (`mesesSemCompra` 0; `valorBase` 1856 e 1740): até a rodada de
+ *   12/11/2026 ficavam sem `erpId` (`SEM_ERP_ID`); para o CRM da apresentação
+ *   ficar completo, todo cliente ativo tem `erpId` (a tela "Sem histórico de
+ *   compras" continua valendo para cliente criado à mão sem `erpId`). Códigos
+ *   livres entre os dos âncoras (até 12159) e os dos gerados (de 12201).
  * - Café Beira-Rio → `12106` (`mesesSemCompra` 2): o cliente inativo, fechado
  *   para reforma há mais de um mês, também parou de comprar no ERP; já é
  *   VERMELHO pela visita, então não aparece como rebaixado.
@@ -67,8 +71,8 @@ export const ERP_IDS_DEMONSTRACAO: Record<string, string | null> = {
   'Empório Itoupava': '12024',
   'Café Beira-Rio': '12106',
   'Hotel Fazenda Mulde': '12159',
-  'Padaria Vale Europeu': null,
-  'Confeitaria Rota das Cachoeiras': null,
+  'Padaria Vale Europeu': '12168',
+  'Confeitaria Rota das Cachoeiras': '12187',
 };
 
 export const ERP_ID_EMPORIO = '10272';

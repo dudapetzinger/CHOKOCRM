@@ -9,6 +9,17 @@ export type DadosDoTemplate = {
   evento: { nome: string; produtosSugeridos: string[] } | null;
 };
 
+/** Ano no fim do nome do evento ("Natal 2026"). */
+const REGEX_ANO_FINAL = / \d{4}$/;
+
+/**
+ * Nome do evento no template (sem o ano): o banco grava "Páscoa 2026", o
+ * template recebe "Páscoa". Usado pela geração real (UC12) e pelo seed.
+ */
+export function nomeDoEventoNoTemplate(nome: string): string {
+  return nome.replace(REGEX_ANO_FINAL, '');
+}
+
 /**
  * Junta os produtos com vírgula e "e" antes do último item (sem depender de
  * locale). Lista vazia retorna `''` — quem chama deve tratar esse caso (ver

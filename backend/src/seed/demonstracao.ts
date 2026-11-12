@@ -10,8 +10,16 @@ import { eventosSazonaisParaSeed } from '../config/eventosSazonaisSeed';
 // ERP, e o grava em `ErpProduct`: em produção (`importado`) o catálogo do ERP
 // é o aprendido das notas, que não teria os SKUs da demonstração.
 import { CATALOGO } from '../providers/erp/mock/catalogo';
-import { colunaDateDaData, dataCalendario, somarDias, type DataCalendario } from '../services/classificacao.service';
+import {
+  colunaDateDaData,
+  dataCalendario,
+  inicioDoDia,
+  somarDias,
+  type DataCalendario,
+} from '../services/classificacao.service';
 import { periodoDaMeta } from '../services/goal.regras';
+import { eventoVigente } from '../services/seasonal-event.service';
+import { montarMensagemDeEstoque, nomeDoEventoNoTemplate } from '../services/stock-message.template';
 import { textoDoLembrete } from './anotacoes';
 import { gerarClientes } from './clientes-gerados';
 import {
@@ -22,7 +30,7 @@ import {
   type Proposito,
   type VisitaGerada,
 } from './gerador-visitas';
-import { escolherVisitasMarcadas, JANELA_DAS_VISITAS_MARCADAS, proximoDiaUtil } from './proximas-visitas';
+import { diaUtilAnterior, escolherVisitasMarcadas, JANELA_DAS_VISITAS_MARCADAS, proximoDiaUtil } from './proximas-visitas';
 import { AGENDA_DAS_ANCORAS, diaDaSemana } from './rotas';
 import type { ClienteSeed, ContatoSeed } from './tipos';
 
@@ -40,8 +48,8 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  *   casos de propósito) e os gerados (`clientes-gerados.ts`), cerca de 40 por
  *   representante, cada um com cadastro de sistema de verdade (CNPJ válido,
  *   razão social, endereço, telefone, e-mail no domínio do cliente, 1 a 2
- *   contatos, `erpId` calibrado no ERP simulado — só o Armazém São Bento é
- *   rebaixado pela venda).
+ *   contatos, `erpId` calibrado no ERP simulado em todos — só o Armazém São
+ *   Bento é rebaixado pela venda).
  * - Visitas: geradas (`gerador-visitas.ts`) pelas rotas de cada
  *   representante (`rotas.ts`: dia da semana → cidades, recorrências de 7 a
  *   42 dias, múltiplos de 7): 13 semanas, só de segunda a sexta, 4 a 6 por dia
@@ -50,8 +58,9 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  *   a época), anotações do banco de frases (`anotacoes.ts`) sem repetição em
  *   sequência; determinísticas por cliente + data e nunca depois de `hoje`.
  * - Campanhas: a sazonal do mês de `hoje` (em andamento) e a do mês seguinte
- *   (agendada); metas mensais compatíveis com o ritmo gerado (vendas 10 %
- *   acima da média mensal; 5 visitas por dia útil) e uma da campanha.
+ *   (agendada); metas mensais do mês de `hoje` e do seguinte compatíveis com
+ *   o ritmo gerado (vendas 10 % acima da média mensal; 5 visitas por dia
+ *   útil) e uma da campanha.
  * - Próximas visitas marcadas: os casos de propósito (+2 e +3 adiante, no
  *   próximo dia útil se cair em fim de semana, e uma vencida na Doceria
  *   Jaraguá) e, para cada representante, 2 em cada dia útil de `hoje` a
@@ -60,8 +69,12 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  *   da agenda de hoje (ela pode ganhar 1–2 clientes); amanhã pode perder até
  *   3 (até 4 num reset antes das 9h); nos dias seguintes alguns clientes
  *   aparecem na data marcada em vez da data da recorrência.
- *   Lembretes (4, um vencido e um concluído), com texto coerente com
- *   a última visita.
+ * - Lembretes: por representante, três abertos (um vencido) e um concluído,
+ *   com texto coerente com a última visita, sempre em dia útil (o vencido
+ *   recua, o futuro avança).
+ * - Mensagens de estoque: 3 por representante nas últimas 4 semanas, nos
+ *   clientes com venda mais recente, com o texto da regra real
+ *   (`montarMensagemDeEstoque`) e o evento sazonal vigente na data.
  *
  * Os pedidos usam o catálogo de demonstração direto (`CATALOGO`), seja qual
  * for o `ERP_PROVIDER`; o mesmo catálogo vai para `ErpProduct`. Os usuários
@@ -1013,15 +1026,21 @@ type LembreteSeed = {
 };
 
 /**
- * Lembretes, criados pelo dono da carteira: três abertos (um vencido há 3
- * dias) e um concluído. O texto segue a última visita do cliente
- * (`textoDoLembrete`); o concluído é o envio do catálogo da campanha.
+ * Lembretes, criados pelo dono da carteira: para cada representante, três
+ * abertos (um vencido) e um concluído. O texto segue a última visita do
+ * cliente (`textoDoLembrete`); o concluído é o envio do catálogo da campanha.
  */
 const LEMBRETES_DEMO: LembreteSeed[] = [
+  // Rafael: vencido há 3 dias, +2 e +9; concluído o catálogo do Café Blumenau.
   { nomeFantasia: 'Café Blumenau', diasAFrente: 2 },
   { nomeFantasia: 'Empório do Vale Brusque', diasAFrente: -3 },
-  { nomeFantasia: 'Empório do Chocolate', diasAFrente: 6 },
+  { nomeFantasia: 'Mercearia Alto Vale', diasAFrente: 9 },
   { nomeFantasia: 'Café Blumenau', diasAFrente: -5, concluido: true },
+  // Eduarda: vencido ontem (o Mercado Central, atrasado), +1 e +6; concluído o catálogo do Armazém.
+  { nomeFantasia: 'Mercado Central Joinville', diasAFrente: -1 },
+  { nomeFantasia: 'Confeitaria Dona Frida', diasAFrente: 1 },
+  { nomeFantasia: 'Empório do Chocolate', diasAFrente: 6 },
+  { nomeFantasia: 'Armazém São Bento', diasAFrente: -4, concluido: true },
 ];
 
 /** Visitas por dia útil na meta mensal (a rota tem de 4 a 6). */
@@ -1081,6 +1100,11 @@ async function seedContato(prisma: Banco, clientId: string, contato: ContatoSeed
   await prisma.contact.create({ data: { ...contato, clientId } });
 }
 
+/** `erpId` do cliente da demonstração: o do gerado ou o calibrado dos âncoras (`ERP_IDS_DEMONSTRACAO`). */
+function erpIdDoCliente(cliente: Pick<ClienteSeed, 'erpId' | 'nomeFantasia'>): string | null {
+  return cliente.erpId !== undefined ? cliente.erpId : (ERP_IDS_DEMONSTRACAO[cliente.nomeFantasia] ?? null);
+}
+
 async function seedCliente(
   prisma: Banco,
   cliente: ClienteSeed,
@@ -1099,7 +1123,7 @@ async function seedCliente(
   } = cliente;
   const representanteId = representantes.get(representanteEmail);
   if (!representanteId) throw new Error(`Representante ${representanteEmail} não existe.`);
-  const erpId = erpIdDoGerado !== undefined ? erpIdDoGerado : (ERP_IDS_DEMONSTRACAO[cliente.nomeFantasia] ?? null);
+  const erpId = erpIdDoCliente({ erpId: erpIdDoGerado, nomeFantasia: cliente.nomeFantasia });
   const dadosCliente = {
     ...cadastro,
     recorrenciaDias,
@@ -1300,6 +1324,18 @@ async function seedProximasVisitas(
 }
 
 /**
+ * Dia do lembrete `diasAFrente` dias depois de `hoje`, sempre em dia útil: o
+ * vencido (negativo) recua para o dia útil anterior, o futuro avança para o
+ * próximo; o de hoje (0) fica como está.
+ */
+function dataDoLembrete(hoje: DataCalendario, diasAFrente: number): DataCalendario {
+  const data = somarDias(hoje, diasAFrente);
+  if (diasAFrente < 0) return diaUtilAnterior(data);
+  if (diasAFrente > 0) return proximoDiaUtil(data);
+  return data;
+}
+
+/**
  * Só cria o lembrete que ainda não existe (mesmo cliente e texto, aberto ou
  * concluído), pelo dono da carteira; o concluído fica concluído `hoje`. O
  * texto segue a última visita gerada do cliente.
@@ -1341,10 +1377,104 @@ async function seedLembretes(
         clientId: gravado.id,
         criadoPorId: gravado.representanteId,
         texto,
-        data: colunaDateDaData(somarDias(dia, diasAFrente)),
+        data: colunaDateDaData(dataDoLembrete(dia, diasAFrente)),
         concluidoEm: concluido ? hoje : null,
       },
     });
+  }
+}
+
+/** Mensagens de estoque do seed por representante. */
+const MENSAGENS_DE_ESTOQUE_POR_REPRESENTANTE = 3;
+/** Dias úteis antes de `hoje` de cada mensagem (a mais recente primeiro); o 2º representante, um dia útil a mais. */
+const DIAS_UTEIS_ATRAS_DAS_MENSAGENS = [2, 8, 15] as const;
+const MILISSEGUNDOS_POR_MINUTO = 60_000;
+
+/** O dia útil `quantos` dias úteis antes de `dia`. */
+function diasUteisAntes(dia: DataCalendario, quantos: number): DataCalendario {
+  let data = dia;
+  for (let contados = 0; contados < quantos; ) {
+    data = somarDias(data, -1);
+    if (diaDaSemana(data) <= 5) contados += 1;
+  }
+  return data;
+}
+
+/**
+ * Instante da `indice`-ésima mensagem do representante de posição
+ * `posicaoDoRepresentante`: num dia útil das últimas 4 semanas (de 2 a 16
+ * dias úteis antes de `hoje`), entre 9h e 15h de São Paulo; determinístico
+ * por `hoje`.
+ */
+function dataDaMensagem(hoje: DataCalendario, posicaoDoRepresentante: number, indice: number): Date {
+  const dia = diasUteisAntes(hoje, (DIAS_UTEIS_ATRAS_DAS_MENSAGENS[indice] as number) + posicaoDoRepresentante);
+  const minutos = 9 * 60 + ((indice * 137 + posicaoDoRepresentante * 71) % (6 * 60));
+  return new Date(inicioDoDia(dia).getTime() + minutos * MILISSEGUNDOS_POR_MINUTO);
+}
+
+/**
+ * Mensagens de estoque (UC12) para a aba "Mensagens geradas" e a taxa de
+ * registro do painel: para cada representante, uma para cada um dos 3
+ * clientes ativos com `erpId` de venda mais recente nas visitas geradas, em
+ * dias úteis das últimas 4 semanas (`dataDaMensagem`). O texto é o da regra
+ * real (`montarMensagemDeEstoque`), para o contato principal, com o nome do
+ * representante e o evento sazonal vigente na data (`eventoVigente`, pela
+ * transação), que também vai em `eventoSazonalId`. Não consulta o ERP: o
+ * template não usa estoque. Idempotente: pula a mensagem que já existe para o
+ * cliente na mesma `dataGeracao`.
+ */
+async function seedMensagensDeEstoque(
+  prisma: Banco,
+  hoje: DataCalendario,
+  visitas: readonly VisitaGerada[],
+  gravados: Map<string, ClienteGravado>,
+  usuarios: readonly { id: string; nome: string; email: string }[],
+): Promise<void> {
+  const elegiveis = new Map(
+    CLIENTES.filter((cliente) => cliente.ativo !== false && erpIdDoCliente(cliente) !== null).map((cliente) => [
+      cliente.cnpj,
+      cliente,
+    ]),
+  );
+  const vendasRecentes = visitas
+    .filter((visita) => visita.resultado === 'VENDA' && elegiveis.has(visita.cnpj))
+    .sort((a, b) => b.dataHora.getTime() - a.dataHora.getTime());
+
+  for (const [posicao, email] of [EMAIL_EDUARDA, EMAIL_RAFAEL].entries()) {
+    const representante = usuarios.find((usuario) => usuario.email === email);
+    if (!representante) continue;
+    const cnpjs = [
+      ...new Set(vendasRecentes.filter((visita) => visita.representanteEmail === email).map((visita) => visita.cnpj)),
+    ].slice(0, MENSAGENS_DE_ESTOQUE_POR_REPRESENTANTE);
+
+    for (const [indice, cnpj] of cnpjs.entries()) {
+      const cliente = elegiveis.get(cnpj) as ClienteSeed;
+      const gravado = gravados.get(cnpj);
+      if (!gravado) continue;
+      const dataGeracao = dataDaMensagem(hoje, posicao, indice);
+      const existente = await prisma.stockMessage.findFirst({ where: { clientId: gravado.id, dataGeracao } });
+      if (existente) continue;
+
+      const evento = await eventoVigente(dataGeracao, prisma);
+      const principal = cliente.contatos.find((contato) => contato.principal) ?? cliente.contatos[0] ?? null;
+      const textoFinal = montarMensagemDeEstoque({
+        nomeContato: principal?.nome ?? null,
+        nomeFantasia: cliente.nomeFantasia,
+        nomeRepresentante: representante.nome,
+        evento: evento
+          ? { nome: nomeDoEventoNoTemplate(evento.nome), produtosSugeridos: evento.produtosSugeridos }
+          : null,
+      });
+      await prisma.stockMessage.create({
+        data: {
+          clientId: gravado.id,
+          userId: representante.id,
+          eventoSazonalId: evento?.id ?? null,
+          textoFinal,
+          dataGeracao,
+        },
+      });
+    }
   }
 }
 
@@ -1352,33 +1482,43 @@ type MetaSeed = {
   representanteEmail: string;
   metaVisitas: number;
   metaVendas: number;
+  /** Período da meta: o mês (mensal) ou o da campanha. */
+  inicio: DataCalendario;
+  fim: DataCalendario;
   campanha?: CampanhaGravada;
 };
 
 /**
- * Metas compatíveis com o ritmo gerado: a mensal de cada representante pede
- * `VISITAS_POR_DIA_UTIL` visitas por dia útil do mês e vendas 10 % acima da
- * média mensal do histórico gerado; a da campanha em andamento (Eduarda),
- * duas visitas por dia útil e 35 % dessa média.
+ * Metas compatíveis com o ritmo gerado: a mensal de cada representante, do
+ * mês de `hoje` e do mês seguinte, pede `VISITAS_POR_DIA_UTIL` visitas por
+ * dia útil do mês e vendas 10 % acima da média mensal do histórico gerado; a
+ * da campanha em andamento (Eduarda), duas visitas por dia útil e 35 % dessa
+ * média.
  */
 function metasDemo(
   hoje: Date,
   visitas: readonly VisitaGerada[],
   campanhaAtual: CampanhaGravada | undefined,
 ): MetaSeed[] {
-  const { inicio, fim } = mesDe(dataCalendario(hoje));
-  const diasUteis = diasUteisEntre(inicio, fim);
+  const doMes = periodoDaMeta('MENSAL', dataCalendario(hoje));
+  const doSeguinte = periodoDaMeta('MENSAL', somarDias(doMes.fim, 1));
   const media = (email: string): number => mediaMensalDeVendas(visitas, email, hoje);
-  const metas: MetaSeed[] = [EMAIL_EDUARDA, EMAIL_RAFAEL].map((representanteEmail) => ({
-    representanteEmail,
-    metaVisitas: diasUteis * VISITAS_POR_DIA_UTIL,
-    metaVendas: arredondarParaCentena(media(representanteEmail) * FATOR_DA_META_DE_VENDAS),
-  }));
+  const metas: MetaSeed[] = [doMes, doSeguinte].flatMap(({ inicio, fim }) =>
+    [EMAIL_EDUARDA, EMAIL_RAFAEL].map((representanteEmail) => ({
+      representanteEmail,
+      metaVisitas: diasUteisEntre(inicio, fim) * VISITAS_POR_DIA_UTIL,
+      metaVendas: arredondarParaCentena(media(representanteEmail) * FATOR_DA_META_DE_VENDAS),
+      inicio,
+      fim,
+    })),
+  );
   if (campanhaAtual) {
     metas.push({
       representanteEmail: EMAIL_EDUARDA,
       metaVisitas: diasUteisEntre(campanhaAtual.inicio, campanhaAtual.fim) * 2,
       metaVendas: arredondarParaCentena(media(EMAIL_EDUARDA) * 0.35),
+      inicio: campanhaAtual.inicio,
+      fim: campanhaAtual.fim,
       campanha: campanhaAtual,
     });
   }
@@ -1386,15 +1526,9 @@ function metasDemo(
 }
 
 /** Só cria a meta que ainda não existe (mesmo representante, período, início, fim e campanha). */
-async function seedMetas(
-  prisma: Banco,
-  metas: readonly MetaSeed[],
-  representantes: Map<string, string>,
-  hoje: DataCalendario,
-): Promise<void> {
-  for (const { representanteEmail, metaVisitas, metaVendas, campanha } of metas) {
+async function seedMetas(prisma: Banco, metas: readonly MetaSeed[], representantes: Map<string, string>): Promise<void> {
+  for (const { representanteEmail, metaVisitas, metaVendas, inicio, fim, campanha } of metas) {
     const representanteId = representantes.get(representanteEmail) as string;
-    const { inicio, fim } = campanha ?? periodoDaMeta('MENSAL', hoje);
     const dados = {
       representanteId,
       periodo: campanha ? ('CAMPANHA' as const) : ('MENSAL' as const),
@@ -1418,8 +1552,8 @@ async function seedMetas(
  * gestor, inativa) e cria o que falta — eventos sazonais, produtos de
  * demonstração no catálogo importado (`ErpProduct`, upsert pelo código),
  * campanhas pelo nome, visitas geradas em cliente ainda sem visita, próxima
- * visita em cliente sem uma, lembretes e metas que não existem. Não apaga
- * nada.
+ * visita em cliente sem uma, lembretes, mensagens de estoque e metas que não
+ * existem. Não apaga nada.
  */
 export async function semear(prisma: Banco, hoje: Date): Promise<void> {
   const dia = dataCalendario(hoje);
@@ -1441,7 +1575,8 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
   await seedVisitas(prisma, visitas, gravados, campanhaAtual);
   await seedProximasVisitas(prisma, dia, campanhas, visitas);
   await seedLembretes(prisma, hoje, visitas, gravados, campanhaAtual);
-  await seedMetas(prisma, metasDemo(hoje, visitas, campanhaAtual), representantes, dia);
+  await seedMensagensDeEstoque(prisma, dia, visitas, gravados, usuarios);
+  await seedMetas(prisma, metasDemo(hoje, visitas, campanhaAtual), representantes);
 }
 
 /**
