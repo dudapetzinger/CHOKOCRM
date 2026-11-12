@@ -42,7 +42,7 @@ import { FaixaDataSimulada } from './crm/FaixaDataSimulada';
 export const EMAIL_DA_GESTAO = 'gestao@chokolaten.com.br';
 
 const AVISO =
-  'Isto apaga clientes, contatos, visitas, pedidos, lembretes, campanhas e metas e recria a demonstração nessa data. As contas de acesso são mantidas.';
+  'Isto apaga os clientes da demonstração (com contatos, visitas, pedidos e lembretes), as campanhas e as metas e recria a demonstração nessa data. Os clientes reais (cadastrados à mão ou pela nota) e as contas de acesso são mantidos.';
 const ERRO_GENERICO = 'Não foi possível recriar a demonstração. Confira a data e a senha.';
 
 const FOCAVEIS = 'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';

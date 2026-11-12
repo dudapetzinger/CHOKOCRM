@@ -982,7 +982,7 @@ O fluxo acima é o da tela única, até a Etapa 9. **Desde a Etapa 10**, o check
 
 **Fluxo principal:**
 1. Na tela de login (UC01), o ator toca em "Modo demonstração" no topo (se já houver data ativa, a faixa "Modo demonstração · dd/mm/aaaa" mostra "alterar").
-2. O sistema abre o painel "Modo demonstração" com o campo "Data da demonstração" (a data ativa ou hoje), a opção "Voltar ao real", o aviso "Isto apaga clientes, contatos, visitas, pedidos, lembretes, campanhas e metas e recria a demonstração nessa data. As contas de acesso são mantidas." e o campo "Senha da conta Gestão".
+2. O sistema abre o painel "Modo demonstração" com o campo "Data da demonstração" (a data ativa ou hoje), a opção "Voltar ao real", o aviso "Isto apaga os clientes da demonstração (com contatos, visitas, pedidos e lembretes), as campanhas e as metas e recria a demonstração nessa data. Os clientes reais (cadastrados à mão ou pela nota) e as contas de acesso são mantidos." e o campo "Senha da conta Gestão".
 3. O ator escolhe a data, informa a senha e toca em "Aplicar".
 4. O sistema autentica a conta Gestão, grava a data (`POST /sistema/demonstracao`) e recria a demonstração em volta dela, numa transação: o seed gerador cria os clientes das rotas, 13 semanas de visitas, 2 visitas marcadas por representante em cada dia útil dos próximos 23 dias, pedidos, lembretes, mensagens de estoque, campanhas e metas da época (recomenda-se recriar depois das 9h). Durante a recriação, o painel mostra "Recriando a demonstração…".
 5. O sistema fecha o painel e mostra o aviso "Demonstração recriada em dd/mm/aaaa"; a faixa "Modo demonstração · dd/mm/aaaa" passa a aparecer em todas as telas, e as cores, a agenda, as campanhas e as sugestões sazonais seguem a data escolhida.

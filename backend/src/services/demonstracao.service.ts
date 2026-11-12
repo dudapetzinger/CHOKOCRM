@@ -17,8 +17,9 @@ import { conferirCredenciais } from './auth.service';
  * público): confere e-mail e senha (`conferirCredenciais`, a mesma checagem
  * do login, sem emitir token), exige a conta Gestão ativa, grava a data (ou a
  * limpa, com `null`) e recria a demonstração nessa data com
- * `reiniciarDemonstracao` (apaga clientes, visitas, pedidos etc. e mantém as
- * contas). Uma recriação por vez: um mutex em memória (a API roda numa
+ * `reiniciarDemonstracao` (apaga só os clientes da demonstração, com visitas,
+ * pedidos etc., e mantém os clientes reais e as contas). Uma recriação por vez:
+ * um mutex em memória (a API roda numa
  * instância só) recusa a segunda chamada com 409 até a primeira terminar,
  * dando certo ou não. O mutex é tomado depois da autenticação, então quem não
  * sabe a senha não descobre se há uma recriação em andamento. Se a recriação

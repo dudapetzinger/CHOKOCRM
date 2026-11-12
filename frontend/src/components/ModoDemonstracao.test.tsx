@@ -27,7 +27,7 @@ const SIMULADO: Relogio = {
   deslocamentoDias: 126,
 };
 const AVISO =
-  'Isto apaga clientes, contatos, visitas, pedidos, lembretes, campanhas e metas e recria a demonstração nessa data. As contas de acesso são mantidas.';
+  'Isto apaga os clientes da demonstração (com contatos, visitas, pedidos e lembretes), as campanhas e as metas e recria a demonstração nessa data. Os clientes reais (cadastrados à mão ou pela nota) e as contas de acesso são mantidos.';
 
 let usuario: ReturnType<typeof userEvent.setup>;
 
