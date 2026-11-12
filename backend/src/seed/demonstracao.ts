@@ -1373,6 +1373,35 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
 }
 
 /**
+ * Depois de recriar os clientes: liga cada nota sem cliente ao cliente de mesmo
+ * CNPJ (quando existe) e marca as que seguem sem cliente como `SEM_CLIENTE`.
+ */
+async function religarNotasOrfas(tx: Banco): Promise<void> {
+  const orfas = await tx.erpSale.findMany({
+    where: { clientId: null },
+    select: { destinatarioCnpj: true },
+    distinct: ['destinatarioCnpj'],
+  });
+  const cnpjs = orfas.map((nota) => nota.destinatarioCnpj);
+  const clientes = await tx.client.findMany({ where: { cnpj: { in: cnpjs } }, select: { id: true, cnpj: true } });
+  for (const cliente of clientes) {
+    await tx.erpSale.updateMany({
+      where: { clientId: null, destinatarioCnpj: cliente.cnpj },
+      data: { clientId: cliente.id },
+    });
+    // A nota que estava "sem cliente" e ganhou cliente volta a "só no ERP, sem visita".
+    await tx.erpSale.updateMany({
+      where: { clientId: cliente.id, vinculoStatus: 'SEM_CLIENTE' },
+      data: { vinculoStatus: 'SEM_VISITA' },
+    });
+  }
+  await tx.erpSale.updateMany({
+    where: { clientId: null },
+    data: { vinculoStatus: 'SEM_CLIENTE', visitaSugeridaId: null },
+  });
+}
+
+/**
  * Renova a demonstração (`npm run db:seed:reset` ou o "Modo demonstração" da
  * tela de login), numa transação só: se algo falhar no meio (inclusive no
  * `semear`), nada é apagado. Apaga, nesta ordem (quem depende antes de quem é
@@ -1389,6 +1418,11 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
  * Antes de apagar as visitas, as notas vinculadas (`AUTOMATICO`, `VINCULADA`)
  * ou pendentes voltam a `SEM_VISITA`, sem visita sugerida: a visita delas some,
  * e uma reimportação decide o vínculo de novo. As `RECUSADA` ficam como estão.
+ * Apagar os clientes deixa as notas sem cliente (`SetNull`); no fim da
+ * transação, depois do `semear`, a nota cujo CNPJ voltou a ter cliente é
+ * religada a ele (segue alimentando a ficha, pela regra do híbrido) e a que
+ * continua sem cliente vira `SEM_CLIENTE`, sem visita sugerida, para aparecer
+ * em "CNPJs sem cliente no CRM".
  */
 export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): Promise<void> {
   await prisma.$transaction(
@@ -1410,6 +1444,7 @@ export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): P
       await tx.campaign.deleteMany();
 
       await semear(tx, hoje);
+      await religarNotasOrfas(tx);
     },
     { timeout: PRAZO_DA_TRANSACAO_MS, maxWait: 10_000 },
   );

@@ -118,7 +118,7 @@ Protótipo estático das telas principais — login, lista de clientes com as co
 
 React 19 com Vite e TypeScript no frontend, com Tailwind CSS 4, componentes shadcn (Radix), ícones lucide e `vite-plugin-pwa` no app instalável; Node.js 22 com Express 5 e TypeScript no backend; PostgreSQL 16 com Prisma como ORM; autenticação por JWT; Docker Compose no ambiente de desenvolvimento; GitHub Actions na integração e na entrega contínuas; Azure na produção.
 
-A integração com o ERP da Senior é feita por trás de uma interface substituível (`ErpProvider`), com duas implementações — a simulada, de desenvolvimento, e a das notas fiscais importadas em PDF (Etapa 12; a produção usa a simulada nesta fase de demonstração) — enquanto a API real não é consumida. As mensagens de consulta de estoque **não** usam a API oficial do WhatsApp: o sistema gera o texto e o link `wa.me`, e o envio é feito manualmente pelo representante — a justificativa está no [ADR-005](docs/arquitetura.md#adr-005--mensagem-de-estoque-via-link-wame).
+A integração com o ERP da Senior é feita por trás de uma interface substituível (`ErpProvider`), com três implementações — a simulada, a das notas fiscais importadas em PDF (Etapa 12) e a híbrida, que escolhe uma fonte por cliente pelo CNPJ (`hibrido`, o padrão e o valor de produção desde 11/11/2026) — enquanto a API real não é consumida. As mensagens de consulta de estoque **não** usam a API oficial do WhatsApp: o sistema gera o texto e o link `wa.me`, e o envio é feito manualmente pelo representante — a justificativa está no [ADR-005](docs/arquitetura.md#adr-005--mensagem-de-estoque-via-link-wame).
 
 ## 9. Como executar localmente
 
