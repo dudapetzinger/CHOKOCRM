@@ -222,12 +222,6 @@ function AgendaDoDia({ representanteId, mostrarRoteiro }: { representanteId?: st
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">
-        Clientes com visita atrasada ou prevista para hoje, priorizados pela cor de classificação — vermelho e
-        laranja antes de amarelo e verde —, e os previstos para os próximos 7 dias. Os lembretes vencidos ou para
-        hoje vêm à parte, para concluir.
-      </p>
-
       {isLoading && <p className="text-sm text-muted-foreground">Carregando agenda...</p>}
 
       {/* Com a agenda já carregada, o erro de um refetch (rede caída) vira só

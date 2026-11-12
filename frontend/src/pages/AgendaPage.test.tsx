@@ -173,6 +173,13 @@ describe('AgendaPage (celular)', () => {
     expect(screen.queryByText('Nenhuma visita atrasada ou prevista para hoje.')).not.toBeInTheDocument();
   });
 
+  it('a agenda do dia não traz o parágrafo explicativo de cores e prioridades', async () => {
+    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [] });
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 1' })).toBeInTheDocument();
+    expect(screen.queryByText(/priorizados pela cor de classificação/)).not.toBeInTheDocument();
+  });
+
   it('"Visita prevista venceu há 1 dia" usa o singular', async () => {
     renderizarComo('REPRESENTANTE', { atrasadas: [{ ...ATRASADA, diasAtraso: 1 }], hoje: [] });
 

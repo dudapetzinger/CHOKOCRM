@@ -2,12 +2,15 @@
  * "Ranking dos representantes" do Painel (Etapa 9, spec 6.6; só o gestor, com
  * "Todos os representantes"): três listas numeradas, de visitas, de conversão
  * em vendas e de receita no período, lado a lado a partir de 1280 px e
- * empilhadas abaixo. Cada item tem a posição, o primeiro nome, o valor e uma
+ * empilhadas abaixo. Cada lista é um cartão (section com borda) com título
+ * maior e um ícone; o 1º lugar ganha destaque (posição em círculo cheio,
+ * barra na cor primária e valor em negrito). Cada item tem a posição, o primeiro nome, o valor e uma
  * barra (só visual) proporcional ao primeiro colocado. Ordem decrescente,
  * empate pelo nome; na conversão, quem não visitou (sem percentual) vai para
  * o fim com "—". Todo representante aparece, mesmo zerado. Sem balão: os
  * números já estão no texto.
  */
+import { Banknote, CalendarCheck, Target, type LucideIcon } from 'lucide-react';
 import { contar } from '@/lib/contar';
 import { formatarMoeda } from '@/lib/formatarMoeda';
 import { formatarPercentual } from '@/lib/formatarPercentual';
@@ -19,6 +22,7 @@ type Colocado = { id: string; nome: string; valor: number | null; texto: string 
 
 type Lista = {
   titulo: string;
+  icone: LucideIcon;
   ariaLabel: string;
   valor: (representante: KpiRepresentante) => number | null;
   formatar: (valor: number) => string;
@@ -27,18 +31,21 @@ type Lista = {
 const LISTAS: Lista[] = [
   {
     titulo: 'Visitas',
+    icone: CalendarCheck,
     ariaLabel: 'Ranking de visitas',
     valor: ({ visitas }) => visitas,
     formatar: (visitas) => contar(visitas, 'visita'),
   },
   {
     titulo: 'Conversão em vendas',
+    icone: Target,
     ariaLabel: 'Ranking de conversão',
     valor: ({ conversaoEmVendas }) => conversaoEmVendas.percentual,
     formatar: (percentual) => formatarPercentual(percentual),
   },
   {
     titulo: 'Receita',
+    icone: Banknote,
     ariaLabel: 'Ranking de receita',
     valor: ({ receita }) => receita,
     formatar: formatarMoeda,
@@ -67,22 +74,36 @@ function ordenar(representantes: KpiRepresentante[], { valor, formatar }: Lista)
 function ListaDoRanking({ representantes, lista }: { representantes: KpiRepresentante[]; lista: Lista }) {
   const colocados = ordenar(representantes, lista);
   const primeiro = colocados[0]?.valor ?? 0;
+  const Icone = lista.icone;
 
   return (
-    <div className="@container min-w-0">
-      <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{lista.titulo}</h3>
+    <section className="@container min-w-0 rounded-lg border bg-card p-4">
+      <h3 className="mb-3 flex items-center gap-2 text-base font-semibold">
+        <Icone aria-hidden="true" className="size-4 text-muted-foreground" />
+        {lista.titulo}
+      </h3>
       <ol aria-label={lista.ariaLabel} className="space-y-3">
         {colocados.map((colocado, indice) => (
           <li key={colocado.id} className="grid grid-cols-[1.75rem_minmax(0,1fr)] text-sm">
-            <span className="text-muted-foreground tabular-nums">{indice + 1}º</span>
+            <span
+              className={
+                indice === 0
+                  ? 'flex size-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground tabular-nums'
+                  : 'text-muted-foreground tabular-nums'
+              }
+            >
+              {indice + 1}º
+            </span>
             {/* Estreita (três listas lado a lado), o valor desce para baixo do nome em todos os itens */}
             <div className="flex min-w-0 flex-col @min-[14rem]:flex-row @min-[14rem]:items-baseline @min-[14rem]:justify-between @min-[14rem]:gap-x-2">
               <span className="font-medium break-words">{colocado.nome}</span>
-              <span className="text-muted-foreground tabular-nums">{colocado.texto}</span>
+              <span className={indice === 0 ? 'font-semibold tabular-nums' : 'text-muted-foreground tabular-nums'}>
+                {colocado.texto}
+              </span>
             </div>
             <div aria-hidden="true" className="col-start-2 mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-chart"
+                className={`h-full rounded-full ${indice === 0 ? 'bg-primary' : 'bg-chart'}`}
                 style={{
                   width: `${primeiro > 0 && colocado.valor !== null ? Math.round((colocado.valor / primeiro) * 100) : 0}%`,
                 }}
@@ -91,7 +112,7 @@ function ListaDoRanking({ representantes, lista }: { representantes: KpiRepresen
           </li>
         ))}
       </ol>
-    </div>
+    </section>
   );
 }
 

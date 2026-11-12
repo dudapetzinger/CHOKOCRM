@@ -103,6 +103,30 @@ describe('Ranking', () => {
     expect(largurasDa('Ranking de conversão')).toEqual(['100%', '100%', '48%', '0%']);
   });
 
+  it('cada lista é uma section com título em h3', () => {
+    render(<Ranking representantes={DADOS} />);
+
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      'Visitas',
+      'Conversão em vendas',
+      'Receita',
+    ]);
+    for (const lista of ['Ranking de visitas', 'Ranking de conversão', 'Ranking de receita']) {
+      expect(screen.getByRole('list', { name: lista }).closest('section')).not.toBeNull();
+    }
+  });
+
+  it('só o primeiro colocado tem a barra e a posição em destaque', () => {
+    render(<Ranking representantes={DADOS} />);
+
+    const itens = within(screen.getByRole('list', { name: 'Ranking de visitas' })).getAllByRole('listitem');
+    const barra = (item: HTMLElement) => item.querySelector('[aria-hidden="true"] > div') as HTMLElement;
+    expect(barra(itens[0]).className).toContain('bg-primary');
+    expect(itens[0].querySelector('.bg-primary.text-primary-foreground')).not.toBeNull();
+    expect(barra(itens[1]).className).toContain('bg-chart');
+    expect(itens[1].querySelector('.bg-primary')).toBeNull();
+  });
+
   it('sem representantes, diz que não há dados no período', () => {
     render(<Ranking representantes={[]} />);
 
