@@ -10,7 +10,7 @@ import { useAuth } from './useAuth';
 const SALVO: UsuarioAutenticado = {
   id: 'g1',
   nome: 'Marina Gestora',
-  email: 'gestao@chokolaten.com.br',
+  usuario: 'gestao',
   telefone: null,
   role: 'GESTOR',
   ativo: true,

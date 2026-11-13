@@ -8,7 +8,7 @@ import { useRepresentante } from './useRepresentante';
 const GESTOR: UsuarioAutenticado = {
   id: 'g1',
   nome: 'Gestor',
-  email: 'gestor@exemplo.com',
+  usuario: 'gestor',
   role: 'GESTOR',
   telefone: null,
   ativo: true,
@@ -16,7 +16,7 @@ const GESTOR: UsuarioAutenticado = {
 const OUTRO_GESTOR: UsuarioAutenticado = {
   id: 'g2',
   nome: 'Outro',
-  email: 'outro@exemplo.com',
+  usuario: 'outro',
   role: 'GESTOR',
   telefone: null,
   ativo: true,

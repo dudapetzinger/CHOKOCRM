@@ -46,13 +46,13 @@ const cliente: ClienteCompleto = {
 /** Cliente criado pelo gestor a partir da nota fiscal: sem e-mail, sem contatos e, às vezes, sem telefone e cidade. */
 const clienteDaNota: ClienteCompleto = { ...cliente, email: null, telefone: '', cidade: '', contatos: [] };
 
-function renderizar(dados: ClienteCompleto = cliente) {
+function renderizar(dados: ClienteCompleto = cliente, podeInativar = true) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <DadosCadastrais cliente={dados} />
+      <DadosCadastrais cliente={dados} podeInativar={podeInativar} />
       <Toaster />
     </QueryClientProvider>,
   );
@@ -77,6 +77,33 @@ describe('DadosCadastrais', () => {
     expect(screen.getByRole('button', { name: 'Editar dados' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Inativar cliente' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Adicionar contato' })).toBeInTheDocument();
+  });
+
+  it('"Inativar cliente" e "Reativar cliente" são só do gestor', () => {
+    const { unmount } = renderizar(cliente, false);
+    expect(screen.getByRole('button', { name: 'Editar dados' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Inativar cliente' })).not.toBeInTheDocument();
+    unmount();
+
+    renderizar({ ...cliente, ativo: false }, false);
+    expect(screen.queryByRole('button', { name: 'Reativar cliente' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Inativar cliente' })).not.toBeInTheDocument();
+  });
+
+  it('o gestor reativa o cliente inativo', () => {
+    renderizar({ ...cliente, ativo: false }, true);
+
+    expect(screen.getByRole('button', { name: 'Reativar cliente' })).toBeInTheDocument();
+  });
+
+  it('mostra a cor rebaixada por falta de compra só no cliente ativo', () => {
+    const rebaixado = { ...cliente, rebaixadoPorVenda: true, diasSemCompra: 70 };
+    const { unmount } = renderizar(rebaixado);
+    expect(screen.getByText('Cor rebaixada: sem compra há 70 dias')).toBeInTheDocument();
+    unmount();
+
+    renderizar({ ...rebaixado, ativo: false });
+    expect(screen.queryByText(/Cor rebaixada/)).not.toBeInTheDocument();
   });
 
   it('"Adicionar contato" vem depois da lista e abre o formulário no lugar do botão', async () => {

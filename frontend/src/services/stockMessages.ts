@@ -1,6 +1,6 @@
 /**
- * Acesso tipado à mensagem de consulta de estoque. Espelha
- * os DTOs de `backend/src/services/stock-message.service.ts`.
+ * Acesso tipado à proposta da mensagem de consulta de estoque (nada é gravado).
+ * Espelha o DTO de `backend/src/services/stock-message.service.ts`.
  */
 import { api } from './api';
 
@@ -12,34 +12,6 @@ export type Proposta = {
   textosSugeridos: { contactId: string | null; texto: string }[];
 };
 
-export type MensagemEstoque = {
-  id: string;
-  dataGeracao: string;
-  textoFinal: string;
-  autor: { id: string; nome: string };
-  evento: { id: string; nome: string } | null;
-  cliente: { id: string; nomeFantasia: string };
-};
-
-export type Geracao = MensagemEstoque & {
-  contato: { id: string; nome: string } | null;
-  telefone: string;
-  link: string;
-};
-
 export function buscarProposta(clienteId: string): Promise<Proposta> {
   return api.get<Proposta>(`/clients/${clienteId}/stock-message/proposta`);
-}
-
-export function gerarMensagem(
-  clienteId: string,
-  input: { texto: string; contactId?: string },
-): Promise<Geracao> {
-  return api.post<Geracao>(`/clients/${clienteId}/stock-message`, input);
-}
-
-export function listarMensagens(clienteId: string): Promise<MensagemEstoque[]> {
-  return api
-    .get<{ data: MensagemEstoque[] }>(`/stock-messages?clientId=${clienteId}`)
-    .then((resposta) => resposta.data);
 }

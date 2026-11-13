@@ -20,9 +20,9 @@ export function useDadosErp(clienteId: string | undefined) {
 }
 
 /**
- * Catálogo para o pedido do check-in. Muda pouco: fica 10 min
- * em cache. Com o retry padrão: sem o catálogo a representante não monta o
- * pedido, então vale tentar de novo antes de mostrar o erro.
+ * Catálogo de produtos do ERP, usado nas campanhas. Muda pouco: fica 10 min
+ * em cache. Com o retry padrão: sem o catálogo não há o que escolher na
+ * campanha, então vale tentar de novo antes de mostrar o erro.
  */
 export function useProdutos() {
   return useQuery({

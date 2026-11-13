@@ -27,7 +27,7 @@ const SIMULADO: Relogio = {
   deslocamentoDias: 126,
 };
 const AVISO =
-  'Isto apaga os clientes da demonstração (com contatos, visitas, pedidos e lembretes), as campanhas e as metas e recria a demonstração nessa data. Os clientes reais (cadastrados à mão ou pela nota) e as contas de acesso são mantidos.';
+  'Isto apaga os clientes da demonstração (com contatos, visitas e lembretes), as campanhas e as metas e recria a demonstração nessa data. Os clientes reais (criados pela nota fiscal) e as contas de acesso são mantidos.';
 
 let usuario: ReturnType<typeof userEvent.setup>;
 
@@ -91,7 +91,7 @@ describe('ModoDemonstracao', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('o painel abre com os textos exatos, a data de hoje, o e-mail da Gestão e o foco na data', async () => {
+  it('o painel abre com os textos exatos, a data de hoje, o usuário da Gestão e o foco na data', async () => {
     renderizar();
 
     const painel = await abrirPainel();
@@ -106,12 +106,12 @@ describe('ModoDemonstracao', () => {
     expect(within(painel).getByText(AVISO)).toBeInTheDocument();
     const senha = within(painel).getByLabelText('Senha da conta Gestão');
     expect(senha).toHaveAttribute('type', 'password');
-    expect(senha).toHaveAccessibleDescription(/gestao@chokolaten\.com\.br/);
+    expect(senha).toHaveAccessibleDescription('Conta: gestao');
     expect(within(painel).getByRole('button', { name: 'Aplicar' })).toBeEnabled();
     expect(within(painel).getByRole('button', { name: 'Cancelar' })).toBeEnabled();
   });
 
-  it('"Aplicar" com data e senha chama definirDemonstracao com o e-mail da Gestão; toast, fecha e a faixa aparece', async () => {
+  it('"Aplicar" com data e senha chama definirDemonstracao com o usuário da Gestão; toast, fecha e a faixa aparece', async () => {
     const { espiaoInvalidar } = renderizar();
     await abrirPainel();
 
@@ -119,7 +119,7 @@ describe('ModoDemonstracao', () => {
 
     expect(definirDemonstracao).toHaveBeenCalledWith({
       data: '2027-03-15',
-      email: 'gestao@chokolaten.com.br',
+      usuario: 'gestao',
       senha: 'segredo123',
     });
     expect(await screen.findByText('Demonstração recriada em 15/03/2027')).toBeInTheDocument();
@@ -141,7 +141,7 @@ describe('ModoDemonstracao', () => {
 
     expect(definirDemonstracao).toHaveBeenCalledWith({
       data: null,
-      email: 'gestao@chokolaten.com.br',
+      usuario: 'gestao',
       senha: 'segredo123',
     });
     expect(await screen.findByText('Modo demonstração desligado')).toBeInTheDocument();
@@ -186,7 +186,7 @@ describe('ModoDemonstracao', () => {
   });
 
   it.each([
-    ['UNAUTHORIZED', 'E-mail ou senha inválidos'],
+    ['UNAUTHORIZED', 'Usuário ou senha inválidos'],
     ['FORBIDDEN', 'Só a conta Gestão pode fazer isso.'],
     ['CONFLICT', 'Já existe uma recriação em andamento.'],
   ])('erro %s mostra a mensagem da API no painel, que continua aberto', async (codigo, mensagem) => {

@@ -4,8 +4,10 @@
  * chamam a API diretamente (ver docs/arquitetura.md).
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { buscarFoto, editarDescricao, enviarFoto, listarVisitas } from '../services/visits';
-import type { Visita } from '../services/visits';
+import { buscarFoto, editarVisita, enviarFoto, listarVisitas } from '../services/visits';
+import type { ResultadoVisita, Visita } from '../services/visits';
+
+type DadosDaEdicao = { descricao?: string; resultado?: ResultadoVisita };
 
 function chaveDasVisitas(clienteId: string | undefined) {
   return ['client', clienteId, 'visits'];
@@ -19,14 +21,22 @@ export function useVisitas(clienteId: string | undefined) {
   });
 }
 
-export function useEditarDescricaoVisita(clienteId: string | undefined) {
+export function useEditarVisita(clienteId: string | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ visitaId, descricao }: { visitaId: string; descricao: string }): Promise<Visita> =>
-      editarDescricao(visitaId, descricao),
+    mutationFn: ({ visitaId, dados }: { visitaId: string; dados: DadosDaEdicao }): Promise<Visita> =>
+      editarVisita(visitaId, dados),
     onSuccess: () => {
+      // A cor do cliente depende do resultado da última visita, então a ficha,
+      // a lista, a agenda, as campanhas, as metas e o painel também mudam.
       queryClient.invalidateQueries({ queryKey: chaveDasVisitas(clienteId) });
+      queryClient.invalidateQueries({ queryKey: ['client', clienteId] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['agenda'] });
+      queryClient.invalidateQueries({ queryKey: ['campanhas'] });
+      queryClient.invalidateQueries({ queryKey: ['metas'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

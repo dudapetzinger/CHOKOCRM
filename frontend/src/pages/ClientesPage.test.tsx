@@ -23,6 +23,9 @@ vi.mock('../hooks/useRepresentantes', () => ({
   useRepresentantes: () => ({ data: [] }),
 }));
 
+const MENSAGEM_CARTEIRA_VAZIA =
+  'Nenhum cliente na carteira. Os clientes entram pela importação das notas fiscais, feita pela gestão.';
+
 const CLIENTE: ClienteListItem = {
   id: 'c1',
   nomeFantasia: 'Doces da Vovó',
@@ -39,13 +42,13 @@ const CLIENTE: ClienteListItem = {
 
 function renderizar(role: Role = 'REPRESENTANTE') {
   const auth = {
-    user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role, telefone: null, ativo: true },
+    user: { id: 'u1', nome: 'Usuário', usuario: 'usuario', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(async () => {}),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const arvore = (
+  const montarArvore = () => (
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={auth}>
         <MemoryRouter initialEntries={['/clientes']}>
@@ -54,8 +57,9 @@ function renderizar(role: Role = 'REPRESENTANTE') {
       </AuthContext.Provider>
     </QueryClientProvider>
   );
-  const { rerender } = render(arvore);
-  return { queryClient, renderizarDeNovo: () => rerender(arvore) };
+  const { rerender, unmount } = render(montarArvore());
+  // Elemento novo a cada chamada: com o mesmo elemento o React não renderiza de novo.
+  return { queryClient, renderizarDeNovo: () => rerender(montarArvore()), unmount };
 }
 
 afterEach(() => {
@@ -69,24 +73,23 @@ describe('ClientesPage', () => {
     simularLargura(1024);
     renderizar();
 
-    expect(await screen.findByText('Nenhum cliente cadastrado ainda.')).toBeInTheDocument();
+    expect(await screen.findByText(MENSAGEM_CARTEIRA_VAZIA)).toBeInTheDocument();
     expect(screen.getByText('Selecione um cliente')).toBeInTheDocument();
   });
 
-  it('no tablet (900 px), só a lista, com "Novo cliente" na barra de ferramentas', async () => {
+  it('no tablet (900 px), só a lista', async () => {
     simularLargura(900);
     renderizar('REPRESENTANTE');
 
-    expect(await screen.findByText('Nenhum cliente cadastrado ainda.')).toBeInTheDocument();
+    expect(await screen.findByText(MENSAGEM_CARTEIRA_VAZIA)).toBeInTheDocument();
     expect(screen.queryByText('Selecione um cliente')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Novo cliente' })).toHaveLength(1);
   });
 
   it('no celular, mostra só a lista', async () => {
     simularLargura(false);
     renderizar();
 
-    expect(await screen.findByText('Nenhum cliente cadastrado ainda.')).toBeInTheDocument();
+    expect(await screen.findByText(MENSAGEM_CARTEIRA_VAZIA)).toBeInTheDocument();
     expect(screen.queryByText('Selecione um cliente')).not.toBeInTheDocument();
   });
 
@@ -99,32 +102,17 @@ describe('ClientesPage', () => {
     expect(screen.queryByText('Buscar cliente')).not.toBeInTheDocument();
   });
 
-  it('no desktop, o representante tem "Novo cliente" na barra de ferramentas, ao lado da busca, sem botão flutuante', async () => {
-    simularLargura(true);
-    renderizar('REPRESENTANTE');
-
-    const novo = await screen.findByRole('link', { name: 'Novo cliente' });
-    expect(novo).toHaveAttribute('href', '/clientes/novo');
-    expect(screen.getAllByRole('link', { name: 'Novo cliente' })).toHaveLength(1);
-    // Na mesma barra da busca e da legenda
-    const barra = screen.getByRole('button', { name: 'Legenda das situações' }).parentElement;
-    expect(barra).toContainElement(novo);
-    expect(barra).toContainElement(screen.getByRole('searchbox', { name: 'Buscar cliente' }));
-  });
-
-  it('no celular, o representante tem só o botão flutuante "Novo cliente", depois da lista', async () => {
-    simularLargura(false);
+  it('ninguém cadastra cliente pela lista: nem o representante, no desktop ou no celular, vê "Novo cliente"', async () => {
     vi.mocked(listClients).mockResolvedValue([CLIENTE]);
-    renderizar('REPRESENTANTE');
+    for (const largura of [true, false]) {
+      simularLargura(largura);
+      const { unmount } = renderizar('REPRESENTANTE');
 
-    const linha = await screen.findByRole('link', { name: /Doces da Vovó/ });
-    const novo = screen.getByRole('link', { name: 'Novo cliente' });
-    expect(novo).toHaveAttribute('href', '/clientes/novo');
-    expect(screen.getAllByRole('link', { name: 'Novo cliente' })).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Legenda das situações' }).parentElement).not.toContainElement(novo);
-    expect(linha.compareDocumentPosition(novo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Acima da barra inferior e do botão central de check-in, elevado 24 px sobre ela.
-    expect(novo).toHaveClass('bottom-[calc(6.5rem+env(safe-area-inset-bottom))]');
+      await screen.findByRole('link', { name: /Doces da Vovó/ });
+      expect(screen.queryByRole('link', { name: 'Novo cliente' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Novo cliente' })).not.toBeInTheDocument();
+      unmount();
+    }
   });
 
   it('a legenda (?) abre com as frases do app sobre as situações', async () => {
@@ -138,14 +126,7 @@ describe('ClientesPage', () => {
     expect(screen.getByText('Vencendo: 16 a 30 dias sem visita.')).toBeInTheDocument();
     expect(screen.getByText('Atrasado: mais de 30 dias ou nunca visitado.')).toBeInTheDocument();
     expect(screen.getByText('Cliente sem compra no ERP há mais de 60 dias cai para Vencendo.')).toBeInTheDocument();
-  });
-
-  it('o gestor não vê "Novo cliente"', async () => {
-    simularLargura(true);
-    renderizar('GESTOR');
-
-    expect(await screen.findByText('Nenhum cliente cadastrado ainda.')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Novo cliente' })).not.toBeInTheDocument();
+    expect(screen.getByText('Inativo: inativado pela gestão, sem cor; aparece só na aba Todos.')).toBeInTheDocument();
   });
 
   it('gestor com "Todos" vê de qual representante é cada cliente', async () => {
@@ -165,7 +146,7 @@ describe('ClientesPage', () => {
 
     expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
     expect(screen.queryByText(/Rep\.:/)).not.toBeInTheDocument();
-    expect(listClients).toHaveBeenCalledWith({ search: undefined, representanteId: 'r1' });
+    expect(listClients).toHaveBeenCalledWith({ search: undefined, representanteId: 'r1', ativo: 'todos' });
   });
 
   it('trocar de representante no seletor escolhe de novo a aba padrão com a carteira dele', async () => {
@@ -184,6 +165,99 @@ describe('ClientesPage', () => {
 
     expect(await screen.findByText('Padaria Estrela')).toBeInTheDocument();
     expect(screen.queryByText('Nenhum cliente nesta aba.')).not.toBeInTheDocument();
+  });
+
+  describe('clientes inativos', () => {
+    const ATIVO_VERDE: ClienteListItem = {
+      ...CLIENTE,
+      id: 'c2',
+      nomeFantasia: 'Padaria Estrela',
+      cor: 'VERDE',
+      diasSemVisita: 3,
+    };
+    const INATIVO_B: ClienteListItem = { ...CLIENTE, id: 'c3', nomeFantasia: 'Zé Doces', ativo: false };
+    const INATIVO_A: ClienteListItem = { ...CLIENTE, id: 'c4', nomeFantasia: 'Armazém Antigo', ativo: false };
+
+    it('a lista busca sempre com os inativos', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockResolvedValue([CLIENTE]);
+      renderizar();
+
+      await screen.findByText('Doces da Vovó');
+      expect(listClients).toHaveBeenCalledWith({ search: undefined, representanteId: undefined, ativo: 'todos' });
+      // Com a busca vazia, a lista e as cidades dividem a mesma consulta
+      expect(listClients).toHaveBeenCalledTimes(1);
+    });
+
+    it('o inativo aparece só em Todos, com "Inativo" e sem a frase de situação, depois dos ativos e por nome', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockResolvedValue([INATIVO_B, CLIENTE, INATIVO_A, ATIVO_VERDE]);
+      renderizar();
+
+      // Prioridade (aba inicial): só o ativo vermelho
+      expect(await screen.findByText('Doces da Vovó')).toBeInTheDocument();
+      expect(screen.queryByText('Zé Doces')).not.toBeInTheDocument();
+      expect(screen.queryByText('Armazém Antigo')).not.toBeInTheDocument();
+      expect(screen.queryByText('Inativo')).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: /^Em dia · / }));
+      expect(screen.getByText('Padaria Estrela')).toBeInTheDocument();
+      expect(screen.queryByText('Zé Doces')).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: /^Todos · / }));
+      const nomes = screen
+        .getAllByRole('link')
+        .map((link) => link.textContent ?? '')
+        .filter((texto) => /Doces da Vovó|Padaria Estrela|Zé Doces|Armazém Antigo/.test(texto));
+      expect(nomes.map((texto) => texto.replace(/Joinville.*/, '').trim())).toEqual([
+        'Doces da Vovó',
+        'Padaria Estrela',
+        'Armazém Antigo',
+        'Zé Doces',
+      ]);
+      expect(screen.getAllByText('Inativo')).toHaveLength(2);
+      const linhaInativa = screen.getByRole('link', { name: /Zé Doces/ });
+      expect(linhaInativa).toHaveTextContent('Inativo');
+      expect(linhaInativa).not.toHaveTextContent(/Nunca visitado|visita há|sem visita/);
+      expect(within(linhaInativa).queryByRole('img')).not.toBeInTheDocument();
+    });
+
+    it('uma cidade só com cliente inativo aparece no select e, escolhida, mostra o cliente em Todos', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockResolvedValue([
+        CLIENTE,
+        { ...INATIVO_B, cidade: 'Rio do Sul' },
+      ]);
+      renderizar();
+
+      const select = await screen.findByRole('combobox', { name: 'Cidade' });
+      await screen.findByText('Doces da Vovó');
+      await waitFor(() =>
+        expect(within(select).getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
+          'Todas as cidades',
+          'Joinville',
+          'Rio do Sul',
+        ]),
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: /^Todos · / }));
+      await userEvent.selectOptions(select, 'Rio do Sul');
+
+      expect(screen.getByText('Zé Doces')).toBeInTheDocument();
+      expect(screen.getByText('Inativo')).toBeInTheDocument();
+      expect(screen.queryByText('Doces da Vovó')).not.toBeInTheDocument();
+    });
+
+    it('as contagens de Prioridade, Atenção e Em dia são só de ativos; a de Todos inclui os inativos', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockResolvedValue([INATIVO_B, CLIENTE, INATIVO_A, ATIVO_VERDE]);
+      renderizar();
+
+      expect(await screen.findByRole('button', { name: 'Prioridade · 1' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Atenção · 0' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Em dia · 1' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Todos · 4' })).toBeInTheDocument();
+    });
   });
 
   describe('filtro por cidade', () => {

@@ -34,8 +34,8 @@
  *     DANFE; as notas do CNPJ passam ao cliente novo e o item some. Serve às
  *     notas de importações anteriores (as de agora ganham o cliente no fecho);
  *   - "Pendências": notas com uma visita sugerida, à espera de o gestor
- *     vincular ou deixar só no ERP; a linha avisa que os itens do pedido
- *     passam a ser os da nota e, se a visita não é Venda, que ela passa a ser;
+ *     vincular ou deixar só no ERP; a linha avisa que os produtos e o total
+ *     da nota passam a aparecer na visita e, se a visita não é Venda, que ela passa a ser;
  *   - "Importações anteriores": as últimas 20, cada uma com as suas notas e o
  *     estado do vínculo hoje ("Vinculada à visita", "Pendente" ou "Só no
  *     ERP"); a nota vinculada tem "Desvincular", a mesma ação do
@@ -382,7 +382,7 @@ function LinhaPendente({ nota }: { nota: Nota }) {
         <p className="text-muted-foreground">
           {visita.resultado !== 'VENDA' &&
             `A visita de ${diaMes(visita.dataHora)}${visita.resultado ? ` (${ROTULO_RESULTADO[visita.resultado]})` : ''} passa a contar como Venda. `}
-          Os itens do pedido passam a ser os da nota.
+          Os produtos e o total da nota passam a aparecer na visita.
         </p>
       )}
     </li>

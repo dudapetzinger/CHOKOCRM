@@ -192,8 +192,8 @@ function renderizarComo(role: 'GESTOR' | 'REPRESENTANTE', url = '/painel') {
   const auth = {
     user:
       role === 'GESTOR'
-        ? { id: 'g1', nome: 'Gestão Chokolaten', email: 'gestor@exemplo.com', role, telefone: null, ativo: true }
-        : { id: 'u1', nome: 'Eduarda Fischer', email: 'eduarda@exemplo.com', role, telefone: null, ativo: true },
+        ? { id: 'g1', nome: 'Gestão Chokolaten', usuario: 'gestor', role, telefone: null, ativo: true }
+        : { id: 'u1', nome: 'Eduarda Fischer', usuario: 'eduarda', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(async () => {}),
@@ -238,7 +238,7 @@ describe('PainelPage (gestor)', () => {
     ]);
     expect(indicadores).toEqual([
       ['Visitas no período', '12', 'média de 1,7 por cliente'],
-      ['Taxa de registro', '67 %', '2 de 3 clientes com check-in ou mensagem'],
+      ['Taxa de registro', '67 %', '2 de 3 clientes com visita no período'],
       ['Conversão em vendas', '42 %', '5 de 12 visitas com venda'],
       ['Clientes inativos', '1', 'laranja e vermelho, hoje'],
     ]);

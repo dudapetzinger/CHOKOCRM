@@ -83,7 +83,7 @@ function renderizar(
     user: {
       id: role === 'GESTOR' ? 'g1' : 'r1',
       nome: role === 'GESTOR' ? 'Gestão Chokolaten' : 'Eduarda Fischer',
-      email: 'u@exemplo.com',
+      usuario: 'usuario',
       telefone: null,
       role,
       ativo: true,

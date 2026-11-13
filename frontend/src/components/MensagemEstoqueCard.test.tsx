@@ -1,19 +1,12 @@
 import type { ReactElement } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  buscarProposta,
-  gerarMensagem,
-  listarMensagens,
-  type Proposta,
-} from '../services/stockMessages';
+import { buscarProposta, type Proposta } from '../services/stockMessages';
 import { MensagemEstoqueCard } from './MensagemEstoqueCard';
 
 vi.mock('../services/stockMessages', () => ({
   buscarProposta: vi.fn(),
-  gerarMensagem: vi.fn(),
-  listarMensagens: vi.fn(),
 }));
 
 function proposta(sobrescrever: Partial<Proposta> = {}): Proposta {
@@ -33,9 +26,6 @@ let usuario: ReturnType<typeof userEvent.setup>;
 beforeEach(() => {
   usuario = userEvent.setup({ delay: null });
   vi.mocked(buscarProposta).mockReset().mockResolvedValue(proposta());
-  // Pendente: prova que o WhatsApp abre antes de o registro terminar.
-  vi.mocked(gerarMensagem).mockReset().mockReturnValue(new Promise(() => {}));
-  vi.mocked(listarMensagens).mockReset().mockResolvedValue([]);
   vi.spyOn(window, 'open').mockReturnValue(null);
 });
 
@@ -49,30 +39,56 @@ function renderizar(elemento: ReactElement) {
 }
 
 async function abrirFormulario() {
-  renderizar(<MensagemEstoqueCard clienteId="c1" podeGerar />);
+  renderizar(<MensagemEstoqueCard clienteId="c1" />);
   await usuario.click(screen.getByRole('button', { name: 'Gerar mensagem' }));
-  await screen.findByRole('button', { name: 'Confirmar e abrir no WhatsApp' });
+  await screen.findByRole('button', { name: 'Abrir no WhatsApp' });
 }
 
 describe('MensagemEstoqueCard', () => {
-  it('abre o WhatsApp no próprio toque, antes de registrar', async () => {
+  it('não busca nada ao montar e não oferece histórico', () => {
+    renderizar(<MensagemEstoqueCard clienteId="c1" />);
+
+    expect(buscarProposta).not.toHaveBeenCalled();
+    expect(screen.queryByText('Mensagens geradas')).not.toBeInTheDocument();
+  });
+
+  it('abre o WhatsApp no próprio toque, com o texto editado', async () => {
     await abrirFormulario();
 
-    await usuario.click(screen.getByRole('button', { name: 'Confirmar e abrir no WhatsApp' }));
+    await usuario.click(screen.getByRole('button', { name: 'Abrir no WhatsApp' }));
 
     expect(window.open).toHaveBeenCalledWith(
       'https://wa.me/5547999008080?text=Ol%C3%A1%2C%20Marta!%20Aqui%20%C3%A9%20Eduarda.',
       '_blank',
       'noopener',
     );
-    expect(gerarMensagem).toHaveBeenCalledWith('c1', { texto: 'Olá, Marta! Aqui é Eduarda.', contactId: 'ct1' });
+  });
+
+  it('com o principal sem telefone válido, o texto inicial é o do contato escolhido por padrão', async () => {
+    vi.mocked(buscarProposta).mockResolvedValue(
+      proposta({
+        contatos: [
+          { id: 'ct1', nome: 'Marta Hoffmann', telefone: '0800 123 456', principal: true },
+          { id: 'ct2', nome: 'Paulo Reis', telefone: '(47) 98877-6655', principal: false },
+        ],
+        textoSugerido: 'Olá, Marta! Aqui é Eduarda.',
+        textosSugeridos: [
+          { contactId: 'ct1', texto: 'Olá, Marta! Aqui é Eduarda.' },
+          { contactId: 'ct2', texto: 'Olá, Paulo! Aqui é Eduarda.' },
+        ],
+      }),
+    );
+    await abrirFormulario();
+
+    expect(screen.getByLabelText('Enviar para')).toHaveValue('ct2');
+    expect(screen.getByRole('textbox')).toHaveValue('Olá, Paulo! Aqui é Eduarda.');
   });
 
   it('"Telefone do cliente" usa o telefone do cliente no link', async () => {
     await abrirFormulario();
 
     await usuario.selectOptions(screen.getByLabelText('Enviar para'), '');
-    await usuario.click(screen.getByRole('button', { name: 'Confirmar e abrir no WhatsApp' }));
+    await usuario.click(screen.getByRole('button', { name: 'Abrir no WhatsApp' }));
 
     expect(window.open).toHaveBeenCalledWith(
       'https://wa.me/554736331234?text=Ol%C3%A1%2C%20Marta!%20Aqui%20%C3%A9%20Eduarda.',
@@ -81,43 +97,53 @@ describe('MensagemEstoqueCard', () => {
     );
   });
 
-  it('telefone que não serve para o WhatsApp (0800): não abre, mas segue para o registro, que o backend recusa', async () => {
+  it('telefone que não serve para o WhatsApp (0800): não abre e avisa', async () => {
     vi.mocked(buscarProposta).mockResolvedValue(
-      proposta({ contatos: [{ id: 'ct1', nome: 'Marta Hoffmann', telefone: '0800 123 4567', principal: true }] }),
+      proposta({
+        contatos: [{ id: 'ct1', nome: 'Marta Hoffmann', telefone: '0800 123 4567', principal: true }],
+        telefoneCliente: '0800 123 4567',
+      }),
     );
-    vi.mocked(gerarMensagem).mockRejectedValue(new Error('Telefone inválido'));
     await abrirFormulario();
 
-    await usuario.click(screen.getByRole('button', { name: 'Confirmar e abrir no WhatsApp' }));
+    await usuario.click(screen.getByRole('button', { name: 'Abrir no WhatsApp' }));
 
     expect(window.open).not.toHaveBeenCalled();
-    expect(gerarMensagem).toHaveBeenCalledWith('c1', { texto: 'Olá, Marta! Aqui é Eduarda.', contactId: 'ct1' });
-    // O WhatsApp não abriu: o aviso é o de gerar, não o de "abriu mas não registrou".
-    expect(await screen.findByText('Não foi possível gerar a mensagem.')).toBeInTheDocument();
-    expect(screen.queryByText('A mensagem abriu no WhatsApp, mas não ficou registrada.')).not.toBeInTheDocument();
+    expect(await screen.findByText('Este telefone não serve para o WhatsApp.')).toBeInTheDocument();
   });
 
-  it('registro que falha depois de abrir o WhatsApp avisa que abriu mas não ficou registrada', async () => {
-    vi.mocked(gerarMensagem).mockRejectedValue(new Error('falhou'));
+  it('o seletor lista só contatos com telefone válido, o principal primeiro e depois por nome', async () => {
+    vi.mocked(buscarProposta).mockResolvedValue(
+      proposta({
+        contatos: [
+          { id: 'c3', nome: 'Zeca', telefone: '(47) 97777-0000', principal: false },
+          { id: 'c4', nome: 'Sem Fone', telefone: '', principal: false },
+          { id: 'c2', nome: 'Ana', telefone: '(47) 98888-1111', principal: false },
+          { id: 'c1', nome: 'Marta Hoffmann', telefone: '(47) 99900-8080', principal: true },
+        ],
+      }),
+    );
     await abrirFormulario();
 
-    await usuario.click(screen.getByRole('button', { name: 'Confirmar e abrir no WhatsApp' }));
-
-    expect(window.open).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText('A mensagem abriu no WhatsApp, mas não ficou registrada.')).toBeInTheDocument();
-    expect(screen.queryByText('Não foi possível gerar a mensagem.')).not.toBeInTheDocument();
+    const select = screen.getByLabelText('Enviar para');
+    expect(within(select).getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
+      'Marta Hoffmann — (47) 99900-8080',
+      'Ana — (47) 98888-1111',
+      'Zeca — (47) 97777-0000',
+      'Telefone do cliente ((47) 3633-1234)',
+    ]);
+    expect(select).toHaveValue('c1');
   });
 
-  it('com menos de 10 caracteres não abre nem registra', async () => {
+  it('com menos de 10 caracteres não abre', async () => {
     await abrirFormulario();
 
     const texto = screen.getByLabelText('Mensagem');
     await usuario.clear(texto);
     await usuario.type(texto, 'Oi');
-    await usuario.click(screen.getByRole('button', { name: 'Confirmar e abrir no WhatsApp' }));
+    await usuario.click(screen.getByRole('button', { name: 'Abrir no WhatsApp' }));
 
     expect(await screen.findByText('A mensagem deve ter pelo menos 10 caracteres.')).toBeInTheDocument();
     expect(window.open).not.toHaveBeenCalled();
-    expect(gerarMensagem).not.toHaveBeenCalled();
   });
 });

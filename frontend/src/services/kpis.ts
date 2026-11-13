@@ -23,7 +23,7 @@ export type Kpis = {
   taxaDeRegistro: Proporcao;
   conversaoEmVendas: Proporcao;
   inativos: { total: number; distribuicao: DistribuicaoPorCor };
-  /** Nenhuma visita nem mensagem no período. */
+  /** Nenhuma visita no período. */
   semDados: boolean;
   /** Verdadeiro quando os dados de compra usados na cor vêm da fonte simulada. */
   simulado: boolean;

@@ -59,7 +59,7 @@ function Indicadores({ kpis }: { kpis: Kpis }) {
       <Indicador
         rotulo="Taxa de registro"
         valor={formatarProporcao(taxaDeRegistro)}
-        apoio={`${taxaDeRegistro.numerador} de ${taxaDeRegistro.denominador} clientes com check-in ou mensagem`}
+        apoio={`${taxaDeRegistro.numerador} de ${taxaDeRegistro.denominador} clientes com visita no período`}
       />
       <Indicador
         rotulo="Conversão em vendas"
@@ -116,7 +116,7 @@ export function KpisCard({
         >
           {kpis.semDados && (
             <EstadoVazio icone="bar-chart">
-              Nenhuma visita ou mensagem registrada no período — indicadores zerados.
+              Nenhuma visita registrada no período. Os indicadores estão zerados.
             </EstadoVazio>
           )}
           <Indicadores kpis={kpis} />

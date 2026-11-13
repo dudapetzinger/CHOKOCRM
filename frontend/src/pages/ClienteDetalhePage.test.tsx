@@ -56,9 +56,7 @@ vi.mock('../services/insights', () => ({
   buscarInsights: vi.fn(async () => ({ status: 'SEM_ERP_ID' })),
 }));
 vi.mock('../services/stockMessages', () => ({
-  listarMensagens: vi.fn(async () => []),
   buscarProposta: vi.fn(),
-  gerarMensagem: vi.fn(),
 }));
 
 const LEMBRETE: LembreteItem = {
@@ -86,7 +84,7 @@ function renderizar(entrada = '/clientes/c1', state?: unknown, papel: 'REPRESENT
     user: {
       id: 'r1',
       nome: 'Eduarda Fischer',
-      email: 'eduarda@exemplo.com',
+      usuario: 'eduarda',
       role: papel,
       telefone: null,
       ativo: true,
@@ -310,6 +308,21 @@ describe('ClienteDetalhePage', () => {
       expect(dados.compareDocumentPosition(mensagem) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
+    it('o representante com cliente ativo vê o cartão "Mensagem de estoque"', async () => {
+      vi.mocked(getCliente).mockResolvedValue(FICHA);
+      renderizar();
+
+      expect(await screen.findByRole('heading', { name: 'Mensagem de estoque' })).toBeInTheDocument();
+    });
+
+    it('o gestor não vê o cartão "Mensagem de estoque"', async () => {
+      vi.mocked(getCliente).mockResolvedValue(FICHA);
+      renderizar('/clientes/c1', undefined, 'GESTOR');
+
+      await screen.findByRole('heading', { name: 'Dados do ERP' });
+      expect(screen.queryByRole('heading', { name: 'Mensagem de estoque' })).not.toBeInTheDocument();
+    });
+
     it('?aba=visitas mostra o histórico de visitas e não consulta insights nem ERP', async () => {
       vi.mocked(getCliente).mockResolvedValue(FICHA);
       renderizar('/clientes/c1?aba=visitas');
@@ -376,6 +389,19 @@ describe('ClienteDetalhePage', () => {
 
       const aviso = await screen.findByText(/a foto não chegou a ser enviada/);
       expect(screen.getByRole('region', { name: 'Histórico de visitas' })).toContainElement(aviso);
+    });
+
+    it('na aba Cadastro, o representante não vê "Inativar cliente"', async () => {
+      vi.mocked(getCliente).mockResolvedValue(FICHA);
+      renderizar('/clientes/c1?aba=cadastro');
+      await screen.findByRole('button', { name: 'Editar dados' });
+      expect(screen.queryByRole('button', { name: 'Inativar cliente' })).not.toBeInTheDocument();
+    });
+
+    it('na aba Cadastro, o gestor vê "Inativar cliente"', async () => {
+      vi.mocked(getCliente).mockResolvedValue(FICHA);
+      renderizar('/clientes/c1?aba=cadastro', undefined, 'GESTOR');
+      expect(await screen.findByRole('button', { name: 'Inativar cliente' })).toBeInTheDocument();
     });
 
     it('o texto de cliente inativo fica no topo, fora das abas, em qualquer aba', async () => {

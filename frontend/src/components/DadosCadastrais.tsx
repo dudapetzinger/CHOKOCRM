@@ -1,6 +1,6 @@
 /**
  * Dados cadastrais da ficha do cliente: "Dados do
- * cliente" (com editar, inativar e reativar) e "Contatos" (listar, editar,
+ * cliente" (com editar e, só para o gestor, inativar e reativar) e "Contatos" (listar, editar,
  * tornar principal, remover e adicionar, com o mesmo formulário `NovoContato`
  * do cabeçalho da ficha). São o conteúdo da aba
  * "Cadastro" da ficha, então os dois blocos aparecem direto, abertos, cada um
@@ -107,9 +107,11 @@ const CAMPOS_EDICAO: {
 
 type Props = {
   cliente: ClienteCompleto;
+  /** Só o gestor inativa e reativa clientes. */
+  podeInativar: boolean;
 };
 
-export function DadosCadastrais({ cliente }: Props) {
+export function DadosCadastrais({ cliente, podeInativar }: Props) {
   const id = cliente.id;
   const queryClient = useQueryClient();
 
@@ -152,7 +154,7 @@ export function DadosCadastrais({ cliente }: Props) {
     onSuccess: () => {
       invalidarCliente();
       setConfirmandoInativacao(false);
-      toast.success('Cliente inativado. Ele não aparece mais na listagem padrão.');
+      toast.success('Cliente inativado. Ele aparece só na aba Todos, como Inativo.');
     },
     onError: (erro) => setErroInativacaoEnvio(mensagemErroApi(erro, MENSAGEM_ERRO_INATIVAR)),
   });
@@ -224,7 +226,7 @@ export function DadosCadastrais({ cliente }: Props) {
     event.preventDefault();
     setErroEdicaoEnvio(null);
 
-    const erros = validarDadosCliente(dadosEdicao, { emailOpcional: true });
+    const erros = validarDadosCliente(dadosEdicao);
     setErrosEdicao(erros);
     if (Object.keys(erros).length > 0) return;
 
@@ -277,7 +279,7 @@ export function DadosCadastrais({ cliente }: Props) {
       <Cartao titulo="Dados do cliente" className="space-y-3">
         <div className="space-y-1 text-sm text-muted-foreground">
           <p>{formatarUltimaVisita(cliente.diasSemVisita)}</p>
-          {cliente.rebaixadoPorVenda && <p>Cor rebaixada: sem compra há {cliente.diasSemCompra} dias</p>}
+          {cliente.ativo && cliente.rebaixadoPorVenda && <p>Cor rebaixada: sem compra há {cliente.diasSemCompra} dias</p>}
         </div>
 
         {!cliente.ativo && <Aviso tom="atencao">Este cliente está inativo.</Aviso>}
@@ -297,33 +299,34 @@ export function DadosCadastrais({ cliente }: Props) {
               <Button type="button" size="sm" variant="outline" onClick={entrarModoEdicao}>
                 Editar dados
               </Button>
-              {cliente.ativo ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className={CLASSES_BOTAO_PERIGO}
-                  onClick={() => {
-                    setErroInativacaoEnvio(null);
-                    setConfirmandoInativacao(true);
-                  }}
-                >
-                  Inativar cliente
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setErroInativacaoEnvio(null);
-                    mutationReativar.mutate();
-                  }}
-                  disabled={mutationReativar.isPending}
-                >
-                  {mutationReativar.isPending ? 'Reativando...' : 'Reativar cliente'}
-                </Button>
-              )}
+              {podeInativar &&
+                (cliente.ativo ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className={CLASSES_BOTAO_PERIGO}
+                    onClick={() => {
+                      setErroInativacaoEnvio(null);
+                      setConfirmandoInativacao(true);
+                    }}
+                  >
+                    Inativar cliente
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setErroInativacaoEnvio(null);
+                      mutationReativar.mutate();
+                    }}
+                    disabled={mutationReativar.isPending}
+                  >
+                    {mutationReativar.isPending ? 'Reativando...' : 'Reativar cliente'}
+                  </Button>
+                ))}
             </div>
             {!confirmandoInativacao && erroInativacaoEnvio && (
               <Aviso tom="erro" role="alert">
@@ -341,8 +344,8 @@ export function DadosCadastrais({ cliente }: Props) {
               </Aviso>
             )}
             <p>
-              Tem certeza que deseja inativar <strong>{cliente.nomeFantasia}</strong>? Ele deixará de aparecer na
-              listagem padrão de clientes.
+              Tem certeza que deseja inativar <strong>{cliente.nomeFantasia}</strong>? Ele sai da agenda e do
+              painel e aparece só na aba Todos, como Inativo.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -430,7 +433,6 @@ export function DadosCadastrais({ cliente }: Props) {
                       legenda="Editar contato"
                       value={valorContato}
                       onChange={setValorContato}
-                      principalControl={{ tipo: 'checkbox' }}
                       erro={erroContatoValidacao}
                     />
                     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">

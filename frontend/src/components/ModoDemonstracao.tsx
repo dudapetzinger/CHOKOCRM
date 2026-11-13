@@ -7,7 +7,7 @@
  * Os dois abrem o painel: data da demonstração (padrão: a data ativa, ou o
  * hoje de `agora()` em São Paulo), "Voltar ao real" (manda `data: null`), o
  * aviso de que a recriação apaga os dados da demonstração e a senha da conta
- * Gestão (o e-mail é a constante do produto, `EMAIL_DA_GESTAO`). "Aplicar"
+ * Gestão (o usuário é a constante do produto, `USUARIO_DA_GESTAO`). "Aplicar"
  * chama `definirDemonstracao` (sem o token salvo: um 401 aqui não desloga
  * ninguém); a recriação leva alguns segundos, então o botão mostra
  * "Recriando a demonstração…" e tudo fica desabilitado (Esc e o fundo também
@@ -39,10 +39,10 @@ import { Aviso, Campo } from './crm/ui';
 import { FaixaDataSimulada } from './crm/FaixaDataSimulada';
 
 /** A conta que pode recriar a demonstração (constante pública do produto). */
-export const EMAIL_DA_GESTAO = 'gestao@chokolaten.com.br';
+export const USUARIO_DA_GESTAO = 'gestao';
 
 const AVISO =
-  'Isto apaga os clientes da demonstração (com contatos, visitas, pedidos e lembretes), as campanhas e as metas e recria a demonstração nessa data. Os clientes reais (cadastrados à mão ou pela nota) e as contas de acesso são mantidos.';
+  'Isto apaga os clientes da demonstração (com contatos, visitas e lembretes), as campanhas e as metas e recria a demonstração nessa data. Os clientes reais (criados pela nota fiscal) e as contas de acesso são mantidos.';
 const ERRO_GENERICO = 'Não foi possível recriar a demonstração. Confira a data e a senha.';
 
 const FOCAVEIS = 'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
@@ -165,7 +165,7 @@ function PainelModoDemonstracao({ dataAtiva, aoFechar }: { dataAtiva: string | n
       return;
     }
     setErro(null);
-    recriar.mutate({ data: voltarAoReal ? null : data, email: EMAIL_DA_GESTAO, senha });
+    recriar.mutate({ data: voltarAoReal ? null : data, usuario: USUARIO_DA_GESTAO, senha });
   }
 
   /** Tab circula dentro do painel (modal). */
@@ -232,7 +232,7 @@ function PainelModoDemonstracao({ dataAtiva, aoFechar }: { dataAtiva: string | n
             {AVISO}
           </Aviso>
 
-          <Campo rotulo="Senha da conta Gestão" htmlFor={idSenha} ajuda={`Conta: ${EMAIL_DA_GESTAO}`}>
+          <Campo rotulo="Senha da conta Gestão" htmlFor={idSenha} ajuda={`Conta: ${USUARIO_DA_GESTAO}`}>
             <Input
               id={idSenha}
               type="password"

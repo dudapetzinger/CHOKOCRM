@@ -8,7 +8,6 @@ import { Moldura } from './components/crm/Moldura';
 import { Toaster } from './components/ui/sonner';
 import { LoginPage } from './pages/LoginPage';
 import { ClientesPage } from './pages/ClientesPage';
-import { NovoClientePage } from './pages/NovoClientePage';
 import { ClienteDetalhePage } from './pages/ClienteDetalhePage';
 import { CheckInPage } from './pages/CheckInPage';
 import { AgendaPage } from './pages/AgendaPage';
@@ -79,7 +78,6 @@ export function App() {
             >
               <Route path="/" element={<TelaInicial />} />
               <Route path="/clientes/:id?" element={<ClientesOuFicha />} />
-              <Route path="/clientes/novo" element={<NovoClientePage />} />
               <Route path="/clientes/:id/check-in" element={<CheckInDoCliente />} />
               <Route path="/agenda" element={<AgendaPage />} />
               <Route path="/campanhas" element={<CampanhasPage />} />

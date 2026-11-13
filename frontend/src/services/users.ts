@@ -6,7 +6,7 @@
  */
 import type { Role } from '../auth/auth-context';
 import { api } from './api';
-import { emailValido } from '../lib/email';
+import { MENSAGEM_USUARIO_INVALIDO, usuarioValido } from '../lib/usuario';
 
 export type Representante = { id: string; nome: string };
 
@@ -20,7 +20,7 @@ export function listRepresentantes(): Promise<Representante[]> {
 export type Usuario = {
   id: string;
   nome: string;
-  email: string;
+  usuario: string;
   telefone: string | null;
   role: Role;
   ativo: boolean;
@@ -32,7 +32,7 @@ export type Usuario = {
 /** Sem a confirmação da senha: o backend recusa campos a mais. Sem telefone, o campo não vai. */
 export type NovoUsuarioInput = {
   nome: string;
-  email: string;
+  usuario: string;
   telefone?: string;
   role: Role;
   senha: string;
@@ -41,7 +41,7 @@ export type NovoUsuarioInput = {
 /** Edição parcial: o que não vier fica como está; `telefone: null` apaga. */
 export type AtualizarUsuarioInput = Partial<{
   nome: string;
-  email: string;
+  usuario: string;
   telefone: string | null;
   role: Role;
   ativo: boolean;
@@ -70,14 +70,14 @@ export async function definirSenha(id: string, senha: string): Promise<void> {
   await api.put<void>(`/users/${id}/senha`, { senha });
 }
 
-/** Nome e e-mail como o formulário os tem (antes de aparar). */
-export type DadosUsuarioFormulario = { nome: string; email: string };
+/** Nome e usuário como o formulário os tem (antes de aparar). */
+export type DadosUsuarioFormulario = { nome: string; usuario: string };
 export type ErrosDadosUsuario = Partial<Record<keyof DadosUsuarioFormulario, string>>;
 
 /** As mesmas regras do zod do backend (`user.schema.ts`), com as mesmas mensagens. */
 export function validarDadosUsuario(dados: DadosUsuarioFormulario): ErrosDadosUsuario {
   const erros: ErrosDadosUsuario = {};
   if (!dados.nome.trim()) erros.nome = 'Nome é obrigatório.';
-  if (!emailValido(dados.email)) erros.email = 'E-mail inválido.';
+  if (!usuarioValido(dados.usuario)) erros.usuario = MENSAGEM_USUARIO_INVALIDO;
   return erros;
 }

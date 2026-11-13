@@ -14,7 +14,9 @@
  * painel do dia (300 px) fica à direita. A célula inteira é o botão do dia,
  * com o nome "segunda-feira, 19 de outubro, 2 itens" (os rótulos e pontos
  * dentro dela são só visuais); hoje tem `aria-current="date"` e o dia
- * selecionado, `aria-pressed`. Item de cliente no painel abre a ficha; a
+ * selecionado, `aria-pressed`. Acima da grade, o grupo "Mostrar no calendário"
+ * (caixas por tipo, todas marcadas ao abrir, só em memória) filtra a grade, os
+ * pontos e a lista do dia. Item de cliente no painel abre a ficha; a
  * conclusão do lembrete fica na agenda do dia e na ficha, não aqui.
  *
  * Cores: visita marcada em `bg-primary` com texto branco (o
@@ -91,6 +93,14 @@ const ROTULO_LEGENDA: Record<Estilo, string> = {
   sazonal: 'Data sazonal',
 };
 
+/** Caixas do grupo "Mostrar no calendário"; "Campanhas" só existe para o gestor. */
+const FILTROS: { tipo: ItemCalendario['tipo']; rotulo: string }[] = [
+  { tipo: 'VISITA', rotulo: 'Visitas' },
+  { tipo: 'LEMBRETE', rotulo: 'Lembretes' },
+  { tipo: 'DATA_SAZONAL', rotulo: 'Datas comemorativas' },
+  { tipo: 'CAMPANHA', rotulo: 'Campanhas' },
+];
+
 function estiloDoItem(item: ItemCalendario): Estilo {
   if (item.tipo === 'CAMPANHA') return 'campanha';
   if (item.tipo === 'DATA_SAZONAL') return 'sazonal';
@@ -127,7 +137,17 @@ export function Calendario({ representanteId }: Props) {
   const [mes, setMes] = useState(() => mesDaChave(hoje));
   const [selecionado, setSelecionado] = useState(hoje);
   const { data, isLoading, isError, error } = useCalendario(chaveDoMes(mes), representanteId);
-  const porDia = useMemo(() => agruparPorDia(data?.itens ?? []), [data]);
+  const [visiveis, setVisiveis] = useState<Record<ItemCalendario['tipo'], boolean>>({
+    VISITA: true,
+    LEMBRETE: true,
+    DATA_SAZONAL: true,
+    CAMPANHA: true,
+  });
+  const porDia = useMemo(
+    () => agruparPorDia((data?.itens ?? []).filter((item) => visiveis[item.tipo])),
+    [data, visiveis],
+  );
+  const filtros = gestor ? FILTROS : FILTROS.filter((filtro) => filtro.tipo !== 'CAMPANHA');
 
   /** Troca de mês e seleciona hoje, se hoje está nele, ou o dia 1. */
   function irParaMes(novo: Date) {
@@ -174,6 +194,21 @@ export function Calendario({ representanteId }: Props) {
             </Button>
           </div>
         </div>
+
+        <fieldset className="mb-3 flex min-w-0 flex-wrap gap-x-4 gap-y-1 px-1 sm:px-0">
+          <legend className="mb-1 text-xs font-medium text-muted-foreground">Mostrar no calendário</legend>
+          {filtros.map((filtro) => (
+            <label key={filtro.tipo} className="flex items-center gap-2 text-sm max-md:min-h-11">
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={visiveis[filtro.tipo]}
+                onChange={(event) => setVisiveis((anterior) => ({ ...anterior, [filtro.tipo]: event.target.checked }))}
+              />
+              {filtro.rotulo}
+            </label>
+          ))}
+        </fieldset>
 
         {isLoading && <p className="mb-2 px-1 text-sm text-muted-foreground">Carregando calendário...</p>}
         {isError && (
@@ -239,7 +274,11 @@ export function Calendario({ representanteId }: Props) {
                 {tipos.length > 0 && (
                   <span className="flex gap-0.5 sm:hidden">
                     {tipos.map((tipo) => (
-                      <span key={tipo} className={cn('size-1.5 rounded-full', CLASSES_PONTO[tipo])} />
+                      <span
+                        key={tipo}
+                        data-ponto-tipo={tipo}
+                        className={cn('size-1.5 rounded-full', CLASSES_PONTO[tipo])}
+                      />
                     ))}
                   </span>
                 )}

@@ -40,9 +40,9 @@ export function useVendasMensais(periodo: Periodo, representanteId?: string) {
 }
 
 /**
- * A carteira inteira, com a mesma chave e a mesma busca (sem texto) da tela de
- * Clientes: as duas telas dividem o cache e o check-in, que invalida
- * `['clients']`, atualiza as duas.
+ * A carteira ativa inteira (sem busca), para o Painel. A tela de Clientes tem
+ * as próprias consultas, que trazem também os inativos; o check-in invalida
+ * `['clients']` e atualiza todas.
  */
 export function useClientesDaCarteira(representanteId?: string) {
   return useQuery({

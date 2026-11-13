@@ -22,7 +22,7 @@ beforeEach(() => {
 function renderizar(role: Role = 'REPRESENTANTE') {
   const logout = vi.fn();
   const auth = {
-    user: { id: 'u1', nome: 'Eduarda Fischer', email: 'eduarda@chokolaten.com.br', telefone: null, role, ativo: true },
+    user: { id: 'u1', nome: 'Eduarda Fischer', usuario: 'eduarda', telefone: null, role, ativo: true },
     login: vi.fn(),
     logout,
     recarregarUsuario: vi.fn(),

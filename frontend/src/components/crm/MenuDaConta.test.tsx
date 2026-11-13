@@ -7,7 +7,7 @@ import { MenuDaConta } from './MenuDaConta';
 function renderizar(role: Role, nome: string) {
   const logout = vi.fn();
   const auth = {
-    user: { id: 'u1', nome, email: 'usuaria@exemplo.com', role, telefone: null, ativo: true },
+    user: { id: 'u1', nome, usuario: 'usuaria', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout,
     recarregarUsuario: vi.fn(async () => {}),

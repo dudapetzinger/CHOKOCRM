@@ -1,9 +1,9 @@
 /**
  * Gestão de usuários do gestor, no visual de
  * `routes/usuarios.tsx` do protótipo: "Novo usuário" e a lista de todos os
- * usuários, ativos e inativos. Cada linha tem avatar, nome, "e-mail ·
+ * usuários, ativos e inativos. Cada linha tem avatar, nome, "usuário ·
  * telefone", o papel, a situação, "N clientes" e o menu de ações:
- *   - Editar dados: nome, e-mail, telefone e, para os outros, o papel;
+ *   - Editar dados: nome, usuário, telefone e, para os outros, o papel;
  *   - Transferir carteira (representante com clientes): para um
  *     representante ativo;
  *   - Definir senha provisória: "Nova senha" e "Confirmar"; a pessoa a
@@ -40,6 +40,7 @@ import { descreverClientes } from '../lib/descreverClientesAtivos';
 import { OPCOES_PAPEL, ROTULO_PAPEL } from '../lib/papel';
 import { primeiroNome } from '../lib/primeiroNome';
 import { validarNovaSenha, type ErrosNovaSenha } from '../lib/senha';
+import { normalizarUsuario } from '../lib/usuario';
 import { useFocoNoPrimeiroErro } from '../lib/useFoco';
 import { ApiError } from '../services/api';
 import { mensagemErroApi } from '../services/clients';
@@ -179,13 +180,13 @@ function LinhaUsuario({ usuario, ehAPropriaConta, destinos, painelAberto, abrirP
   const podeTransferir = usuario.role === 'REPRESENTANTE' && usuario.clientesNaCarteira > 0;
   // O telefone não quebra no meio ("(47)" numa linha e o número na outra)
   const contato = usuario.telefone
-    ? `${usuario.email} · ${usuario.telefone.replace(/ /g, '\u00a0')}`
-    : usuario.email;
+    ? `${usuario.usuario} · ${usuario.telefone.replace(/ /g, '\u00a0')}`
+    : usuario.usuario;
 
   return (
     // A linha é um contêiner: numa linha só a partir de 36rem de largura útil
     // (desktop); abaixo disso (celular e tablet, com o menu lateral de 768 px)
-    // em dois andares, para o nome e o e-mail não ficarem espremidos.
+    // em dois andares, para o nome e o usuário não ficarem espremidos.
     <li ref={linha} className="@container p-4">
       <div className="flex flex-col gap-2 @xl:flex-row @xl:items-center @xl:gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -263,7 +264,7 @@ function LinhaUsuario({ usuario, ehAPropriaConta, destinos, painelAberto, abrirP
   );
 }
 
-type CamposEditaveis = { nome: string; email: string; telefone: string };
+type CamposEditaveis = { nome: string; usuario: string; telefone: string };
 
 function PainelEditar({
   usuario,
@@ -278,7 +279,7 @@ function PainelEditar({
   const { recarregarUsuario } = useAuth();
   const [dados, setDados] = useState<CamposEditaveis>({
     nome: usuario.nome,
-    email: usuario.email,
+    usuario: usuario.usuario,
     telefone: usuario.telefone ?? '',
   });
   const [papel, setPapel] = useState<Role>(usuario.role);
@@ -299,7 +300,7 @@ function PainelEditar({
     },
     onError: (erro) => {
       if (erro instanceof ApiError && erro.code === 'CONFLICT') {
-        setErros({ email: erro.message });
+        setErros({ usuario: erro.message });
         focarPrimeiroErro();
         return;
       }
@@ -326,7 +327,7 @@ function PainelEditar({
 
     salvar.mutate({
       nome: dados.nome.trim(),
-      email: dados.email.trim(),
+      usuario: normalizarUsuario(dados.usuario),
       telefone: dados.telefone.trim() || null,
       // Ninguém muda o próprio papel (o backend recusa)
       ...(ehAPropriaConta ? {} : { role: papel }),
@@ -351,13 +352,16 @@ function PainelEditar({
           onChange={(evento) => atualizar('nome', evento.target.value)}
         />
       </Campo>
-      <Campo rotulo="E-mail" htmlFor={`${prefixo}-email`} erro={erros.email}>
+      <Campo rotulo="Usuário" htmlFor={`${prefixo}-usuario`} erro={erros.usuario}>
         <Input
-          id={`${prefixo}-email`}
-          type="email"
+          id={`${prefixo}-usuario`}
+          type="text"
           autoComplete="off"
-          value={dados.email}
-          onChange={(evento) => atualizar('email', evento.target.value)}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          value={dados.usuario}
+          onChange={(evento) => atualizar('usuario', evento.target.value)}
         />
       </Campo>
       <Campo rotulo="Telefone" htmlFor={`${prefixo}-telefone`}>

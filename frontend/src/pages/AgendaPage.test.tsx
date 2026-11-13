@@ -111,7 +111,7 @@ function prepararResposta(resposta: Resposta) {
 function renderizarComo(role: Role, resposta: Resposta) {
   prepararResposta(resposta);
   const auth = {
-    user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role, telefone: null, ativo: true },
+    user: { id: 'u1', nome: 'Usuário', usuario: 'usuario', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(async () => {}),

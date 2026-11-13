@@ -69,7 +69,7 @@ function FichaFalsa() {
 function renderizar(role: Role = 'REPRESENTANTE', itens: ItemCalendario[] = [VISITA_MARCADA, VISITA_MARCADA_VENCIDA, LEMBRETE, SAZONAL]) {
   vi.mocked(buscarCalendario).mockImplementation(async (mes) => ({ mes, itens: mes === '2026-10' ? itens : [] }));
   const auth = {
-    user: { id: 'u1', nome: 'Usuário', email: 'usuario@exemplo.com', role, telefone: null, ativo: true },
+    user: { id: 'u1', nome: 'Usuário', usuario: 'usuario', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(async () => {}),
@@ -205,11 +205,11 @@ describe('Calendario', () => {
     renderizar();
 
     const comLembrete = await screen.findByRole('button', { name: 'quarta-feira, 21 de outubro, 1 item' });
-    expect(comLembrete.querySelector('.sm\\:hidden .bg-st-yellow-forte')).not.toBeNull();
-    expect(comLembrete.querySelector('.sm\\:hidden .bg-primary')).toBeNull();
+    expect(comLembrete.querySelector('[data-ponto-tipo="LEMBRETE"]')).not.toBeNull();
+    expect(comLembrete.querySelector('[data-ponto-tipo="VISITA"]')).toBeNull();
     const comVisita = screen.getByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' });
-    expect(comVisita.querySelector('.sm\\:hidden .bg-primary')).not.toBeNull();
-    expect(comVisita.querySelector('.sm\\:hidden .bg-st-yellow-forte')).toBeNull();
+    expect(comVisita.querySelector('[data-ponto-tipo="VISITA"]')).not.toBeNull();
+    expect(comVisita.querySelector('[data-ponto-tipo="LEMBRETE"]')).toBeNull();
   });
 
   it('dia sem itens diz que não há nada', async () => {
@@ -296,5 +296,110 @@ describe('Calendario', () => {
     const painel = painelDoDia('quinta-feira, 22 de outubro');
     expect(within(painel).getByText('Campanha · 20/10/2026 a 24/12/2026')).toBeInTheDocument();
     expect(within(painel).getByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
+  });
+
+  describe('filtros', () => {
+    function grupoDeFiltros() {
+      return screen.getByRole('group', { name: 'Mostrar no calendário' });
+    }
+
+    it('abre com todas as caixas marcadas; o gestor tem também "Campanhas"', async () => {
+      renderizar('GESTOR');
+
+      const caixas = within(grupoDeFiltros()).getAllByRole('checkbox');
+      expect(caixas.map((caixa) => caixa.closest('label')?.textContent)).toEqual([
+        'Visitas',
+        'Lembretes',
+        'Datas comemorativas',
+        'Campanhas',
+      ]);
+      for (const caixa of caixas) expect(caixa).toBeChecked();
+    });
+
+    it('o representante não vê "Campanhas"', async () => {
+      renderizar('REPRESENTANTE');
+
+      const grupo = grupoDeFiltros();
+      expect(within(grupo).queryByRole('checkbox', { name: 'Campanhas' })).not.toBeInTheDocument();
+      expect(within(grupo).getAllByRole('checkbox')).toHaveLength(3);
+    });
+
+    it('desmarcar "Lembretes" tira os lembretes da grade e da lista do dia', async () => {
+      renderizar('REPRESENTANTE', [VISITA_MARCADA, LEMBRETE_VENCIDO, LEMBRETE]);
+
+      await usuario.click(await screen.findByRole('button', { name: 'segunda-feira, 19 de outubro, 1 item' }));
+      expect(within(painelDoDia('segunda-feira, 19 de outubro')).getByText('Lembrete')).toBeInTheDocument();
+
+      await usuario.click(screen.getByRole('checkbox', { name: 'Lembretes' }));
+
+      const dia = screen.getByRole('button', { name: 'segunda-feira, 19 de outubro, nenhum item' });
+      expect(within(dia).queryByText('Padaria Doce Sabor')).not.toBeInTheDocument();
+      expect(within(painelDoDia('segunda-feira, 19 de outubro')).getByText('Nada neste dia.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'quarta-feira, 21 de outubro, nenhum item' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' })).toBeInTheDocument();
+    });
+
+    it('desmarcar "Visitas" e "Datas comemorativas" tira cada tipo e remarcar devolve', async () => {
+      renderizar('REPRESENTANTE');
+      await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' });
+
+      await usuario.click(screen.getByRole('checkbox', { name: 'Visitas' }));
+      await usuario.click(screen.getByRole('checkbox', { name: 'Datas comemorativas' }));
+      expect(screen.getByRole('button', { name: 'quinta-feira, 22 de outubro, nenhum item' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'segunda-feira, 12 de outubro, nenhum item' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'quarta-feira, 21 de outubro, 1 item' })).toBeInTheDocument();
+
+      await usuario.click(screen.getByRole('checkbox', { name: 'Visitas' }));
+      expect(screen.getByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' })).toBeInTheDocument();
+    });
+
+    it('desmarcar "Campanhas" tira a campanha da lista do dia do gestor, mas deixa a visita', async () => {
+      renderizar('GESTOR', [VISITA_MARCADA, CAMPANHA]);
+      await usuario.click(await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 2 itens' }));
+
+      await usuario.click(screen.getByRole('checkbox', { name: 'Campanhas' }));
+
+      const painel = painelDoDia('quinta-feira, 22 de outubro');
+      expect(within(painel).queryByText('Campanha · 20/10/2026 a 24/12/2026')).not.toBeInTheDocument();
+      expect(within(painel).getByText('Empório Central')).toBeInTheDocument();
+    });
+
+    it('no celular, os pontos acompanham o filtro', async () => {
+      renderizar('REPRESENTANTE', [VISITA_MARCADA, { ...LEMBRETE, data: '2026-10-22' }]);
+      const dia = await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 2 itens' });
+      expect(dia.querySelector('[data-ponto-tipo="LEMBRETE"]')).not.toBeNull();
+      expect(dia.querySelector('[data-ponto-tipo="VISITA"]')).not.toBeNull();
+
+      await usuario.click(screen.getByRole('checkbox', { name: 'Lembretes' }));
+
+      const semLembrete = screen.getByRole('button', { name: 'quinta-feira, 22 de outubro, 1 item' });
+      expect(semLembrete.querySelector('[data-ponto-tipo="LEMBRETE"]')).toBeNull();
+      expect(semLembrete.querySelector('[data-ponto-tipo="VISITA"]')).not.toBeNull();
+    });
+
+    it('a escolha dos filtros continua ao trocar de mês', async () => {
+      renderizar();
+      await screen.findByRole('button', { name: 'quarta-feira, 21 de outubro, 1 item' });
+
+      await usuario.click(screen.getByRole('checkbox', { name: 'Lembretes' }));
+      await usuario.click(screen.getByRole('button', { name: 'Próximo mês' }));
+
+      expect(screen.getByRole('heading', { name: 'Novembro de 2026' })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'Lembretes' })).not.toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Visitas' })).toBeChecked();
+    });
+
+    it('tudo desmarcado mostra a grade vazia, sem erro, e a lista do dia vazia', async () => {
+      renderizar('GESTOR', [VISITA_MARCADA, LEMBRETE, SAZONAL, CAMPANHA]);
+      await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 2 itens' });
+
+      for (const caixa of within(grupoDeFiltros()).getAllByRole('checkbox')) await usuario.click(caixa);
+
+      const dias = screen.getAllByRole('button', { name: /-feira|sábado|domingo/ });
+      expect(dias).toHaveLength(42);
+      for (const dia of dias) expect(dia).toHaveAccessibleName(/nenhum item$/);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(within(painelDoDia('segunda-feira, 19 de outubro')).getByText('Nada neste dia.')).toBeInTheDocument();
+    });
   });
 });

@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { MousePointerClick, Plus, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { MousePointerClick, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../auth/useAuth';
-import { useClientesDaCarteira } from '../hooks/useDashboard';
 import { listClients, mensagemErroApi, type ClienteListItem } from '../services/clients';
 import { AbasSituacao, CORES_DA_ABA, type Aba } from '../components/AbasSituacao';
 import { BarraDeFerramentas } from '../components/BarraDeFerramentas';
@@ -16,14 +14,19 @@ import { SeletorRepresentante } from '../components/SeletorRepresentante';
 import { Aviso, CLASSES_SELECT } from '../components/crm/ui';
 import { cidadesDaCarteira, filtrarPorCidade } from '../lib/cidadesDaCarteira';
 import { ordenarPorUrgencia } from '../lib/ordenarPorUrgencia';
-import { useLarguraDesktop, useLarguraDuasColunas } from '../lib/useLarguraDesktop';
+import { useLarguraDuasColunas } from '../lib/useLarguraDesktop';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { ClienteDetalhePage } from './ClienteDetalhePage';
 
 const ATRASO_BUSCA_MS = 300;
 
+const MENSAGEM_CARTEIRA_VAZIA =
+  'Nenhum cliente na carteira. Os clientes entram pela importação das notas fiscais, feita pela gestão.';
+
+/** As abas de situação contam só os ativos; "Todos" conta também os inativos. */
 function contarPorAba(clientes: readonly ClienteListItem[]): Record<Aba, number> {
-  const contar = (aba: Aba) => clientes.filter((cliente) => CORES_DA_ABA[aba].includes(cliente.cor)).length;
+  const contar = (aba: Aba) =>
+    clientes.filter((cliente) => cliente.ativo && CORES_DA_ABA[aba].includes(cliente.cor)).length;
   return {
     PRIORIDADE: contar('PRIORIDADE'),
     ATENCAO: contar('ATENCAO'),
@@ -38,16 +41,20 @@ function contarPorAba(clientes: readonly ClienteListItem[]): Record<Aba, number>
  * atende `/clientes` e `/clientes/:id`: a lista (até 440 px) à esquerda, com
  * o cliente aberto destacado, e a ficha dele à direita (ou o convite para
  * escolher um). Abaixo de 1024, `/clientes/:id` abre só a ficha (ver
- * `ClientesOuFicha` em App.tsx). "Novo cliente" do representante fica na
- * barra de ferramentas a partir de 768 px e, no celular, no botão flutuante.
+ * `ClientesOuFicha` em App.tsx).
+ *
+ * A lista traz também os clientes inativos: as abas de situação mostram só os
+ * ativos (e contam só eles) e "Todos" acrescenta os inativos, por nome, no
+ * fim, com a etiqueta "Inativo".
+ *
  * O select "Cidade" filtra a lista e as contagens das abas pelas
- * cidades da carteira do representante (a carteira toda, sem a busca); se a
- * cidade escolhida deixar de existir na carteira, volta a "Todas as cidades".
+ * cidades da carteira do representante (a carteira toda, com inativos e sem a
+ * busca); se a cidade escolhida deixar de existir na carteira, volta a
+ * "Todas as cidades".
  */
 export function ClientesPage() {
   const { user } = useAuth();
   const { id: clienteAbertoId } = useParams<{ id?: string }>();
-  const desktop = useLarguraDesktop();
   const duasColunas = useLarguraDuasColunas();
   const [busca, setBusca] = useState('');
   const [buscaAtrasada, setBuscaAtrasada] = useState('');
@@ -85,15 +92,20 @@ export function ClientesPage() {
   // Trocar a busca mantém a lista anterior até a nova chegar (a barra de abas
   // não pisca); trocar o representante não, porque a carteira é outra.
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['clients', buscaAtrasada, representante],
-    queryFn: () => listClients({ search: buscaAtrasada || undefined, representanteId }),
+    queryKey: ['clients', buscaAtrasada, representante, 'todos'],
+    queryFn: () => listClients({ search: buscaAtrasada || undefined, representanteId, ativo: 'todos' }),
     placeholderData: (dadosAnteriores, consultaAnterior) =>
       consultaAnterior?.queryKey[2] === representante ? dadosAnteriores : undefined,
   });
 
-  // Cidades da carteira inteira (sem a busca), para o select não encolher
-  // enquanto o usuário digita; compartilha o cache com o Painel.
-  const { data: carteira } = useClientesDaCarteira(representanteId);
+  // Cidades da carteira inteira, ativos e inativos, sem a busca, para o select
+  // não encolher enquanto o usuário digita e todo cliente da lista poder ser
+  // alcançado por cidade. Com a busca vazia a chave é a da lista acima: o
+  // TanStack Query serve as duas de uma só entrada, sem segunda requisição.
+  const { data: carteira } = useQuery({
+    queryKey: ['clients', '', representante, 'todos'],
+    queryFn: () => listClients({ representanteId, ativo: 'todos' }),
+  });
   const cidades = useMemo(() => cidadesDaCarteira(carteira ?? []), [carteira]);
 
   // A cidade escolhida pode sumir da carteira (cliente transferido, cidade
@@ -117,7 +129,16 @@ export function ClientesPage() {
     if (!filtrados || aba === null) {
       return [];
     }
-    return ordenarPorUrgencia(filtrados.filter((cliente) => CORES_DA_ABA[aba].includes(cliente.cor)));
+    const ativos = ordenarPorUrgencia(
+      filtrados.filter((cliente) => cliente.ativo && CORES_DA_ABA[aba].includes(cliente.cor)),
+    );
+    if (aba !== 'TODOS') {
+      return ativos;
+    }
+    const inativos = filtrados
+      .filter((cliente) => !cliente.ativo)
+      .sort((a, b) => a.nomeFantasia.localeCompare(b.nomeFantasia, 'pt-BR'));
+    return [...ativos, ...inativos];
   }, [filtrados, aba]);
 
   function mensagemVazia(): string {
@@ -126,15 +147,12 @@ export function ClientesPage() {
     }
     return buscaAtrasada || cidadeEfetiva
       ? 'Nenhum cliente encontrado para esta busca ou filtro.'
-      : 'Nenhum cliente cadastrado ainda.';
+      : MENSAGEM_CARTEIRA_VAZIA;
   }
 
-  // Barra de ferramentas no topo da coluna da lista: select do
-  // gestor, busca, legenda e, a partir de 768 px, "Novo cliente" do
-  // representante. No celular o select ocupa a primeira linha e a busca e a
-  // legenda a segunda; "Novo cliente" é o botão flutuante, no fim da página.
-  const podeCriarCliente = user?.role === 'REPRESENTANTE';
-  const botaoFlutuante = !desktop && podeCriarCliente;
+  // Barra de ferramentas no topo da coluna da lista: select do gestor, busca,
+  // cidade e legenda. No celular o select ocupa a primeira linha e a busca e
+  // a legenda a segunda.
   const colunaLista = (
     <div className="space-y-3">
       {/* A barra é um contêiner: abaixo de 416 px (celular e a lista estreita
@@ -170,14 +188,6 @@ export function ClientesPage() {
           ))}
         </select>
         <LegendaSituacao />
-        {desktop && podeCriarCliente && (
-          <Button asChild className="shrink-0">
-            <Link to="/clientes/novo">
-              <Plus aria-hidden="true" />
-              Novo cliente
-            </Link>
-          </Button>
-        )}
       </BarraDeFerramentas>
 
       {contagens && aba !== null && <AbasSituacao valor={aba} onChange={setAba} contagens={contagens} />}
@@ -212,8 +222,7 @@ export function ClientesPage() {
   );
 
   return (
-    // No celular, espaço embaixo para o botão flutuante não cobrir a última linha
-    <div className={cn(botaoFlutuante && 'pb-16')}>
+    <div>
       {duasColunas ? (
         // Lista de até 440 px; entre 1024 e ~1150 px ela cede espaço
         // para a ficha nunca ficar mais estreita que um celular (380 px).
@@ -237,18 +246,6 @@ export function ClientesPage() {
         </div>
       ) : (
         colunaLista
-      )}
-
-      {/* Acima da barra inferior e do botão central de check-in (elevado 24 px
-          sobre ela), com folga de ~12 px */}
-      {botaoFlutuante && (
-        <Link
-          to="/clientes/novo"
-          className="fixed right-4 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-10 flex min-h-11 items-center gap-1 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <Plus aria-hidden="true" className="size-4" />
-          Novo cliente
-        </Link>
       )}
     </div>
   );

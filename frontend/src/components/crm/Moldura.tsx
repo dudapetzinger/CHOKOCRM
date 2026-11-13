@@ -88,14 +88,13 @@ function AtalhoDaBarra({ item }: { item: ItemNavegacao }) {
 
 /**
  * Título da barra superior por rota, do caminho mais específico para o mais
- * geral. `interna`: tela aberta a partir de outra (ficha, novo cliente,
+ * geral. `interna`: tela aberta a partir de outra (ficha,
  * check-in, novo usuário, alterar senha), que no celular ganha "Voltar".
  */
 const TITULOS_DAS_ROTAS: { padrao: string; titulo: string; interna: boolean }[] = [
   { padrao: '/painel', titulo: 'Painel de indicadores', interna: false },
   { padrao: '/agenda', titulo: 'Agenda', interna: false },
   { padrao: '/campanhas', titulo: 'Campanhas e eventos', interna: false },
-  { padrao: '/clientes/novo', titulo: 'Novo cliente', interna: true },
   { padrao: '/clientes/:id/check-in', titulo: 'Novo check-in', interna: true },
   { padrao: '/clientes/:id', titulo: 'Clientes', interna: true },
   { padrao: '/clientes', titulo: 'Clientes', interna: false },

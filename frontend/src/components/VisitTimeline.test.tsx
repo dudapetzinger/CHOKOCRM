@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ApiError } from '../services/api';
 import type { Visita } from '../services/visits';
 import { VisitTimeline } from './VisitTimeline';
 
@@ -25,13 +26,13 @@ function visita(sobrescrever: Partial<Visita>): Visita {
 
 function renderizar(
   visitas: Visita[],
-  { usuarioId = 'outro', onEditarDescricao = vi.fn(), onAnexarFoto = vi.fn() } = {},
+  { usuarioId = 'outro', onEditar = vi.fn(), onAnexarFoto = vi.fn() } = {},
 ) {
   render(
     <VisitTimeline
       visitas={visitas}
       usuarioId={usuarioId}
-      onEditarDescricao={onEditarDescricao}
+      onEditar={onEditar}
       onAnexarFoto={onAnexarFoto}
     />,
   );
@@ -221,29 +222,99 @@ describe('VisitTimeline', () => {
     expect(screen.getByRole('region', { name: 'Última visita' })).toHaveTextContent('Visita 1');
   });
 
-  it('editar a descrição funciona no destaque e na lista', async () => {
+  it('editar a visita funciona no destaque e na lista, enviando resultado e descrição', async () => {
     const usuario = userEvent.setup();
-    const onEditarDescricao = vi.fn().mockResolvedValue(undefined);
+    const onEditar = vi.fn().mockResolvedValue(undefined);
     renderizar(visitas(2).map((v) => ({ ...v, autor: { id: 'eu', nome: 'Eu' } })), {
       usuarioId: 'eu',
-      onEditarDescricao,
+      onEditar,
     });
 
     const destaque = screen.getByRole('region', { name: 'Última visita' });
-    await usuario.click(within(destaque).getByRole('button', { name: 'Editar descrição' }));
+    await usuario.click(within(destaque).getByRole('button', { name: 'Editar visita' }));
+    expect(screen.getByRole('radio', { name: 'Venda' })).toHaveAttribute('aria-checked', 'true');
+    await usuario.click(screen.getByRole('radio', { name: 'Negociação' }));
     const campo = screen.getByRole('textbox', { name: 'Descrição da visita' });
     await usuario.clear(campo);
     await usuario.type(campo, 'Descrição nova do destaque');
     await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
-    expect(onEditarDescricao).toHaveBeenLastCalledWith('v1', 'Descrição nova do destaque');
+    expect(onEditar).toHaveBeenLastCalledWith('v1', {
+      descricao: 'Descrição nova do destaque',
+      resultado: 'NEGOCIACAO',
+    });
 
     const lista = screen.getByRole('list', { name: 'Visitas anteriores' });
-    await usuario.click(within(lista).getByRole('button', { name: 'Editar descrição' }));
+    await usuario.click(within(lista).getByRole('button', { name: 'Editar visita' }));
     const campoDaLista = screen.getByRole('textbox', { name: 'Descrição da visita' });
     await usuario.clear(campoDaLista);
     await usuario.type(campoDaLista, 'Descrição nova da lista');
     await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
-    expect(onEditarDescricao).toHaveBeenLastCalledWith('v2', 'Descrição nova da lista');
+    expect(onEditar).toHaveBeenLastCalledWith('v2', { descricao: 'Descrição nova da lista' });
+  });
+
+  it('só o autor vê "Editar visita"', () => {
+    renderizar([visita({ autor: { id: 'r1', nome: 'Eduarda Petzinger' } })], { usuarioId: 'outro' });
+
+    expect(screen.queryByRole('button', { name: 'Editar visita' })).not.toBeInTheDocument();
+  });
+
+  const MENSAGEM_409 = 'Esta visita tem pedido ou nota fiscal vinculada: o resultado continua Venda.';
+
+  it('o 409 do servidor aparece dentro da visita em edição, com a edição aberta, e Cancelar o remove', async () => {
+    const usuario = userEvent.setup();
+    const onEditar = vi.fn().mockRejectedValue(new ApiError('CONFLICT', MENSAGEM_409));
+    renderizar(visitas(3).map((v) => ({ ...v, autor: { id: 'eu', nome: 'Eu' } })), { usuarioId: 'eu', onEditar });
+
+    const lista = screen.getByRole('list', { name: 'Visitas anteriores' });
+    const segunda = within(lista).getAllByRole('listitem')[1]!;
+    await usuario.click(within(segunda).getByRole('button', { name: 'Editar visita' }));
+    await usuario.click(within(segunda).getByRole('radio', { name: 'Sem venda' }));
+    await usuario.click(within(segunda).getByRole('button', { name: 'Salvar' }));
+
+    expect(await within(segunda).findByRole('alert')).toHaveTextContent(MENSAGEM_409);
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(within(segunda).getByRole('textbox', { name: 'Descrição da visita' })).toBeInTheDocument();
+
+    await usuario.click(within(segunda).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('editar só o resultado envia só o resultado', async () => {
+    const usuario = userEvent.setup();
+    const onEditar = vi.fn().mockResolvedValue(undefined);
+    renderizar([visita({ autor: { id: 'eu', nome: 'Eu' } })], { usuarioId: 'eu', onEditar });
+
+    await usuario.click(screen.getByRole('button', { name: 'Editar visita' }));
+    await usuario.click(screen.getByRole('radio', { name: 'Sem venda' }));
+    await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onEditar).toHaveBeenCalledWith('v1', { resultado: 'SEM_VENDA' });
+  });
+
+  it('editar só a descrição envia só a descrição', async () => {
+    const usuario = userEvent.setup();
+    const onEditar = vi.fn().mockResolvedValue(undefined);
+    renderizar([visita({ autor: { id: 'eu', nome: 'Eu' } })], { usuarioId: 'eu', onEditar });
+
+    await usuario.click(screen.getByRole('button', { name: 'Editar visita' }));
+    const campo = screen.getByRole('textbox', { name: 'Descrição da visita' });
+    await usuario.clear(campo);
+    await usuario.type(campo, 'Outra descrição');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onEditar).toHaveBeenCalledWith('v1', { descricao: 'Outra descrição' });
+  });
+
+  it('salvar sem mudar nada fecha a edição sem chamar o servidor', async () => {
+    const usuario = userEvent.setup();
+    const onEditar = vi.fn();
+    renderizar([visita({ autor: { id: 'eu', nome: 'Eu' } })], { usuarioId: 'eu', onEditar });
+
+    await usuario.click(screen.getByRole('button', { name: 'Editar visita' }));
+    await usuario.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onEditar).not.toHaveBeenCalled();
+    expect(screen.queryByRole('textbox', { name: 'Descrição da visita' })).not.toBeInTheDocument();
   });
 
   it('anexar a foto funciona no destaque e na lista', async () => {

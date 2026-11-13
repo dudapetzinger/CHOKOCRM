@@ -39,7 +39,7 @@ function renderizar({
   const queryClient = new QueryClient({ defaultOptions: { queries: { retryDelay: 0 } } });
   if (relogioCarregado) queryClient.setQueryData(['sistema', 'relogio'], RELOGIO_REAL);
   const auth = {
-    user: { id: 'u1', nome: NOMES[papel], email: 'usuaria@exemplo.com', role: papel, telefone: null, ativo: true },
+    user: { id: 'u1', nome: NOMES[papel], usuario: 'usuaria', role: papel, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(async () => {}),
@@ -51,7 +51,6 @@ function renderizar({
         <Routes>
           <Route element={<Moldura />}>
             <Route path="/clientes" element={<p>tela de clientes</p>} />
-            <Route path="/clientes/novo" element={<p>tela de novo cliente</p>} />
             <Route path="/clientes/:id" element={<p>tela da ficha</p>} />
             <Route path="/clientes/:id/check-in" element={<p>tela de check-in</p>} />
             <Route path="/agenda" element={<p>tela da agenda</p>} />
@@ -245,7 +244,7 @@ describe('Moldura', () => {
 
   it('desktop: menu lateral com a marca e sem "Voltar" nas telas internas', () => {
     simularLargura(true);
-    renderizar({ entradas: ['/clientes/novo'] });
+    renderizar({ entradas: ['/clientes/c1'] });
 
     expect(screen.getByRole('img', { name: 'ChokoCRM' })).toHaveAttribute('src', '/logo.svg');
     expect(screen.getByText('Chokolaten')).toBeInTheDocument();
@@ -369,7 +368,6 @@ describe('tituloDaRota', () => {
     ['/clientes', 'Clientes', false],
     ['/agenda', 'Agenda', false],
     ['/painel', 'Painel de indicadores', false],
-    ['/clientes/novo', 'Novo cliente', true],
     ['/clientes/c1', 'Clientes', true],
     ['/clientes/c1/check-in', 'Novo check-in', true],
     ['/campanhas', 'Campanhas e eventos', false],

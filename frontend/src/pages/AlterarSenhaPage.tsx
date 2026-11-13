@@ -97,7 +97,7 @@ export function AlterarSenhaPage() {
     <Cartao className="mx-auto max-w-[480px]">
       <form ref={formulario} onSubmit={enviar} noValidate className="space-y-4">
         {/* Para o gerenciador de senhas saber de qual conta é a senha nova */}
-        <input type="email" name="username" autoComplete="username" value={user.email} readOnly hidden />
+        <input type="text" name="username" autoComplete="username" value={user.usuario} readOnly hidden />
 
         <Campo rotulo="Senha atual" htmlFor="senha-atual" erro={erros.senhaAtual}>
           <Input

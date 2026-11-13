@@ -3,15 +3,18 @@
  * destaque, num bloco com moldura, e as anteriores vêm abaixo, na linha do
  * tempo, atrás de um filtro de quantidade ("Últimas 3", "Últimas 6" ou
  * "Todas"; o padrão é 3) com a contagem total ao lado. Com uma visita só, há
- * apenas o destaque, sem filtro. O autor pode corrigir a descrição no lugar e
- * anexar a foto que não subiu no momento do check-in, tanto no destaque quanto
- * na lista (os dois usam o mesmo `ItemDaVisita`).
+ * apenas o destaque, sem filtro. O autor pode corrigir o resultado e a descrição
+ * no lugar ("Editar visita"; só o que mudou vai ao servidor, que recusa tirar o
+ * resultado Venda de visita com pedido ou nota fiscal, e a mensagem dele
+ * aparece dentro da própria visita) e anexar a foto que não subiu no momento do
+ * check-in, tanto no destaque quanto na lista (os dois usam o mesmo
+ * `ItemDaVisita`).
  *
  * Visual do protótipo: linha do tempo com um ponto por visita, a
  * data e o resultado numa etiqueta só de contorno (venda verde,
  * negociação azul, sem venda vermelho claro), a etiqueta azul preenchida da
  * campanha vinculada, o pedido da visita com venda ("Pedido ·
- * total" e, ao abrir "Ver itens", uma linha por item, com o preço gravado no check-in; o
+ * total" e, ao abrir "Ver itens", uma linha por item, com o preço da nota; o
  * pedido vem recolhido; com a nota fiscal importada vinculada, "Pedido
  * conforme NF 2455 · total do pedido" e, só quando o valor da nota difere,
  * "Total da nota R$ ...") e a foto em
@@ -26,8 +29,10 @@ import { useId, useState } from 'react';
 import { Camera, ChevronDown, ChevronUp, Pencil, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { mensagemErroApi } from '../services/clients';
 import { ROTULO_RESULTADO, type ResultadoVisita } from '../services/visits';
 import type { Visita } from '../services/visits';
+import { SegmentadoResultado } from './SegmentadoResultado';
 import { VisitaFoto } from './VisitaFoto';
 import { formatarDataHora } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
@@ -54,7 +59,7 @@ const OPCOES_FILTRO: Opcao<FiltroDeVisitas>[] = [
 type Props = {
   visitas: Visita[];
   usuarioId: string | undefined;
-  onEditarDescricao: (visitaId: string, descricao: string) => Promise<void>;
+  onEditar: (visitaId: string, dados: { descricao?: string; resultado?: ResultadoVisita }) => Promise<void>;
   onAnexarFoto: (visitaId: string, arquivo: File) => Promise<void>;
 };
 
@@ -64,17 +69,21 @@ type PropsDoItem = {
   editando: boolean;
   itensAbertos: boolean;
   rascunho: string;
+  resultadoRascunho: ResultadoVisita;
   ocupado: boolean;
+  /** Erro do último salvamento da edição; aparece só na visita em edição. */
+  erroDaEdicao: string | null;
   onAlternarItens: () => void;
   onComecarEdicao: () => void;
   onCancelarEdicao: () => void;
   onMudarRascunho: (texto: string) => void;
-  onSalvarDescricao: () => void;
+  onMudarResultado: (resultado: ResultadoVisita) => void;
+  onSalvarEdicao: () => void;
   onAnexarFoto: (arquivo: File) => void;
 };
 
 /**
- * Conteúdo de uma visita (data, etiquetas, descrição editável, pedido e foto),
+ * Conteúdo de uma visita (data, etiquetas, resultado e descrição editáveis, pedido e foto),
  * igual no destaque e na linha do tempo. O estado de edição e o dos itens abertos ficam no pai.
  */
 function ItemDaVisita({
@@ -83,12 +92,15 @@ function ItemDaVisita({
   editando,
   itensAbertos,
   rascunho,
+  resultadoRascunho,
   ocupado,
+  erroDaEdicao,
   onAlternarItens,
   onComecarEdicao,
   onCancelarEdicao,
   onMudarRascunho,
-  onSalvarDescricao,
+  onMudarResultado,
+  onSalvarEdicao,
   onAnexarFoto,
 }: PropsDoItem) {
   return (
@@ -106,6 +118,12 @@ function ItemDaVisita({
 
       {editando ? (
         <div className="mt-2 space-y-2">
+          {erroDaEdicao && (
+            <Aviso tom="erro" role="alert">
+              {erroDaEdicao}
+            </Aviso>
+          )}
+          <SegmentadoResultado valor={resultadoRascunho} onChange={onMudarResultado} />
           <Textarea
             value={rascunho}
             onChange={(evento) => onMudarRascunho(evento.target.value)}
@@ -113,7 +131,7 @@ function ItemDaVisita({
             aria-label="Descrição da visita"
           />
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" disabled={ocupado} onClick={onSalvarDescricao}>
+            <Button type="button" size="sm" disabled={ocupado} onClick={onSalvarEdicao}>
               {ocupado ? 'Salvando...' : 'Salvar'}
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={onCancelarEdicao}>
@@ -126,7 +144,7 @@ function ItemDaVisita({
           <p className="mt-1 text-sm whitespace-pre-wrap text-muted-foreground">{visita.descricao}</p>
           {visita.editadoEm && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Descrição editada em {formatarDataHora(visita.editadoEm)}
+              Visita editada em {formatarDataHora(visita.editadoEm)}
             </p>
           )}
           {souAutor && (
@@ -138,7 +156,7 @@ function ItemDaVisita({
               onClick={onComecarEdicao}
             >
               <Pencil aria-hidden="true" />
-              Editar descrição
+              Editar visita
             </Button>
           )}
         </>
@@ -228,10 +246,12 @@ function ItemDaVisita({
   );
 }
 
-export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarFoto }: Props) {
+export function VisitTimeline({ visitas, usuarioId, onEditar, onAnexarFoto }: Props) {
   const [editando, setEditando] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState('');
+  const [resultadoRascunho, setResultadoRascunho] = useState<ResultadoVisita>('VENDA');
   const [erro, setErro] = useState<string | null>(null);
+  const [erroDaEdicao, setErroDaEdicao] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [itensAbertos, setItensAbertos] = useState<ReadonlySet<string>>(new Set());
   const [filtro, setFiltro] = useState<FiltroDeVisitas>(3);
@@ -244,19 +264,31 @@ export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarF
     );
   }
 
-  async function salvarDescricao(visitaId: string) {
-    if (rascunho.trim().length < 3) {
-      setErro('A descrição precisa de pelo menos 3 caracteres.');
+  async function salvarEdicao(visita: Visita) {
+    const descricao = rascunho.trim();
+    const dados: { descricao?: string; resultado?: ResultadoVisita } = {};
+    if (descricao !== visita.descricao) dados.descricao = descricao;
+    if (resultadoRascunho !== visita.resultado) dados.resultado = resultadoRascunho;
+
+    // Sem mudança, nada vai ao servidor (ele recusa um corpo vazio)
+    if (Object.keys(dados).length === 0) {
+      setEditando(null);
+      setErroDaEdicao(null);
+      return;
+    }
+
+    if (dados.descricao !== undefined && descricao.length < 3) {
+      setErroDaEdicao('A descrição precisa de pelo menos 3 caracteres.');
       return;
     }
 
     setOcupado(true);
     try {
-      await onEditarDescricao(visitaId, rascunho.trim());
+      await onEditar(visita.id, dados);
       setEditando(null);
-      setErro(null);
-    } catch {
-      setErro('Não foi possível salvar a descrição.');
+      setErroDaEdicao(null);
+    } catch (err: unknown) {
+      setErroDaEdicao(mensagemErroApi(err, 'Não foi possível salvar a visita.'));
     } finally {
       setOcupado(false);
     }
@@ -291,15 +323,23 @@ export function VisitTimeline({ visitas, usuarioId, onEditarDescricao, onAnexarF
         itensAbertos={itensAbertos.has(visita.id)}
         onAlternarItens={() => alternarItens(visita.id)}
         rascunho={rascunho}
+        resultadoRascunho={resultadoRascunho}
         ocupado={ocupado}
+        erroDaEdicao={erroDaEdicao}
         onComecarEdicao={() => {
           setEditando(visita.id);
           setRascunho(visita.descricao);
+          setResultadoRascunho(visita.resultado);
           setErro(null);
+          setErroDaEdicao(null);
         }}
-        onCancelarEdicao={() => setEditando(null)}
+        onCancelarEdicao={() => {
+          setEditando(null);
+          setErroDaEdicao(null);
+        }}
         onMudarRascunho={setRascunho}
-        onSalvarDescricao={() => void salvarDescricao(visita.id)}
+        onMudarResultado={setResultadoRascunho}
+        onSalvarEdicao={() => void salvarEdicao(visita)}
         onAnexarFoto={(arquivo) => void anexarFoto(visita.id, arquivo)}
       />
     );

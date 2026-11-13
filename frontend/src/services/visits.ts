@@ -16,7 +16,7 @@ export const ROTULO_RESULTADO: Record<ResultadoVisita, string> = {
   SEM_VENDA: 'Sem venda',
 };
 
-/** Item gravado no pedido da visita: nome e preço do catálogo no dia do check-in. */
+/** Item do pedido da visita, vindo da nota fiscal vinculada: produto, quantidade e preço. */
 export type ItemPedidoVisita = {
   sku: string;
   produtoNome: string;
@@ -46,16 +46,11 @@ export type Visita = {
   notaFiscal: { numero: string; valorTotal: number } | null;
 };
 
-/** Linha do pedido no check-in: só produto e quantidade (o preço vem do catálogo, no backend). */
-export type ItemPedido = { sku: string; quantidade: number };
-
 export type CheckInInput = {
   descricao: string;
   resultado: ResultadoVisita;
   dataHora?: string;
   contactId?: string;
-  /** Só com resultado VENDA, e sem linhas de quantidade 0. */
-  itens?: ItemPedido[];
   /**
    * Próxima visita prevista (`AAAA-MM-DD`, hoje ou depois), gravada no
    * cliente: a visita nova substitui a data marcada antes. `null` (ou
@@ -84,8 +79,15 @@ export function registrarCheckIn(clienteId: string, input: CheckInInput): Promis
   return api.post<Visita>(`/clients/${clienteId}/visits`, input);
 }
 
-export function editarDescricao(visitaId: string, descricao: string): Promise<Visita> {
-  return api.patch<Visita>(`/visits/${visitaId}`, { descricao });
+/**
+ * Corrige a descrição e/ou o resultado (só o autor). Mudar de Venda para outro
+ * resultado numa visita com pedido ou nota fiscal vinculada dá 409.
+ */
+export function editarVisita(
+  visitaId: string,
+  dados: { descricao?: string; resultado?: ResultadoVisita },
+): Promise<Visita> {
+  return api.patch<Visita>(`/visits/${visitaId}`, dados);
 }
 
 export function enviarFoto(visitaId: string, foto: Blob): Promise<void> {

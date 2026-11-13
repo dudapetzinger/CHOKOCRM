@@ -5,7 +5,7 @@
  * `contact.service.ts`. Além das chamadas HTTP, concentra aqui a validação
  * client-side dos dados do cliente (mesmas regras do zod em
  * `backend/src/schemas/client.schema.ts`) e o utilitário de mensagem de erro
- * amigável, reaproveitados por `NovoClientePage` e `ClienteDetalhePage`.
+ * amigável, reaproveitados pela ficha do cliente (`ClienteDetalhePage`).
  * A validação/estado dos contatos fica em `components/ContatoFields.tsx`.
  */
 import { api, ApiError } from './api';
@@ -90,7 +90,8 @@ export type ContatoInput = {
   principal: boolean;
 };
 
-export type CreateClienteInput = {
+/** Dados do cliente como a API os recebe e devolve (sem os contatos). */
+export type DadosClienteInput = {
   razaoSocial: string;
   nomeFantasia: string;
   cnpj: string;
@@ -100,7 +101,6 @@ export type CreateClienteInput = {
   email: string;
   erpId?: string;
   recorrenciaDias?: number;
-  contatos: ContatoInput[];
 };
 
 export type UpdateClienteInput = Partial<{
@@ -126,10 +126,11 @@ type ListClientsResponse = { data: ClienteListItem[] };
 /**
  * Lista a carteira inteira (o filtro por aba/cor é feito no cliente, ver
  * ClientesPage). `representanteId` só faz efeito para o gestor; para o
- * representante o backend sempre devolve a própria carteira.
+ * representante o backend sempre devolve a própria carteira. Sem `ativo`, só
+ * vêm os ativos; `ativo: 'todos'` traz também os inativos.
  */
 export function listClients(
-  params: { search?: string; representanteId?: string } = {},
+  params: { search?: string; representanteId?: string; ativo?: 'todos' } = {},
 ): Promise<ClienteListItem[]> {
   const query = new URLSearchParams();
   if (params.search) {
@@ -138,16 +139,15 @@ export function listClients(
   if (params.representanteId) {
     query.set('representanteId', params.representanteId);
   }
+  if (params.ativo) {
+    query.set('ativo', params.ativo);
+  }
   const qs = query.toString();
   return api.get<ListClientsResponse>(`/clients${qs ? `?${qs}` : ''}`).then((resposta) => resposta.data);
 }
 
 export function getCliente(id: string): Promise<ClienteCompleto> {
   return api.get<ClienteCompleto>(`/clients/${id}`);
-}
-
-export function createCliente(input: CreateClienteInput): Promise<ClienteCompleto> {
-  return api.post<ClienteCompleto>('/clients', input);
 }
 
 export function updateCliente(id: string, input: UpdateClienteInput): Promise<ClienteCompleto> {
@@ -236,16 +236,12 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CNPJ_REGEX = /^\d{14}$/;
 
 /**
- * Validação client-side dos campos do cliente, espelhando
- * `createClientSchema`/`updateClientSchema` (zod). Não substitui a validação
- * do backend, apenas evita idas e vindas desnecessárias à API. O cadastro
- * do representante exige e-mail; com `emailOpcional` (edição na ficha), o
- * e-mail vazio passa e só o preenchido é conferido.
+ * Validação client-side dos campos do cliente na edição da ficha. Não
+ * substitui a validação do servidor, apenas evita idas e vindas
+ * desnecessárias à API. O e-mail é opcional: vazio passa e só o preenchido é
+ * conferido.
  */
-export function validarDadosCliente(
-  dados: DadosClienteFormulario,
-  { emailOpcional = false }: { emailOpcional?: boolean } = {},
-): ErrosDadosCliente {
+export function validarDadosCliente(dados: DadosClienteFormulario): ErrosDadosCliente {
   const erros: ErrosDadosCliente = {};
 
   if (!dados.razaoSocial.trim()) erros.razaoSocial = 'Razão social é obrigatória.';
@@ -255,7 +251,7 @@ export function validarDadosCliente(
   if (!dados.endereco.trim()) erros.endereco = 'Endereço é obrigatório.';
   if (!dados.telefone.trim()) erros.telefone = 'Telefone é obrigatório.';
   const email = dados.email.trim();
-  if (!(emailOpcional && email === '') && !EMAIL_REGEX.test(email)) erros.email = 'E-mail inválido.';
+  if (email !== '' && !EMAIL_REGEX.test(email)) erros.email = 'E-mail inválido.';
 
   if (dados.recorrenciaDias.trim()) {
     const numero = Number(dados.recorrenciaDias);
@@ -270,7 +266,7 @@ export function validarDadosCliente(
 /** Converte os campos de texto do formulário para o payload aceito pela API. */
 export function normalizarDadosCliente(
   dados: DadosClienteFormulario,
-): Omit<CreateClienteInput, 'contatos'> {
+): DadosClienteInput {
   return {
     razaoSocial: dados.razaoSocial.trim(),
     nomeFantasia: dados.nomeFantasia.trim(),

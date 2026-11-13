@@ -16,7 +16,7 @@ vi.mock('../services/users', async (importOriginal) => ({
 const CRIADO: Usuario = {
   id: 'r9',
   nome: 'Bruna Lima',
-  email: 'bruna@chokolaten.com.br',
+  usuario: 'bruna.lima',
   telefone: '(47) 99977-0000',
   role: 'REPRESENTANTE',
   ativo: true,
@@ -33,7 +33,7 @@ beforeEach(() => {
 
 function renderizar(role: Role = 'GESTOR') {
   const auth = {
-    user: { id: 'g1', nome: 'Marina Gestora', email: 'gestao@chokolaten.com.br', telefone: null, role, ativo: true },
+    user: { id: 'g1', nome: 'Marina Gestora', usuario: 'gestao', telefone: null, role, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(),
@@ -54,14 +54,14 @@ function renderizar(role: Role = 'GESTOR') {
   );
 }
 
-/** Um evento de mudança por campo (sem digitar tecla a tecla; ver NovoClientePage.test). */
+/** Um evento de mudança por campo (sem digitar tecla a tecla). */
 function preencher(rotulo: string, texto: string) {
   fireEvent.change(screen.getByLabelText(rotulo), { target: { value: texto } });
 }
 
 function preencherTudo({ senha = 'segredo1', confirmacao = senha }: { senha?: string; confirmacao?: string } = {}) {
   preencher('Nome', 'Bruna Lima');
-  preencher('E-mail', 'bruna@chokolaten.com.br');
+  preencher('Usuário', 'bruna.lima');
   preencher('Telefone', '(47) 99977-0000');
   preencher('Senha inicial', senha);
   preencher('Confirmação', confirmacao);
@@ -90,16 +90,18 @@ describe('NovoUsuarioPage', () => {
     expect(criarUsuario).not.toHaveBeenCalled();
   });
 
-  it('exige nome e e-mail válido', async () => {
+  it('exige nome e usuário válido', async () => {
     renderizar();
 
-    preencher('E-mail', 'bruna');
+    preencher('Usuário', 'bruna lima');
     preencher('Senha inicial', 'segredo1');
     preencher('Confirmação', 'segredo1');
     await usuario.click(screen.getByRole('button', { name: 'Criar usuário' }));
 
     expect(screen.getByText('Nome é obrigatório.')).toBeInTheDocument();
-    expect(screen.getByText('E-mail inválido.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Usuário inválido: use de 3 a 30 letras minúsculas, números, ponto, hífen ou sublinhado.'),
+    ).toBeInTheDocument();
     expect(criarUsuario).not.toHaveBeenCalled();
   });
 
@@ -115,7 +117,7 @@ describe('NovoUsuarioPage', () => {
     // Sem o campo de confirmação: o backend recusa campos a mais
     expect(criarUsuario).toHaveBeenCalledWith({
       nome: 'Bruna Lima',
-      email: 'bruna@chokolaten.com.br',
+      usuario: 'bruna.lima',
       telefone: '(47) 99977-0000',
       role: 'GESTOR',
       senha: 'segredo1',
@@ -132,22 +134,44 @@ describe('NovoUsuarioPage', () => {
     expect(await screen.findByText('Lista de usuários')).toBeInTheDocument();
     expect(criarUsuario).toHaveBeenCalledWith({
       nome: 'Bruna Lima',
-      email: 'bruna@chokolaten.com.br',
+      usuario: 'bruna.lima',
       role: 'REPRESENTANTE',
       senha: 'segredo1',
     });
   });
 
-  it('e-mail repetido (409) aparece junto do campo e fica na tela', async () => {
-    vi.mocked(criarUsuario).mockRejectedValue(new ApiError('CONFLICT', 'Já existe um usuário com este e-mail.'));
+  it('usuário repetido (409) aparece junto do campo e fica na tela', async () => {
+    vi.mocked(criarUsuario).mockRejectedValue(new ApiError('CONFLICT', 'Já existe uma conta com este usuário.'));
     renderizar();
 
     preencherTudo();
     await usuario.click(screen.getByRole('button', { name: 'Criar usuário' }));
 
-    expect(await screen.findByText('Já existe um usuário com este e-mail.')).toBeInTheDocument();
-    expect(screen.getByLabelText('E-mail')).toHaveAttribute('aria-invalid', 'true');
+    expect(await screen.findByText('Já existe uma conta com este usuário.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Usuário')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByText('Lista de usuários')).not.toBeInTheDocument();
+  });
+
+  it('o usuário vai aparado e em minúsculas, como o backend o grava', async () => {
+    renderizar();
+
+    preencherTudo();
+    preencher('Usuário', '  Bruna.Lima ');
+    await usuario.click(screen.getByRole('button', { name: 'Criar usuário' }));
+
+    expect(await screen.findByText('Lista de usuários')).toBeInTheDocument();
+    expect(criarUsuario).toHaveBeenCalledWith(expect.objectContaining({ usuario: 'bruna.lima' }));
+  });
+
+  it('o campo "Usuário" é de texto, sem maiúscula automática nem corretor', () => {
+    renderizar();
+
+    const campo = screen.getByLabelText('Usuário');
+    expect(campo).toHaveAttribute('type', 'text');
+    expect(campo).toHaveAttribute('autocapitalize', 'none');
+    expect(campo).toHaveAttribute('autocorrect', 'off');
+    expect(campo).toHaveAttribute('spellcheck', 'false');
+    expect(screen.queryByLabelText('E-mail')).not.toBeInTheDocument();
   });
 
   it('outro erro da API aparece como alerta no formulário', async () => {

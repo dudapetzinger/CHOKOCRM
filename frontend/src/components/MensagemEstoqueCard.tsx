@@ -1,15 +1,10 @@
 /**
- * Card "Mensagem de estoque" na ficha do cliente: o
- * representante gera uma mensagem de consulta de estoque com texto proposto
- * pelo sistema (evento sazonal vigente, se houver), revisa e abre no
- * WhatsApp via link `wa.me` montado no próprio toque de "Confirmar e abrir no
- * WhatsApp" (o registro da mensagem vai ao backend em paralelo,
- * sem bloquear a abertura; com telefone que não serve para o WhatsApp o link
- * vem vazio, nada abre e o backend recusa o registro com a explicação); o histórico de mensagens geradas fica visível
- * para todos os papéis (só a geração é exclusiva do representante com
- * cliente ativo, ver `podeGerar` em `ClienteDetalhePage`). Visual do
- * protótipo: "Gerar mensagem" na ação do cartão e cada mensagem
- * gerada numa caixa cinza, recolhida (data · autor · evento) até ser aberta.
+ * Card "Mensagem de estoque" na ficha do cliente: o representante busca a
+ * mensagem de consulta de estoque proposta pelo sistema (evento sazonal
+ * vigente, se houver), escolhe o contato, revisa o texto e abre no WhatsApp
+ * via link `wa.me` montado no próprio toque de "Abrir no WhatsApp". Nada é
+ * gravado: não há histórico nem chamada de registro. Com telefone que não
+ * serve para o WhatsApp (sem DDD, 0800...) o link vem vazio e nada abre.
  */
 import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -17,58 +12,47 @@ import { MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { useMensagensEstoque, useGerarMensagemEstoque } from '../hooks/useMensagensEstoque';
 import { buscarProposta } from '../services/stockMessages';
 import { mensagemErroApi } from '../services/clients';
-import { formatarDataHora } from '../lib/formatarData';
+import { contatosParaWhatsapp, textoSugeridoDoDestino } from '../lib/contatosWhatsapp';
 import { linkWhatsapp } from '../lib/telefone';
-import { EstadoVazio } from './EstadoVazio';
 import { Aviso, Campo, Cartao, CLASSES_SELECT } from './crm/ui';
 
-const MENSAGEM_ERRO_GERAR = 'Não foi possível gerar a mensagem.';
-const MENSAGEM_ERRO_REGISTRAR = 'A mensagem abriu no WhatsApp, mas não ficou registrada.';
+const MENSAGEM_ERRO_PROPOSTA = 'Não foi possível gerar a mensagem.';
+const MENSAGEM_TELEFONE_INVALIDO = 'Este telefone não serve para o WhatsApp.';
 const CONTATO_TELEFONE_CLIENTE = '';
 
 type Props = {
   clienteId: string;
-  podeGerar: boolean;
 };
 
-export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
+export function MensagemEstoqueCard({ clienteId }: Props) {
   const [contactId, setContactId] = useState(CONTATO_TELEFONE_CLIENTE);
   const [texto, setTexto] = useState('');
   const [ultimoTextoSugerido, setUltimoTextoSugerido] = useState('');
   const [erroTexto, setErroTexto] = useState<string | null>(null);
-  // Se a última tentativa chegou a abrir o WhatsApp (muda o aviso de erro do registro).
-  const [abriuWhatsapp, setAbriuWhatsapp] = useState(false);
-
-  const { data: mensagens, isLoading: mensagensCarregando, isError: mensagensComErro, error: erroMensagens } =
-    useMensagensEstoque(clienteId);
-  const mutationGerar = useGerarMensagemEstoque(clienteId);
+  const [erroTelefone, setErroTelefone] = useState(false);
 
   const mutationProposta = useMutation({
     mutationFn: () => buscarProposta(clienteId),
     onSuccess: (proposta) => {
-      const principal = proposta.contatos.find((contato) => contato.principal);
-      setContactId(principal?.id ?? CONTATO_TELEFONE_CLIENTE);
-      setTexto(proposta.textoSugerido);
-      setUltimoTextoSugerido(proposta.textoSugerido);
+      const destino = contatosParaWhatsapp(proposta.contatos)[0]?.id ?? CONTATO_TELEFONE_CLIENTE;
+      const sugerido = textoSugeridoDoDestino(proposta, destino || null);
+      setContactId(destino);
+      setTexto(sugerido);
+      setUltimoTextoSugerido(sugerido);
       setErroTexto(null);
+      setErroTelefone(false);
     },
   });
 
   const proposta = mutationProposta.data;
-
-  function iniciarGeracao(): void {
-    mutationGerar.reset();
-    mutationProposta.mutate();
-  }
+  const contatos = proposta ? contatosParaWhatsapp(proposta.contatos) : [];
 
   function cancelar(): void {
     mutationProposta.reset();
-    mutationGerar.reset();
     setErroTexto(null);
-    setAbriuWhatsapp(false);
+    setErroTelefone(false);
     setContactId(CONTATO_TELEFONE_CLIENTE);
     setTexto('');
     setUltimoTextoSugerido('');
@@ -83,6 +67,7 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
    */
   function handleContactChange(novoContactId: string): void {
     setContactId(novoContactId);
+    setErroTelefone(false);
 
     const novaSugestao = proposta?.textosSugeridos.find(
       (item) => item.contactId === (novoContactId || null),
@@ -104,57 +89,33 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
     }
     setErroTexto(null);
 
-    // O WhatsApp abre no próprio toque (um popup aberto só depois da
-    // resposta é bloqueado no celular); o backend segue guardando a mensagem.
     const telefone =
-      proposta?.contatos.find((contato) => contato.id === contactId)?.telefone ?? proposta?.telefoneCliente ?? '';
-    // Telefone que não serve (sem DDD, 0800...) dá link vazio: não abre nada, e o
-    // backend recusa o registro com "Telefone inválido para gerar o link do WhatsApp."
+      contatos.find((contato) => contato.id === contactId)?.telefone ?? proposta?.telefoneCliente ?? '';
     const link = linkWhatsapp(telefone, textoTratado);
+    setErroTelefone(link === '');
+    // A janela abre no próprio toque (um popup aberto depois é bloqueado no celular).
     if (link) {
       window.open(link, '_blank', 'noopener');
     }
-    setAbriuWhatsapp(link !== '');
-
-    mutationGerar.mutate({ texto: textoTratado, contactId: contactId || undefined });
   }
-
-  const geracao = mutationGerar.data;
-  const podeIniciar = podeGerar && !mutationGerar.isSuccess && !proposta;
 
   return (
     <Cartao
       titulo="Mensagem de estoque"
       acao={
-        podeIniciar && (
-          <Button size="sm" variant="outline" onClick={iniciarGeracao} disabled={mutationProposta.isPending}>
+        !proposta && (
+          <Button size="sm" variant="outline" onClick={() => mutationProposta.mutate()} disabled={mutationProposta.isPending}>
             <MessageCircle aria-hidden="true" />
             {mutationProposta.isPending ? 'Carregando...' : 'Gerar mensagem'}
           </Button>
         )
       }
     >
-      {podeGerar && mutationGerar.isSuccess && geracao && (
-        <div className="mb-4 space-y-3">
-          <Aviso>Mensagem registrada em {formatarDataHora(geracao.dataGeracao)}.</Aviso>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild>
-              <a href={geracao.link} target="_blank" rel="noopener">
-                Abrir no WhatsApp
-              </a>
-            </Button>
-            <Button type="button" variant="outline" onClick={cancelar}>
-              Gerar outra mensagem
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {podeGerar && !mutationGerar.isSuccess && proposta && (
-        <form onSubmit={handleSubmit} noValidate className="mb-4 space-y-4">
-          {mutationGerar.isError && (
+      {proposta && (
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {erroTelefone && (
             <Aviso tom="erro" role="alert">
-              {mensagemErroApi(mutationGerar.error, abriuWhatsapp ? MENSAGEM_ERRO_REGISTRAR : MENSAGEM_ERRO_GERAR)}
+              {MENSAGEM_TELEFONE_INVALIDO}
             </Aviso>
           )}
 
@@ -165,7 +126,7 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
               value={contactId}
               onChange={(event) => handleContactChange(event.target.value)}
             >
-              {proposta.contatos.map((contato) => (
+              {contatos.map((contato) => (
                 <option key={contato.id} value={contato.id}>
                   {contato.nome} — {contato.telefone}
                 </option>
@@ -198,49 +159,18 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
           </Campo>
 
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-            <Button type="button" variant="outline" onClick={cancelar} disabled={mutationGerar.isPending}>
+            <Button type="button" variant="outline" onClick={cancelar}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={mutationGerar.isPending}>
-              {mutationGerar.isPending ? 'Gerando...' : 'Confirmar e abrir no WhatsApp'}
-            </Button>
+            <Button type="submit">Abrir no WhatsApp</Button>
           </div>
         </form>
       )}
 
-      {podeIniciar && mutationProposta.isError && (
-        <Aviso tom="erro" role="alert" className="mb-4">
-          {mensagemErroApi(mutationProposta.error, MENSAGEM_ERRO_GERAR)}
-        </Aviso>
-      )}
-
-      <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Mensagens geradas</h3>
-      {mensagensCarregando && <p className="text-sm text-muted-foreground">Carregando mensagens...</p>}
-
-      {mensagensComErro && (
+      {!proposta && mutationProposta.isError && (
         <Aviso tom="erro" role="alert">
-          {mensagemErroApi(erroMensagens, 'Não foi possível carregar as mensagens.')}
+          {mensagemErroApi(mutationProposta.error, MENSAGEM_ERRO_PROPOSTA)}
         </Aviso>
-      )}
-
-      {!mensagensCarregando && !mensagensComErro && (!mensagens || mensagens.length === 0) && (
-        <EstadoVazio icone="message-circle">Nenhuma mensagem gerada para este cliente.</EstadoVazio>
-      )}
-
-      {!mensagensCarregando && !mensagensComErro && mensagens && mensagens.length > 0 && (
-        <ul className="space-y-2">
-          {mensagens.map((mensagem) => (
-            <li key={mensagem.id} className="rounded-lg bg-muted p-3 text-sm">
-              <details>
-                <summary className="cursor-pointer text-xs text-muted-foreground max-md:py-3.5">
-                  {formatarDataHora(mensagem.dataGeracao)} · {mensagem.autor.nome} ·{' '}
-                  {mensagem.evento?.nome ?? 'sem evento'}
-                </summary>
-                <p className="mt-2 whitespace-pre-wrap">{mensagem.textoFinal}</p>
-              </details>
-            </li>
-          ))}
-        </ul>
       )}
     </Cartao>
   );

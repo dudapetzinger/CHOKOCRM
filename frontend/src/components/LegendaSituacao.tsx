@@ -23,6 +23,7 @@ const FRASES: readonly { cor: Cor | null; texto: string }[] = [
   { cor: 'AMARELO', texto: `Atenção: visitado há até ${LIMIAR_VERDE_AMARELO_DIAS} dias, sem venda.` },
   { cor: 'LARANJA', texto: `Vencendo: ${LIMIAR_VERDE_AMARELO_DIAS + 1} a ${LIMIAR_LARANJA_DIAS} dias sem visita.` },
   { cor: 'VERMELHO', texto: `Atrasado: mais de ${LIMIAR_LARANJA_DIAS} dias ou nunca visitado.` },
+  { cor: null, texto: 'Inativo: inativado pela gestão, sem cor; aparece só na aba Todos.' },
   { cor: null, texto: `Cliente sem compra no ERP há mais de ${LIMIAR_SEM_COMPRA_DIAS} dias cai para Vencendo.` },
 ];
 

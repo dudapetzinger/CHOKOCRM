@@ -26,27 +26,27 @@ describe('serviços de sistema', () => {
     expect(api.get).toHaveBeenCalledWith('/sistema/relogio');
   });
 
-  it('definirDemonstracao manda a data, o e-mail e a senha para POST /sistema/demonstracao, sem o token da sessão', async () => {
+  it('definirDemonstracao manda a data, o usuário e a senha para POST /sistema/demonstracao, sem o token da sessão', async () => {
     const resposta = await definirDemonstracao({
       data: '2027-03-15',
-      email: 'gestao@chokolaten.com.br',
+      usuario: 'gestao',
       senha: 'segredo',
     });
 
     expect(api.postSemSessao).toHaveBeenCalledWith('/sistema/demonstracao', {
       data: '2027-03-15',
-      email: 'gestao@chokolaten.com.br',
+      usuario: 'gestao',
       senha: 'segredo',
     });
     expect(resposta).toEqual({ relogio: RELOGIO });
   });
 
   it('definirDemonstracao com data null desliga o modo demonstração', async () => {
-    await definirDemonstracao({ data: null, email: 'gestao@chokolaten.com.br', senha: 'segredo' });
+    await definirDemonstracao({ data: null, usuario: 'gestao', senha: 'segredo' });
 
     expect(api.postSemSessao).toHaveBeenCalledWith('/sistema/demonstracao', {
       data: null,
-      email: 'gestao@chokolaten.com.br',
+      usuario: 'gestao',
       senha: 'segredo',
     });
   });

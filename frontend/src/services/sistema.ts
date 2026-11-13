@@ -5,7 +5,7 @@
  *   data mora no banco, tabela `configuracoes`).
  * - `POST /sistema/demonstracao`: com a senha da conta Gestão, liga o modo
  *   demonstração numa data (ou o desliga, com `data: null`) e recria a
- *   demonstração; responde `{ relogio }`. Erros: 401 `E-mail ou senha
+ *   demonstração; responde `{ relogio }`. Erros: 401 `Usuário ou senha
  *   inválidos`, 403 `Só a conta Gestão pode fazer isso.`, 409 `Já existe uma
  *   recriação em andamento.` Vai por `api.postSemSessao`, sem o token salvo:
  *   o 401 da senha errada não desloga ninguém. Usado pelo painel
@@ -31,7 +31,7 @@ export type Relogio = {
 export type DefinirDemonstracaoInput = {
   /** `AAAA-MM-DD`, ou `null` para voltar ao relógio real. */
   data: string | null;
-  email: string;
+  usuario: string;
   senha: string;
 };
 

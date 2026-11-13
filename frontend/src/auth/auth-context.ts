@@ -6,7 +6,7 @@ export type Role = 'REPRESENTANTE' | 'GESTOR';
 export type UsuarioAutenticado = {
   id: string;
   nome: string;
-  email: string;
+  usuario: string;
   telefone: string | null;
   role: Role;
   ativo: boolean;
@@ -15,7 +15,7 @@ export type UsuarioAutenticado = {
 export type AuthContextValue = {
   user: UsuarioAutenticado | null;
   /** Entra e devolve o usuário (o login usa o papel para escolher a tela inicial). */
-  login: (email: string, senha: string) => Promise<UsuarioAutenticado>;
+  login: (usuario: string, senha: string) => Promise<UsuarioAutenticado>;
   logout: () => void;
   /**
    * Relê o usuário da sessão (`GET /auth/me`) e atualiza o menu da conta,

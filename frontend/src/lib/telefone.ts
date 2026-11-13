@@ -1,9 +1,7 @@
 /**
  * Telefone para os atalhos de contato da ficha: links
  * `tel:` e `https://wa.me/`, que exigem o número internacional só com
- * dígitos, e o link do WhatsApp com a mensagem já preenchida (mesmo formato e
- * mesmas regras de validação do link que o backend monta em
- * `stock-message.template.ts`). Funções puras.
+ * dígitos, e o link do WhatsApp com a mensagem já preenchida. Funções puras.
  */
 
 const CODIGO_BRASIL = '55';
@@ -32,8 +30,7 @@ export function telefoneParaWaMe(telefone: string): string {
 const REGEX_PREFIXO_NAO_GEOGRAFICO = /^0[3589]00/;
 
 /**
- * Número para o `wa.me` com as mesmas regras de `normalizarTelefone` do
- * backend: só dígitos; rejeita prefixo não geográfico (nos dígitos brutos,
+ * Número para o `wa.me`: só dígitos; rejeita prefixo não geográfico (nos dígitos brutos,
  * antes de tirar o zero de tronco); remove zeros iniciais; 10–11 dígitos
  * ganham o 55 e 12–13 dígitos precisam começar com 55. Qualquer outro caso
  * (sem DDD, tamanho estranho) devolve vazio.
@@ -56,7 +53,7 @@ function numeroParaWhatsapp(telefone: string): string {
 /**
  * Link `https://wa.me/<número>` do telefone, com `?text=<texto codificado>`
  * quando há texto; telefone que não serve para o WhatsApp (sem DDD, 0800,
- * tamanho inválido) devolve vazio, como o backend recusa gerar o link.
+ * tamanho inválido) devolve vazio.
  */
 export function linkWhatsapp(telefone: string, texto?: string): string {
   const numero = numeroParaWhatsapp(telefone);

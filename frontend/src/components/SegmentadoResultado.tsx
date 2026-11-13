@@ -1,5 +1,5 @@
 /**
- * Controle segmentado do resultado da visita no check-in: três
+ * Controle segmentado do resultado da visita (check-in e edição): três
  * opções lado a lado em vez de um `<select>`, para escolher com um toque.
  * Segue o padrão `radiogroup`: só a opção marcada entra no Tab e as setas
  * trocam a seleção. É o `Segmentado` genérico (visual do

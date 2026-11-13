@@ -25,7 +25,7 @@ vi.mock('../services/users', async (importOriginal) => ({
 const GESTOR: Usuario = {
   id: 'g1',
   nome: 'Marina Gestora',
-  email: 'gestao@chokolaten.com.br',
+  usuario: 'gestao',
   telefone: null,
   role: 'GESTOR',
   ativo: true,
@@ -35,7 +35,7 @@ const GESTOR: Usuario = {
 const RAFAEL: Usuario = {
   id: 'r1',
   nome: 'Rafael Schmitt',
-  email: 'rafael@chokolaten.com.br',
+  usuario: 'rafael',
   telefone: '(47) 99911-0000',
   role: 'REPRESENTANTE',
   ativo: true,
@@ -45,7 +45,7 @@ const RAFAEL: Usuario = {
 const EDUARDA: Usuario = {
   id: 'r2',
   nome: 'Eduarda Fischer',
-  email: 'eduarda@chokolaten.com.br',
+  usuario: 'eduarda',
   telefone: '(47) 99922-0000',
   role: 'REPRESENTANTE',
   ativo: true,
@@ -55,7 +55,7 @@ const EDUARDA: Usuario = {
 const ANA: Usuario = {
   id: 'r3',
   nome: 'Ana Souza',
-  email: 'ana@chokolaten.com.br',
+  usuario: 'ana',
   telefone: null,
   role: 'REPRESENTANTE',
   ativo: false,
@@ -80,8 +80,8 @@ function renderizar(role: Role = 'GESTOR') {
   const auth = {
     user:
       role === 'GESTOR'
-        ? { id: 'g1', nome: 'Marina Gestora', email: 'gestao@chokolaten.com.br', telefone: null, role, ativo: true }
-        : { id: 'r1', nome: 'Rafael Schmitt', email: 'rafael@chokolaten.com.br', telefone: null, role, ativo: true },
+        ? { id: 'g1', nome: 'Marina Gestora', usuario: 'gestao', telefone: null, role, ativo: true }
+        : { id: 'r1', nome: 'Rafael Schmitt', usuario: 'rafael', telefone: null, role, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario,
@@ -123,18 +123,18 @@ async function itensDoMenu(nome: string) {
 }
 
 describe('UsuariosPage', () => {
-  it('lista nome, "e-mail · telefone", papel, situação e "N clientes"', async () => {
+  it('lista nome, "usuário · telefone", papel, situação e "N clientes"', async () => {
     renderizar();
 
     const rafael = within(await linhaDe('Rafael Schmitt'));
-    expect(rafael.getByText('rafael@chokolaten.com.br · (47) 99911-0000')).toBeInTheDocument();
+    expect(rafael.getByText('rafael · (47) 99911-0000')).toBeInTheDocument();
     expect(rafael.getByText('Representante')).toBeInTheDocument();
     expect(rafael.getByText('Ativo')).toBeInTheDocument();
     expect(rafael.getByText('5 clientes')).toBeInTheDocument();
 
-    // Sem telefone, só o e-mail; papel Gestor
+    // Sem telefone, só o usuário; papel Gestor
     const gestor = within(await linhaDe('Marina Gestora'));
-    expect(gestor.getByText('gestao@chokolaten.com.br')).toBeInTheDocument();
+    expect(gestor.getByText('gestao')).toBeInTheDocument();
     expect(gestor.getByText('Gestor')).toBeInTheDocument();
     expect(gestor.getByText('0 clientes')).toBeInTheDocument();
 
@@ -153,14 +153,14 @@ describe('UsuariosPage', () => {
     expect(screen.queryByRole('link', { name: 'Novo usuário' })).not.toBeInTheDocument();
   });
 
-  it('editar dados salva nome, e-mail, telefone e papel; papel some na própria linha', async () => {
+  it('editar dados salva nome, usuário, telefone e papel; papel some na própria linha', async () => {
     const { recarregarUsuario } = renderizar();
 
     await escolherAcao('Rafael Schmitt', 'Editar dados');
     const formulario = within(screen.getByRole('form', { name: 'Editar dados de Rafael Schmitt' }));
     await vi.waitFor(() => expect(formulario.getByLabelText('Nome')).toHaveFocus());
     fireEvent.change(formulario.getByLabelText('Nome'), { target: { value: 'Rafael S. Schmitt' } });
-    fireEvent.change(formulario.getByLabelText('E-mail'), { target: { value: 'rafael.schmitt@chokolaten.com.br' } });
+    fireEvent.change(formulario.getByLabelText('Usuário'), { target: { value: ' Rafael.Schmitt ' } });
     fireEvent.change(formulario.getByLabelText('Telefone'), { target: { value: '' } });
     await usuario.click(formulario.getByRole('radio', { name: 'Gestor' }));
     await usuario.click(formulario.getByRole('button', { name: 'Salvar' }));
@@ -168,7 +168,7 @@ describe('UsuariosPage', () => {
     expect(await screen.findByText('Dados atualizados')).toBeInTheDocument();
     expect(atualizarUsuario).toHaveBeenCalledWith('r1', {
       nome: 'Rafael S. Schmitt',
-      email: 'rafael.schmitt@chokolaten.com.br',
+      usuario: 'rafael.schmitt',
       telefone: null,
       role: 'GESTOR',
     });
@@ -185,34 +185,36 @@ describe('UsuariosPage', () => {
     await vi.waitFor(() => expect(recarregarUsuario).toHaveBeenCalledTimes(1));
     expect(atualizarUsuario).toHaveBeenLastCalledWith('g1', {
       nome: 'Marina Gestora',
-      email: 'gestao@chokolaten.com.br',
+      usuario: 'gestao',
       telefone: '(47) 3333-0000',
     });
   });
 
-  it('editar dados valida no cliente e mostra o e-mail repetido (409) junto do campo', async () => {
+  it('editar dados valida no cliente e mostra o usuário repetido (409) junto do campo', async () => {
     vi.mocked(atualizarUsuario).mockRejectedValue(
-      new ApiError('CONFLICT', 'Já existe um usuário com este e-mail.'),
+      new ApiError('CONFLICT', 'Já existe uma conta com este usuário.'),
     );
     renderizar();
 
     await escolherAcao('Rafael Schmitt', 'Editar dados');
     const formulario = within(screen.getByRole('form', { name: 'Editar dados de Rafael Schmitt' }));
     fireEvent.change(formulario.getByLabelText('Nome'), { target: { value: '  ' } });
-    fireEvent.change(formulario.getByLabelText('E-mail'), { target: { value: 'sem-arroba' } });
+    fireEvent.change(formulario.getByLabelText('Usuário'), { target: { value: 'rafael@chokolaten.com.br' } });
     await usuario.click(formulario.getByRole('button', { name: 'Salvar' }));
 
     expect(formulario.getByText('Nome é obrigatório.')).toBeInTheDocument();
-    expect(formulario.getByText('E-mail inválido.')).toBeInTheDocument();
+    expect(
+      formulario.getByText('Usuário inválido: use de 3 a 30 letras minúsculas, números, ponto, hífen ou sublinhado.'),
+    ).toBeInTheDocument();
     expect(formulario.getByLabelText('Nome')).toHaveFocus();
     expect(atualizarUsuario).not.toHaveBeenCalled();
 
     fireEvent.change(formulario.getByLabelText('Nome'), { target: { value: 'Rafael Schmitt' } });
-    fireEvent.change(formulario.getByLabelText('E-mail'), { target: { value: 'eduarda@chokolaten.com.br' } });
+    fireEvent.change(formulario.getByLabelText('Usuário'), { target: { value: 'eduarda' } });
     await usuario.click(formulario.getByRole('button', { name: 'Salvar' }));
 
-    expect(await formulario.findByText('Já existe um usuário com este e-mail.')).toBeInTheDocument();
-    expect(formulario.getByLabelText('E-mail')).toHaveAttribute('aria-invalid', 'true');
+    expect(await formulario.findByText('Já existe uma conta com este usuário.')).toBeInTheDocument();
+    expect(formulario.getByLabelText('Usuário')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('inativar pede confirmação com a frase da carteira e pode transferir antes', async () => {

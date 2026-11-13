@@ -1,8 +1,8 @@
 /**
  * Cadastro de usuário pelo gestor, no visual de
  * `routes/usuarios.novo.tsx` do protótipo: um cartão de 560 px com nome,
- * e-mail, telefone, papel (representante por padrão), senha inicial e
- * confirmação. Validações do backend repetidas aqui (nome, e-mail, senha de
+ * usuário, telefone, papel (representante por padrão), senha inicial e
+ * confirmação. Validações do backend repetidas aqui (nome, usuário, senha de
  * 6 caracteres) mais a confirmação, que não vai para a API. Sucesso: aviso
  * "Usuário criado" e a lista de usuários. Os campos não usam o
  * preenchimento automático do navegador: os dados são da pessoa nova, não
@@ -21,6 +21,7 @@ import { Segmentado } from '../components/Segmentado';
 import { Aviso, Campo, Cartao } from '../components/crm/ui';
 import { OPCOES_PAPEL } from '../lib/papel';
 import { validarNovaSenha } from '../lib/senha';
+import { normalizarUsuario } from '../lib/usuario';
 import { useFocoNoPrimeiroErro } from '../lib/useFoco';
 import { ApiError } from '../services/api';
 import { mensagemErroApi } from '../services/clients';
@@ -28,7 +29,7 @@ import { criarUsuario, validarDadosUsuario, type NovoUsuarioInput } from '../ser
 
 const MENSAGEM_ERRO_PADRAO = 'Não foi possível criar o usuário. Tente novamente.';
 
-type Dados = { nome: string; email: string; telefone: string; senha: string; confirmacao: string };
+type Dados = { nome: string; usuario: string; telefone: string; senha: string; confirmacao: string };
 type Erros = Partial<Record<Exclude<keyof Dados, 'telefone'>, string>>;
 
 export function NovoUsuarioPage() {
@@ -44,7 +45,7 @@ export function NovoUsuarioPage() {
 function FormularioNovoUsuario() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [dados, setDados] = useState<Dados>({ nome: '', email: '', telefone: '', senha: '', confirmacao: '' });
+  const [dados, setDados] = useState<Dados>({ nome: '', usuario: '', telefone: '', senha: '', confirmacao: '' });
   const [papel, setPapel] = useState<Role>('REPRESENTANTE');
   const [erros, setErros] = useState<Erros>({});
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
@@ -61,7 +62,7 @@ function FormularioNovoUsuario() {
     },
     onError: (erro) => {
       if (erro instanceof ApiError && erro.code === 'CONFLICT') {
-        setErros({ email: erro.message });
+        setErros({ usuario: erro.message });
         focarPrimeiroErro();
         return;
       }
@@ -93,7 +94,7 @@ function FormularioNovoUsuario() {
     const telefone = dados.telefone.trim();
     criar.mutate({
       nome: dados.nome.trim(),
-      email: dados.email.trim(),
+      usuario: normalizarUsuario(dados.usuario),
       ...(telefone ? { telefone } : {}),
       role: papel,
       senha: dados.senha,
@@ -111,13 +112,21 @@ function FormularioNovoUsuario() {
             onChange={(evento) => atualizar('nome', evento.target.value)}
           />
         </Campo>
-        <Campo rotulo="E-mail" htmlFor="email" erro={erros.email}>
+        <Campo
+          rotulo="Usuário"
+          htmlFor="usuario"
+          ajuda="É o nome que a pessoa digita para entrar. Sem espaços nem acentos."
+          erro={erros.usuario}
+        >
           <Input
-            id="email"
-            type="email"
+            id="usuario"
+            type="text"
             autoComplete="off"
-            value={dados.email}
-            onChange={(evento) => atualizar('email', evento.target.value)}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={dados.usuario}
+            onChange={(evento) => atualizar('usuario', evento.target.value)}
           />
         </Campo>
         <Campo rotulo="Telefone" htmlFor="telefone">

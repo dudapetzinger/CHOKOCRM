@@ -13,7 +13,7 @@ const MENSAGEM_ERRO_PADRAO = 'Não foi possível entrar. Tente novamente.';
 
 /**
  * Login no layout do protótipo: logotipo, slogan e cartão com
- * e-mail, senha e "Entrar", sem dica de contas de teste. No topo, o
+ * usuário, senha e "Entrar", sem dica de contas de teste. No topo, o
  * `ModoDemonstracao` (botão discreto, ou a faixa da data com "alterar"),
  * que a Gestão usa para recriar a demonstração. Depois de entrar,
  * volta para a tela que pediu o login (`RequireAuth` guarda em
@@ -25,7 +25,7 @@ export function LoginPage() {
   const location = useLocation();
   const origem = (location.state as { from?: Partial<Path> } | null)?.from;
 
-  const [email, setEmail] = useState('');
+  const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -36,8 +36,8 @@ export function LoginPage() {
     setEnviando(true);
 
     try {
-      const usuario = await login(email, senha);
-      navigate(origem ?? rotaInicialDoPapel(usuario.role), { replace: true });
+      const conta = await login(usuario, senha);
+      navigate(origem ?? rotaInicialDoPapel(conta.role), { replace: true });
     } catch (err) {
       setErro(err instanceof ApiError ? err.message : MENSAGEM_ERRO_PADRAO);
     } finally {
@@ -53,15 +53,17 @@ export function LoginPage() {
         </h1>
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          <Campo rotulo="E-mail" htmlFor="email">
+          <Campo rotulo="Usuário" htmlFor="usuario">
             <Input
-              type="email"
-              id="email"
-              name="email"
-              placeholder="nome@chokolaten.com.br"
+              type="text"
+              id="usuario"
+              name="usuario"
               autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={usuario}
+              onChange={(event) => setUsuario(event.target.value)}
               required
             />
           </Campo>

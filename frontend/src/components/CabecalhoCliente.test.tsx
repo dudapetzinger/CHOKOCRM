@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthContext, type Role } from '../auth/auth-context';
 import { Toaster } from './ui/sonner';
 import { updateCliente, type ClienteCompleto, type Contato } from '../services/clients';
-import { buscarProposta, gerarMensagem, type Geracao, type Proposta } from '../services/stockMessages';
+import { buscarProposta, type Proposta } from '../services/stockMessages';
 import { CabecalhoCliente } from './CabecalhoCliente';
 
 vi.mock('../services/clients', async (importOriginal) => ({
@@ -16,7 +16,6 @@ vi.mock('../services/clients', async (importOriginal) => ({
 
 vi.mock('../services/stockMessages', () => ({
   buscarProposta: vi.fn(),
-  gerarMensagem: vi.fn(),
 }));
 
 vi.mock('../services/users', () => ({
@@ -82,21 +81,6 @@ function proposta(sobrescrever: Partial<Proposta> = {}): Proposta {
   };
 }
 
-function geracao(sobrescrever: Partial<Geracao> = {}): Geracao {
-  return {
-    id: 'm1',
-    dataGeracao: '2026-11-02T12:00:00.000Z',
-    textoFinal: 'Olá, Marta! Aqui é Eduarda.',
-    autor: { id: 'u1', nome: 'Eduarda Petzinger' },
-    evento: null,
-    cliente: { id: 'c1', nomeFantasia: 'Armazém São Bento' },
-    contato: { id: 'ct1', nome: 'Marta Hoffmann' },
-    telefone: '(47) 99900-8080',
-    link: 'https://wa.me/5547999008080',
-    ...sobrescrever,
-  };
-}
-
 // Sem atraso entre as teclas: o teste não depende da velocidade da máquina.
 let usuario: ReturnType<typeof userEvent.setup>;
 
@@ -104,12 +88,11 @@ beforeEach(() => {
   usuario = userEvent.setup({ delay: null });
   vi.mocked(updateCliente).mockReset();
   vi.mocked(buscarProposta).mockReset().mockResolvedValue(proposta());
-  vi.mocked(gerarMensagem).mockReset().mockResolvedValue(geracao());
 });
 
 function renderizar(elemento: ReactElement, role: Role = 'REPRESENTANTE') {
   const auth = {
-    user: { id: 'g1', nome: 'Usuário', email: 'usuario@exemplo.com', role, telefone: null, ativo: true },
+    user: { id: 'g1', nome: 'Usuário', usuario: 'usuario', role, telefone: null, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(async () => {}),
@@ -136,8 +119,18 @@ describe('CabecalhoCliente', () => {
     expect(screen.getByText('Em dia · visita há 3 dias, com venda')).toBeInTheDocument();
   });
 
+  it('cliente inativo mostra só "Inativo", sem a etiqueta de cor', () => {
+    renderizar(<CabecalhoCliente cliente={cliente({ ativo: false })} podeCheckIn={false} podeTransferir={false} />);
+
+    expect(screen.getByText('Inativo')).toBeInTheDocument();
+    expect(screen.queryByText(/Em dia/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/visita há/)).not.toBeInTheDocument();
+  });
+
   it('liga e abre o WhatsApp com os dígitos do contato principal', () => {
-    renderizar(<CabecalhoCliente cliente={cliente()} podeCheckIn={false} podeTransferir={false} />);
+    renderizar(
+      <CabecalhoCliente cliente={cliente({ contatos: [contatoPrincipal] })} podeCheckIn={false} podeTransferir={false} />,
+    );
 
     expect(screen.getByText('Marta Hoffmann · (47) 99900-8080')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ligar' })).toHaveAttribute('href', 'tel:+5547999008080');
@@ -149,7 +142,7 @@ describe('CabecalhoCliente', () => {
 
   it('usa o telefone do cliente quando não há contato principal', () => {
     renderizar(
-      <CabecalhoCliente cliente={cliente({ contatos: [contatoSecundario] })} podeCheckIn={false} podeTransferir={false} />,
+      <CabecalhoCliente cliente={cliente({ contatos: [{ ...contatoSecundario, telefone: '' }] })} podeCheckIn={false} podeTransferir={false} />,
     );
 
     expect(screen.getByRole('link', { name: 'Ligar' })).toHaveAttribute('href', 'tel:+554736331234');
@@ -222,10 +215,9 @@ describe('CabecalhoCliente', () => {
     expect(screen.getByRole('button', { name: 'Adicionar contato' })).toHaveFocus();
   });
 
-  it('com podeCheckIn, o WhatsApp abre com a mensagem sugerida e registra ao clicar', async () => {
+  it('com podeCheckIn e um só contato, o WhatsApp é o link direto com a mensagem sugerida', async () => {
     vi.mocked(buscarProposta).mockResolvedValue(proposta({ textoSugerido: 'Olá, Marta! Aqui é Eduarda.' }));
-    vi.mocked(gerarMensagem).mockResolvedValue(geracao());
-    renderizar(<CabecalhoCliente cliente={cliente()} podeCheckIn podeTransferir={false} />);
+    renderizar(<CabecalhoCliente cliente={cliente({ contatos: [contatoPrincipal] })} podeCheckIn podeTransferir={false} />);
 
     const whatsapp = await screen.findByRole('link', { name: 'WhatsApp' });
     await waitFor(() =>
@@ -234,32 +226,79 @@ describe('CabecalhoCliente', () => {
         'https://wa.me/5547999008080?text=Ol%C3%A1%2C%20Marta!%20Aqui%20%C3%A9%20Eduarda.',
       ),
     );
-    // O clique não navega no jsdom; o que importa é o registro da mensagem.
-    await usuario.click(whatsapp);
-
-    expect(gerarMensagem).toHaveBeenCalledWith('c1', { texto: 'Olá, Marta! Aqui é Eduarda.', contactId: 'ct1' });
+    expect(screen.queryByRole('button', { name: 'WhatsApp' })).not.toBeInTheDocument();
   });
 
-  it('sem podeCheckIn, não busca a proposta e o link vai só com o número', async () => {
+  it('com três contatos, o WhatsApp abre um menu: principal primeiro, depois por nome, cada um com o seu link', async () => {
+    const contatoAna: Contato = { ...contatoSecundario, id: 'ct3', nome: 'Ana Lima', cargo: 'Balconista', telefone: '(47) 97777-2222' };
+    const semTelefone: Contato = { ...contatoSecundario, id: 'ct4', nome: 'Bruno Sem Fone', telefone: '' };
+    vi.mocked(buscarProposta).mockResolvedValue(
+      proposta({
+        textoSugerido: 'Olá! Aqui é Eduarda.',
+        textosSugeridos: [
+          { contactId: 'ct1', texto: 'Olá, Marta!' },
+          { contactId: 'ct2', texto: 'Olá, Jonas!' },
+        ],
+      }),
+    );
+    renderizar(
+      <CabecalhoCliente
+        cliente={cliente({ contatos: [contatoSecundario, semTelefone, contatoAna, contatoPrincipal] })}
+        podeCheckIn
+        podeTransferir={false}
+      />,
+    );
+
+    await waitFor(() => expect(buscarProposta).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument();
+    await usuario.click(screen.getByRole('button', { name: 'WhatsApp' }));
+
+    const itens = await screen.findAllByRole('menuitem');
+    expect(itens).toHaveLength(3);
+    expect(screen.getByRole('menuitem', { name: 'Marta Hoffmann · Compradora Principal' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Ana Lima · Balconista' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Jonas Kraus · Gerente' })).toBeInTheDocument();
+    expect(itens.map((item) => item.textContent?.split(' · ')[0])).toEqual(['Marta Hoffmann', 'Ana Lima', 'Jonas Kraus']);
+    await waitFor(() =>
+      expect(itens.map((item) => item.getAttribute('href'))).toEqual([
+        'https://wa.me/5547999008080?text=Ol%C3%A1%2C%20Marta!',
+        'https://wa.me/5547977772222?text=Ol%C3%A1!%20Aqui%20%C3%A9%20Eduarda.',
+        'https://wa.me/5547988881111?text=Ol%C3%A1%2C%20Jonas!',
+      ]),
+    );
+    for (const item of itens) {
+      expect(item).toHaveAttribute('target', '_blank');
+      expect(item).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+  });
+
+  it('sem podeCheckIn, o menu de contatos leva só o número e não busca a proposta', async () => {
     renderizar(<CabecalhoCliente cliente={cliente()} podeCheckIn={false} podeTransferir={false} />);
 
-    const whatsapp = screen.getByRole('link', { name: 'WhatsApp' });
-    expect(whatsapp).toHaveAttribute('href', 'https://wa.me/5547999008080');
-    await usuario.click(whatsapp);
+    await usuario.click(screen.getByRole('button', { name: 'WhatsApp' }));
 
+    const itens = await screen.findAllByRole('menuitem');
+    expect(itens.map((item) => item.getAttribute('href'))).toEqual([
+      'https://wa.me/5547999008080',
+      'https://wa.me/5547988881111',
+    ]);
     expect(buscarProposta).not.toHaveBeenCalled();
-    expect(gerarMensagem).not.toHaveBeenCalled();
   });
 
-  it('registro que falha avisa sem bloquear o link', async () => {
-    vi.mocked(gerarMensagem).mockRejectedValue(new Error('falhou'));
-    renderizar(<CabecalhoCliente cliente={cliente()} podeCheckIn podeTransferir={false} />);
+  it('principal sem telefone e outro contato válido: o WhatsApp lista esse contato e a proposta é buscada', async () => {
+    const principalSemTelefone: Contato = { ...contatoPrincipal, telefone: '' };
+    renderizar(
+      <CabecalhoCliente
+        cliente={cliente({ telefone: '', contatos: [principalSemTelefone, contatoSecundario] })}
+        podeCheckIn
+        podeTransferir={false}
+      />,
+    );
 
     const whatsapp = await screen.findByRole('link', { name: 'WhatsApp' });
-    await waitFor(() => expect(whatsapp.getAttribute('href')).toContain('?text='));
-    await usuario.click(whatsapp);
-
-    expect(await screen.findByText('A mensagem abriu no WhatsApp, mas não ficou registrada.')).toBeInTheDocument();
+    await waitFor(() => expect(whatsapp.getAttribute('href')).toContain('https://wa.me/5547988881111?text='));
+    expect(buscarProposta).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('link', { name: 'Ligar' })).not.toBeInTheDocument();
   });
 
   it('telefone sem dígitos: sem botão de WhatsApp e sem buscar a proposta', async () => {
@@ -267,7 +306,6 @@ describe('CabecalhoCliente', () => {
 
     expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument();
     expect(buscarProposta).not.toHaveBeenCalled();
-    expect(gerarMensagem).not.toHaveBeenCalled();
   });
 
   it('telefone 0800: sem botão de WhatsApp, sem buscar a proposta nem registrar; "Ligar" continua', async () => {
@@ -282,7 +320,6 @@ describe('CabecalhoCliente', () => {
     // Dá tempo de uma busca indevida aparecer antes de afirmar que não houve.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(buscarProposta).not.toHaveBeenCalled();
-    expect(gerarMensagem).not.toHaveBeenCalled();
   });
 
   it('cliente criado pela nota (sem e-mail, sem contato, sem telefone e sem cidade): sem "Ligar" nem WhatsApp e sem buscar a proposta', async () => {

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { removerSimulacaoDeLargura, simularLargura } from './test/simularLargura';
-import { api } from './services/api';
+import { api, ApiError } from './services/api';
 import { buscarRelogio } from './services/sistema';
 import { getCliente, listClients, type ClienteCompleto, type ClienteListItem } from './services/clients';
 
@@ -82,9 +82,7 @@ vi.mock('./services/erp', () => ({
 }));
 vi.mock('./services/insights', () => ({ buscarInsights: vi.fn(async () => ({ status: 'SEM_ERP_ID' })) }));
 vi.mock('./services/stockMessages', () => ({
-  listarMensagens: vi.fn(async () => []),
   buscarProposta: vi.fn(),
-  gerarMensagem: vi.fn(),
 }));
 vi.mock('./services/agenda', () => ({
   buscarAgendaDoDia: vi.fn(async () => ({ atrasadas: [], hoje: [], proximos7Dias: [], lembretes: [] })),
@@ -114,12 +112,12 @@ vi.mock('./services/users', async (importOriginal) => ({
 const REPRESENTANTE = {
   id: 'r1',
   nome: 'Eduarda Fischer',
-  email: 'eduarda@exemplo.com',
+  usuario: 'eduarda',
   telefone: null,
   role: 'REPRESENTANTE',
   ativo: true,
 };
-const GESTOR = { id: 'g1', nome: 'Marina Gestora', email: 'gestor@exemplo.com', telefone: null, role: 'GESTOR', ativo: true };
+const GESTOR = { id: 'g1', nome: 'Marina Gestora', usuario: 'gestor', telefone: null, role: 'GESTOR', ativo: true };
 
 /** Abre o app no caminho, com a sessão de quem for passado salva (`null` = ninguém logado). */
 function abrirApp(caminho: string, sessao: typeof REPRESENTANTE | typeof GESTOR | null = REPRESENTANTE) {
@@ -150,6 +148,20 @@ afterEach(() => {
   removerSimulacaoDeLargura();
   localStorage.clear();
   window.history.pushState({}, '', '/');
+});
+
+describe('rota /clientes/novo', () => {
+  it('não existe mais: cai na ficha inexistente, sem formulário de cadastro', async () => {
+    simularLargura(900);
+    vi.mocked(getCliente).mockRejectedValue(new ApiError('NOT_FOUND', 'Cliente não encontrado.'));
+    abrirApp('/clientes/novo');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cliente não encontrado.');
+    expect(getCliente).toHaveBeenCalledWith('novo');
+    expect(screen.queryByLabelText('Razão social')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Novo cliente' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Salvar cliente' })).not.toBeInTheDocument();
+  });
 });
 
 describe('rota /clientes/:id', () => {
@@ -286,31 +298,33 @@ describe('troca de usuário no mesmo navegador', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Entrar' })).toBeInTheDocument();
 
     // A lista do Rafael só chega quando o teste mandar: enquanto isso, nada da carteira da Eduarda.
-    let entregarListaDoRafael: (lista: ClienteListItem[]) => void = () => {};
+    // (a lista e as cidades dividem a mesma consulta, então chega uma só requisição)
+    const pendentes: ((lista: ClienteListItem[]) => void)[] = [];
     vi.mocked(listClients).mockImplementation(
-      () => new Promise<ClienteListItem[]>((resolver) => (entregarListaDoRafael = resolver)),
+      () => new Promise<ClienteListItem[]>((resolver) => void pendentes.push(resolver)),
     );
     vi.spyOn(api, 'post').mockResolvedValue({
       token: 'token-rafael',
-      user: { id: 'r2', nome: 'Rafael Schmitt', email: 'rafael@exemplo.com', role: 'REPRESENTANTE' },
+      user: { id: 'r2', nome: 'Rafael Schmitt', usuario: 'rafael', role: 'REPRESENTANTE' },
     });
 
     // Campos preenchidos de uma vez, sem digitar tecla a tecla: o teste é da
     // troca de usuário, não da digitação (cada tecla re-renderiza o app
     // inteiro, e a digitação longa passa dos 15 s com a suíte toda rodando).
-    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'rafael@exemplo.com' } });
+    fireEvent.change(screen.getByLabelText('Usuário'), { target: { value: 'rafael' } });
     fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'segredo123' } });
     await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
 
     // A tela inicial do representante, não a última tela de quem saiu
     expect(await screen.findByRole('heading', { level: 1, name: 'Agenda' })).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledWith('/auth/login', { usuario: 'rafael', senha: 'segredo123' });
     await usuario.click(screen.getByRole('link', { name: 'Clientes' }));
 
     expect(await screen.findByText('Carregando clientes...')).toBeInTheDocument();
     expect(screen.queryByText('Doces da Vovó')).not.toBeInTheDocument();
     expect(screen.queryByText('Empório Central')).not.toBeInTheDocument();
 
-    entregarListaDoRafael(LISTA_RAFAEL);
+    pendentes.forEach((entregar) => entregar(LISTA_RAFAEL));
     expect(await screen.findByText('Padaria Estrela')).toBeInTheDocument();
     expect(screen.queryByText('Doces da Vovó')).not.toBeInTheDocument();
   });

@@ -8,7 +8,7 @@ import { BannerInstalar, CHAVE_INSTALAR_DISPENSADO } from './BannerInstalar';
 const USUARIO: UsuarioAutenticado = {
   id: 'u1',
   nome: 'Ana Representante',
-  email: 'ana@chokolaten.com.br',
+  usuario: 'ana',
   role: 'REPRESENTANTE',
   telefone: null,
   ativo: true,

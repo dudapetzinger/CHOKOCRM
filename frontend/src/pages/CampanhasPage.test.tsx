@@ -157,7 +157,7 @@ function renderizar(role: Role = 'GESTOR', rota = '/campanhas') {
     user: {
       id: 'r1',
       nome: role === 'GESTOR' ? 'Gestão Chokolaten' : 'Eduarda Fischer',
-      email: 'u@exemplo.com',
+      usuario: 'usuario',
       telefone: null,
       role,
       ativo: true,

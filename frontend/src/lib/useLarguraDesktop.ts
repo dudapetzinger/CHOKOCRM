@@ -2,8 +2,7 @@
  * Larguras de tela que mudam o layout.
  *
  * - `useLarguraDesktop` (≥ 768 px, o `md` do Tailwind): a moldura troca a
- *   navegação inferior pelo menu lateral; em Clientes, "Novo cliente" sai do
- *   botão flutuante para a barra de ferramentas.
+ *   navegação inferior pelo menu lateral.
  * - `useLarguraDuasColunas` (≥ 1024 px, o `lg`): Clientes mostra a lista com
  *   a ficha ao lado e a Agenda põe Atrasadas | Hoje lado a lado.
  *   Abaixo disso, com o menu lateral de 240 px, as duas não cabem:

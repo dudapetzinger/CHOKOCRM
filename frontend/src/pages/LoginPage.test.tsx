@@ -35,7 +35,7 @@ afterEach(() => {
 const GESTOR: UsuarioAutenticado = {
   id: 'g1',
   nome: 'Marina Gestora',
-  email: 'gestao@chokolaten.com.br',
+  usuario: 'gestao',
   telefone: null,
   role: 'GESTOR',
   ativo: true,
@@ -43,14 +43,14 @@ const GESTOR: UsuarioAutenticado = {
 const REPRESENTANTE: UsuarioAutenticado = {
   id: 'r1',
   nome: 'Ana Representante',
-  email: 'ana@chokolaten.com.br',
+  usuario: 'ana',
   telefone: '(47) 99900-0000',
   role: 'REPRESENTANTE',
   ativo: true,
 };
 
 function renderizar(
-  login: (email: string, senha: string) => Promise<UsuarioAutenticado>,
+  login: (usuario: string, senha: string) => Promise<UsuarioAutenticado>,
   entrada: InitialEntry = '/login',
 ) {
   const auth = { user: null, login, logout: vi.fn(), recarregarUsuario: vi.fn(async () => {}) };
@@ -71,20 +71,20 @@ function renderizar(
   );
 }
 
-async function preencherEEnviar(email = 'ana@chokolaten.com.br', senha = 'segredo123') {
-  await usuario.type(screen.getByLabelText('E-mail'), email);
+async function preencherEEnviar(conta = 'ana', senha = 'segredo123') {
+  await usuario.type(screen.getByLabelText('Usuário'), conta);
   await usuario.type(screen.getByLabelText('Senha'), senha);
   await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
 }
 
 describe('LoginPage', () => {
-  it('credenciais erradas (401 da API) mostram "E-mail ou senha inválidos" e ficam na tela de login', async () => {
-    const login = vi.fn().mockRejectedValue(new ApiError('UNAUTHORIZED', 'E-mail ou senha inválidos'));
+  it('credenciais erradas (401 da API) mostram "Usuário ou senha inválidos" e ficam na tela de login', async () => {
+    const login = vi.fn().mockRejectedValue(new ApiError('UNAUTHORIZED', 'Usuário ou senha inválidos'));
     renderizar(login);
 
     await preencherEEnviar();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('E-mail ou senha inválidos');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Usuário ou senha inválidos');
     expect(screen.queryByText('painel')).not.toBeInTheDocument();
     expect(screen.queryByText('agenda')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entrar' })).toBeEnabled();
@@ -108,15 +108,15 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível entrar. Tente novamente.');
   });
 
-  it('login do gestor chama o serviço com e-mail e senha e leva para /painel', async () => {
+  it('login do gestor chama o serviço com usuário e senha e leva para /painel', async () => {
     const login = vi.fn().mockResolvedValue(GESTOR);
     renderizar(login);
 
-    await preencherEEnviar('gestao@chokolaten.com.br', 'segredo123');
+    await preencherEEnviar('gestao', 'segredo123');
 
     expect(await screen.findByText('painel')).toBeInTheDocument();
     expect(login).toHaveBeenCalledTimes(1);
-    expect(login).toHaveBeenCalledWith('gestao@chokolaten.com.br', 'segredo123');
+    expect(login).toHaveBeenCalledWith('gestao', 'segredo123');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -139,6 +139,18 @@ describe('LoginPage', () => {
     expect(await screen.findByText('ficha do cliente')).toBeInTheDocument();
   });
 
+  it('o campo "Usuário" é de texto, sem maiúscula automática nem corretor, e serve ao gerenciador de senhas', () => {
+    renderizar(vi.fn());
+
+    const campo = screen.getByLabelText('Usuário');
+    expect(campo).toHaveAttribute('type', 'text');
+    expect(campo).toHaveAttribute('autocomplete', 'username');
+    expect(campo).toHaveAttribute('autocapitalize', 'none');
+    expect(campo).toHaveAttribute('autocorrect', 'off');
+    expect(campo).toHaveAttribute('spellcheck', 'false');
+    expect(screen.queryByLabelText('E-mail')).not.toBeInTheDocument();
+  });
+
   it('mostra o logotipo, o slogan e o título "Entrar"', () => {
     renderizar(vi.fn());
 
@@ -157,7 +169,7 @@ describe('LoginPage', () => {
   it('um novo envio limpa a mensagem de erro anterior', async () => {
     const login = vi
       .fn()
-      .mockRejectedValueOnce(new ApiError('UNAUTHORIZED', 'E-mail ou senha inválidos'))
+      .mockRejectedValueOnce(new ApiError('UNAUTHORIZED', 'Usuário ou senha inválidos'))
       .mockResolvedValueOnce(REPRESENTANTE);
     renderizar(login);
 
@@ -167,7 +179,7 @@ describe('LoginPage', () => {
     await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
 
     expect(await screen.findByText('agenda')).toBeInTheDocument();
-    expect(screen.queryByText('E-mail ou senha inválidos')).not.toBeInTheDocument();
+    expect(screen.queryByText('Usuário ou senha inválidos')).not.toBeInTheDocument();
   });
 
   it('no topo, antes do logotipo, o botão discreto "Modo demonstração" abre o painel', async () => {

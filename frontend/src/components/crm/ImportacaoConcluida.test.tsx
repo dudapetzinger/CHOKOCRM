@@ -91,7 +91,7 @@ function Local() {
 function renderizar(gravados: ArquivoGravado[], falhas: { nome: string; mensagem: string }[] = []) {
   const aoNovaImportacao = vi.fn();
   const auth = {
-    user: { id: 'g1', nome: 'Marina Gestora', email: 'g@x.com', telefone: null, role: 'GESTOR' as const, ativo: true },
+    user: { id: 'g1', nome: 'Marina Gestora', usuario: 'gestao', telefone: null, role: 'GESTOR' as const, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(async () => {}),

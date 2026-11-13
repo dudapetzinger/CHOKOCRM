@@ -7,7 +7,6 @@ import { comprimirImagem } from '../lib/comprimirImagem';
 import { ApiError } from '../services/api';
 import { listarCampanhas, type Campanha } from '../services/campaigns';
 import { createContato, getCliente, type ClienteCompleto, type Contato } from '../services/clients';
-import { listarProdutos, type Produto } from '../services/erp';
 import { enviarFoto, registrarCheckIn, type Visita } from '../services/visits';
 import { CheckInPage } from './CheckInPage';
 
@@ -15,10 +14,6 @@ vi.mock('../services/clients', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/clients')>()),
   getCliente: vi.fn(),
   createContato: vi.fn(),
-}));
-vi.mock('../services/erp', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../services/erp')>()),
-  listarProdutos: vi.fn(),
 }));
 vi.mock('../services/visits', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/visits')>()),
@@ -111,12 +106,6 @@ const VISITA: Visita = {
   notaFiscal: null,
 };
 
-const PRODUTOS: Produto[] = [
-  { sku: 'BOMB-SORT', nome: 'Bombons sortidos', precoUnitario: 42 },
-  { sku: 'BARRA-70', nome: 'Barra de chocolate 70% cacau', precoUnitario: 18 },
-  { sku: 'PAO-MEL', nome: 'Pães de mel', precoUnitario: 27.9 },
-];
-
 const PERGUNTA_PROXIMA = 'Deseja marcar a data prevista da próxima visita?';
 const PERGUNTA_LEMBRETE = 'Deseja anotar um lembrete?';
 
@@ -153,7 +142,6 @@ beforeEach(() => {
   usuario = userEvent.setup({ delay: null });
   vi.mocked(getCliente).mockReset().mockResolvedValue(FICHA);
   vi.mocked(createContato).mockReset().mockResolvedValue(CONTATO_NOVO);
-  vi.mocked(listarProdutos).mockReset().mockResolvedValue(PRODUTOS);
   vi.mocked(listarCampanhas).mockReset().mockResolvedValue([PASCOA, NATAL, FEIRA]);
   vi.mocked(registrarCheckIn).mockReset().mockResolvedValue(VISITA);
   vi.mocked(enviarFoto).mockReset().mockResolvedValue(undefined);
@@ -372,26 +360,25 @@ describe('CheckInPage: passos', () => {
     expect(createContato).not.toHaveBeenCalled();
   });
 
-  it('passo 2: Venda mostra o pedido; Negociação e Sem venda não', async () => {
+  it('passo 2: só o seletor de resultado; Venda explica que o valor vem da nota fiscal', async () => {
     renderizar();
     await esperarCliente();
     await continuar();
 
-    // Venda é o resultado padrão: o pedido começa com uma linha, no primeiro produto
-    const passo = screen.getByRole('group', { name: 'Resultado' });
-    const pedido = within(passo).getByRole('group', { name: 'Pedido' });
-    const produto = await within(pedido).findByRole('combobox', { name: 'Produto do item 1' });
-    expect(produto).toHaveDisplayValue(/^Bombons sortidos · R\$\s42,00$/);
-    expect(within(pedido).getAllByRole('combobox')).toHaveLength(1);
+    const apoio = 'O valor da venda entra quando a gestão importa a nota fiscal.';
+    expect(screen.getByRole('radio', { name: 'Venda' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText(apoio)).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Pedido' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 
     await usuario.click(screen.getByRole('radio', { name: 'Negociação' }));
-    expect(screen.queryByRole('group', { name: 'Pedido' })).not.toBeInTheDocument();
+    expect(screen.queryByText(apoio)).not.toBeInTheDocument();
 
     await usuario.click(screen.getByRole('radio', { name: 'Sem venda' }));
-    expect(screen.queryByRole('group', { name: 'Pedido' })).not.toBeInTheDocument();
+    expect(screen.queryByText(apoio)).not.toBeInTheDocument();
 
     await usuario.click(screen.getByRole('radio', { name: 'Venda' }));
-    expect(screen.getByRole('group', { name: 'Pedido' })).toBeInTheDocument();
+    expect(screen.getByText(apoio)).toBeInTheDocument();
   });
 
   it('passo 3 orienta a descrição com o texto "Registre o que aconteceu na visita"', async () => {
@@ -465,23 +452,6 @@ describe('CheckInPage: passos', () => {
     await continuar();
     expect(screen.getByLabelText('O que aconteceu na visita')).toHaveValue('Cliente vai pensar até sexta.');
     expect(screen.getByRole('img', { name: 'Prévia da foto do check-in' })).toBeInTheDocument();
-  });
-
-  it('trocar Venda por Sem venda depois de preencher o pedido: o corpo não leva itens', async () => {
-    renderizar();
-    await esperarCliente();
-    await continuar();
-    const pedido = screen.getByRole('group', { name: 'Pedido' });
-    await within(pedido).findByRole('combobox', { name: 'Produto do item 1' });
-    preencher(within(pedido).getByRole('spinbutton', { name: 'Quantidade do item 1' }), '10');
-
-    await usuario.click(screen.getByRole('radio', { name: 'Sem venda' }));
-    await continuar();
-    await descreverEContinuar('Cliente vai pensar até sexta.');
-    await salvar();
-
-    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ itens: expect.anything() }));
-    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ resultado: 'SEM_VENDA' }));
   });
 
   it('passo 4 com as duas perguntas em "não" envia proximaVisita: null e sem lembrete', async () => {
@@ -576,7 +546,7 @@ describe('CheckInPage: passos', () => {
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ proximaVisita: '2026-11-02' }));
   });
 
-  it('fluxo completo até registrarCheckIn com o mesmo corpo de hoje (data, contato, campanha, Venda com itens, descrição, próxima visita, lembrete)', async () => {
+  it('fluxo completo até registrarCheckIn (data, contato, campanha, Venda sem itens, descrição, próxima visita, lembrete)', async () => {
     renderizar();
     await esperarCliente();
     const daVisita = screen.getByRole('combobox', { name: 'Campanha da visita (opcional)' });
@@ -588,14 +558,7 @@ describe('CheckInPage: passos', () => {
     await usuario.selectOptions(daVisita, 'Natal Chokolaten');
     await continuar();
 
-    // Passo 2: Venda, só as linhas com quantidade vão
-    const pedido = screen.getByRole('group', { name: 'Pedido' });
-    await within(pedido).findByRole('combobox', { name: 'Produto do item 1' });
-    preencher(within(pedido).getByRole('spinbutton', { name: 'Quantidade do item 1' }), '10');
-    await usuario.click(within(pedido).getByRole('button', { name: 'Adicionar item' }));
-    await usuario.click(within(pedido).getByRole('button', { name: 'Adicionar item' }));
-    preencher(within(pedido).getByRole('spinbutton', { name: 'Quantidade do item 3' }), '3');
-    expect(within(pedido).getByText('R$ 503,70')).toBeInTheDocument();
+    // Passo 2: Venda (o padrão), sem pedido
     await continuar();
 
     // Passo 3
@@ -619,10 +582,6 @@ describe('CheckInPage: passos', () => {
       dataHora: new Date('2026-10-16T09:00').toISOString(),
       campanhaId: 'cp2',
       contactId: 'ct1',
-      itens: [
-        { sku: 'BOMB-SORT', quantidade: 10 },
-        { sku: 'PAO-MEL', quantidade: 3 },
-      ],
       proximaVisita: '2026-10-31',
       proximaCampanhaId: 'cp3',
       lembrete: { texto: 'Levar amostras de Natal', data: '2026-10-31' },
@@ -734,11 +693,10 @@ describe('CheckInPage: passos', () => {
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ contactId: expect.anything() }));
   });
 
-  it('Venda com o pedido em branco vai sem itens', async () => {
+  it('check-in de venda é enviado sem itens', async () => {
     renderizar();
     await esperarCliente();
     await continuar();
-    await within(screen.getByRole('group', { name: 'Pedido' })).findByRole('combobox', { name: 'Produto do item 1' });
     await continuar();
     await descreverEContinuar('Venda acertada por telefone depois.');
     await salvar();
@@ -748,23 +706,6 @@ describe('CheckInPage: passos', () => {
       expect.not.objectContaining({ itens: expect.anything() }),
     );
     expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.objectContaining({ resultado: 'VENDA' }));
-  });
-
-  it('sem o catálogo, o pedido avisa e o check-in ainda salva', async () => {
-    vi.mocked(listarProdutos).mockRejectedValue(new ApiError('NETWORK', 'Você está sem internet.'));
-    renderizar();
-    await esperarCliente();
-    await continuar();
-
-    const pedido = screen.getByRole('group', { name: 'Pedido' });
-    expect(await within(pedido).findByText('Não foi possível carregar os produtos.')).toBeInTheDocument();
-    expect(within(pedido).getByRole('button', { name: 'Adicionar item' })).toBeDisabled();
-
-    await continuar();
-    await descreverEContinuar('Venda registrada sem o pedido.');
-    await salvar();
-
-    expect(registrarCheckIn).toHaveBeenCalledWith('c1', expect.not.objectContaining({ itens: expect.anything() }));
   });
 
   it('com foto, envia a foto comprimida depois do check-in', async () => {

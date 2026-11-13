@@ -16,7 +16,7 @@ import { AvisoProximaVisita } from '../components/crm/AvisoProximaVisita';
 import { Abas, PainelDaAba, type Aba } from '../components/Abas';
 import { useAuth } from '../auth/useAuth';
 import { useLembretesDoCliente } from '../hooks/useLembretes';
-import { useAnexarFotoVisita, useEditarDescricaoVisita, useVisitas } from '../hooks/useVisitas';
+import { useAnexarFotoVisita, useEditarVisita, useVisitas } from '../hooks/useVisitas';
 import { comprimirImagem } from '../lib/comprimirImagem';
 import { formatarDataCalendario } from '../lib/formatarData';
 import { useAbaNaUrl } from '../lib/useAbaNaUrl';
@@ -42,7 +42,7 @@ const ABAS: Aba<AbaDaFicha>[] = [
  * limpam a data da próxima visita ali mesmo (cliente ativo ou inativo); a
  * página grava (`PUT /clients/:id`), põe a resposta em `['client', id]` e
  * invalida a lista de clientes e a agenda. Abaixo, as abas "ERP e sugestões" (insights,
- * dados do ERP e mensagem de estoque, nessa ordem), "Visitas" (histórico e
+ * dados do ERP e, para o representante dono de cliente ativo, a mensagem de estoque, nessa ordem), "Visitas" (histórico e
  * recorrência) e "Cadastro" (`DadosCadastrais`), guardadas em `?aba=`; sem o
  * parâmetro, ou com um valor desconhecido, abre em "ERP e sugestões".
  * Só o painel da aba aberta é montado, então os
@@ -74,7 +74,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
 
   const { data: visitas } = useVisitas(id);
   const { data: lembretes, isError: erroNosLembretes } = useLembretesDoCliente(id);
-  const mutationEditarDescricao = useEditarDescricaoVisita(id);
+  const mutationEditar = useEditarVisita(id);
   const mutationAnexarFoto = useAnexarFotoVisita(id);
   const queryClient = useQueryClient();
 
@@ -199,8 +199,8 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
               <VisitTimeline
                 visitas={visitas ?? []}
                 usuarioId={user?.id}
-                onEditarDescricao={async (visitaId, descricao) => {
-                  await mutationEditarDescricao.mutateAsync({ visitaId, descricao });
+                onEditar={async (visitaId, dados) => {
+                  await mutationEditar.mutateAsync({ visitaId, dados });
                 }}
                 onAnexarFoto={async (visitaId, arquivo) => {
                   const comprimida = await comprimirImagem(arquivo);
@@ -224,11 +224,11 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
 
             <DadosErpCard clienteId={id!} />
 
-            <MensagemEstoqueCard clienteId={id!} podeGerar={ehRepresentante && cliente.ativo} />
+            {ehRepresentante && cliente.ativo && <MensagemEstoqueCard clienteId={id!} />}
           </>
         )}
 
-        {aba === 'cadastro' && <DadosCadastrais cliente={cliente} />}
+        {aba === 'cadastro' && <DadosCadastrais cliente={cliente} podeInativar={ehGestor} />}
       </PainelDaAba>
     </>,
   );

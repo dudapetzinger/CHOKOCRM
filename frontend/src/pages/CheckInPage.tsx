@@ -3,7 +3,8 @@
  * cartão de 560 px com o cliente e o indicador "Passo N de 4":
  *
  * 1. A visita: data e hora, contato atendido e campanha da visita;
- * 2. Resultado: Venda · Negociação · Sem venda e, com Venda, o pedido;
+ * 2. Resultado: Venda · Negociação · Sem venda; com Venda, o texto de apoio
+ *    diz que o valor entra quando a gestão importa a nota fiscal;
  * 3. O que aconteceu: a descrição e a foto, as duas obrigatórias;
  * 4. Próximos passos: "Deseja marcar a data prevista da próxima visita?"
  *    (data e campanha da próxima visita) e "Deseja anotar um lembrete?"
@@ -39,10 +40,8 @@
  * "sim", texto e data válida (hoje ou depois), vai `lembrete: { texto, data }`;
  * texto sem data é erro no campo da data; sem texto ou com "não", nada vai.
  *
- * O pedido começa com uma linha no primeiro produto do catálogo, sem
- * quantidade; vão para a API só as linhas com quantidade, e só com Venda
- * (trocar o resultado esconde o bloco e o pedido não vai). Sem o catálogo,
- * o bloco avisa e o check-in ainda pode ser salvo sem pedido.
+ * O check-in não leva pedido: o valor da venda vem da nota fiscal que a
+ * gestão importa e vincula à visita.
  *
  * A data/hora vem preenchida com o agora e admite ajuste para lançar visita
  * já ocorrida (não no futuro). "+ Novo contato…" no select do contato abre o
@@ -65,7 +64,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useCampanhas } from '../hooks/useCampanhas';
-import { useProdutos } from '../hooks/useDadosErp';
 import { campanhasNaoEncerradas, type Campanha } from '../services/campaigns';
 import { comprimirImagem } from '../lib/comprimirImagem';
 import { useDevolverFoco, useFocoNoPrimeiroErro } from '../lib/useFoco';
@@ -81,19 +79,17 @@ import {
 import { ApiError } from '../services/api';
 import { getCliente, mensagemErroApi, type Contato } from '../services/clients';
 import { registrarCheckIn, enviarFoto } from '../services/visits';
-import type { ItemPedido, ResultadoVisita } from '../services/visits';
+import type { ResultadoVisita } from '../services/visits';
 import { AreaTextoCrescente } from '../components/AreaTextoCrescente';
 import { SegmentadoResultado } from '../components/SegmentadoResultado';
 import { IndicadorDePasso } from '../components/crm/checkin/IndicadorDePasso';
 import { PerguntaSimNao } from '../components/crm/checkin/PerguntaSimNao';
 import { NovoContato } from '../components/crm/NovoContato';
-import { PedidoCampos } from '../components/crm/PedidoCampos';
 import { Aviso, Campo, CLASSES_SELECT } from '../components/crm/ui';
 import { agora as agoraDoRelogio } from '../lib/relogio';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar o cliente.';
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar o check-in.';
-const MENSAGEM_ERRO_PRODUTOS = 'Não foi possível carregar os produtos.';
 
 /** Valor da opção "+ Novo contato…" (não é id de contato). */
 const NOVO_CONTATO = '__novo';
@@ -179,8 +175,6 @@ export function CheckInPage() {
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
   // Contatos criados aqui, até a nova leitura do cliente trazê-los
   const [contatosCriados, setContatosCriados] = useState<Contato[]>([]);
-  // `null` até a primeira mudança: antes disso o pedido é a linha inicial
-  const [itensEditados, setItensEditados] = useState<ItemPedido[] | null>(null);
   // `null` até a representante responder: antes disso vale o que o cliente já tem marcado
   const [marcarEditado, setMarcarEditado] = useState<boolean | null>(null);
   // `null` até a representante mudar a data: antes disso vale a marcada ou a sugestão
@@ -208,10 +202,6 @@ export function CheckInPage() {
   const [proximaCampanhaEditada, setProximaCampanhaEditada] = useState<string | null>(null);
   const campanhaId = campanhaEditada ?? campanhaMarcada;
   const proximaCampanhaId = proximaCampanhaEditada ?? campanhaMarcada;
-
-  const { data: produtos, isLoading: carregandoProdutos, isError: erroProdutos } = useProdutos();
-  const primeiroProduto = produtos?.[0];
-  const itens = itensEditados ?? (primeiroProduto ? [{ sku: primeiroProduto.sku, quantidade: 0 }] : []);
 
   const { ref: selectContato, devolverFoco } = useDevolverFoco<HTMLSelectElement>(novoContatoAberto);
   const { ref: formulario, focarPrimeiroErro } = useFocoNoPrimeiroErro<HTMLFormElement>();
@@ -340,7 +330,6 @@ export function CheckInPage() {
     setSalvando(true);
     setErroEnvio(null);
 
-    const itensDoPedido = resultado === 'VENDA' ? itens.filter((item) => item.quantidade > 0) : [];
     const camposDaProximaVisita =
       marcarProximaVisita && proximaVisita
         ? { proximaVisita, ...(proximaCampanhaId ? { proximaCampanhaId } : {}) }
@@ -355,7 +344,6 @@ export function CheckInPage() {
         dataHora: new Date(dataHora).toISOString(),
         ...(campanhaId ? { campanhaId } : {}),
         ...(contactId ? { contactId } : {}),
-        ...(itensDoPedido.length > 0 ? { itens: itensDoPedido } : {}),
         ...camposDaProximaVisita,
         ...lembrete,
       });
@@ -482,20 +470,9 @@ export function CheckInPage() {
                 </div>
 
                 {resultado === 'VENDA' && (
-                  <PedidoCampos
-                    produtos={produtos ?? []}
-                    itens={itens}
-                    aoMudar={setItensEditados}
-                    aviso={
-                      erroProdutos ? (
-                        <Aviso tom="erro" role="alert">
-                          {MENSAGEM_ERRO_PRODUTOS}
-                        </Aviso>
-                      ) : (
-                        carregandoProdutos && <p className="text-sm text-muted-foreground">Carregando produtos...</p>
-                      )
-                    }
-                  />
+                  <p className="text-sm text-muted-foreground">
+                    O valor da venda entra quando a gestão importa a nota fiscal.
+                  </p>
                 )}
               </>
             )}

@@ -1,6 +1,7 @@
 /**
  * Uma linha de cliente (`ClienteRow` do protótipo): ponto
- * de cor, nome com a cidade ao lado, etiqueta de situação e, para o gestor, o
+ * de cor, nome com a cidade ao lado, etiqueta de situação (no cliente
+ * inativo, só "Inativo", sem o ponto) e, para o gestor, o
  * representante; a linha toda leva à ficha. Com espaço na própria linha
  * (container query, 384 px de conteúdo) a etiqueta fica à direita; mais
  * estreita (celular, lista ao lado da ficha em 1024 px), desce para baixo do
@@ -15,6 +16,7 @@ import { descreverSituacao } from '../lib/descreverSituacao';
 import type { ClienteListItem } from '../services/clients';
 import { BadgeCor } from './BadgeCor';
 import { EtiquetaSituacao } from './EtiquetaSituacao';
+import { Etiqueta } from './crm/ui';
 
 type Props = {
   cliente: ClienteListItem;
@@ -32,7 +34,7 @@ export function ItemListaCliente({ cliente, mostrarRepresentante, ativo = false 
       to={`/clientes/${cliente.id}`}
       aria-current={ativo ? 'page' : undefined}
     >
-      <BadgeCor cor={cliente.cor} className="mt-1.5" />
+      {cliente.ativo && <BadgeCor cor={cliente.cor} className="mt-1.5" />}
       <span className="min-w-0 flex-1 @sm:flex @sm:items-center @sm:justify-between @sm:gap-3">
         <span className="block min-w-0">
           <span className="block truncate">
@@ -44,7 +46,11 @@ export function ItemListaCliente({ cliente, mostrarRepresentante, ativo = false 
           )}
         </span>
         <span className="mt-1 flex @sm:mt-0 @sm:max-w-[50%] @sm:shrink-0 @sm:justify-end">
-          <EtiquetaSituacao cor={cliente.cor} texto={descreverSituacao(cliente)} />
+          {cliente.ativo ? (
+            <EtiquetaSituacao cor={cliente.cor} texto={descreverSituacao(cliente)} />
+          ) : (
+            <Etiqueta>Inativo</Etiqueta>
+          )}
         </span>
       </span>
     </Link>

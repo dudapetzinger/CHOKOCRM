@@ -1,18 +1,20 @@
 /**
  * Cabeçalho da ficha do cliente (visual do protótipo): avatar, nome, "Cidade · Rep.: Nome", etiqueta de
- * situação, o contato principal (ou o telefone do cliente) com "Adicionar
+ * situação (no cliente inativo, só "Inativo"), o contato principal (ou o telefone do cliente) com "Adicionar
  * contato" e as ações Ligar, WhatsApp e, com `podeCheckIn` (representante
  * dono, cliente ativo), "Novo check-in".
  *
- * Com `podeCheckIn`, o WhatsApp abre já com a mensagem sugerida de estoque:
- * o link leva o texto e o toque no botão também registra a
- * mensagem no histórico (se o registro falhar, só avisa; o WhatsApp já
- * abriu). Sem `podeCheckIn` (gestor, cliente inativo), o link vai só com o
- * número. O botão WhatsApp só aparece quando o telefone serve para o
- * WhatsApp (mesmas regras do backend: com DDD, sem 0800 etc.); sem isso, só
- * "Ligar", e a proposta nem é buscada. Sem telefone nenhum (cliente criado
- * pelo gestor a partir da nota, sem contato), nem "Ligar" nem WhatsApp; sem
- * cidade, a linha começa direto no representante.
+ * Com `podeCheckIn`, o WhatsApp abre já com a mensagem sugerida de estoque
+ * no link; nada é registrado. Sem `podeCheckIn` (gestor, cliente inativo), o
+ * link vai só com o número. O botão lista os contatos com telefone que serve
+ * para o WhatsApp (com DDD, sem 0800 etc.), o
+ * principal primeiro e depois por nome: com dois ou mais, abre um menu com
+ * um link por contato; com um, é o link direto. O botão não depende do
+ * "Ligar". Sem contato com telefone válido, usa o telefone do principal ou,
+ * sem principal, o do cliente; se esse não serve, só "Ligar", e a proposta
+ * nem é buscada. Sem telefone nenhum (cliente criado pelo gestor a partir
+ * da nota, sem contato), nem "Ligar" nem WhatsApp; sem cidade, a linha
+ * começa direto no representante.
  *
  * Com `podeTransferir` (gestor), o nome do representante vira um select que
  * transfere o cliente na hora (`PUT /clients/:id { representanteId }`), com
@@ -29,22 +31,101 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, MessageCircle, Phone, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { useGerarMensagemEstoque, usePropostaDeMensagem } from '../hooks/useMensagensEstoque';
+import { usePropostaDeMensagem } from '../hooks/useMensagensEstoque';
 import { useRepresentantes } from '../hooks/useRepresentantes';
 import { descreverSituacao } from '../lib/descreverSituacao';
 import { useDevolverFoco } from '../lib/useFoco';
+import { contatosParaWhatsapp, textoSugeridoDoDestino } from '../lib/contatosWhatsapp';
 import { linkWhatsapp, telefoneParaWaMe } from '../lib/telefone';
-import { mensagemErroApi, updateCliente, type ClienteCompleto } from '../services/clients';
+import { mensagemErroApi, updateCliente, type ClienteCompleto, type Contato } from '../services/clients';
+import type { Proposta } from '../services/stockMessages';
 import { EtiquetaSituacao } from './EtiquetaSituacao';
 import { Avatar, CLASSES_SELECT, Etiqueta } from './crm/ui';
 import { NovoContato } from './crm/NovoContato';
 
 const MENSAGEM_ERRO_TRANSFERIR = 'Não foi possível transferir o cliente.';
-const MENSAGEM_ERRO_REGISTRAR = 'A mensagem abriu no WhatsApp, mas não ficou registrada.';
 
 function primeiroNome(nome: string): string {
   return nome.trim().split(/\s+/)[0] ?? nome;
+}
+
+type DestinoWhatsapp = {
+  chave: string;
+  /** `null` no telefone do cliente, que não é um contato. */
+  contactId: string | null;
+  telefone: string;
+  nome: string;
+  cargo: string;
+  principal: boolean;
+};
+
+/** Contatos com telefone que serve para o WhatsApp, o principal primeiro e depois por nome. */
+function destinosWhatsapp(cliente: ClienteCompleto, contatoPrincipal: Contato | undefined): DestinoWhatsapp[] {
+  const contatos = contatosParaWhatsapp(cliente.contatos).map((contato) => ({
+    chave: contato.id,
+    contactId: contato.id,
+    telefone: contato.telefone,
+    nome: contato.nome,
+    cargo: contato.cargo,
+    principal: contato.principal,
+  }));
+  if (contatos.length > 0) return contatos;
+
+  const telefone = contatoPrincipal?.telefone ?? cliente.telefone;
+  if (linkWhatsapp(telefone) === '') return [];
+  return [{ chave: 'cliente', contactId: null, telefone, nome: '', cargo: '', principal: false }];
+}
+
+function rotuloDoDestino(destino: DestinoWhatsapp): string {
+  return destino.cargo ? `${destino.nome} · ${destino.cargo}` : destino.nome;
+}
+
+function textoDoDestino(proposta: Proposta | undefined, destino: DestinoWhatsapp): string | undefined {
+  return proposta ? textoSugeridoDoDestino(proposta, destino.contactId) : undefined;
+}
+
+/** Botão "WhatsApp": link direto com um destino, menu de contatos com vários. */
+function BotaoWhatsapp({ destinos, proposta }: { destinos: DestinoWhatsapp[]; proposta: Proposta | undefined }) {
+  const hrefDe = (destino: DestinoWhatsapp) => linkWhatsapp(destino.telefone, textoDoDestino(proposta, destino));
+
+  if (destinos.length === 1) {
+    return (
+      <Button variant="outline" asChild>
+        <a href={hrefDe(destinos[0])} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+          <MessageCircle aria-hidden="true" />
+          WhatsApp
+        </a>
+      </Button>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline">
+          <MessageCircle aria-hidden="true" />
+          WhatsApp
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {destinos.map((destino) => (
+          <DropdownMenuItem key={destino.chave} asChild>
+            <a href={hrefDe(destino)} target="_blank" rel="noopener noreferrer">
+              {rotuloDoDestino(destino)}
+              {destino.principal && (
+                <>
+                  {' '}
+                  <span className="ml-1 text-xs text-muted-foreground">Principal</span>
+                </>
+              )}
+            </a>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 /** Select "Rep.:" do gestor, que transfere o cliente para outro representante. */
@@ -117,21 +198,8 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
   const contatoPrincipal = cliente.contatos.find((contato) => contato.principal);
   const telefone = contatoPrincipal?.telefone ?? cliente.telefone;
   const numeroInternacional = telefoneParaWaMe(telefone);
-  const linkSemTexto = linkWhatsapp(telefone);
-
-  const { data: proposta } = usePropostaDeMensagem(cliente.id, podeCheckIn && linkSemTexto !== '');
-  const registrar = useGerarMensagemEstoque(cliente.id);
-  const textoSugerido = proposta?.textoSugerido;
-  const hrefWhatsapp = textoSugerido ? linkWhatsapp(telefone, textoSugerido) : linkSemTexto;
-
-  /** O link abre no próprio toque; o registro vai em paralelo e não o bloqueia. */
-  function registrarMensagem(): void {
-    if (!textoSugerido) return;
-    registrar.mutate(
-      { texto: textoSugerido, contactId: contatoPrincipal?.id },
-      { onError: () => toast.error(MENSAGEM_ERRO_REGISTRAR) },
-    );
-  }
+  const destinos = destinosWhatsapp(cliente, contatoPrincipal);
+  const { data: proposta } = usePropostaDeMensagem(cliente.id, podeCheckIn && destinos.length > 0);
 
   return (
     <section className="@container rounded-xl border bg-card p-5" aria-labelledby={idTitulo}>
@@ -156,16 +224,19 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
               )}
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <EtiquetaSituacao
-                cor={cliente.cor}
-                texto={descreverSituacao({
-                  cor: cliente.cor,
-                  diasSemVisita: cliente.diasSemVisita,
-                  rebaixadoPorVenda: cliente.rebaixadoPorVenda,
-                  diasSemCompra: cliente.diasSemCompra,
-                })}
-              />
-              {!cliente.ativo && <Etiqueta>Inativo</Etiqueta>}
+              {cliente.ativo ? (
+                <EtiquetaSituacao
+                  cor={cliente.cor}
+                  texto={descreverSituacao({
+                    cor: cliente.cor,
+                    diasSemVisita: cliente.diasSemVisita,
+                    rebaixadoPorVenda: cliente.rebaixadoPorVenda,
+                    diasSemCompra: cliente.diasSemCompra,
+                  })}
+                />
+              ) : (
+                <Etiqueta>Inativo</Etiqueta>
+              )}
             </div>
             {numeroInternacional && (
               <p className="text-sm">{contatoPrincipal ? `${contatoPrincipal.nome} · ${telefone}` : telefone}</p>
@@ -184,32 +255,17 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
           </div>
         </div>
 
-        {(numeroInternacional || podeCheckIn) && (
+        {(numeroInternacional || destinos.length > 0 || podeCheckIn) && (
           <div className="grid grid-cols-2 gap-2 @md:flex @md:flex-wrap @2xl:shrink-0 @2xl:flex-nowrap">
             {numeroInternacional && (
-              <>
-                <Button variant="outline" asChild>
-                  <a href={`tel:+${numeroInternacional}`} aria-label="Ligar">
-                    <Phone aria-hidden="true" />
-                    Ligar
-                  </a>
-                </Button>
-                {linkSemTexto && (
-                  <Button variant="outline" asChild>
-                    <a
-                      href={hrefWhatsapp}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={registrarMensagem}
-                      aria-label="WhatsApp"
-                    >
-                      <MessageCircle aria-hidden="true" />
-                      WhatsApp
-                    </a>
-                  </Button>
-                )}
-              </>
+              <Button variant="outline" asChild>
+                <a href={`tel:+${numeroInternacional}`} aria-label="Ligar">
+                  <Phone aria-hidden="true" />
+                  Ligar
+                </a>
+              </Button>
             )}
+            {destinos.length > 0 && <BotaoWhatsapp destinos={destinos} proposta={proposta} />}
             {podeCheckIn && (
               <Button asChild className="col-span-2">
                 <Link to={`/clientes/${cliente.id}/check-in`}>

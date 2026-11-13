@@ -39,6 +39,17 @@ describe('ItemListaCliente', () => {
     expect(screen.queryByText('CE')).not.toBeInTheDocument();
   });
 
+  it('cliente inativo mostra a etiqueta "Inativo" no lugar da cor e da frase de situação', () => {
+    renderizar(
+      <ItemListaCliente cliente={cliente({ ativo: false, cor: 'VERMELHO', diasSemVisita: null })} mostrarRepresentante={false} />,
+    );
+
+    expect(screen.getByText('Inativo')).toBeInTheDocument();
+    expect(screen.getByText('Cafeteria Estrada Bonita')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /Classificação/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Nunca visitado')).not.toBeInTheDocument();
+  });
+
   it('mostra "Rep.:" só com mostrarRepresentante', () => {
     const { rerender } = renderizar(<ItemListaCliente cliente={cliente()} mostrarRepresentante />);
     expect(screen.getByText('Rep.: Eduarda Fischer')).toBeInTheDocument();

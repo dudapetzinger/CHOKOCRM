@@ -59,7 +59,7 @@ function renderizar(
   extra: Partial<Pick<Parameters<typeof CriarClientePelaNota>[0], 'aoCriar' | 'abertoDeInicio'>> = {},
 ) {
   const auth = {
-    user: { id: 'g1', nome: 'Marina Gestora', email: 'g@x.com', telefone: null, role: 'GESTOR' as const, ativo: true },
+    user: { id: 'g1', nome: 'Marina Gestora', usuario: 'gestao', telefone: null, role: 'GESTOR' as const, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(async () => {}),
@@ -183,7 +183,7 @@ describe('CriarClientePelaNota', () => {
   it('abertoDeInicio: o formulário já vem aberto, sem tirar o foco de onde está; só com cnpj e razão social', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     const auth = {
-      user: { id: 'g1', nome: 'Marina Gestora', email: 'g@x.com', telefone: null, role: 'GESTOR' as const, ativo: true },
+      user: { id: 'g1', nome: 'Marina Gestora', usuario: 'gestao', telefone: null, role: 'GESTOR' as const, ativo: true },
       login: vi.fn(),
       logout: vi.fn(),
       recarregarUsuario: vi.fn(async () => {}),

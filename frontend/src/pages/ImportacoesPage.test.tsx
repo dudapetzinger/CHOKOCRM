@@ -133,7 +133,7 @@ function Local() {
 
 function renderizar(role: Role = 'GESTOR') {
   const auth = {
-    user: { id: 'g1', nome: 'Marina Gestora', email: 'g@x.com', telefone: null, role, ativo: true },
+    user: { id: 'g1', nome: 'Marina Gestora', usuario: 'gestao', telefone: null, role, ativo: true },
     login: vi.fn(),
     logout: vi.fn(),
     recarregarUsuario: vi.fn(async () => {}),
@@ -710,7 +710,7 @@ describe('ImportacoesPage', () => {
     invalidar.mockRestore();
   });
 
-  it('pendência com visita em negociação avisa que ela passa a contar como Venda e que os itens passam a ser os da nota', async () => {
+  it('pendência com visita em negociação avisa que ela passa a contar como Venda e que os produtos e o total da nota passam a aparecer na visita', async () => {
     vi.mocked(listarPendencias).mockResolvedValue([
       nota({
         id: 'n9',
@@ -722,14 +722,14 @@ describe('ImportacoesPage', () => {
     renderizar();
 
     expect(await screen.findByText(/A visita de 03\/11 \(Em negociação\) passa a contar como Venda\./)).toBeInTheDocument();
-    expect(screen.getByText(/Os itens do pedido passam a ser os da nota\./)).toBeInTheDocument();
+    expect(screen.getByText(/Os produtos e o total da nota passam a aparecer na visita\./)).toBeInTheDocument();
   });
 
-  it('pendência com visita que já é Venda avisa só que os itens passam a ser os da nota', async () => {
+  it('pendência com visita que já é Venda avisa só que os produtos e o total da nota passam a aparecer na visita', async () => {
     vi.mocked(listarPendencias).mockResolvedValue([PENDENTE]);
     renderizar();
 
-    expect(await screen.findByText(/Os itens do pedido passam a ser os da nota\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Os produtos e o total da nota passam a aparecer na visita\./)).toBeInTheDocument();
     expect(screen.queryByText(/passa a contar como Venda/)).not.toBeInTheDocument();
   });
 
