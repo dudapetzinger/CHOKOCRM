@@ -3,168 +3,214 @@
 [![CI](https://github.com/dudapetzinger/CHOKOCRM/actions/workflows/ci.yml/badge.svg)](https://github.com/dudapetzinger/CHOKOCRM/actions/workflows/ci.yml)
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=dudapetzinger_CHOKOCRM&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=dudapetzinger_CHOKOCRM)
 
-CRM web mobile-first para os representantes comerciais da **Chokolaten** (chocolates artesanais, Pomerode/SC), integrado ao ERP da Senior Sistemas.
+O ChokoCRM é um sistema de acompanhamento de clientes e visitas feito para os representantes comerciais da Chokolaten, fábrica de chocolates artesanais de Pomerode (SC). Ele abre no navegador, foi desenhado primeiro para o celular e pode ser instalado como aplicativo.
 
-Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Universitário — Católica de Santa Catarina, desenvolvido em parceria com a Chokolaten.
+É o projeto extensionista (PAC) do curso de Engenharia de Software do Centro Universitário Católica de Santa Catarina, desenvolvido em parceria com a empresa.
 
 ## Sumário
 
-1. [O problema e a solução](#1-o-problema-e-a-solução)
-2. [Funcionalidades](#2-funcionalidades)
-3. [Especificação técnica](#3-especificação-técnica)
-4. [Casos de uso](#4-casos-de-uso)
-5. [Modelo de dados](#5-modelo-de-dados)
-6. [Arquitetura e decisões técnicas](#6-arquitetura-e-decisões-técnicas)
-7. [Protótipo navegável](#7-protótipo-navegável)
-8. [Tecnologias](#8-tecnologias)
-9. [Como executar localmente](#9-como-executar-localmente)
-10. [Testes](#10-testes)
-11. [Integração e entrega contínuas](#11-integração-e-entrega-contínuas)
-12. [Qualidade e observabilidade](#12-qualidade-e-observabilidade)
-13. [Cronograma de entregas](#13-cronograma-de-entregas)
-14. [Autoria e licença](#14-autoria-e-licença)
+- [O problema](#o-problema)
+- [O que o sistema faz](#o-que-o-sistema-faz)
+- [Como testar](#como-testar)
+- [Como instalar no seu computador](#como-instalar-no-seu-computador)
+- [Como o sistema é construído](#como-o-sistema-é-construído)
+- [Testes e qualidade](#testes-e-qualidade)
+- [Organização do repositório](#organização-do-repositório)
+- [Documentação](#documentação)
+- [Autoria e licença](#autoria-e-licença)
 
----
+## O problema
 
-## 1. O problema e a solução
+Os representantes da Chokolaten visitam confeitarias, cafés, empórios e mercados de várias cidades de Santa Catarina. O controle dessas visitas era feito em agenda de papel e em conversas de WhatsApp. Com isso, a informação se perdia, não havia um histórico de cada cliente para consultar e ninguém sabia dizer com segurança quais clientes estavam há tempo demais sem receber uma visita.
 
-O acompanhamento de clientes e visitas na Chokolaten é feito de forma manual, entre agenda de papel e conversas de WhatsApp. Informação se perde, não há histórico consultável de cada cliente e o representante não tem como saber com clareza quem está há tempo demais sem ser visitado. O ChokoCRM centraliza esse processo em uma aplicação web pensada para o celular, com classificação automática da carteira por cor e indicadores que apoiam a decisão comercial.
+O ChokoCRM reúne esse controle em um só lugar. O representante registra cada visita no celular, na hora, e o sistema passa a mostrar quem precisa ser visitado, o que cada cliente costuma comprar e como a equipe está em relação às metas.
 
-O contexto completo, os objetivos do produto e o que ficou fora de escopo estão na [especificação técnica](docs/especificacao-tecnica.md).
+## O que o sistema faz
 
-## 2. Funcionalidades
+Há dois perfis de uso. O representante trabalha com a própria carteira de clientes. A gestão enxerga todas as carteiras e cuida das configurações.
 
-Cadastro de clientes com múltiplos contatos; check-in de visitas com descrição obrigatória e histórico por cliente; classificação automática da carteira por cores — composta, a partir da Etapa 5, com a última venda do cliente no ERP — com filtro na lista; recorrência de visita editável com justificativa e histórico auditável; agenda do dia por carteira do representante, com job diário que registra os alertas em log; consulta de última venda, volume de compras e estoque por cliente a partir de um provedor de ERP simulado atrás de uma interface substituível; mensagem de consulta de estoque com texto sugerido a partir do evento sazonal vigente, enviada pelo próprio representante via link `wa.me` e com histórico registrado na ficha do cliente; sugestões sazonais na ficha do cliente (Etapa 6B), que comparam as compras do cliente no mesmo período do ano anterior com a média dele e propõem aumentar a oferta, criar promoção ou ofertar desconto, com horizonte ajustável de 30 a 180 dias; painel do gestor com alertas de produção — clientes com estoque baixo de produtos sugeridos para um evento próximo — e a época do ano; e, nesse mesmo painel, os indicadores do gestor (Etapa 6C) — visitas, taxa de registro, conversão em vendas e clientes inativos, com a distribuição da carteira por cor — para períodos de 30, 90 ou 365 dias.
+O representante:
 
-Na Etapa 7, o representante passou a ver e alterar só a própria carteira, e o gestor ganhou um seletor de representante nas telas de clientes, agenda e painel; a lista de clientes ganhou abas por ação (Prioridade, Atenção, Em dia e Todos), uma etiqueta que diz em palavras a situação de cada cliente e a ordem por urgência; a ficha passou a abrir pelas ações de campo; o painel do gestor passou a responder a três perguntas com gráficos — visitas por representante, vendas dos últimos 12 meses (até a Etapa 10; desde a Etapa 11, dos meses do período) com os eventos sazonais e os clientes esfriando —; no computador, as telas usam duas colunas e navegação lateral; e o app pode ser instalado no celular como PWA, sem modo offline de escrita ([ADR-012](docs/arquitetura.md#adr-012--pwa-instalável-sem-modo-offline-de-escrita)).
+- vê a carteira de clientes organizada por cores, do verde (visita em dia) ao vermelho (há muito tempo sem visita), e sabe quem atender primeiro;
+- abre a agenda do dia, com as visitas atrasadas, as de hoje e os lembretes, e traça o roteiro no Google Maps;
+- registra a visita em quatro passos, com foto, resultado, o pedido feito e a data da próxima visita;
+- consulta a ficha do cliente, com o histórico de visitas, as compras e sugestões do que oferecer conforme a época do ano (Páscoa, Dia das Mães, Natal e outras datas);
+- envia ao cliente, pelo WhatsApp, uma mensagem pronta perguntando sobre o estoque;
+- acompanha as próprias metas e os resultados no painel.
 
-Na Etapa 8, o app passou à interface do protótipo aprovado pela Chokolaten (Tailwind e shadcn — [ADR-013](docs/arquitetura.md#adr-013--base-de-interface-do-protótipo-lovable-tailwind--shadcn)) e ganhou:
+A gestão, além de tudo isso:
 
-- **Pedido no check-in:** com resultado "Venda", os produtos do catálogo do ERP com quantidade e total; o pedido aparece no histórico e soma nas metas, nas campanhas e na planilha.
-- **Próxima visita e lembrete:** marcadas no check-in (a data, desde a Etapa 11b, também pela ficha), usadas pela agenda, que ganhou "Próximos 7 dias".
-- **Campanhas e eventos:** criados pelo gestor, com status, desconto, produtos em destaque, visitas vinculadas no check-in e vendas vinculadas por representante.
-- **Metas de visitas e vendas:** semanais, mensais, livres ou de campanha, com o realizado calculado das visitas e dos pedidos.
-- **Calendário do mês e roteiro do dia** na agenda, com o trajeto aberto no Google Maps ([ADR-016](docs/arquitetura.md#adr-016--coordenadas-estáticas-dos-municípios-de-sc-no-roteiro-e-no-mapa)).
-- **Painel também para o representante**, com a própria carteira ([ADR-015](docs/arquitetura.md#adr-015--painel-também-para-o-representante-limitado-à-própria-carteira)), mapa de clientes por cidade, ritmo das últimas 8 semanas e exportação em planilha (CSV; o botão "PDF" foi removido em 12/11/2026: o app instalado não consegue imprimir).
-- **Gestão de usuários pelo gestor:** criar contas, editar, inativar, transferir a carteira e definir uma senha provisória para quem esqueceu a senha (sem e-mail: o envio por link da Etapa 8 foi removido em 09/11/2026, [ADR-018](docs/arquitetura.md#adr-018--relógio-de-demonstração-no-banco-recriação-pela-api-e-fim-do-e-mail)); cada um pode alterar a própria senha pelo menu da conta.
+- acompanha no painel as visitas, as vendas e a conversão de cada representante, com gráficos, ranking e mapa dos clientes por cidade;
+- recebe alertas dos clientes que estão esfriando e dos produtos com estoque baixo antes de uma data comemorativa;
+- cria campanhas e metas e acompanha o resultado de cada uma;
+- importa as notas fiscais em PDF emitidas pelo sistema de gestão da empresa, que passam a alimentar o histórico de compras de cada cliente;
+- cria as contas dos usuários e transfere clientes de um representante para outro.
 
-**Como o gestor cria as contas:** entra com a conta de gestor, abre **Usuários → Novo usuário**, informa nome, e-mail, telefone, papel (representante ou gestor) e uma senha inicial (mínimo de 6 caracteres) e passa o e-mail e a senha à pessoa, que pode trocá-la em **menu da conta → Alterar senha**. Se ela esquecer a senha, pede ao gestor, que usa **Definir senha provisória** na linha dela e passa a senha nova; a pessoa a troca em **menu da conta → Alterar senha**. Inativar uma conta bloqueia o próximo login; os clientes dela ficam na carteira até o gestor transferi-los.
+A descrição completa, com as regras de cada funcionalidade, está em [docs/funcionalidades.md](docs/funcionalidades.md).
 
-Na Etapa 9, a partir do que a parceira trouxe depois de validar o app com os dados de demonstração ([spec da etapa](docs/superpowers/specs/2026-10-25-etapa-9-ajustes-pos-validacao-design.md)), o app ganhou:
+## Como testar
 
-- **Painel com período personalizado e abas:** o gestor e o representante escolhem as datas "De" e "Até" (até 365 dias; para um período maior, a Planilha aceita), e o Painel se divide em "Metas e resultados" e "Produção e sazonalidade", com a aba na URL. Indicadores, metas, resultado das visitas, ritmo de visitas (por semana ou por mês, conforme o período) e rankings respondem ao período.
-- **Clientes em cada gráfico:** passar o mouse, focar pelo teclado ou tocar numa barra, ponto ou bolha mostra num balão os clientes daquela fatia, com o mesmo conteúdo na tabela para leitor de tela; o gráfico de sazonalidade passou ao formato do protótipo.
-- **Ranking dos representantes (só o gestor):** visitas, conversão em vendas e receita por representante no período, em três cartões com ícone e o 1º colocado em destaque (desde 12/11/2026).
-- **Lembrete como tarefa:** o check-in cria um lembrete com data própria ("Para quando"), que aparece na agenda do dia ("Lembretes"), no calendário e na ficha, sobrevive a novos check-ins e só sai quando o representante (ou o gestor) o conclui ([ADR-017](docs/arquitetura.md#adr-017--lembrete-como-tarefa-própria-tabela-reminder)).
-- **Calendário só com o que foi marcado** (visitas marcadas no check-in e lembretes, mais campanhas e datas sazonais) e **roteiro do dia só com as visitas de hoje**.
-- **Ficha do cliente em abas** (desde a Etapa 12 na ordem ERP e sugestões, Visitas, Cadastro) e **Campanhas com filtro**, com os resultados por representante (visitas, clientes atendidos, vendas e conversão), os produtos mais vendidos e as metas de cada representante na campanha.
+O sistema está publicado e pode ser usado direto pelo navegador, no celular ou no computador:
 
-Na Etapa 10 (26/10/2026), a partir do uso da produção pela parceira ([spec da 10b](docs/superpowers/specs/2026-10-26-etapa-10b-checkin-em-passos-e-filtro-de-visitas-design.md) e [spec da 10c](docs/superpowers/specs/2026-10-26-etapa-10c-mapa-com-contorno-e-zoom-e-vendas-da-campanha-design.md)), o app ganhou:
+<https://app-chokocrm-api-cscvc7aserd4c4g9.canadacentral-01.azurewebsites.net>
 
-- **Check-in em quatro passos:** A visita → Resultado → O que aconteceu → Próximos passos, com as perguntas sim/não "Deseja marcar a data prevista da próxima visita?" e "Deseja anotar um lembrete?"; os mesmos campos e regras de antes, só que um passo de cada vez.
-- **Aba Visitas com a última visita em destaque:** as anteriores ficam atrás do filtro "Últimas 3", "Últimas 6" e "Todas", com a contagem total.
-- **Mapa com o contorno de Santa Catarina e zoom:** o mapa de clientes por cidade do Painel desenha o estado e os municípios atrás das bolhas, com botões para aproximar, afastar e ajustar, e arrastar para mover, sem depender de internet ([ADR-016](docs/arquitetura.md#adr-016--coordenadas-estáticas-dos-municípios-de-sc-no-roteiro-e-no-mapa)).
-- **Vendas vinculadas na campanha:** a campanha escolhida lista cada venda, com o cliente, os produtos e o total.
-- **Visita marcada cumprida pelo check-in:** uma data marcada deixa de aparecer como vencida na agenda, no calendário e na ficha quando já há check-in no dia dela ou depois, e o cliente volta à recorrência; no check-in, a descrição traz "Registre o que aconteceu na visita" e o lembrete abre sem exemplo ([spec da 10d](docs/superpowers/specs/2026-10-27-etapa-10d-visita-marcada-cumprida-e-textos-do-checkin-design.md)).
+Esse ambiente usa crédito estudantil do Azure e fica ligado nos períodos de teste e de apresentação. Se o endereço não responder, ele está desligado, e o sistema pode ser instalado no computador seguindo a [próxima seção](#como-instalar-no-seu-computador).
 
-Na Etapa 11 (02/11/2026), a partir do uso em campo ([spec da etapa](docs/superpowers/specs/2026-11-02-etapa-11-whatsapp-sazonalidade-cidades-foto-design.md)), o app ganhou:
+### Contas de acesso
 
-- **WhatsApp com a mensagem pronta:** o botão "WhatsApp" do cabeçalho da ficha e o card de mensagem de estoque abrem a conversa já com o texto sugerido no campo, no primeiro toque (a mensagem continua registrada no histórico) ([ADR-005](docs/arquitetura.md#adr-005--mensagem-de-estoque-via-link-wame)).
-- **Vendas mensais pelo período:** o gráfico de sazonalidade do Painel mostra os meses do período escolhido, no mínimo três, em vez de 12 meses fixos.
-- **Filtro de cidade na lista de clientes:** um select com as cidades onde a carteira já tem clientes, sem digitar.
-- **Foto obrigatória no check-in**, apagada do disco 90 dias depois da visita por um job diário; a ficha passa a mostrar "Foto removida após 90 dias." ([ADR-010](docs/arquitetura.md#adr-010--armazenamento-de-arquivos-atrás-de-interface-com-driver-em-disco-na-etapa-3)).
-- **Próxima visita pela ficha (Etapa 11b, 03/11/2026):** o representante dono da carteira e o gestor marcam, alteram ou limpam a data da próxima visita direto no aviso da ficha ("Alterar data"), de hoje em diante, sem precisar de check-in; a agenda e a lista de clientes acompanham ([spec](docs/superpowers/specs/2026-11-03-etapa-11b-editar-proxima-visita-na-ficha-design.md)).
+A senha de todas as contas é `chokocrm123`.
 
-Na Etapa 12 (05/11/2026, [spec da etapa](docs/superpowers/specs/2026-11-04-etapa-12-ficha-e-importacao-de-notas-fiscais-design.md)), a partir de novos pedidos da parceira, o app ganhou:
+| Perfil | Nome | E-mail |
+|--------|------|--------|
+| Representante | Eduarda Fischer | `eduarda@chokolaten.com.br` |
+| Representante | Rafael Schmitt | `rafael@chokolaten.com.br` |
+| Gestor | Gestão Chokolaten | `gestao@chokolaten.com.br` |
 
-- **Importação das notas fiscais (DANFE em PDF):** o gestor sobe um ou vários PDFs em "Importar notas"; o sistema casa cada nota com o cliente pelo CNPJ, vincula pedido e itens à última visita quando a data é a mesma (ou pergunta, quando é outra) e mostra por arquivo o que entrou, o que ficou pendente e os CNPJs sem cliente. Antes de gravar, o sistema lê os PDFs e abre um modal com as "Notas lidas" para conferência; ao confirmar, o mesmo modal mostra "Importação concluída.", cria na hora o cliente de cada CNPJ sem cadastro ("Criar cliente para {razão social}", já com as notas vinculadas) e pergunta "Deseja verificar?", abrindo a ficha do cliente. Com `ERP_PROVIDER=hibrido` (padrão e produção), o cliente cujo CNPJ tem nota importada mostra na ficha, nas vendas mensais, na cor e nos insights os dados das notas (sem estoque), e o cliente sem nota segue com os dados simulados: uma fonte por cliente.
-- **Ficha reorganizada:** abas na ordem "ERP e sugestões" (a que abre primeiro), "Visitas" e "Cadastro", "Adicionar contato" pela aba Cadastro, pedido recolhido no histórico ("Ver itens") e, com nota vinculada, "Pedido conforme NF 2455" e "Total da nota".
-- **Barra de navegação e compras (06/11/2026):** a barra inferior do representante é Clientes · Agenda · Check-in · Painel · Campanhas, com o Check-in num botão central que pergunta "Para qual cliente?"; o gestor vê Painel · Clientes · Agenda · Campanhas, e "Importar notas" e "Usuários" ficavam no menu da conta (desde 09/11/2026, "Importar notas" está na barra; ver abaixo). Com o provedor importado, o histórico de compras une as notas e os pedidos dos check-ins.
-- **Modo demonstração, seed de três meses, Importar notas em destaque e senhas sem e-mail (09/11/2026, [spec](docs/superpowers/specs/2026-11-09-modo-demonstracao-design.md)):** até a apresentação, tudo no app é demonstração. Na tela de login, o botão **"Modo demonstração"** abre um painel com a data (ou "Voltar ao real"), o aviso do que será apagado e a **senha da conta Gestão**; ao aplicar, o app passa a viver nessa data e recria a demonstração em volta dela (a data fica guardada no banco, e a faixa "Modo demonstração · dd/mm/aaaa" aparece em todas as telas). O seed é um gerador determinístico, como se o sistema rodasse há três meses: rotas por dia da semana, cerca de 40 clientes por representante, de 4 a 6 visitas por dia útil e 13 semanas de histórico, com pedidos, anotações e campanhas da época. A barra inferior da **Gestão** agora é Painel · Clientes · **Importar notas** (botão central) · Agenda · Campanhas, e o menu da conta tem só "Usuários", "Alterar senha" e "Sair"; a barra do **representante** segue Clientes · Agenda · Check-in · Painel · Campanhas. Quem esquece a senha pede ao gestor uma **senha provisória** (Usuários → "Definir senha provisória") e a troca no perfil.
-- **Dados de demonstração completos e agenda cheia (12/11/2026, [spec](docs/superpowers/specs/2026-11-12-importacao-em-modal-agenda-cheia-e-crm-completo-design.md)):** o seed marca 2 visitas por representante em cada dia útil de hoje até hoje + 23 dias (no modo demonstração, a partir da data simulada), para o calendário e o roteiro do Maps nunca ficarem vazios, e deixa o CRM completo: `erpId` em todos os clientes, 8 lembretes, 3 mensagens de estoque por representante e metas do mês e do seguinte. Depois do deploy, recrie a demonstração pela tela de login, depois das 9h, e toque em "Atualizar" no PWA.
+Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular três meses de uso.
 
-Cada funcionalidade está especificada como caso de uso em [docs/casos-de-uso.md](docs/casos-de-uso.md), com as regras de negócio detalhadas na [seção 6 da especificação técnica](docs/especificacao-tecnica.md#6-regras-de-negócio-principais).
+### Roteiro sugerido
 
-## 3. Especificação técnica
+Como representante (conta da Eduarda ou do Rafael):
 
-Documento de referência do projeto: contexto e problema, objetivos, stack e restrições da disciplina, arquitetura, modelo de dados, regras de negócio, contorno da API REST, frontend, DevOps, testes, cronograma, riscos e itens fora de escopo. Em caso de divergência entre documentos, ele prevalece.
+1. Entre no sistema. A primeira tela é a Agenda, com as visitas atrasadas e as de hoje.
+2. Abra Clientes e observe as cores e as abas Prioridade, Atenção e Em dia.
+3. Toque em um cliente para abrir a ficha. Veja as compras, as sugestões da época e o histórico de visitas.
+4. Toque em Check-in, escolha um cliente e registre uma visita. A foto é obrigatória e pode ser qualquer imagem.
+5. Volte à ficha e confira a visita no histórico e a nova cor do cliente.
+6. Abra o Painel para ver as metas e os resultados da carteira.
 
-→ [docs/especificacao-tecnica.md](docs/especificacao-tecnica.md)
+Como gestor (conta Gestão Chokolaten):
 
-## 4. Casos de uso
+1. Entre no sistema. A primeira tela é o Painel, com os indicadores de toda a equipe.
+2. Use o seletor de representante para comparar as carteiras e troque o período de análise.
+3. Abra a aba Produção e sazonalidade para ver as vendas por mês, os alertas e o mapa.
+4. Em Campanhas, crie uma campanha e uma meta para um representante.
+5. No menu da conta, abra Usuários para criar uma conta ou definir uma senha provisória.
 
-Atores do sistema (representante e gestor), diagrama de visão geral, especificação de cada caso de uso com fluxo principal, fluxos alternativos e regras associadas, além da matriz de rastreabilidade entre casos de uso e etapas de entrega.
+### Simulando outra data
 
-→ [docs/casos-de-uso.md](docs/casos-de-uso.md)
+A tela de login tem o botão Modo demonstração. Ele pede uma data e a senha da conta Gestão e faz o sistema se comportar como se aquele fosse o dia de hoje, recriando os dados de demonstração em volta da data. É a forma de ver, por exemplo, as sugestões de Páscoa fora da época. A opção Voltar ao real desfaz a simulação.
 
-## 5. Modelo de dados
+### Usando como aplicativo
 
-Diagrama entidade-relacionamento, dicionário de dados campo a campo, tratamento dos dados que vêm do ERP e a definição da cor do cliente — um indicador calculado em tempo de consulta, que não é armazenado em nenhuma entidade.
+No celular, depois do login, o sistema oferece a instalação com o aviso "Use o ChokoCRM como app". Instalado, ele abre em tela cheia, como qualquer aplicativo. É preciso estar com internet para registrar visitas.
 
-→ [docs/modelo-de-dados.md](docs/modelo-de-dados.md)
+## Como instalar no seu computador
 
-## 6. Arquitetura e decisões técnicas
-
-Arquitetura em camadas documentada nos três níveis do modelo C4 (contexto, contêineres e componentes), estrutura de pastas do repositório e o registro das decisões técnicas em ADRs — ORM, integração com o ERP por Adapter, mensageria por link `wa.me`, cálculo da cor, hospedagem, autenticação, ferramentas de qualidade, armazenamento das fotos de comprovação de visita, carteira por representante, app instalável (PWA) e, na Etapa 8, a base de interface do protótipo, o e-mail por SMTP (substituído em 09/11/2026 pela senha provisória, ADR-018), o painel do representante e as coordenadas dos municípios de SC e, na Etapa 9, o lembrete como tarefa própria ([ADR-017](docs/arquitetura.md#adr-017--lembrete-como-tarefa-própria-tabela-reminder)).
-
-→ [docs/arquitetura.md](docs/arquitetura.md) · [diagramas C4](docs/arquitetura.md#1-visão-geral) · [ADRs](docs/arquitetura.md#3-decisões-arquiteturais-adrs)
-
-## 7. Protótipo navegável
-
-Protótipo estático das telas principais — login, lista de clientes com as cores, ficha do cliente, check-in, agenda do dia e painel de indicadores — feito na Etapa 1 e usado como referência visual da implementação até a Etapa 7. Na Etapa 8, a referência passou a ser o protótipo feito no Lovable e aprovado pela Chokolaten, descrito na [spec da etapa](docs/superpowers/specs/2026-10-17-etapa-8-revisao-prototipo-lovable-design.md).
-
-→ [docs/prototipo/index.html](docs/prototipo/index.html)
-
-## 8. Tecnologias
-
-React 19 com Vite e TypeScript no frontend, com Tailwind CSS 4, componentes shadcn (Radix), ícones lucide e `vite-plugin-pwa` no app instalável; Node.js 22 com Express 5 e TypeScript no backend; PostgreSQL 16 com Prisma como ORM; autenticação por JWT; Docker Compose no ambiente de desenvolvimento; GitHub Actions na integração e na entrega contínuas; Azure na produção.
-
-A integração com o ERP da Senior é feita por trás de uma interface substituível (`ErpProvider`), com três implementações — a simulada, a das notas fiscais importadas em PDF (Etapa 12) e a híbrida, que escolhe uma fonte por cliente pelo CNPJ (`hibrido`, o padrão e o valor de produção desde 11/11/2026) — enquanto a API real não é consumida. As mensagens de consulta de estoque **não** usam a API oficial do WhatsApp: o sistema gera o texto e o link `wa.me`, e o envio é feito manualmente pelo representante — a justificativa está no [ADR-005](docs/arquitetura.md#adr-005--mensagem-de-estoque-via-link-wame).
-
-## 9. Como executar localmente
-
-O ambiente completo (PostgreSQL, API e frontend) sobe com um comando via Docker Compose. Pré-requisitos, variáveis de ambiente, migrations, seed (`npm run db:seed`, que só acrescenta, e `npm run db:seed:reset`, que renova a demonstração com as datas de hoje mantendo as contas criadas pelo app, e, no dia a dia, o botão "Modo demonstração" da tela de login) e alternativa sem Docker estão no guia de desenvolvimento. Contas de demonstração: os representantes Eduarda Fischer (`eduarda@chokolaten.com.br`) e Rafael Schmitt (`rafael@chokolaten.com.br`), com a senha de demonstração, e a **Gestão Chokolaten** (`gestao@chokolaten.com.br`), conta compartilhada do dono e do escritório, que o seed só cria (com a senha de demonstração) num banco novo e nunca sobrescreve: a recriação pelo "Modo demonstração" também a preserva, e é a senha dela que o painel pede. Se alguém esquecer a senha, o gestor define uma senha provisória (não há redefinição por e-mail).
-
-→ [docs/guia-de-desenvolvimento.md](docs/guia-de-desenvolvimento.md)
+É preciso ter o Git, o Docker Desktop e o Node.js 22.13 ou superior.
 
 ```bash
+git clone https://github.com/dudapetzinger/CHOKOCRM.git
+cd CHOKOCRM
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 docker compose up --build
 ```
 
-Para apresentar a sazonalidade em outra época do ano, use o botão **"Modo demonstração"** da tela de login (data e senha da conta Gestão): o app inteiro passa a viver nessa data e a demonstração é recriada em volta dela, sem variável de ambiente, SSH nem reinício (a data fica no banco; faixa "Modo demonstração · dd/mm/aaaa" em todas as telas), como explica o [guia](docs/guia-de-desenvolvimento.md#4-banco-de-dados-migrations-e-seed). Para a sazonalidade e o estoque, o cliente precisa estar na fonte simulada (`ERP_PROVIDER=hibrido`, o valor de produção, para os clientes sem nota importada; ou `mock`). Não há variáveis de e-mail: o backend lê só as do `backend/.env.example`.
+Com o ambiente no ar, abra outro terminal para criar as tabelas e carregar os dados de demonstração:
 
-Para testar o app instalável (PWA), que só existe no build, o guia traz o roteiro com `npm run build && npm run preview` em [Testar o PWA localmente](docs/guia-de-desenvolvimento.md#51-testar-o-pwa-localmente).
+```bash
+cd backend
+npm install
+npm run db:migrate
+npm run db:seed
+```
 
-## 10. Testes
+Abra <http://localhost:5173> e entre com uma das contas da tabela acima.
 
-No backend, testes unitários com Jest sobre a camada de negócio (regras puras: cor do cliente, próxima visita, insights, templates de mensagem e indicadores) e testes de integração com Supertest sobre as rotas críticas, contra um PostgreSQL de teste. No frontend, desde a Etapa 7, testes com Vitest e Testing Library (`npm test` em `frontend/`), sem backend, sobre as regras da interface, os componentes e as páginas, com cerca de 86 % de cobertura de linhas (Etapa 8). O CI roda as duas suítes com cobertura e envia os dois relatórios ao SonarCloud. Cada módulo entregue em uma etapa do cronograma inclui seus testes.
+O passo a passo detalhado, as variáveis de configuração, a execução sem Docker e a solução dos problemas mais comuns estão em [docs/instalacao-e-configuracao.md](docs/instalacao-e-configuracao.md).
 
-A estratégia está na [seção 10 da especificação técnica](docs/especificacao-tecnica.md#10-testes) e na [seção 5.1 do documento de arquitetura](docs/arquitetura.md#51-testes). Como rodar: [guia de desenvolvimento](docs/guia-de-desenvolvimento.md).
+## Como o sistema é construído
 
-## 11. Integração e entrega contínuas
+O ChokoCRM tem três partes: a interface que roda no navegador, o servidor que aplica as regras do negócio e o banco de dados que guarda as informações.
 
-O workflow de CI roda, a cada push na `main` e a cada pull request, lint, testes e build do backend e do frontend — com um PostgreSQL de serviço para os testes de integração —, a análise do SonarCloud e o actionlint sobre os workflows. Quando o CI de um push na `main` termina verde, o workflow de deploy publica a API e o frontend num pacote só no App Service — a própria API serve o frontend —, com o banco em PostgreSQL Flexible Server, e confere os dois com um smoke test; as migrations rodam no start da API, sem nenhuma etapa manual de deploy. O mesmo workflow pode ser disparado à mão, para religar a produção.
+```mermaid
+flowchart LR
+    rep(["Representante<br/>no celular"])
+    gestor(["Gestão<br/>no computador ou celular"])
 
-**Produção:** <https://app-chokocrm-api-cscvc7aserd4c4g9.canadacentral-01.azurewebsites.net> (frontend e API no mesmo endereço) — fica ligada só nas janelas de uso (testes e apresentações), para poupar o crédito do Azure for Students; fora delas, o endereço pode não responder.
+    subgraph sistema["ChokoCRM"]
+        direction LR
+        web["Interface<br/>React"]
+        api["Servidor<br/>Node.js e Express"]
+        db[("Banco de dados<br/>PostgreSQL")]
+        fotos[("Fotos das visitas")]
+        web -- "pedidos e respostas (API REST)" --> api
+        api --> db
+        api --> fotos
+    end
 
-→ [.github/workflows/ci.yml](.github/workflows/ci.yml) · [.github/workflows/deploy.yml](.github/workflows/deploy.yml) · [Produção no Azure](docs/guia-de-desenvolvimento.md#9-produção-no-azure) · [ADR-007](docs/arquitetura.md#adr-007--docker-compose-no-desenvolvimento-azure-em-produção)
+    notas["Notas fiscais em PDF<br/>do sistema de gestão da empresa"]
+    whats["WhatsApp"]
 
-## 12. Qualidade e observabilidade
+    rep --> web
+    gestor --> web
+    notas -- "importadas pela gestão" --> web
+    web -. "abre a conversa com a mensagem pronta" .-> whats
+```
 
-Análise estática de código pelo SonarCloud, executada como job do pipeline de CI com a cobertura dos testes do backend e do frontend; o quality gate aparece no badge acima e no painel do SonarCloud, sem bloquear o pipeline. Em produção, logs estruturados com identificador de requisição, endpoint `GET /health` que verifica também a conexão com o banco, e Azure Application Insights recebendo requisições, dependências e exceções da API, com um teste de disponibilidade em `GET /health` que avisa por e-mail quando a API cai.
+A interface não decide nada sozinha. Ela mostra o que o servidor calcula: a cor de cada cliente, a agenda, as sugestões e os indicadores. O servidor é organizado em camadas, cada uma com uma responsabilidade, e é o único que acessa o banco de dados.
 
-→ [ADR-009](docs/arquitetura.md#adr-009--análise-estática-e-monitoramento-obrigatórios) · [seção 5.2 do documento de arquitetura](docs/arquitetura.md#52-observabilidade-e-operação) · [logs e monitoramento em produção](docs/guia-de-desenvolvimento.md#96-logs-e-monitoramento)
+| Parte | Tecnologias |
+|-------|-------------|
+| Interface | React 19, TypeScript, Vite, Tailwind CSS, instalável como aplicativo (PWA) |
+| Servidor | Node.js 22, Express 5, TypeScript, autenticação por token (JWT) |
+| Banco de dados | PostgreSQL 16, acessado com Prisma |
+| Ambiente local | Docker Compose |
+| Publicação | GitHub Actions e Microsoft Azure |
+| Qualidade | Jest, Vitest, SonarCloud |
 
-## 13. Cronograma de entregas
+O desenho das camadas, a organização das pastas e as decisões técnicas, com o motivo de cada uma, estão em [docs/arquitetura.md](docs/arquitetura.md).
 
-O projeto é entregue em seis etapas, da documentação e protótipo até o deploy em produção e os testes com os representantes, mais uma Etapa 7 de refino de UX, gráficos e PWA, uma Etapa 8 de revisão pelo protótipo do Lovable e uma Etapa 9 de ajustes pós-validação (25/10/2026) e as etapas de polimento seguintes (10 a 12, com a importação das notas fiscais), antes dos testes de campo.
+## Testes e qualidade
 
-→ [seção 11 da especificação técnica](docs/especificacao-tecnica.md#11-plano-de-entregas-cronograma-da-disciplina)
+O projeto tem mais de 2.100 testes automatizados, cerca de 1.150 no servidor e 980 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
 
-## 14. Autoria e licença
+```bash
+cd backend
+npm test
+```
 
-Eduarda Petzinger Rodrigues — Engenharia de Software, Centro Universitário Católica de Santa Catarina.
+```bash
+cd frontend
+npm test
+```
 
-Distribuído sob a licença MIT ([LICENSE](LICENSE)).
+Os testes do servidor usam o banco de dados local e o esvaziam. Depois de rodá-los, recarregue os dados de demonstração com `npm run db:seed:reset` na pasta `backend`.
+
+A cada envio de código para o GitHub, todos os testes rodam de novo, o código passa pela análise do SonarCloud e, se tudo estiver certo, a nova versão é publicada sozinha. Os dois selos no topo desta página mostram o resultado mais recente.
+
+O que é testado, como os testes estão organizados e como a publicação funciona estão em [docs/testes.md](docs/testes.md).
+
+## Organização do repositório
+
+```
+CHOKOCRM/
+├── backend/              servidor (API)
+│   ├── prisma/           estrutura do banco de dados e suas alterações
+│   ├── src/              código do servidor, dividido em camadas
+│   └── tests/            testes do servidor
+├── frontend/             interface
+│   ├── public/           logo e ícones do aplicativo
+│   └── src/              telas, componentes e seus testes
+├── docs/                 documentação
+├── scripts/              roteiro de criação do ambiente no Azure
+├── .github/workflows/    verificação e publicação automáticas
+└── docker-compose.yml    ambiente local
+```
+
+## Documentação
+
+| Documento | Conteúdo |
+|-----------|----------|
+| [Funcionalidades](docs/funcionalidades.md) | O que cada perfil faz no sistema e as regras que valem |
+| [Instalação e configuração](docs/instalacao-e-configuracao.md) | Como rodar no computador, contas, variáveis e o ambiente no Azure |
+| [Arquitetura](docs/arquitetura.md) | Desenho do sistema, camadas, pastas e decisões técnicas |
+| [Modelo de dados](docs/modelo-de-dados.md) | Tabelas do banco de dados e como se relacionam |
+| [Testes](docs/testes.md) | O que é testado, como rodar e como funciona a publicação |
+
+## Autoria e licença
+
+Eduarda Petzinger Rodrigues, Engenharia de Software, Centro Universitário Católica de Santa Catarina.
+
+Distribuído sob a licença MIT. O texto está em [LICENSE](LICENSE).
