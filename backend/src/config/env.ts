@@ -5,9 +5,9 @@ import { z } from 'zod';
 /**
  * Variáveis de ambiente validadas com Zod na subida: valor inválido = a API
  * não sobe. A data do modo demonstração não é variável de ambiente: mora no
- * banco (tabela `configuracoes`, ver `lib/relogio.ts`). O app não
- * manda e-mail (senha provisória pelo gestor): sem `SMTP_*`, `EMAIL_FROM` e
- * `APP_URL`, que, se ainda estiverem no ambiente, são ignoradas.
+ * banco (tabela `configuracoes`, ver `lib/relogio.ts`). O app não manda
+ * e-mail (a senha provisória é definida pelo gestor), então não há variáveis
+ * de SMTP. Variáveis fora deste schema são ignoradas.
  */
 
 export const envSchema = z.object({
@@ -42,7 +42,7 @@ export const envSchema = z.object({
     }),
   FOTOS_RETENCAO_DIAS: z.coerce.number().int().positive().default(90),
   // mock = ERP simulado de demonstração (pelo erpId); importado = só as notas
-  // fiscais importadas (DANFEs em PDF, Etapa 12b, pelo CNPJ); hibrido = as
+  // fiscais importadas (DANFEs em PDF, pelo CNPJ); hibrido = as
   // notas para o cliente que tem nota do CNPJ e o simulado para os demais (o
   // padrão e o de produção). Os testes fixam mock (tests/setup-env.ts).
   ERP_PROVIDER: z.enum(['mock', 'importado', 'hibrido']).default('hibrido'),

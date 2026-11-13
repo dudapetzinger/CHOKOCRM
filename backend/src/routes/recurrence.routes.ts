@@ -6,7 +6,7 @@ import { requireRole } from '../middlewares/requireRole';
 /**
  * Router aninhado sob `/clients/:id/recurrence` (montado com `mergeParams`
  * para enxergar o `:id` do cliente definido no prefixo do app.ts). Alterar
- * a recorrência de visitas é exclusivo do representante (UC09).
+ * a recorrência de visitas é exclusivo do representante.
  */
 export const recurrenceRouter = Router({ mergeParams: true });
 

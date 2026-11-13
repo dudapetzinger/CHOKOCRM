@@ -20,8 +20,8 @@ function recarregarPagina(): void {
  * arquivo que já não existe; o `lazy` rejeita e, sem este limite, o React
  * desmontaria a tela inteira. Aqui fica um aviso com o botão de recarregar,
  * que baixa a versão nova. (O `vite:preloadError` em main.tsx já recarrega
- * sozinho uma vez por sessão; este aviso cobre o que sobrar.) Visual da
- * base nova (Etapa 8): aviso em caixa, dentro da moldura.
+ * sozinho uma vez por sessão; este aviso cobre o que sobrar.) O aviso
+ * vem numa caixa, dentro da moldura.
  */
 export class LimiteDeErroDeCarregamento extends Component<Props, Estado> {
   state: Estado = { falhou: false };

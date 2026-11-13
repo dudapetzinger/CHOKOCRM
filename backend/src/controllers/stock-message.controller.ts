@@ -6,7 +6,7 @@ import { usuarioAutenticado } from './usuarioAutenticado';
 
 const idParamSchema = z.string().uuid('Identificador inválido.');
 
-/** `GET /clients/:id/stock-message/proposta` — não grava nada (UC12). */
+/** `GET /clients/:id/stock-message/proposta`: não grava nada. */
 export async function getProposta(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const clientId = idParamSchema.parse(req.params.id);
@@ -19,7 +19,7 @@ export async function getProposta(req: Request, res: Response, next: NextFunctio
   }
 }
 
-/** `POST /clients/:id/stock-message` — grava a mensagem e devolve o link do WhatsApp (UC12). */
+/** `POST /clients/:id/stock-message`: grava a mensagem e devolve o link do WhatsApp. */
 export async function postStockMessage(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const clientId = idParamSchema.parse(req.params.id);
@@ -33,7 +33,7 @@ export async function postStockMessage(req: Request, res: Response, next: NextFu
   }
 }
 
-/** `GET /stock-messages?clientId=` — histórico global para o gestor; o representante vê só a própria carteira. */
+/** `GET /stock-messages?clientId=`: histórico global para o gestor; o representante vê só a própria carteira. */
 export async function getStockMessages(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = listarQuerySchema.parse(req.query);

@@ -4,7 +4,7 @@ import type { Cor } from '../services/clients';
 import { EtiquetaSituacao } from './EtiquetaSituacao';
 
 /**
- * Anti-objetivo da spec (seção 4): a cor de classificação continua em cada
+ * A cor de classificação aparece em cada
  * linha, como ponto colorido + texto da situação. O ponto é decorativo (o
  * texto, de lib/descreverSituacao.ts, já diz o que a cor quer dizer): a cor
  * nunca é o único sinal.

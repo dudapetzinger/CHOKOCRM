@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 /**
- * Validação da gestão de usuários e das senhas (spec da Etapa 8, 7.13).
- * E-mails saem daqui já sem espaços e em minúsculas — é assim que são
+ * Validação da gestão de usuários e das senhas.
+ * E-mails saem daqui já sem espaços e em minúsculas: é assim que são
  * gravados e comparados (login, unicidade no cadastro e na edição).
  */
 

@@ -239,19 +239,7 @@ describe('GET /clients/:id/erp (hibrido)', () => {
   });
 });
 
-describe('GET /erp/situacao e /erp/produtos (hibrido)', () => {
-  it('situação: provedor hibrido, não simulado, com estoque e a emissão da nota mais recente', async () => {
-    const res = await autenticado('/erp/situacao');
-
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({
-      provedor: 'hibrido',
-      simulado: false,
-      estoqueDisponivel: true,
-      ultimaVendaEm: DIA_NOTA_B,
-    });
-  });
-
+describe('GET /erp/produtos (hibrido)', () => {
   it('produtos: o catálogo aprendido das notas (ErpProduct)', async () => {
     await prisma.erpProduct.create({ data: { codigo: '1001', nome: 'Bombom trufado ao leite', precoUnitario: 48.05 } });
 

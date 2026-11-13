@@ -1,17 +1,17 @@
 /**
- * Uma linha da agenda do dia (UC10, Etapa 4; situação em texto na Etapa 7;
- * visual da `Secao` de `routes/agenda.tsx` do protótipo na Etapa 8): avatar,
- * nome, etiqueta de situação e a da campanha da próxima visita (spec 7.7),
- * "cidade · prazo da visita prevista" (`descreverPrazoDaVisita`, spec 7.4)
+ * Uma linha da agenda do dia (visual da `Secao` de `routes/agenda.tsx` do
+ * protótipo): avatar,
+ * nome, etiqueta de situação e a da campanha da próxima visita,
+ * "cidade · prazo da visita prevista" (`descreverPrazoDaVisita`)
  * e, para o gestor com o seletor em "Todos", "Rep.: Nome". O lembrete não
  * aparece aqui: tem data própria e a sua linha na seção "Lembretes"
- * (`LembreteRow`, Etapa 9). Só o representante dono da carteira tem
- * o atalho "Check-in" (UC07). É um `<li>`: quem usa a põe dentro de uma
+ * (`LembreteRow`). Só o representante dono da carteira tem
+ * o atalho "Check-in". É um `<li>`: quem usa a põe dentro de uma
  * lista (`SecaoAgenda`).
  *
  * Duas ações por linha, dois links irmãos (um `<a>` dentro de outro não
  * existe): o bloco da esquerda (avatar + textos) abre a ficha do cliente
- * (UC06) e o botão abre o check-in. Abaixo de 768 px os dois têm pelo menos
+ * e o botão abre o check-in. Abaixo de 768 px os dois têm pelo menos
  * 44 px de altura (o `Button` já garante; o bloco tem `min-h-11`). Com
  * espaço na própria linha (container query, 288 px de conteúdo) o botão fica
  * à direita; mais estreita (celular de 320 px), desce para baixo dos textos,

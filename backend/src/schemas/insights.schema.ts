@@ -5,7 +5,7 @@ import { representanteIdFiltroSchema } from './client.schema';
 const MENSAGEM_HORIZONTE = `Horizonte deve ser um número inteiro de dias entre ${HORIZONTE_MIN_DIAS} e ${HORIZONTE_MAX_DIAS}.`;
 
 /**
- * Query dos insights sazonais (UC13) e dos alertas de produção (UC15):
+ * Query dos insights sazonais e dos alertas de produção:
  * `?horizonteDias=` é quantos dias à frente um evento ainda conta como
  * "próximo". Ausente, vale o padrão; parâmetros desconhecidos são ignorados.
  */
@@ -19,7 +19,7 @@ export const horizonteQuerySchema = z.object({
 });
 
 /**
- * Query dos alertas de produção (UC15): o horizonte e, opcionalmente,
+ * Query dos alertas de produção: o horizonte e, opcionalmente,
  * `?representanteId=` para restringir à carteira daquele representante.
  */
 export const alertasQuerySchema = horizonteQuerySchema.extend({

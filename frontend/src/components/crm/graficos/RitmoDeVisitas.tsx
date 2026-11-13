@@ -1,13 +1,13 @@
 /**
  * "Ritmo de visitas no período" do Painel (colunas de `routes/painel.tsx` do
- * protótipo, Etapa 8; segue o período escolhido na Etapa 9, spec 6.5): uma
- * coluna por faixa do `ritmo` que vem pronto do backend — por semana (a
+ * protótipo; segue o período escolhido): uma
+ * coluna por faixa do `ritmo` que vem pronto do backend, por semana (a
  * segunda-feira em dd/mm embaixo) ou por mês ("out/26"), conforme o tamanho
  * do período. O número de visitas fica no topo. A barra clara é o total de
  * visitas (a faixa com mais visitas ocupa a altura toda); a parte escura, de
  * baixo para cima, as visitas com venda.
  *
- * Cada coluna abre o balão (`GatilhoDoBalao`, spec 6.7) com o resumo
+ * Cada coluna abre o balão (`GatilhoDoBalao`) com o resumo
  * ("Semana de 05/10 · 6 visitas, 2 com venda", " · parcial" na faixa que o
  * período cortou) e os clientes visitados, com "(venda)" nos que compraram.
  * A tabela escondida repete os números e os clientes para leitores de tela.

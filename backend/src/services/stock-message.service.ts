@@ -43,7 +43,7 @@ export type GeracaoDTO = StockMessageDTO & {
 };
 
 /**
- * Proposta de mensagem de estoque (UC12, antes de gravar): não escreve
+ * Proposta de mensagem de estoque (antes de gravar): não escreve
  * nada, apenas monta o texto sugerido a partir do cliente, do evento
  * sazonal vigente (se houver) e do nome do usuário logado.
  */
@@ -69,7 +69,7 @@ export async function propor(
   // Uma saudação por destinatário possível: um item por contato, mais um
   // com `contactId: null` para a opção "telefone do cliente" (saudação
   // genérica "cliente"). O front troca o texto ao trocar "Enviar para"
-  // enquanto o representante não tiver editado a sugestão (I2).
+  // enquanto o representante não tiver editado a sugestão.
   const textosSugeridos = [
     ...cliente.contacts.map((contato) => ({
       contactId: contato.id,
@@ -122,7 +122,7 @@ function paraStockMessageDTO(registro: stockMessageRepository.StockMessageComRel
 }
 
 /**
- * Gera e grava a mensagem de estoque (UC12): nada é gravado se qualquer
+ * Gera e grava a mensagem de estoque: nada é gravado se qualquer
  * checagem falhar. Ordem das checagens: cliente existe (404) -> da
  * carteira do representante (403) -> ativo (409) -> contato pertence ao
  * cliente (400) -> telefone normalizável (400) -> evento vigente -> grava
@@ -185,7 +185,7 @@ export async function gerar(
 }
 
 /**
- * Histórico de mensagens geradas (UC12), mais recente primeiro. O
+ * Histórico de mensagens geradas, mais recente primeiro. O
  * representante vê só as de clientes da própria carteira (mesmo com
  * `clientId` de outra carteira, que devolve lista vazia); o gestor, todas.
  */

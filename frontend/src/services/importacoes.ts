@@ -1,5 +1,5 @@
 /**
- * Importação de notas fiscais (DANFE em PDF) do gestor (Etapa 12b). Espelha
+ * Importação de notas fiscais (DANFE em PDF) do gestor. Espelha
  * os DTOs de `/erp/importacoes`, `/erp/pendencias`, `/erp/vendas/:id/vinculo`
  * e `/erp/sem-cliente` do backend. Um PDF por requisição: a página manda os
  * arquivos um a um. "Cliente pela nota": o gestor cria o cliente de um CNPJ

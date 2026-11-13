@@ -19,7 +19,7 @@ export type MesCalendario = string;
 export type TipoItemCalendario = 'VISITA' | 'LEMBRETE' | 'CAMPANHA' | 'DATA_SAZONAL';
 
 /**
- * Um item num dia do calendário da Agenda (spec 7.6). O calendário mostra só
+ * Um item num dia do calendário da Agenda. O calendário mostra só
  * o que foi marcado de fato: VISITA é a data que o representante marcou no
  * check-in para a próxima visita de um cliente; LEMBRETE, a data de um
  * lembrete aberto; CAMPANHA, um dia do intervalo de uma campanha (só para o
@@ -59,7 +59,7 @@ const ROTULO_TIPO_CAMPANHA: Record<TipoCampanha, string> = {
 
 /**
  * Ordem dentro do mesmo dia: data sazonal e campanha antes das visitas e dos
- * lembretes (minha escolha: são poucas e a célula mostra só 3 itens; as
+ * lembretes (são poucas e a célula mostra só 3 itens; as
  * visitas e os lembretes, que podem ser muitos, ficam no "+N" e no painel do
  * dia).
  */
@@ -89,11 +89,11 @@ function descreverVencimento(quem: string, diasAtraso: number): string {
 }
 
 /**
- * Calendário de um mês da Agenda (spec 7.6): só o que foi marcado de fato.
+ * Calendário de um mês da Agenda: só o que foi marcado de fato.
  * Cada cliente com data marcada no check-in (`proximaVisita`) entra uma vez,
- * no dia marcado — mesmo que ele já tenha passado, com o detalhe "Visita
- * marcada venceu há N dias" — desde que a marcada ainda valha (Etapa 10d,
- * `proximaVisitaVigente`: um check-in no dia marcado ou depois a cumpre e
+ * no dia marcado (mesmo que ele já tenha passado, com o detalhe "Visita
+ * marcada venceu há N dias"), desde que a marcada ainda valha
+ * (`proximaVisitaVigente`: um check-in no dia marcado ou depois a cumpre e
  * ela sai do calendário); a data prevista pela recorrência não entra (ela
  * é da agenda do dia). Cada lembrete aberto entra no dia dele, com "Lembrete
  * venceu há N dias" quando já passou. Cada campanha entra em cada dia do
@@ -121,7 +121,7 @@ export function montarCalendario(entrada: {
   const itens: { item: ItemCalendario; cor?: Cor }[] = [];
 
   for (const cliente of clientes) {
-    // Etapa 10d: a marcada só entra enquanto vale (sem check-in no dia dela ou depois)
+    // A marcada só entra enquanto vale (sem check-in no dia dela ou depois)
     const marcada = proximaVisitaVigente(cliente.proximaVisita, cliente.visits[0] ?? null);
 
     if (marcada === null || !noMes(marcada)) {

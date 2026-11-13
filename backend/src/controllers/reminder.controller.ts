@@ -3,7 +3,7 @@ import { z } from 'zod';
 import * as reminderService from '../services/reminder.service';
 import { usuarioAutenticado } from './usuarioAutenticado';
 
-/** Lembretes do cliente (Etapa 9): a lista dos abertos na ficha e o "Concluir". */
+/** Lembretes do cliente: a lista dos abertos na ficha e o "Concluir". */
 
 const idParamSchema = z.string().uuid('Identificador inválido.');
 

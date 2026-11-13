@@ -10,10 +10,10 @@ import { truncateAllTables } from './helpers/db';
 import { fixarRelogio, liberarRelogio } from './helpers/relogio';
 
 /**
- * Auditoria do seed como um CRM completo e bem gerido (Task 4 da rodada de
- * 12/11): depois de `reiniciarDemonstracao` com a data de demonstração numa
- * quarta-feira (2026-11-11), sob o ERP `mock` dos testes, cada propriedade da
- * constraint "CRM completo" vira um `it` — clientes com cadastro, contatos e
+ * Auditoria do seed como um CRM completo e bem gerido, depois de
+ * `reiniciarDemonstracao` com a data de demonstração numa quarta-feira
+ * (2026-11-11), sob o ERP `mock` dos testes. Cada propriedade do "CRM
+ * completo" vira um `it`: clientes com cadastro, contatos e
  * `erpId`; visitas com anotação e pedido; lembretes, mensagens de estoque e
  * metas por representante; campanhas com produtos; usuários com telefone;
  * alertas de produção e KPIs do painel com dados.

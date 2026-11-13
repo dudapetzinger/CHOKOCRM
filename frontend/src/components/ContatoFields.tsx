@@ -3,16 +3,16 @@
  *
  * Reaproveitado em dois contextos:
  * - `NovoClientePage`: uma linha por contato de uma lista dinâmica, onde
- *   "principal" é um radio (só um contato do array pode ser o principal) —
+ *   "principal" é um radio (só um contato do array pode ser o principal):
  *   passar `principalControl={{ tipo: 'radio', ... }}`.
  * - `ClienteDetalhePage`: formulário isolado de um único contato (novo ou em
- *   edição), onde "principal" é um checkbox independente — o backend cuida
- *   de rebaixar o principal anterior automaticamente ao promover outro (ver
- *   `contact.service.ts`) — passar `principalControl={{ tipo: 'checkbox' }}`.
+ *   edição), onde "principal" é um checkbox independente (o backend cuida
+ *   de rebaixar o principal anterior automaticamente ao promover outro, ver
+ *   `contact.service.ts`): passar `principalControl={{ tipo: 'checkbox' }}`.
  *
- * Visual do protótipo (Etapa 8): rótulo acima de cada campo (`Campo`) e os
+ * Visual do protótipo: rótulo acima de cada campo (`Campo`) e os
  * campos em duas colunas quando o grupo tem espaço. Sem o preenchimento
- * automático do navegador, que oferecia os dados da própria representante.
+ * automático do navegador, que ofereceria os dados da própria representante.
  */
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

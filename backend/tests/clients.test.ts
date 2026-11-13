@@ -767,7 +767,7 @@ describe('GET /clients/:id', () => {
     expect(res.body.recorrenciaChanges).toEqual([]);
   });
 
-  describe('próxima visita marcada e já cumprida (Etapa 10d)', () => {
+  describe('próxima visita marcada e já cumprida', () => {
     /** Data marcada (coluna `@db.Date`) `dias` a partir de hoje, com a campanha da próxima visita. */
     async function marcarProximaVisita(id: string, dias: number): Promise<{ dia: string; campanhaId: string }> {
       const dia = somarDias(dataCalendario(new Date()), dias);

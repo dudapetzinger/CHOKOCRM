@@ -1,7 +1,7 @@
 /**
  * `erpId`s da demonstração: códigos numéricos de 5 dígitos, no formato do
  * cadastro de clientes do Senior X, calibrados para o ERP simulado (cor
- * composta com rebaixamento por última compra, Etapa 5). O mock deriva o
+ * composta com rebaixamento por última compra). O mock deriva o
  * perfil do cliente (`valorBase`, `mesesSemCompra`) do hash do texto do
  * `erpId` (`perfilDoErpId` em `providers/erp/mock/gerador.ts`); os códigos
  * foram escolhidos varrendo 10000..13000 com esse gerador e pegando, em ordem
@@ -16,26 +16,25 @@
  * - Doceria Jaraguá → `10448` (2) e Mercado Central Joinville → `10504` (1):
  *   atrasados pela visita (LARANJA e AMARELO); com 2 meses sem compra a
  *   Doceria poderia ser rebaixada, mas já é LARANJA, e 1 mês (até 60 dias)
- *   não rebaixa o Mercado Central; mesmos perfis de antes.
+ *   não rebaixa o Mercado Central.
  * - Empório do Vale Brusque → `10865` (0) e Casa de Chás Itajaí → `10947`
- *   (1): mesmos perfis de antes, e o estoque mais recente tem item BAIXO de
+ *   (1): o estoque mais recente tem item BAIXO de
  *   Natal (`SKUS_SUGERIDOS.NATAL`) em todos os snapshots de 05 a 26/11/2026
  *   (o estoque do mock avança numa grade de 15 em 15 dias), para o insight de
  *   reposição sazonal.
  * - Mercearia Alto Vale → `11062` (0) e Padaria Confeitaria Indaial →
- *   `11143` (2): mesmos perfis de antes; a Indaial nunca foi visitada (VERMELHO),
+ *   `11143` (2): a Indaial nunca foi visitada (VERMELHO),
  *   cor que a compra não muda.
  * - Padaria Vale Europeu → `12168` e Confeitaria Rota das Cachoeiras →
- *   `12187` (`mesesSemCompra` 0; `valorBase` 1856 e 1740): até a rodada de
- *   12/11/2026 ficavam sem `erpId` (`SEM_ERP_ID`); para o CRM da apresentação
- *   ficar completo, todo cliente ativo tem `erpId` (a tela "Sem histórico de
- *   compras" continua valendo para cliente criado à mão sem `erpId`). Códigos
+ *   `12187` (`mesesSemCompra` 0; `valorBase` 1856 e 1740): todo cliente
+ *   ativo da demonstração tem `erpId` (a tela "Sem histórico de compras"
+ *   vale para cliente criado à mão sem `erpId`). Códigos
  *   livres entre os dos âncoras (até 12159) e os dos gerados (de 12201).
  * - Café Beira-Rio → `12106` (`mesesSemCompra` 2): o cliente inativo, fechado
  *   para reforma há mais de um mês, também parou de comprar no ERP; já é
  *   VERMELHO pela visita, então não aparece como rebaixado.
  * - Os demais (Café Blumenau, Cafeteria Estrada Bonita, Empório do Chocolate
- *   e os outros doze clientes novos): `mesesSemCompra` 0, para nenhum cliente
+ *   e os outros doze clientes): `mesesSemCompra` 0, para nenhum cliente
  *   em dia ser rebaixado sem querer; `valorBase` variado deixa o histórico de
  *   vendas da ficha diferente em cada um.
  *

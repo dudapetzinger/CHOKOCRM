@@ -14,9 +14,9 @@ import {
 import { agora } from '../lib/relogio';
 
 /**
- * Vendas mensais da carteira (gráfico do painel do gestor, Etapa 7): busca os
+ * Vendas mensais da carteira (gráfico do painel do gestor): busca os
  * clientes ativos, consulta no ERP (via `erp.service`) as vendas dos meses
- * do período pedido (Etapa 11) de cada um e entrega às regras puras de `vendas-mensais.regras.ts`.
+ * do período pedido de cada um e entrega às regras puras de `vendas-mensais.regras.ts`.
  * ERP indisponível não derruba a resposta: o cliente afetado fica fora da
  * soma e é contado em `clientesIndisponiveis`.
  */
@@ -30,7 +30,7 @@ export type VendasMensaisDTO = {
   simulado: boolean;
   /**
    * Clientes ativos com chave no ERP (os que ele pode responder: no mock, os
-   * com `erpId`; no importado e no híbrido, todos — no híbrido, os de fonte
+   * com `erpId`; no importado e no híbrido, todos; no híbrido, os de fonte
    * `nenhuma` entram com vendas vazias).
    */
   clientesConsultados: number;

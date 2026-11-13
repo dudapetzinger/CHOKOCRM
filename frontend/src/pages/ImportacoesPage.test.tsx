@@ -378,7 +378,7 @@ describe('ImportacoesPage', () => {
     expect(screen.queryByText(/Criar o cliente no bloco/)).not.toBeInTheDocument();
   });
 
-  it('Review Focus 3: nota nova e nota já importada → "1 nota nova · 1 atualizada"', async () => {
+  it('nota nova e nota já importada → "1 nota nova · 1 atualizada"', async () => {
     lerDe({
       'a.pdf': {
         notas: [notaLida(), notaLida({ chaveAcesso: CHAVE_B, numero: '2456', jaImportada: true })],
@@ -406,7 +406,7 @@ describe('ImportacoesPage', () => {
     expect(importarPdf).toHaveBeenCalledTimes(1);
   });
 
-  it('Review Focus 4: três PDFs e o segundo não é DANFE — o erro fica na linha dele e só os dois lidos são gravados', async () => {
+  it('três PDFs e o segundo não é DANFE: o erro fica na linha dele e só os dois lidos são gravados', async () => {
     vi.mocked(lerPdf).mockImplementation(async (arquivo) => {
       if (arquivo.name === 'ruim.pdf') {
         throw new ApiError('VALIDATION_ERROR', 'Não encontrei uma DANFE legível neste PDF.');
@@ -460,7 +460,7 @@ describe('ImportacoesPage', () => {
     expect(importarPdf).not.toHaveBeenCalled();
   });
 
-  it('Review Focus 5: "Nova importação" limpa a tela e as listas de baixo já refletem a gravação', async () => {
+  it('"Nova importação" limpa a tela e as listas de baixo já refletem a gravação', async () => {
     lerDe(LEITURAS);
     gravarDe(GRAVACOES);
     vi.mocked(listarImportacoes).mockResolvedValueOnce([]).mockResolvedValue([importacao({ nomeArquivo: 'a.pdf' })]);
@@ -503,7 +503,7 @@ describe('ImportacoesPage', () => {
     expect(importarPdf).not.toHaveBeenCalled();
   });
 
-  it('Review Focus 4: Esc e "X" durante "Importando…" não fecham; a gravação termina e o fecho aparece no mesmo diálogo', async () => {
+  it('Esc e "X" durante "Importando…" não fecham; a gravação termina e o fecho aparece no mesmo diálogo', async () => {
     lerDe(LEITURAS);
     const gravacaoA = adiada<Importacao>();
     vi.mocked(importarPdf).mockReturnValue(gravacaoA.promessa);
@@ -527,7 +527,7 @@ describe('ImportacoesPage', () => {
     expect(within(dialogo).getByRole('button', { name: 'Fechar' })).toBeEnabled();
   });
 
-  it('Review Focus 3: nota de CNPJ sem cliente — cria o cliente no fecho, "Ver {nome}" no lugar do formulário e o CNPJ sai do bloco de baixo', async () => {
+  it('nota de CNPJ sem cliente: cria o cliente no fecho, "Ver {nome}" no lugar do formulário e o CNPJ sai do bloco de baixo', async () => {
     const DON_GIACOMO = semCliente({ cnpj: '25382906000149', razaoSocial: 'Don Giacomo Ltda', notas: 1 });
     lerDe({
       'd.pdf': {

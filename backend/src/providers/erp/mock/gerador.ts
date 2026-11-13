@@ -15,7 +15,7 @@ export function erpIdDesconhecido(erpId: string): boolean {
   return /-0$/.test(erpId);
 }
 
-/** Hash FNV-1a 32-bit sobre os bytes UTF-8 do texto — semente determinística do PRNG. */
+/** Hash FNV-1a 32-bit sobre os bytes UTF-8 do texto: semente determinística do PRNG. */
 function fnv1a(texto: string): number {
   let hash = 0x811c9dc5;
   const bytes = Buffer.from(texto, 'utf8');
@@ -28,7 +28,7 @@ function fnv1a(texto: string): number {
   return hash >>> 0;
 }
 
-/** PRNG mulberry32 — determinístico e reprodutível a partir de uma semente 32-bit. */
+/** PRNG mulberry32: determinístico e reprodutível a partir de uma semente 32-bit. */
 function mulberry32(semente: number): () => number {
   let estado = semente;
 
@@ -108,14 +108,14 @@ function escolherProdutos(rng: () => number): Sale['produtos'] {
 /**
  * Vendas dos últimos `MESES_DE_HISTORICO` meses de calendário. Cada mês
  * `AAAA-MM` tem sua própria semente (`erpId|AAAA-MM`), consumida por um PRNG
- * independente dos demais meses — ao contrário de uma única sequência
+ * independente dos demais meses. Ao contrário de uma única sequência
  * corrida a partir do mês mais antigo, o sorteio de um mês não depende de
  * quantos meses estão na janela nem de `diaHoje`, então o histórico de um
  * mês já fechado nunca muda quando `hoje` avança para o mês seguinte.
  *
  * O mês corrente (`m === 0`) sorteia os dias sobre o mês inteiro (mesma
  * regra dos meses fechados) e só então descarta, na saída, os dias
- * posteriores a `diaHoje` — como a lista de dias sorteados é a mesma
+ * posteriores a `diaHoje`. Como a lista de dias sorteados é a mesma
  * independentemente de `diaHoje`, os dias já passados desse mês também não
  * mudam de um dia para o outro; apenas dias novos passam a aparecer.
  */
@@ -214,16 +214,16 @@ function gerarEstoque(erpId: string, hojeCalendario: DataCalendario): StockSnaps
  * de um cliente do ERP simulado, a partir do `erpId` e do instante `hoje`.
  * `perfilDoErpId` continua a única fonte de `valorBase`/`mesesSemCompra`
  * (mesmos dois primeiros sorteios de `mulberry32(fnv1a(erpId))`, sem
- * depender de `hoje`) — a calibração dos `erpId`s de demonstração
+ * depender de `hoje`): a calibração dos `erpId`s de demonstração
  * (`config/erpIdsDemonstracao.ts`) depende disso. Vendas e estoque, porém,
  * não são sorteados a partir dessa mesma sequência: cada mês de vendas e
  * cada data de snapshot tem sua própria semente (ver `gerarVendas` e
- * `gerarEstoque`). É isso — e não apenas "mesmo `erpId` e mesmo dia dão o
- * mesmo resultado" — que garante que o passado não mude quando um
+ * `gerarEstoque`). É isso, e não apenas "mesmo `erpId` e mesmo dia dão o
+ * mesmo resultado", que garante que o passado não mude quando um
  * representante consulta o mesmo cliente em dois dias diferentes: com uma
  * única sequência de PRNG por `erpId`, o sorteio de um mês já fechado
- * dependia de quantos meses cabiam na janela de 24 e de `diaHoje`, então
- * ele mudava a cada virada de mês (e o estoque, todo santo dia).
+ * dependeria de quantos meses cabem na janela de 24 e de `diaHoje`, e
+ * mudaria a cada virada de mês (e o estoque, todos os dias).
  */
 export function gerarHistoricoErp(
   erpId: string,

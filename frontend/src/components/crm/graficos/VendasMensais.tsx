@@ -1,7 +1,7 @@
 /**
  * Vendas mensais da carteira nos meses do período do Painel (os meses
  * inteiros que ele cobre, no mínimo três), no formato do gráfico de
- * sazonalidade do protótipo Lovable (Etapa 9, spec 6.4), com os dados de
+ * sazonalidade do protótipo, com os dados de
  * `/dashboard/vendas-mensais`: linha com área, cada mês numa faixa do eixo X
  * com o ponto no meio dela. Uma linha tracejada marca o dia de cada evento
  * sazonal que cai na série (`eventos` da API, das `SeasonalEvent`), com o
@@ -10,13 +10,13 @@
  * Perto da borda direita, o nome passa para a esquerda da linha. No celular
  * (faixa de mês estreita), o nome encurta ("Dia dos…") e só um mês sim,
  * outro não ganha rótulo no eixo X. O eixo Y parte do zero (sem exagerar a
- * variação, regra da Etapa 8), com três linhas de grade em valores redondos
+ * variação), com três linhas de grade em valores redondos
  * em "R$ Nk".
  *
  * O SVG desenha na largura do cartão (`viewBox` = largura medida, largura
  * 100%), para as letras dos eixos ficarem no mesmo tamanho em qualquer tela.
  *
- * Balão (spec 6.7): cada mês tem uma coluna invisível, a própria faixa dele
+ * Balão: cada mês tem uma coluna invisível, a própria faixa dele
  * na altura toda do gráfico (sem invadir a vizinha: tocar perto de um ponto
  * abre o mês daquele ponto), que abre "out/26 · R$ 62.300,00 · 7 clientes"
  * com quem comprou no mês e quanto, por valor; cada marca de evento, uma

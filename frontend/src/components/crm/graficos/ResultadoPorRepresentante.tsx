@@ -1,6 +1,6 @@
 /**
  * "Resultado das visitas por representante" do Painel (barra empilhada de
- * `routes/painel.tsx` do protótipo, Etapa 8): uma linha por representante,
+ * `routes/painel.tsx` do protótipo): uma linha por representante,
  * na ordem da API, com o primeiro nome, as visitas e a conversão em vendas
  * em texto e, embaixo, a barra Venda | Negociação | Sem venda. O comprimento
  * da barra é proporcional ao representante com mais visitas (no mínimo 8%,
@@ -9,7 +9,7 @@
  * acessível; a legenda de cores é só visual.
  *
  * Cada segmento (no mínimo 8 px de largura, e com 44 px de toque no celular
- * por `TOQUE_NO_SEGMENTO`) abre o balão (Etapa 9, spec 6.7) "Eduarda ·
+ * por `TOQUE_NO_SEGMENTO`) abre o balão "Eduarda ·
  * Venda: 5" com os clientes daquele resultado e quantas visitas de cada um. A tabela escondida repete os números e os clientes.
  */
 import { contar } from '@/lib/contar';

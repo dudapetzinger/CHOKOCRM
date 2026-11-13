@@ -13,13 +13,13 @@ export type { AgendaItem, Agenda } from './agenda.montagem';
 export type { CalendarioDTO, ItemCalendario } from './agenda.calendario';
 
 /**
- * Agenda do dia de um usuário (UC10): representante vê só a própria
+ * Agenda do dia de um usuário: representante vê só a própria
  * carteira (ignorando `representanteId`); gestor vê a de todos ou, com
- * `representanteId`, só a daquele representante. `hoje` é parametrizável para permitir
- * reuso futuro (ex.: job diário) com uma data fixa. A montagem em si
+ * `representanteId`, só a daquele representante. `hoje` é parametrizável para
+ * quem chama (ex.: o job diário) passar uma data fixa. A montagem em si
  * (`montarAgenda`) é pura e vive em `agenda.montagem.ts`, sem acesso a
- * banco — este módulo é o único ponto que fala com os repositórios e com o
- * ERP (via `erp.service.consultarUltimasVendasPorCliente`, Etapa 5) para a cor
+ * banco: este módulo é o único ponto que fala com os repositórios e com o
+ * ERP (via `erp.service.consultarUltimasVendasPorCliente`) para a cor
  * composta. Os lembretes abertos com data até hoje, da mesma carteira e só
  * de cliente ativo, vêm na lista `lembretes`.
  */
@@ -44,7 +44,7 @@ export async function getAgendaDoDia(
 }
 
 /**
- * Calendário de um mês da Agenda (spec 7.6), no mesmo escopo da agenda do
+ * Calendário de um mês da Agenda, no mesmo escopo da agenda do
  * dia (`representanteEfetivo`). Só entra o que foi marcado: as visitas com
  * data marcada no check-in e os lembretes abertos da carteira, de cliente
  * ativo, com data no mês. As campanhas só vão para o gestor (para o

@@ -1,7 +1,7 @@
 /**
- * Estado de servidor dos insights sazonais do cliente (UC13) e dos alertas de
- * produção do gestor (UC15), Etapa 6B, como manda a arquitetura do projeto: as
- * páginas e os componentes não chamam a API diretamente (ver
+ * Estado de servidor dos insights sazonais do cliente e dos alertas de
+ * produção do gestor, como manda a arquitetura do projeto: as páginas e os
+ * componentes não chamam a API diretamente (ver
  * docs/arquitetura.md). O horizonte faz parte da chave: cada horizonte tem seu
  * próprio cache. Sem retry, como `useDadosErp`: erro de rede/indisponibilidade
  * deve aparecer de imediato, não após tentativas silenciosas.
@@ -29,7 +29,7 @@ export function useInsights(clienteId: string | undefined, horizonteDias: number
 
 /**
  * `keepPreviousData` pelo mesmo motivo de `useInsights`: trocar o horizonte (ou
- * o representante escolhido pelo gestor, Etapa 7) não esvazia o Painel.
+ * o representante escolhido pelo gestor) não esvazia o Painel.
  */
 export function useAlertasDeProducao(horizonteDias: number, representanteId?: string) {
   return useQuery({

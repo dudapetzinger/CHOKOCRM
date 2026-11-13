@@ -14,7 +14,7 @@ import { agora } from '../../lib/relogio';
  * determinístico (ver `mock/gerador.ts`) a partir do `erpId` (a chave do
  * cliente no mock, ver `erp.service.chaveDoCliente`), sem tocar
  * banco de dados nem serviço externo. `falhar` simula a indisponibilidade
- * do ERP (UC11 E3); `hoje` é injetado para os testes controlarem "agora"
+ * do ERP; `hoje` é injetado para os testes controlarem "agora"
  * sem mockar `Date` globalmente.
  */
 export class MockErpProvider implements ErpProvider {

@@ -1,6 +1,6 @@
 /**
- * Estado de servidor dos gráficos do Painel (Etapa 7), como manda a
- * arquitetura do projeto: os componentes não chamam a API diretamente (ver
+ * Estado de servidor dos gráficos do Painel, como manda a arquitetura do
+ * projeto: os componentes não chamam a API diretamente (ver
  * docs/arquitetura.md). Sem retry, como `useKpis`: erro de
  * rede/indisponibilidade deve aparecer de imediato. O período (`Periodo`) entra
  * nas chaves por `chaveDoPeriodo`.
@@ -52,7 +52,7 @@ export function useClientesDaCarteira(representanteId?: string) {
 }
 
 /**
- * Relatório da planilha (spec 7.12), buscado só ao clicar em "Planilha":
+ * Relatório da planilha, buscado só ao clicar em "Planilha":
  * uma mutação, não uma consulta, porque cada clique quer os números do
  * momento e nada fica em cache. Sem retry, como o resto do Painel.
  */

@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { metaDentroDaCampanha, periodoDaMeta, realizadoDaMeta } from '../../src/services/goal.regras';
 
-describe('periodoDaMeta (spec 7.8)', () => {
+describe('periodoDaMeta', () => {
   it('semanal: base numa quinta (15/10/2026) → segunda 12/10 a domingo 18/10', () => {
     expect(periodoDaMeta('SEMANAL', '2026-10-15')).toEqual({ inicio: '2026-10-12', fim: '2026-10-18' });
   });
@@ -33,7 +33,7 @@ describe('periodoDaMeta (spec 7.8)', () => {
   });
 });
 
-describe('realizadoDaMeta (spec 7.8)', () => {
+describe('realizadoDaMeta', () => {
   const EDUARDA = 'u-eduarda';
   const RAFAEL = 'u-rafael';
   const NATAL = 'cp-natal';
@@ -196,7 +196,7 @@ describe('realizadoDaMeta: clientes', () => {
   });
 });
 
-describe('metaDentroDaCampanha (spec 7.8)', () => {
+describe('metaDentroDaCampanha', () => {
   const natal = { inicio: '2026-11-01', fim: '2026-12-24' };
 
   it('o período inteiro da campanha cabe', () => {

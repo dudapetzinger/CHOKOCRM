@@ -1,5 +1,5 @@
 /**
- * Extração de texto de PDFs de DANFE (Etapa 12).
+ * Extração de texto de PDFs de DANFE.
  *
  * Usa o `pdfjs-dist` (só ESM) para ler os itens de texto de cada página e
  * monta as linhas agrupando os itens pela coordenada `y` (tolerância de 2 pt)

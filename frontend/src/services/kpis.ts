@@ -1,5 +1,5 @@
 /**
- * Acesso tipado aos indicadores do painel do gestor (UC14, Etapa 6C). Espelha
+ * Acesso tipado aos indicadores do painel do gestor. Espelha
  * `KpisDTO` de `backend/src/services/kpis.service.ts` e `Proporcao` /
  * `DistribuicaoPorCor` de `backend/src/services/kpis.regras.ts`. Datas de
  * calendário chegam como 'AAAA-MM-DD' (formatar com `formatarDataCalendario`).
@@ -25,7 +25,7 @@ export type Kpis = {
   inativos: { total: number; distribuicao: DistribuicaoPorCor };
   /** Nenhuma visita nem mensagem no período. */
   semDados: boolean;
-  /** A cor composta consulta o ERP, que ainda é simulado. */
+  /** Verdadeiro quando os dados de compra usados na cor vêm da fonte simulada. */
   simulado: boolean;
 };
 

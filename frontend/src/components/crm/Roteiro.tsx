@@ -1,5 +1,5 @@
 /**
- * Cartão "Roteiro do dia" (spec 7.9; visual de `Roteiro` em
+ * Cartão "Roteiro do dia" (visual de `Roteiro` em
  * `routes/agenda.tsx` do protótipo), acima das seções da Agenda do dia:
  * "N paradas · cerca de X km", chips "1 Nome · Cidade" ligados por
  * "→ 12 km →" (ou "→ mesma cidade →") e "Abrir no Google Maps" em nova aba

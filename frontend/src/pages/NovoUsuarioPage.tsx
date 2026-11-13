@@ -1,5 +1,5 @@
 /**
- * Cadastro de usuário pelo gestor (Etapa 8, spec 7.13), no visual de
+ * Cadastro de usuário pelo gestor, no visual de
  * `routes/usuarios.novo.tsx` do protótipo: um cartão de 560 px com nome,
  * e-mail, telefone, papel (representante por padrão), senha inicial e
  * confirmação. Validações do backend repetidas aqui (nome, e-mail, senha de

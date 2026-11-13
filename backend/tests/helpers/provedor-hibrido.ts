@@ -5,6 +5,6 @@
  * `erpId`) para os demais. `tests/setup-env.ts` fixa `ERP_PROVIDER=mock` para
  * todos os arquivos; como o Jest dá a cada arquivo de teste o próprio
  * registro de módulos, a troca vale só para o arquivo que importa este
- * helper — mesmo padrão de `provedor-importado.ts`.
+ * helper (mesmo padrão de `provedor-importado.ts`).
  */
 process.env.ERP_PROVIDER = 'hibrido';

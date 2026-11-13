@@ -1,6 +1,6 @@
 /**
- * Regras puras de leitura de DANFE (NF-e) a partir do texto das páginas
- * (Etapa 12). Recebe as linhas já montadas por `pdf-texto.ts` e reconhece
+ * Regras puras de leitura de DANFE (NF-e) a partir do texto das páginas.
+ * Recebe as linhas já montadas por `pdf-texto.ts` e reconhece
  * os campos pelos rótulos impressos, sem depender de colunas: chave de acesso,
  * número/série, emissão, destinatário (com endereço, bairro, CEP, município, UF
  * e fone, que ficam `null` quando faltam, sem invalidar a nota), natureza,

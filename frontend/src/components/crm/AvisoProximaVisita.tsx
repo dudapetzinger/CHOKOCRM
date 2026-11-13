@@ -1,14 +1,14 @@
 /**
- * Aviso da próxima visita na ficha do cliente (spec 7.2 e 7.4; aviso de
+ * Aviso da próxima visita na ficha do cliente (aviso de
  * `crm/ficha.tsx` do protótipo), logo abaixo do cabeçalho: "Próxima visita:
  * dd/mm/aaaa" quando há data marcada e a etiqueta da campanha da próxima
- * visita (spec 7.7). Abaixo, os lembretes abertos do cliente (Etapa 9: o
+ * visita. Abaixo, os lembretes abertos do cliente (o
  * lembrete tem data própria, independente da visita), cada um com o texto, o
  * prazo embaixo (`descreverPrazoDoLembrete`) e, com `podeConcluir`, o botão
  * "Concluir" à direita.
  *
- * Etapa 11b: com `podeEditar`, a data se marca, muda ou limpa aqui mesmo
- * (antes só o check-in gravava). O botão "Alterar data" (ou "Marcar próxima
+ * Com `podeEditar`, a data se marca, muda ou limpa aqui mesmo.
+ * O botão "Alterar data" (ou "Marcar próxima
  * visita", quando não há data; nesse caso o aviso aparece mesmo sem campanha
  * nem lembrete) abre um campo de data (`min` = hoje no aparelho) com "Salvar",
  * "Cancelar" e, havendo data, "Limpar data". Quem grava é a página
@@ -20,7 +20,7 @@
  * sem `podeEditar` e sem data, campanha nem lembrete, não desenha nada: quem
  * usa pode sempre passar tudo.
  *
- * Texto marrom sobre o laranja suave (9,6:1, spec 6.3); o ícone é decorativo
+ * Texto marrom sobre o laranja suave (9,6:1); o ícone é decorativo
  * e usa o laranja vivo do protótipo.
  */
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
@@ -40,7 +40,7 @@ import { Aviso, Campo } from './ui';
 type Props = {
   /** Data marcada (`AAAA-MM-DD`); `null` quando a agenda segue a recorrência. */
   data: string | null;
-  /** Nome da campanha da próxima visita (spec 7.7). */
+  /** Nome da campanha da próxima visita. */
   campanha?: string | null;
   /** Os lembretes abertos do cliente, por data. */
   lembretes: LembreteItem[];

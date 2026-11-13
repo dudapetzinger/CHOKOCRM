@@ -1,5 +1,5 @@
 /**
- * Cidades da carteira para o select da aba Clientes (Etapa 11). Grafias
+ * Cidades da carteira para o select da aba Clientes. Grafias
  * diferentes da mesma cidade ("Blumenau", "blumenau ", "BLUMENAU") viram uma
  * só opção, agrupadas por `normalizarCidade` (a mesma chave do roteiro).
  */

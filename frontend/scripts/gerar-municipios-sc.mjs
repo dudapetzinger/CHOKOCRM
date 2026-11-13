@@ -1,20 +1,18 @@
 /**
  * Gera `src/lib/municipiosSC.ts`, a tabela estática dos municípios de Santa
- * Catarina (nome -> latitude/longitude) usada pelo roteiro do dia (spec 7.9).
+ * Catarina (nome -> latitude/longitude) usada pelo roteiro do dia.
  * Rodado uma vez (e de novo só se a tabela de origem mudar):
  *
- *   node scripts/gerar-municipios-sc.mjs [caminho/do/municipios.csv]
+ *   node scripts/gerar-municipios-sc.mjs caminho/do/municipios.csv
  *
- * Sem argumento, lê a cópia do CSV guardada em
- * `.superpowers/sdd/2026-10-17-etapa-8-revisao-prototipo-lovable/dados/`. O
- * texto da licença vem de `LICENSE-municipios.txt`, na mesma pasta do CSV, e
- * vai inteiro no cabeçalho do arquivo gerado (a licença MIT pede o aviso nas
- * cópias).
+ * O texto da licença vem de `LICENSE-municipios.txt`, que precisa estar na
+ * mesma pasta do CSV, e vai inteiro no cabeçalho do arquivo gerado (a licença
+ * MIT pede o aviso nas cópias).
  * Origem: `csv/municipios.csv` do repositório kelvins/municipios-brasileiros
  * (licença MIT, Kelvin S. do Prado), com colunas
  * `codigo_ibge,nome,latitude,longitude,capital,codigo_uf,...`; Santa Catarina
  * é `codigo_uf` 42. As chaves saem normalizadas como `normalizarCidade` de
- * `src/lib/roteiro.ts` (sem acento, minúsculas, espaços únicos) — um teste de
+ * `src/lib/roteiro.ts` (sem acento, minúsculas, espaços únicos); um teste de
  * `roteiro.test.ts` confere que as duas normalizações batem.
  */
 import { readFile, writeFile } from 'node:fs/promises';
@@ -23,15 +21,6 @@ import { fileURLToPath } from 'node:url';
 
 const CODIGO_UF_SC = '42';
 const pastaFrontend = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const csvPadrao = path.join(
-  pastaFrontend,
-  '..',
-  '.superpowers',
-  'sdd',
-  '2026-10-17-etapa-8-revisao-prototipo-lovable',
-  'dados',
-  'municipios.csv',
-);
 const destino = path.join(pastaFrontend, 'src', 'lib', 'municipiosSC.ts');
 
 /** Mesma regra de `normalizarCidade` (`src/lib/roteiro.ts`). */
@@ -39,7 +28,11 @@ function normalizar(nome) {
   return nome.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-const caminhoCsv = process.argv[2] ?? csvPadrao;
+const caminhoCsv = process.argv[2];
+if (!caminhoCsv) {
+  console.error('Uso: node scripts/gerar-municipios-sc.mjs caminho/do/municipios.csv');
+  process.exit(1);
+}
 const csv = await readFile(caminhoCsv, 'utf8');
 const licenca = await readFile(path.join(path.dirname(caminhoCsv), 'LICENSE-municipios.txt'), 'utf8');
 const licencaComentada = licenca
@@ -73,8 +66,8 @@ const entradas = [...municipios]
 
 const conteudo = `/**
  * Municípios de Santa Catarina (${municipios.size}) com latitude e longitude, para as
- * distâncias do roteiro do dia (spec 7.9). ARQUIVO GERADO por
- * \`scripts/gerar-municipios-sc.mjs\` — não editar à mão.
+ * distâncias do roteiro do dia. ARQUIVO GERADO por
+ * \`scripts/gerar-municipios-sc.mjs\`: não editar à mão.
  *
  * Fonte: kelvins/municipios-brasileiros, \`csv/municipios.csv\`
  * (https://github.com/kelvins/municipios-brasileiros), filtrado por

@@ -135,7 +135,7 @@ describe('VisitTimeline', () => {
     expect(screen.getAllByRole('button', { name: 'Ocultar itens' })).toHaveLength(1);
   });
 
-  it('mostra a etiqueta da campanha da visita ao lado do resultado (spec 7.7)', () => {
+  it('mostra a etiqueta da campanha da visita ao lado do resultado', () => {
     renderizar([
       visita({ id: 'v1', campanha: { id: 'cp2', nome: 'Natal Chokolaten' } }),
       visita({ id: 'v2', descricao: 'Visita sem campanha.' }),

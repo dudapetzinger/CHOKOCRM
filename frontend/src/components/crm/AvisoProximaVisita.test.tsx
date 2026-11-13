@@ -75,7 +75,7 @@ describe('AvisoProximaVisita', () => {
     expect(within(aviso).queryByRole('list', { name: 'Lembretes' })).not.toBeInTheDocument();
   });
 
-  it('mostra a etiqueta da campanha da próxima visita (spec 7.7)', () => {
+  it('mostra a etiqueta da campanha da próxima visita', () => {
     renderizar({ data: '2026-12-01', campanha: 'Natal Chokolaten' });
 
     const aviso = screen.getByRole('note');

@@ -1,7 +1,7 @@
 import { diasEntre, somarDias, type DataCalendario } from '../services/classificacao.service';
 
 /**
- * Calendário sazonal do chocolate (Etapa 5): datas de eventos e o
+ * Calendário sazonal do chocolate: datas de eventos e o
  * multiplicador de demanda aplicado nos 30 dias que antecedem cada um,
  * usado pelo gerador mock de ERP para simular picos de venda realistas.
  */
@@ -35,7 +35,7 @@ export const NOME_DO_EVENTO: Record<EventoSazonal, string> = {
   NATAL: 'Natal',
 };
 
-/** Produtos sugeridos por evento para a mensagem de consulta de estoque (UC12). */
+/** Produtos sugeridos por evento para a mensagem de consulta de estoque. */
 export const PRODUTOS_SUGERIDOS: Record<EventoSazonal, string[]> = {
   PASCOA: ['ovos de Páscoa', 'trufas', 'caixas presente'],
   DIA_DAS_MAES: ['caixas presente', 'bombons sortidos', 'barras 70%'],
@@ -44,9 +44,8 @@ export const PRODUTOS_SUGERIDOS: Record<EventoSazonal, string[]> = {
   NATAL: ['panetones de chocolate', 'caixas presente', 'bombons sortidos'],
 };
 
-// Parâmetros de insights e alertas (Etapa 6B): constantes de código, não
-// editáveis na tela — mesmo padrão de `config/classificacao.ts` ("ajuste
-// fino com a empresa").
+// Parâmetros de insights e alertas: constantes de código, não
+// editáveis na tela (mesmo padrão de `config/classificacao.ts`).
 
 /** Horizonte padrão (dias) de "evento próximo" quando `?horizonteDias=` está ausente. */
 export const HORIZONTE_PADRAO_DIAS = 90;
@@ -66,7 +65,7 @@ export const LIMIAR_VARIACAO_BAIXA = -0.2;
 export const MAX_PRODUTOS_MAIS_COMPRADOS = 3;
 
 /**
- * SKUs do catálogo do ERP por evento — o cruzamento de estoque (UC15) é por
+ * SKUs do catálogo do ERP por evento: o cruzamento de estoque é por
  * SKU, não pelo texto de `PRODUTOS_SUGERIDOS`. Panetone não existe no
  * catálogo mock e por isso fica de fora do Natal.
  */
@@ -101,7 +100,7 @@ function pascoa(ano: number): DataCalendario {
   return `${ano}-${pad2(mes)}-${pad2(dia)}`;
 }
 
-/** N-ésimo domingo (1-based) de um mês/ano — usado para Mães (maio) e Pais (agosto). */
+/** N-ésimo domingo (1-based) de um mês/ano, usado para Mães (maio) e Pais (agosto). */
 function nEsimoDomingo(ano: number, mes: number, n: number): DataCalendario {
   const primeiroDiaSemana = new Date(Date.UTC(ano, mes - 1, 1)).getUTCDay(); // 0 = domingo
   const primeiroDomingo = primeiroDiaSemana === 0 ? 1 : 8 - primeiroDiaSemana;

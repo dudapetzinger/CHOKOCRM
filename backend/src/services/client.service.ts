@@ -96,12 +96,12 @@ export type ClienteCompletoDTO = {
   representante: { id: string; nome: string };
   recorrenciaChanges: RecorrenciaChangeDTO[];
   /**
-   * Data marcada no check-in (`AAAA-MM-DD`, spec 7.4); `null` quando a agenda
-   * segue a recorrência — inclusive quando a marcada já foi cumprida por um
-   * check-in no dia dela ou depois (Etapa 10d, `proximaVisitaVigente`).
+   * Data marcada no check-in (`AAAA-MM-DD`); `null` quando a agenda
+   * segue a recorrência, inclusive quando a marcada já foi cumprida por um
+   * check-in no dia dela ou depois (`proximaVisitaVigente`).
    */
   proximaVisita: string | null;
-  /** Campanha da próxima visita (spec 7.7); `null` sem campanha ou com a marcada cumprida. */
+  /** Campanha da próxima visita; `null` sem campanha ou com a marcada cumprida. */
   proximaCampanha: { id: string; nome: string } | null;
 };
 
@@ -130,7 +130,7 @@ function toClienteCompletoDTO(client: ClientComContatos, hoje: Date, ultimaVenda
     hoje,
     ultimaVenda,
   );
-  // Etapa 10d: a marcada já cumprida por um check-in no dia dela ou depois sai
+  // A marcada já cumprida por um check-in no dia dela ou depois sai
   // da ficha (e a campanha acompanha), sem mexer na coluna do banco.
   const proximaVisita = proximaVisitaVigente(
     client.proximaVisita ? dataDaColunaDate(client.proximaVisita) : null,

@@ -13,7 +13,7 @@ export async function findById(id: string): Promise<User | null> {
 /**
  * Usuários **ativos** de um papel (id e nome), por nome: o seletor de
  * representante do gestor e o job diário só enxergam quem está ativo. Com
- * `incluirInativos`, todos — o comparativo de indicadores por representante
+ * `incluirInativos`, todos: o comparativo de indicadores por representante
  * continua mostrando o histórico de quem foi inativado.
  */
 export async function listByRole(

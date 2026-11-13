@@ -1,7 +1,7 @@
 /**
- * Estado de servidor da alteração de recorrência de visitas (UC09,
- * Etapa 4), como manda a arquitetura do projeto: páginas e componentes não
- * chamam a API diretamente (ver docs/arquitetura.md e `hooks/useVisitas.ts`).
+ * Estado de servidor da alteração de recorrência de visitas, como manda a
+ * arquitetura do projeto: páginas e componentes não chamam a API diretamente
+ * (ver docs/arquitetura.md e `hooks/useVisitas.ts`).
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { alterarRecorrencia } from '../services/clients';

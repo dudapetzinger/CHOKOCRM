@@ -54,10 +54,10 @@ export type VisitaDTO = {
   itens: ItemDoPedidoDTO[];
   /** Soma de quantidade × preço unitário dos itens, em reais com 2 casas. */
   totalPedido: number;
-  /** Campanha da visita (spec 7.7); `null` sem campanha ou depois de a campanha ser excluída. */
+  /** Campanha da visita; `null` sem campanha ou depois de a campanha ser excluída. */
   campanha: { id: string; nome: string } | null;
   /**
-   * Nota fiscal importada vinculada à visita (Etapa 12): número e valor total
+   * Nota fiscal importada vinculada à visita: número e valor total
    * da nota, em reais com 2 casas; `null` sem vínculo.
    */
   notaFiscal: { numero: string; valorTotal: number } | null;
@@ -65,7 +65,7 @@ export type VisitaDTO = {
 
 /**
  * O DTO expõe `temFoto`, e nunca o `fotoPath`: a chave interna do
- * armazenamento não é assunto do cliente HTTP — a foto é lida pela rota
+ * armazenamento não é assunto do cliente HTTP. A foto é lida pela rota
  * `GET /visits/:id/foto`, autenticada como as demais.
  *
  * O total é somado em `Decimal` (`somarItens`) e só no fim vira `number`.
@@ -98,7 +98,7 @@ export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
 
 /**
  * Linhas do pedido com nome e preço do catálogo do ERP, nunca do corpo da
- * requisição (spec 7.5). Pedido só em visita com venda; linhas do mesmo SKU
+ * requisição. Pedido só em visita com venda; linhas do mesmo SKU
  * viram uma só, com as quantidades somadas. Lista vazia é "sem pedido".
  */
 async function montarItensDoPedido(
@@ -129,12 +129,12 @@ async function montarItensDoPedido(
 
 /**
  * Próxima visita e campanha da próxima visita que o check-in grava no
- * cliente (spec 7.4 e 7.7). A visita nova substitui a data marcada antes
- * (ruling R22): sem data (`null` ou campo ausente), apaga a data e a
- * campanha e a agenda volta à recorrência — uma data antiga, talvez
+ * cliente. A visita nova substitui a data marcada antes:
+ * sem data (`null` ou campo ausente), apaga a data e a
+ * campanha e a agenda volta à recorrência (uma data antiga, talvez
  * vencida, deixaria o cliente recém-visitado como atrasado; e campanha sem
- * data não vale. Com data, a campanha é a do corpo (ausente: nenhuma). O
- * lembrete não mora mais no cliente (Etapa 9): é criado à parte, com a data
+ * data não vale). Com data, a campanha é a do corpo (ausente: nenhuma). O
+ * lembrete não fica no cliente: é criado à parte, com a data
  * dele, e sobrevive à data apagada.
  */
 function montarProximaVisitaDoCliente(input: CreateVisitInput): ProximaVisitaDoClienteData {
@@ -293,6 +293,6 @@ export async function lerFoto(
   }
 
   // Arquivo ausente no armazenamento (volume novo, restauração só do
-  // banco) já chega como AppError 404 do driver — não vaza como 500.
+  // banco) já chega como AppError 404 do driver, não vaza como 500.
   return fileStorage.read(visita.fotoPath);
 }

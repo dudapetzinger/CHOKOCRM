@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient, Reminder } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 /**
- * Lembretes do cliente (tabela `lembretes`, Etapa 9): tarefa própria, com
+ * Lembretes do cliente (tabela `lembretes`): tarefa própria, com
  * data, aberta até ser concluída (`concluidoEm`). `data` é coluna `@db.Date`
  * (meia-noite UTC); quem a mostra converte com `dataDaColunaDate`.
  */

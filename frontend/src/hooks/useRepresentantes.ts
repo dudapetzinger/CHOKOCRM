@@ -1,6 +1,6 @@
 /**
- * Estado de servidor da lista de representantes (Etapa 7), usada pelo
- * seletor do gestor. Só busca para o gestor (o endpoint é restrito a ele) e
+ * Estado de servidor da lista de representantes, usada pelo seletor do
+ * gestor. Só busca para o gestor (o endpoint é restrito a ele) e
  * guarda por 5 minutos: a lista quase nunca muda durante o uso.
  */
 import { useQuery } from '@tanstack/react-query';

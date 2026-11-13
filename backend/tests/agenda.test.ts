@@ -194,7 +194,7 @@ describe('GET /agenda/today', () => {
     expect(res.body.data).toEqual({ atrasadas: [], hoje: [], proximos7Dias: [], lembretes: [] });
   });
 
-  it('traz os próximos 7 dias com a data marcada no check-in e o endereço (spec 7.4)', async () => {
+  it('traz os próximos 7 dias com a data marcada no check-in e o endereço', async () => {
     // Visitado há 3 dias com recorrência de 15: pela recorrência, só daqui a 12 dias
     const daquiADoisDias = somarDias(dataCalendario(new Date()), 2);
     await prisma.client.update({
@@ -218,7 +218,7 @@ describe('GET /agenda/today', () => {
     expect(atrasado).toMatchObject({ endereco: 'Rua Hermann Weege, 100', marcadaNoCheckIn: false });
   });
 
-  it('data marcada pela ficha (PUT /clients/:id) leva o cliente para "hoje" na agenda (Etapa 11b)', async () => {
+  it('data marcada pela ficha (PUT /clients/:id) leva o cliente para "hoje" na agenda', async () => {
     const hojeSP = dataCalendario(new Date());
     // Sem visita e recorrência de 15 dias: pela recorrência, só daqui a 15 dias (não entraria em "hoje")
     const clienteNovoId = await criarCliente('11222333000686', 'Mercearia Gaspar', representanteAId);
@@ -239,7 +239,7 @@ describe('GET /agenda/today', () => {
     expect(noHoje).toMatchObject({ id: clienteNovoId, proximaVisita: hojeSP });
   });
 
-  it('marcada já cumprida pelo check-in volta à recorrência, sem marcadaNoCheckIn nem campanha (Etapa 10d)', async () => {
+  it('marcada já cumprida pelo check-in volta à recorrência, sem marcadaNoCheckIn nem campanha', async () => {
     const hojeCal = dataCalendario(new Date());
     const hojeColuna = new Date(`${hojeCal}T00:00:00.000Z`);
     const campanha = await prisma.campaign.create({
@@ -474,7 +474,7 @@ describe('GET /agenda/calendario', () => {
     ]);
   });
 
-  it('visita marcada já cumprida pelo check-in não entra no calendário; a ainda válida entra (Etapa 10d)', async () => {
+  it('visita marcada já cumprida pelo check-in não entra no calendário; a ainda válida entra', async () => {
     // clienteHoje foi visitado há 15 dias; clienteAtrasado, há 20. A marcada há 16 dias
     // é anterior à visita do primeiro (cumprida) e posterior à do segundo (ainda vale).
     const dia = await marcarVisita(clienteHojeId, -16);

@@ -5,8 +5,6 @@ export const vincularNotaSchema = z.object({
   visitId: z.string().uuid('Identificador de visita inválido.'),
 });
 
-export type VincularNotaInput = z.infer<typeof vincularNotaSchema>;
-
 /** Nome do arquivo (`?nome=`) só para o histórico; vazio ou ausente vira um nome padrão. */
 export const nomeArquivoSchema = z
   .string()

@@ -1,13 +1,13 @@
 /**
- * Contrato do provedor de ERP (Adapter) da Etapa 5. Três implementações:
+ * Contrato do provedor de ERP (Adapter). Três implementações:
  * `MockErpProvider` simula um ERP para demonstração (chave = `erpId` do
- * cliente), `ImportadoErpProvider` (Etapa 12b) lê as notas fiscais
+ * cliente), `ImportadoErpProvider` lê as notas fiscais
  * importadas e os pedidos dos check-ins sem nota (chave = CNPJ do
  * cliente) e `HibridoErpProvider` compõe os dois por cliente (chave =
  * `cnpj|erpId`, ver `chave-hibrida.ts`: notas se há nota do CNPJ, senão o
  * simulado). Quem escolhe a chave é `erp.service.chaveDoCliente`; services e
- * controllers não mudam com o provedor — mesmo padrão Adapter de
- * `FileStorage` (ver `storage/FileStorage.ts`).
+ * controllers não mudam com o provedor (mesmo padrão Adapter de
+ * `FileStorage`, ver `storage/FileStorage.ts`).
  */
 /**
  * De onde veio a venda no provedor importado: uma nota fiscal importada
@@ -26,8 +26,8 @@ export type Sale = {
 /**
  * `inicio` e `fim` são instantes inclusivos, não uma janela de 24h por
  * `Date.now()`. Quem chama (`erp.service.ts`) monta os dois a partir de
- * dias de calendário inteiros — `inicio` é `00:00:00.000` local do
- * primeiro dia da janela, `fim` é `23:59:59.999` local do último —, então
+ * dias de calendário inteiros (`inicio` é `00:00:00.000` local do
+ * primeiro dia da janela, `fim` é `23:59:59.999` local do último), então
  * um adapter deve filtrar por `data >= inicio && data <= fim` sem
  * reinterpretar os limites como uma janela corrida de N×24h.
  */

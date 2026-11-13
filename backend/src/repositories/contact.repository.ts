@@ -12,7 +12,7 @@ export async function findById(id: string): Promise<ContactComCarteira | null> {
 /**
  * Cria o contato de um cliente já existente. Quando o novo contato é
  * marcado como principal, rebaixa o principal atual do cliente na mesma
- * transação e ANTES de criar o novo registro — o índice único parcial
+ * transação e ANTES de criar o novo registro: o índice único parcial
  * `one_principal_per_client` (client_id) WHERE principal, definido na
  * migration, não tolera dois contatos principais simultâneos.
  */

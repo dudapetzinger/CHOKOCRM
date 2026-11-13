@@ -7,9 +7,9 @@ import { MockErpProvider } from './MockErpProvider';
 /**
  * Seleciona o adapter de ERP a partir de `ERP_PROVIDER`, mesmo padrão de
  * `storage/index.ts`: `'mock'` (simulado, desenvolvimento e testes),
- * `'importado'` (só as notas fiscais importadas, Etapa 12b) ou `'hibrido'`
+ * `'importado'` (só as notas fiscais importadas) ou `'hibrido'`
  * (o padrão e o de produção: as notas para o cliente que tem nota do CNPJ e
- * o simulado pelo `erpId` para os demais — compõe os outros dois). Um novo
+ * o simulado pelo `erpId` para os demais; compõe os outros dois). Um novo
  * provedor seria outro `case`, sem alterar services nem controllers: eles
  * dependem apenas da interface `ErpProvider`, via `erp.service`.
  */

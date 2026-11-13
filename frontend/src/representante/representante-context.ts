@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 
 /**
- * Representante escolhido pelo gestor no seletor (Etapa 7), compartilhado por
+ * Representante escolhido pelo gestor no seletor, compartilhado por
  * Clientes, Agenda e Painel. `null` = Todos.
  */
 export type RepresentanteContextValue = {

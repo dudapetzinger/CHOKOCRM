@@ -14,7 +14,7 @@ const MILISSEGUNDOS_POR_DIA = 24 * 60 * 60 * 1000;
  * Job diário: apaga do disco as fotos de check-in das visitas com mais de
  * `FOTOS_RETENCAO_DIAS` dias (90 por padrão) e marca a visita
  * (`fotoApagadaEm`, `fotoPath` nulo). A ordem importa: o arquivo sai
- * primeiro e a marca depois — se o processo cair no meio, a visita ainda
+ * primeiro e a marca depois: se o processo cair no meio, a visita ainda
  * aponta para uma foto e a próxima execução tenta de novo (apagar arquivo já
  * ausente não falha). Falha numa visita é logada e não interrompe as demais.
  */

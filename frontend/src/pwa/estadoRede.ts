@@ -1,5 +1,5 @@
 /**
- * Falha de rede vista pela própria API (ADR-012). O `navigator.onLine` só
+ * Falha de rede vista pela própria API. O `navigator.onLine` só
  * diz se o aparelho tem alguma conexão: com Wi-Fi sem internet, ou dados
  * móveis que não respondem, ele continua `true` e o `fetch` falha. Por isso
  * `services/api.ts` registra aqui cada falha de rede e cada resposta que

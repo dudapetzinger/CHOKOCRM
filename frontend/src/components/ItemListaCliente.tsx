@@ -1,5 +1,5 @@
 /**
- * Uma linha de cliente (Etapa 7; `ClienteRow` do protótipo na Etapa 8): ponto
+ * Uma linha de cliente (`ClienteRow` do protótipo): ponto
  * de cor, nome com a cidade ao lado, etiqueta de situação e, para o gestor, o
  * representante; a linha toda leva à ficha. Com espaço na própria linha
  * (container query, 384 px de conteúdo) a etiqueta fica à direita; mais

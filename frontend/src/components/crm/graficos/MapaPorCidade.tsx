@@ -1,6 +1,6 @@
 /**
- * "Mapa de clientes por cidade" do Painel (spec 7.11; `Mapa` de
- * `routes/painel.tsx` do protótipo, Etapa 8): SVG desenhado à mão, com uma
+ * "Mapa de clientes por cidade" do Painel (`Mapa` de
+ * `routes/painel.tsx` do protótipo): SVG desenhado à mão, com uma
  * bolha por cidade da carteira (raio 7 + 3 × nº de clientes, com teto), na
  * cor da situação mais urgente da cidade, o número de clientes dentro e o
  * nome em cima. A área enquadra só as cidades presentes, com margem para a
@@ -8,34 +8,34 @@
  * acompanha a largura do cartão, para as letras ficarem no tamanho certo no
  * celular.
  *
- * Contorno (Etapa 10c, spec seção 5): atrás das bolhas, o limite de Santa
+ * Contorno: atrás das bolhas, o limite de Santa
  * Catarina (`fill-muted`, traço `stroke-muted-foreground/60`) e o de cada
  * município com clientes (`stroke-border`), de `CONTORNO_SC` (arquivo
  * gerado pela malha do IBGE), projetados com o mesmo enquadramento das
  * cidades; o que sai da área o `viewBox` corta. O fundo do SVG é o do
- * cartão (o retângulo cinza de antes saiu: o cinza agora é o estado).
+ * cartão: o cinza é o estado.
  *
- * Zoom e arrastar (Etapa 10c): o `viewBox` é estado (`lib/zoomDoMapa.ts`),
+ * Zoom e arrastar: o `viewBox` é estado (`lib/zoomDoMapa.ts`),
  * começando em `0 0 largura altura`. "Aproximar" (+), "Afastar" (−) e
  * "Ajustar" ficam no canto superior direito; o fator é 1,5 por toque, de
- * 0,5× — ou menos, até o estado inteiro caber: o mínimo é
- * `nivelMinimoParaCaber` sobre a caixa do contorno do estado projetado
- * (`caixaDoEstado`), porque o enquadramento inicial cobre só as cidades da
- * carteira e 0,5× dele raramente mostra Santa Catarina inteira — a 6×, e os
+ * 0,5× (ou menos, até o estado inteiro caber: o mínimo é
+ * `nivelMinimoParaCaber` sobre a caixa do contorno do estado projetado,
+ * `caixaDoEstado`, porque o enquadramento inicial cobre só as cidades da
+ * carteira e 0,5× dele raramente mostra Santa Catarina inteira) a 6×, e os
  * botões desabilitam nos limites. Ao afastar até o fim, o estado inteiro
  * aparece: no mínimo, `conterCaixa` encosta o viewBox na caixa quando o
  * centro mantido a deixaria deslocada para fora. Com o zoom, só as posições
  * se afastam: bolhas, números, nomes e traços mantêm o tamanho na tela (as
- * medidas em unidades do viewBox são divididas pelo nível) — é isso que
+ * medidas em unidades do viewBox são divididas pelo nível). É isso que
  * separa o amontoado do Vale do Itajaí; se crescessem junto, dois nomes
  * sobrepostos continuariam sobrepostos, só maiores, e ao afastar a área de
- * toque cairia abaixo dos 44 px (spec 6.4).
+ * toque cairia abaixo dos 44 px.
  * Arrastar com o mouse ou um dedo move o mapa
  * (`touch-none` para o dedo não rolar a página); um movimento de mais de
  * `LIMIAR_DO_ARRASTO` px vira arrasto: o SVG captura o ponteiro e o clique
  * que fechar o gesto não abre ficha nem mexe no balão. A captura só começa
  * depois do limiar porque, com ela, o navegador entrega o `click` ao SVG e
- * não à bolha — capturar já no `pointerdown` mataria o clique com o mouse.
+ * não à bolha: capturar já no `pointerdown` mataria o clique com o mouse.
  * Dois dedos fazem a pinça: a razão entre a distância atual e a inicial
  * aplica o zoom em torno do ponto entre eles (`aplicarFator`), e o meio dos
  * dedos arrasta junto. A roda com Ctrl (ou Cmd) aproxima/afasta no ponto do
@@ -45,7 +45,7 @@
  *
  * Cada bolha é um botão (foco pelo teclado, nome com a cidade, o número de
  * clientes e a situação mais urgente) que abre a ficha do cliente mais
- * urgente. Hover, foco e toque abrem o balão (Etapa 9, spec 6.7, no lugar do
+ * urgente. Hover, foco e toque abrem o balão (no lugar do
  * `<title>` nativo) "Blumenau · 3 clientes" com os clientes da cidade e a
  * situação de cada um, do mais urgente ao menos. Clique com o mouse, Enter e
  * espaço abrem a ficha direto. No toque, como não há hover, o primeiro toque
@@ -56,7 +56,7 @@
  *
  * Contraste do número dentro da bolha (texto pequeno, ≥ 4,5:1): branco só
  * no vermelho (4,7:1); no verde (4,8:1), no amarelo (8,8:1) e no laranja
- * (5,9:1), o texto escuro do app — branco ficaria em 3,4, 1,9 e 2,8:1.
+ * (5,9:1), o texto escuro do app (branco ficaria em 3,4, 1,9 e 2,8:1).
  */
 import { Maximize, Minus, Plus } from 'lucide-react';
 import {
@@ -104,8 +104,8 @@ const ESPACO_DO_NOME = 16;
 /** Largura aproximada de um caractere do nome (10 px), para o nome não sair pela borda. */
 const LARGURA_DO_CARACTERE = 5.6;
 /**
- * Raio mínimo da área de toque de cada bolha: 44 px de diâmetro no celular
- * (spec 6.4), mesmo nas bolhas pequenas (raio 10 com um cliente). A área é
+ * Raio mínimo da área de toque de cada bolha: 44 px de diâmetro no celular,
+ * mesmo nas bolhas pequenas (raio 10 com um cliente). A área é
  * invisível; a bolha desenhada não muda.
  */
 const RAIO_DO_TOQUE = 22;
@@ -389,7 +389,7 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
   /**
    * `lostpointercapture` borbulha: no toque, a bolha onde o dedo pousou tem a
    * captura implícita e a perde quando o mapa a toma para si ao passar do
-   * limiar — isso não é soltura. Só vale quando foi o próprio SVG que perdeu.
+   * limiar, e isso não é soltura. Só vale quando foi o próprio SVG que perdeu.
    */
   function aoPerderCaptura(evento: PointerEvent<SVGSVGElement>): void {
     if (evento.target !== evento.currentTarget) return;

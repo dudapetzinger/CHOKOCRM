@@ -303,7 +303,7 @@ describe('AgendaPage (celular)', () => {
   });
 });
 
-describe('AgendaPage — lembretes', () => {
+describe('AgendaPage: lembretes', () => {
   it('a seção "Lembretes" traz o vencido e o de hoje, entre "Hoje" e "Próximos 7 dias"', async () => {
     renderizarComo('REPRESENTANTE', {
       atrasadas: [ATRASADA],
@@ -373,7 +373,7 @@ describe('AgendaPage — lembretes', () => {
   });
 });
 
-describe('AgendaPage — campanhas em andamento (spec 7.6 e 7.7)', () => {
+describe('AgendaPage: campanhas em andamento', () => {
   function campanha(id: string, nome: string, status: Campanha['status']): Campanha {
     return {
       id,
@@ -477,7 +477,7 @@ describe('AgendaPage (desktop, a partir de 1024 px)', () => {
   });
 });
 
-describe('AgendaPage — roteiro do dia (spec 7.9)', () => {
+describe('AgendaPage: roteiro do dia', () => {
   it('o representante vê o roteiro só com as visitas de hoje (a atrasada fica fora), a distância e o link do Google Maps', async () => {
     const outraDeHoje: AgendaItem = { ...ATRASADA, id: 'c5', nomeFantasia: 'Bombons & Cia', diasAtraso: 0 };
     renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE, outraDeHoje], proximos7Dias: [PROXIMA] });
@@ -555,7 +555,7 @@ describe('AgendaPage — roteiro do dia (spec 7.9)', () => {
   });
 });
 
-describe('AgendaPage — calendário (spec 7.6)', () => {
+describe('AgendaPage: calendário', () => {
   it('o segmentado troca a agenda do dia pelo calendário do mês, sem o roteiro', async () => {
     const usuario = userEvent.setup();
     renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE] });

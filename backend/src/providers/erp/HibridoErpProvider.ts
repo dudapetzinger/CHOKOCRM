@@ -5,7 +5,7 @@ import type { ImportadoErpProvider } from './ImportadoErpProvider';
 import type { MockErpProvider } from './MockErpProvider';
 
 /**
- * Provedor de ERP `hibrido` (o padrão desde a rodada "notas na ficha"):
+ * Provedor de ERP `hibrido` (o padrão):
  * compõe o provedor das notas importadas e o simulado, com uma fonte por
  * cliente e nunca a soma das duas. A chave é a composta de `chave-hibrida.ts`
  * (`cnpj|erpId`, montada por `erp.service.chaveDoCliente`); a cada chamada,

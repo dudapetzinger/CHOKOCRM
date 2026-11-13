@@ -3,7 +3,7 @@ import { representanteIdFiltroSchema } from './client.schema';
 import { camposDoPeriodo, validarPeriodo } from './periodo.schema';
 
 /**
- * Validação das metas de visitas e vendas (spec 7.8), na criação e na
+ * Validação das metas de visitas e vendas, na criação e na
  * alteração (`PUT`, que troca a meta inteira). O serviço confere o que
  * depende do banco: representante ativo e com papel REPRESENTANTE, campanha
  * existente e a meta dentro do período dela; nas metas semanal e mensal, o

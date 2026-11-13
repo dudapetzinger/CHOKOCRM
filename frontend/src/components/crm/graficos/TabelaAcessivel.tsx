@@ -1,7 +1,7 @@
 /**
- * Texto equivalente dos gráficos desenhados à mão do Painel (Etapa 8, spec
- * 6.6): uma tabela com os mesmos números, escondida da vista mas não dos
- * leitores de tela, como a do antigo `FiguraGrafico`. A primeira célula de
+ * Texto equivalente dos gráficos desenhados à mão do Painel:
+ * uma tabela com os mesmos números, escondida da vista mas não dos
+ * leitores de tela. A primeira célula de
  * cada linha é o cabeçalho da linha. Nenhum número depende do desenho.
  */
 type Props = {

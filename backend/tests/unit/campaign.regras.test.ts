@@ -24,7 +24,7 @@ function visitaVinculada(dados: Partial<VisitaVinculada> & Pick<VisitaVinculada,
   };
 }
 
-describe('statusDaCampanha (início e fim inclusivos, spec 7.7)', () => {
+describe('statusDaCampanha (início e fim inclusivos)', () => {
   const natal = { inicio: '2026-11-01', fim: '2026-12-24' };
 
   it('programada antes do início', () => {

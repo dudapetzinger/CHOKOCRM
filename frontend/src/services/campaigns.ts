@@ -1,5 +1,5 @@
 /**
- * Acesso tipado às campanhas, promoções e eventos (spec 7.7). Espelha o
+ * Acesso tipado às campanhas, promoções e eventos. Espelha o
  * `CampanhaDTO` de `backend/src/services/campaign.service.ts`: o status, os
  * resultados por representante, os produtos mais vendidos e as vendas
  * vinculadas vêm calculados do backend (o front não recalcula regra).

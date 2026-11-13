@@ -1,5 +1,5 @@
 /**
- * Balão dos gráficos (Etapa 9, spec do balão de hover): cada fatia, barra ou
+ * Balão dos gráficos: cada fatia, barra ou
  * ponto de um gráfico mostra, num balão, os clientes que estão nela.
  * `AreaComBalao` é a área `relative` do cartão: guarda qual gatilho está
  * aberto e desenha o balão `absolute` por cima (nunca muda o fluxo nem a
@@ -16,9 +16,9 @@
  * toque fora fecham. O balão nunca passa da largura da área (no celular de
  * 320 px, 18rem passaria).
  *
- * Teclado: a área inteira é uma parada só do Tab (Etapa 10; antes cada
- * fatia era uma, dezenas na aba do gestor). Só um gatilho tem `tabIndex` 0 —
- * o último focado ou, no início, o primeiro na ordem do documento —, os
+ * Teclado: a área inteira é uma parada só do Tab (com uma parada por
+ * fatia seriam dezenas na aba do gestor). Só um gatilho tem `tabIndex` 0
+ * (o último focado ou, no início, o primeiro na ordem do documento), os
  * outros têm −1, e as setas (também Home e End) passam o foco de um gatilho
  * ao outro, abrindo o balão de cada um. Sem `role` do consumidor, o gatilho
  * é `role="img"` (a fatia, a barra, a coluna: uma figura com nome), menos o

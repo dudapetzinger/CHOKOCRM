@@ -1,9 +1,9 @@
 /**
- * Legenda das situações (Etapa 7, spec 5.1): botão-ícone `help-circle` na
- * barra de ferramentas de Clientes, que abre um balão (Popover do protótipo,
- * Etapa 8) com a régua da classificação, uma frase por situação, cada uma
+ * Legenda das situações: botão-ícone `help-circle` na
+ * barra de ferramentas de Clientes, que abre um balão (Popover do protótipo)
+ * com a régua da classificação, uma frase por situação, cada uma
  * com o ponto da sua cor. Os textos são os do app e os números vêm de
- * config/classificacao.ts (a régua do protótipo é outra, spec 5).
+ * config/classificacao.ts (a régua do protótipo é outra).
  */
 import { HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';

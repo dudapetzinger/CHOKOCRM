@@ -171,7 +171,7 @@ export async function listarImportacoes(limite: number): Promise<ImportacaoComRe
  * Da nota mais recente para a mais antiga. No mesmo dia, desempata pela chave
  * de acesso (44 dígitos de tamanho fixo, com o número da nota zerado à
  * esquerda): entre notas do mesmo emitente e série, a de número maior vem
- * antes — `numero` é texto e poria '999' acima de '1000'. `ErpSale` não tem
+ * antes (`numero` é texto e poria '999' acima de '1000'). `ErpSale` não tem
  * `criadoEm`, e `atualizadoEm` muda a cada vínculo.
  */
 const ORDEM_MAIS_RECENTE = [
@@ -246,18 +246,6 @@ export async function somarNotasDoCnpj(
     _count: { _all: true },
   });
   return { total: resultado._sum.valorTotal, quantidade: resultado._count._all };
-}
-
-/** Data de emissão da nota mais recente (de qualquer cliente); `null` sem notas. */
-export async function ultimaDataDeEmissao(): Promise<Date | null> {
-  const nota = await prisma.erpSale.findFirst({ orderBy: { dataEmissao: 'desc' }, select: { dataEmissao: true } });
-  return nota?.dataEmissao ?? null;
-}
-
-/** Instante da importação mais recente; `null` se nunca houve. */
-export async function ultimaImportacaoEm(): Promise<Date | null> {
-  const importacao = await prisma.erpImport.findFirst({ orderBy: { criadoEm: 'desc' }, select: { criadoEm: true } });
-  return importacao?.criadoEm ?? null;
 }
 
 /** Catálogo aprendido das notas (`ErpProduct`), por nome. */

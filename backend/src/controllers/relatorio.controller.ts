@@ -6,7 +6,7 @@ import * as relatorioService from '../services/relatorio.service';
 import { usuarioAutenticado } from './usuarioAutenticado';
 import { agora } from '../lib/relogio';
 
-/** Relatório da planilha do Painel (spec 7.12): mesmo período e mesma carteira dos indicadores. */
+/** Relatório da planilha do Painel: mesmo período e mesma carteira dos indicadores. */
 export async function getRelatorio(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = periodoQuerySchema.parse(req.query);

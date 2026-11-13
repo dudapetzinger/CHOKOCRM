@@ -1,11 +1,11 @@
 /**
- * Tela de check-in de visita (UC07) em quatro passos (Etapa 10b), num
+ * Tela de check-in de visita em quatro passos, num
  * cartão de 560 px com o cliente e o indicador "Passo N de 4":
  *
- * 1. A visita — data e hora, contato atendido e campanha da visita;
- * 2. Resultado — Venda · Negociação · Sem venda e, com Venda, o pedido;
- * 3. O que aconteceu — a descrição e a foto, as duas obrigatórias;
- * 4. Próximos passos — "Deseja marcar a data prevista da próxima visita?"
+ * 1. A visita: data e hora, contato atendido e campanha da visita;
+ * 2. Resultado: Venda · Negociação · Sem venda e, com Venda, o pedido;
+ * 3. O que aconteceu: a descrição e a foto, as duas obrigatórias;
+ * 4. Próximos passos: "Deseja marcar a data prevista da próxima visita?"
  *    (data e campanha da próxima visita) e "Deseja anotar um lembrete?"
  *    (texto e "Para quando").
  *
@@ -13,19 +13,19 @@
  * "Continuar" valida o passo em que está (`validarPasso`, com o foco no
  * primeiro campo com erro) e leva o foco ao título do passo seguinte; Enter
  * num campo dos passos 1 a 3 continua, e só o passo 4 envia. "Salvar"
- * valida o passo 4 e envia o mesmo corpo de antes dos passos; "Cancelar"
+ * valida o passo 4 e envia o check-in; "Cancelar"
  * volta à ficha sem salvar, de qualquer passo.
  *
- * Campanhas (spec 7.7): os dois selects listam só as não encerradas (status
+ * Campanhas: os dois selects listam só as não encerradas (status
  * do backend). Como no protótipo, os dois começam na campanha marcada para
  * esta visita no check-in anterior (a próxima visita do cliente), se ela
  * ainda não encerrou. Sem campanha escolhida, o campo não vai; sem data, a
  * campanha da próxima visita também não (o backend a apaga junto com a data).
  *
- * Próxima visita (spec 7.4 e 10b): a pergunta começa em "sim" quando o
+ * Próxima visita: a pergunta começa em "sim" quando o
  * cliente já tem data ou campanha da próxima visita marcada (senão o Salvar
  * a apagaria sem a pessoa ver), e em "não" nos demais. Com "sim", a data é a
- * já marcada (se ainda não passou) ou a sugestão — data da visita + a
+ * já marcada (se ainda não passou) ou a sugestão: data da visita + a
  * recorrência do cliente, que acompanha a "Data e hora" até a representante
  * mudar a data ela mesma; se a sugestão cairia antes de hoje (visita antiga
  * lançada depois), o campo fica vazio. Todo check-in substitui a data
@@ -33,7 +33,7 @@
  * só a data (e a campanha da próxima visita) e a agenda segue a recorrência.
  *
  * Lembrete: tem data própria ("Para quando") e não depende da próxima
- * visita — pode existir sem data marcada, e um check-in novo não apaga os
+ * visita: pode existir sem data marcada, e um check-in novo não apaga os
  * lembretes abertos. "Para quando" começa na data da próxima visita (vazia
  * com "não" nela) e acompanha-a até a representante escolher outra. Com
  * "sim", texto e data válida (hoje ou depois), vai `lembrete: { texto, data }`;
@@ -47,9 +47,9 @@
  * A data/hora vem preenchida com o agora e admite ajuste para lançar visita
  * já ocorrida (não no futuro). "+ Novo contato…" no select do contato abre o
  * `NovoContato` em linha; o contato criado fica selecionado. A foto é
- * obrigatória (Etapa 11: registra que a representante esteve no cliente; o
+ * obrigatória (registra que a representante esteve no cliente; o
  * passo 3 não avança sem ela): o check-in é salvo primeiro e a foto enviada
- * em seguida, comprimida, então uma falha no upload não perde o registro — a
+ * em seguida, comprimida, então uma falha no upload não perde o registro: a
  * ficha avisa e a timeline oferece anexar depois. Sucesso: aviso "Check-in salvo" e volta
  * à ficha, na aba Visitas (`?aba=visitas`). O erro da API aparece num aviso abaixo do indicador, sem perder
  * o que foi digitado, e sai ao avançar de passo ou reenviar; o erro de um
@@ -375,7 +375,7 @@ export function CheckInPage() {
           await enviarFoto(visita.id, comprimida);
         } catch {
           // O check-in já está salvo; a ficha exibe o aviso e a timeline
-          // oferece anexar a foto depois (UC07, fluxo de exceção E2).
+          // oferece anexar a foto depois.
           navigate(`/clientes/${id}?aba=visitas`, { replace: true, state: { avisoFoto: 'nao-enviada' } });
           return;
         }

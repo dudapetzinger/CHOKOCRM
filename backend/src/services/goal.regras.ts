@@ -2,9 +2,9 @@ import { Prisma, type ResultadoVisita } from '@prisma/client';
 import { dataCalendario, somarDias, type DataCalendario } from './classificacao.service';
 
 /**
- * Regras puras das metas de visitas e vendas (spec 7.8; `lib/metas.ts` do
- * protótipo): o período das metas semanal e mensal e o realizado de uma
- * meta. Sem banco nem relógio — quem chama passa as datas e as visitas já
+ * Regras puras das metas de visitas e vendas:
+ * o período das metas semanal e mensal e o realizado de uma
+ * meta. Sem banco nem relógio: quem chama passa as datas e as visitas já
  * lidas. Datas `AAAA-MM-DD` comparam certo como texto.
  */
 
@@ -59,7 +59,7 @@ export type Realizado = { visitas: number; vendas: number; clientes: ClienteNoRe
 /**
  * Realizado de uma meta: as visitas feitas pelo representante da meta
  * (autor da visita) com o dia de calendário de São Paulo entre o início e
- * o fim, inclusivos — 23:30 do último dia conta, 00:10 do dia seguinte não.
+ * o fim, inclusivos (23:30 do último dia conta, 00:10 do dia seguinte não).
  * Numa meta de campanha, só as visitas vinculadas àquela campanha. `vendas`
  * soma o pedido só das visitas com VENDA, em `Decimal` (como o total do
  * pedido); sai em reais com 2 casas. `clientes` reparte as mesmas visitas e

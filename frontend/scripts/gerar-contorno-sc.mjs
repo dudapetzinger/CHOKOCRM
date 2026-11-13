@@ -1,7 +1,7 @@
 /**
  * Gera `src/lib/contornoSC.ts`, o contorno de Santa Catarina (limite do
  * estado e dos 295 municípios) que o mapa de clientes do Painel desenha
- * atrás das bolhas (Etapa 10c, spec seção 5). Rodado uma vez, com internet
+ * atrás das bolhas. Rodado uma vez, com internet
  * (e de novo só se a malha do IBGE mudar ou a simplificação precisar de
  * ajuste):
  *
@@ -12,21 +12,20 @@
  *   - municípios: a mesma URL com `&intrarregiao=municipio` (uma `Feature` por
  *     município, com `properties.codarea` = código IBGE de 7 dígitos)
  *   - nomes:      https://servicodados.ibge.gov.br/api/v1/localidades/estados/42/municipios
- *     (código → nome). Conferido em 26/10/2026: as três URLs respondem como
- *     descrito (estado: 1 `Polygon` de 164 pontos; municípios: 295 `Polygon`,
- *     6 a 67 pontos cada; nomes: 295).
+ *     (código → nome). Respostas esperadas: estado, 1 `Polygon` de 164
+ *     pontos; municípios, 295 `Polygon` de 6 a 67 pontos cada; nomes, 295.
  *
  * Simplificação: Douglas–Peucker por anel, em graus, com tolerância inicial
  * de 0,004° (uns 400 m), dobrada até o arquivo gerado caber em
- * `TAMANHO_MAXIMO` (150 KB, Global Constraints do plano). Só os anéis
+ * `TAMANHO_MAXIMO` (150 KB). Só os anéis
  * externos entram (buracos são ignorados; um `MultiPolygon` vira vários
  * anéis); o ponto que fecha o anel no GeoJSON sai (o `Z` do caminho SVG
  * fecha); coordenadas com 3 casas; anéis com menos de 4 pontos depois da
  * simplificação ficam de fora.
  *
  * As chaves de `municipios` saem normalizadas como `normalizarCidade` de
- * `src/lib/roteiro.ts` (sem acento, minúsculas, espaços únicos) — a mesma
- * regra de `gerar-municipios-sc.mjs` —, e o script confere que cada uma
+ * `src/lib/roteiro.ts` (sem acento, minúsculas, espaços únicos), a mesma
+ * regra de `gerar-municipios-sc.mjs`, e o script confere que cada uma
  * existe em `src/lib/municipiosSC.ts`; um nome que o IBGE grafe diferente da
  * tabela entra em `EXCECOES_DE_NOME` (nome do IBGE → chave da tabela).
  */
@@ -107,7 +106,7 @@ function arredondar(valor) {
 function simplificarAnel(anel, tolerancia) {
   // O anel do GeoJSON fecha repetindo o primeiro ponto: com as pontas iguais, o
   // Douglas–Peucker mede a distância ao ponto, guarda o mais afastado e
-  // recorta a partir dele — serve para o anel fechado.
+  // recorta a partir dele, o que serve para o anel fechado.
   const simplificado = douglasPeucker(anel, tolerancia).map(([lng, lat]) => [arredondar(lng), arredondar(lat)]);
   const pontos = [];
   for (const ponto of simplificado) {
@@ -145,8 +144,8 @@ function gerarConteudo({ estado, municipios, tolerancia, data, tamanho }) {
     .join('\n');
   return `/**
  * Contorno de Santa Catarina (limite do estado e dos ${municipios.size} municípios) como
- * anéis de \`[lng, lat]\`, para o mapa de clientes do Painel (Etapa 10c).
- * ARQUIVO GERADO por \`scripts/gerar-contorno-sc.mjs\` — não editar à mão.
+ * anéis de \`[lng, lat]\`, para o mapa de clientes do Painel.
+ * ARQUIVO GERADO por \`scripts/gerar-contorno-sc.mjs\`: não editar à mão.
  *
  * Fonte: API de malhas do IBGE (v3), GeoJSON com \`qualidade=minima\`:
  *   ${URL_ESTADO}

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Validação das campanhas, promoções e eventos (spec 7.7), na criação e na
+ * Validação das campanhas, promoções e eventos, na criação e na
  * alteração (`PUT`, que troca a campanha inteira: campo opcional ausente
  * volta ao padrão). Os SKUs são conferidos no catálogo do ERP no serviço,
  * com a mensagem própria.

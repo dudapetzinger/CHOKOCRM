@@ -13,7 +13,7 @@ import {
 } from './classificacao.service';
 import { toLembreteDTO, type LembreteDTO } from './lembrete.dto';
 
-/** Quantos dias depois de hoje entram na seção "Próximos 7 dias" (spec 7.4). */
+/** Quantos dias depois de hoje entram na seção "Próximos 7 dias". */
 const DIAS_DOS_PROXIMOS = 7;
 
 export type AgendaItem = {
@@ -30,7 +30,7 @@ export type AgendaItem = {
   diasAtraso: number;
   /** A data prevista veio do check-in (`true`) ou da recorrência (`false`). */
   marcadaNoCheckIn: boolean;
-  /** Campanha da próxima visita (spec 7.7), para a etiqueta da linha. */
+  /** Campanha da próxima visita, para a etiqueta da linha. */
   proximaCampanha: { id: string; nome: string } | null;
   rebaixadoPorVenda: boolean;
   /** Dono da carteira do cliente (não o autor da última visita). */
@@ -72,25 +72,25 @@ function compararLembrete(a: LembreteDTO, b: LembreteDTO): number {
 }
 
 /**
- * Monta a agenda do dia (UC10) a partir de clientes já carregados: para cada
- * um, calcula a data prevista da próxima visita (spec 7.4: a marcada no
- * check-in, quando existe e ainda vale — Etapa 10d, `proximaVisitaVigente`:
+ * Monta a agenda do dia a partir de clientes já carregados: para cada
+ * um, calcula a data prevista da próxima visita (a marcada no
+ * check-in, quando existe e ainda vale, ver `proximaVisitaVigente`:
  * um check-in no dia marcado ou depois a cumpre; senão última visita +
  * recorrência, ou `criadoEm` + recorrência quando nunca visitado) e separa quem está atrasado
  * (`diasAtraso > 0`), quem vence hoje (`diasAtraso === 0`) e quem vence de
  * amanhã a hoje + 7 (`proximos7Dias`). Datas mais distantes ficam de fora. A
  * cor de classificação não muda com a data marcada: continua pela última
- * visita. Os `lembretes` (Etapa 9: tarefa própria, fora das seções por data
+ * visita. Os `lembretes` (tarefa própria, fora das seções por data
  * prevista) vão numa lista à parte: só os abertos com data até hoje, do mais
  * antigo ao mais novo e, no mesmo dia, por nome; os de amanhã em diante
  * ficam de fora, mesmo que quem chama os tenha buscado.
  * Função pura: nenhuma dependência de banco ou relógio além do `hoje`
- * recebido — isolada num módulo próprio (sem `client.repository`, só o tipo,
+ * recebido. Fica isolada num módulo próprio (sem `client.repository`, só o tipo,
  * importado com `import type` para não puxar `lib/prisma`/`config/env`) para
- * que o teste unitário não precise de `DATABASE_URL`. `ultimasVendas` (Etapa
- * 5) é o mapa `id do cliente -> última venda`, já resolvido por quem chama
+ * que o teste unitário não precise de `DATABASE_URL`. `ultimasVendas`
+ * é o mapa `id do cliente -> última venda`, já resolvido por quem chama
  * (`agenda.service.ts`) via `erp.service.consultarUltimasVendasPorCliente`
- * (que sabe se a chave no ERP é o `erpId` ou o CNPJ) — este
+ * (que sabe se a chave no ERP é o `erpId` ou o CNPJ): este
  * módulo permanece livre de I/O e só aplica a cor composta a partir do mapa.
  */
 export function montarAgenda(
@@ -111,7 +111,7 @@ export function montarAgenda(
       hoje,
       ultimaVenda,
     );
-    // Etapa 10d: a marcada só vale enquanto não há check-in no dia dela ou
+    // A marcada só vale enquanto não há check-in no dia dela ou
     // depois; cumprida, o item volta à recorrência e perde a campanha.
     const vigente = proximaVisitaVigente(cliente.proximaVisita, ultima);
     const proximaVisita = calcularProximaVisita(ultima, cliente.criadoEm, cliente.recorrenciaDias, vigente);

@@ -1,5 +1,5 @@
 /**
- * Datas da grade do calendário da Agenda (spec 7.6). A grade trabalha com
+ * Datas da grade do calendário da Agenda. A grade trabalha com
  * datas locais (`new Date(ano, mes, dia)`, meio-dia não importa: só o dia
  * conta) e as compara com os itens da API pela chave `AAAA-MM-DD`. O dia de
  * hoje é o de São Paulo pelo relógio do sistema (`hojeEmSaoPaulo`, com

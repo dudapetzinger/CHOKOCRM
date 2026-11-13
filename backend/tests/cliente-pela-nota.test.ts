@@ -314,7 +314,7 @@ describe('POST /erp/sem-cliente/:cnpj/cliente', () => {
     expect(semDados.body).toMatchObject({
       nomeFantasia: 'MERCADO SOLO LTDA',
       recorrenciaDias: 15,
-      // Sem endereço e sem bairro: endereço vazio (a ficha mostra "—" e a edição o pede).
+      // Sem endereço e sem bairro: endereço vazio (a ficha mostra um traço e a edição o pede).
       endereco: '',
       cidade: '',
       telefone: '',

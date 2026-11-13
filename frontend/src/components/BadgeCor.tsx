@@ -1,6 +1,6 @@
 /**
- * Selo de classificação por cor do cliente (UC05, Etapa 4): o ponto de 10 px
- * do protótipo (`Dot` de `crm/ui.tsx`, Etapa 8), com a cor de
+ * Selo de classificação por cor do cliente: o ponto de 10 px
+ * do protótipo (`Dot` de `crm/ui.tsx`), com a cor de
  * `CLASSES_COR`. O rótulo textual fica só no `aria-label`, para leitores de
  * tela; a etiqueta de situação ao lado diz o mesmo em palavras.
  */

@@ -1,5 +1,5 @@
 /**
- * Ordem por urgência da lista de clientes (Etapa 7, spec 5.1): VERMELHO →
+ * Ordem por urgência da lista de clientes: VERMELHO →
  * LARANJA → AMARELO → VERDE; na mesma cor, "nunca visitado" primeiro, depois
  * mais dias sem visita, e empate pelo nome. Função pura: devolve uma lista
  * nova, sem mexer na recebida.

@@ -1,7 +1,7 @@
 /**
  * Municípios de Santa Catarina (295) com latitude e longitude, para as
- * distâncias do roteiro do dia (spec 7.9). ARQUIVO GERADO por
- * `scripts/gerar-municipios-sc.mjs` — não editar à mão.
+ * distâncias do roteiro do dia. ARQUIVO GERADO por
+ * `scripts/gerar-municipios-sc.mjs`: não editar à mão.
  *
  * Fonte: kelvins/municipios-brasileiros, `csv/municipios.csv`
  * (https://github.com/kelvins/municipios-brasileiros), filtrado por

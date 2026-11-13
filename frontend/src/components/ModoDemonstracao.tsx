@@ -1,6 +1,6 @@
 /**
- * "Modo demonstração" no topo da tela de login (spec 2026-11-09, §3 "Tela de
- * login (T5)"). Sem data ativa: um botão discreto "Modo demonstração". Com a
+ * "Modo demonstração" no topo da tela de login. Sem data ativa: um botão
+ * discreto "Modo demonstração". Com a
  * data ativa (relógio público `useRelogio`, `GET /sistema/relogio`): a mesma
  * `FaixaDataSimulada` das telas logadas, com um botão "alterar" no fim.
  *

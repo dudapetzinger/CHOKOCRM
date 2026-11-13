@@ -1,9 +1,9 @@
 /**
  * Contrato de armazenamento de arquivos do ChokoCRM (fotos de comprovação
- * de check-in). A implementação em disco (`LocalFileStorage`) atende o
- * desenvolvimento e a Etapa 3; na Etapa 6 um `AzureBlobStorage` implementa
- * a mesma interface, sem alterar service nem controller — mesmo padrão
- * Adapter adotado para o ERP (ver ADR-004 em docs/arquitetura.md).
+ * de check-in). `LocalFileStorage` (em disco) é a implementação atual; outra
+ * (por exemplo, um serviço de armazenamento em nuvem) implementaria a mesma
+ * interface, sem alterar service nem controller. É o mesmo padrão Adapter
+ * adotado para o ERP.
  *
  * O contrato tem `save`, `read` e `delete` (a limpeza das fotos aos 90 dias).
  * A `chave` é o identificador lógico do arquivo (ex.: `visits/<id>.jpg`),

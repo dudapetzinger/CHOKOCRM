@@ -15,12 +15,3 @@ export async function getErp(req: Request, res: Response, next: NextFunction): P
     next(err);
   }
 }
-
-/** `GET /erp/situacao`: a fonte de vendas em uso, para os avisos das telas (qualquer papel). */
-export async function getSituacao(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    res.status(200).json(await erpService.obterSituacao());
-  } catch (err) {
-    next(err);
-  }
-}

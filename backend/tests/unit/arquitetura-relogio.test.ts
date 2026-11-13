@@ -7,7 +7,7 @@ import path from 'node:path';
  * `backend/src/**\/*.ts` e falha listando `arquivo:linha` de cada
  * `new Date()` ou `Date.now()` fora de `lib/relogio.ts`, exceto quando a
  * própria linha ou a anterior traz o comentário `// relógio real:`
- * (segurança e infraestrutura, ver o plano do relógio). Comentários são
+ * (segurança e infraestrutura). Comentários são
  * removidos antes da busca, então prosa que cita `Date.now()` não conta;
  * `new Date(x)`, com argumento, também não (não lê o relógio).
  */

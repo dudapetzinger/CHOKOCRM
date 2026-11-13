@@ -2,13 +2,13 @@ import bcrypt from 'bcryptjs';
 import { randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, TipoCampanha } from '@prisma/client';
 // erpIds (códigos numéricos de 5 dígitos) calibrados para o ERP simulado
-// (cor composta com rebaixamento por última compra no ERP) — ver comentário
+// (cor composta com rebaixamento por última compra no ERP); ver comentário
 // de calibração em config/erpIdsDemonstracao.ts.
 import { ERP_IDS_DEMONSTRACAO } from '../config/erpIdsDemonstracao';
 import { eventosSazonaisParaSeed } from '../config/eventosSazonaisSeed';
 // O seed usa o catálogo de demonstração direto, seja qual for o provedor de
-// ERP, e o grava em `ErpProduct`: em produção (`importado`) o catálogo do ERP
-// é o aprendido das notas, que não teria os SKUs da demonstração.
+// ERP, e o grava em `ErpProduct`: no `importado` e no `hibrido` o catálogo do
+// ERP é o aprendido das notas, que não teria os SKUs da demonstração.
 import { CATALOGO } from '../providers/erp/mock/catalogo';
 import {
   colunaDateDaData,
@@ -50,7 +50,7 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  *   casos de propósito) e os gerados (`clientes-gerados.ts`), cerca de 40 por
  *   representante, cada um com cadastro de sistema de verdade (CNPJ válido,
  *   razão social, endereço, telefone, e-mail no domínio do cliente, 1 a 2
- *   contatos, `erpId` calibrado no ERP simulado em todos — só o Armazém São
+ *   contatos, `erpId` calibrado no ERP simulado em todos; só o Armazém São
  *   Bento é rebaixado pela venda).
  * - Visitas: geradas (`gerador-visitas.ts`) pelas rotas de cada
  *   representante (`rotas.ts`: dia da semana → cidades, recorrências de 7 a
@@ -84,12 +84,12 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  * senha de demonstração no reset) e a conta compartilhada "Gestão Chokolaten"
  * (`EMAIL_GESTAO`), conta real: o seed só a cria (com a senha de
  * demonstração) em banco novo e nunca sobrescreve a senha dela; a conta
- * pessoal do gestor das versões anteriores (`gestor@chokolaten.com.br`) fica
- * inativa.
+ * pessoal do gestor (`gestor@chokolaten.com.br`), que o seed não cria, fica
+ * inativa se existir no banco.
  */
 
 /**
- * Senha das contas de demonstração (publicada no guia de desenvolvimento): a
+ * Senha das contas de demonstração (publicada em docs/instalacao-e-configuracao.md): a
  * dos representantes, e a da conta Gestão só quando o seed a cria.
  */
 export const SENHA_DEMONSTRACAO = 'chokocrm123';
@@ -110,8 +110,9 @@ export type ModoDoSeed = 'semear' | 'reiniciar' | 'recusar';
 /** Aviso de `--reset` em produção ou com banco remoto sem `--confirmar` (o processo sai com código 1). */
 export const AVISO_RESET_SEM_CONFIRMACAO = [
   'Reinício da demonstração recusado: o ambiente é de produção ou o banco é remoto (não é localhost).',
-  'O --reset apaga TODOS os clientes, contatos, visitas, pedidos, lembretes, mensagens de estoque, campanhas e metas,',
-  'inclusive os registrados pelos representantes de verdade (por exemplo, na validação); só as contas ficam.',
+  'O --reset apaga os clientes da demonstração (com contatos, visitas, pedidos, lembretes e mensagens de estoque),',
+  'as campanhas e as metas, inclusive o que os representantes registraram nesses clientes.',
+  'Os clientes reais e as contas ficam.',
   'Para confirmar, rode de novo com --confirmar:  npm run db:seed:reset -- --confirmar',
 ].join('\n');
 
@@ -129,10 +130,10 @@ function bancoLocal(databaseUrl: string): boolean {
 
 /**
  * O que `prisma/seed.ts` faz com os argumentos: sem `--reset`, só acrescenta;
- * com `--reset`, reinicia — em produção ou com banco remoto (host da
+ * com `--reset`, reinicia; em produção ou com banco remoto (host da
  * `DATABASE_URL` que não é localhost, 127.0.0.1, ::1 nem `db`), só com
  * `--confirmar` também, para o comando destrutivo não rodar por engano
- * (rulings R32 e R34: não depende só do `NODE_ENV`).
+ * (não depende só do `NODE_ENV`).
  */
 export function modoDoSeed(argumentos: readonly string[], ambiente: string, databaseUrl: string): ModoDoSeed {
   if (!argumentos.includes('--reset')) return 'semear';
@@ -145,7 +146,7 @@ const EMAIL_EDUARDA = 'eduarda@chokolaten.com.br';
 const EMAIL_RAFAEL = 'rafael@chokolaten.com.br';
 /** Conta compartilhada da gestão (dono e escritório), já criada em produção pelo app. */
 export const EMAIL_GESTAO = 'gestao@chokolaten.com.br';
-/** Conta pessoal do gestor das versões anteriores do seed: fica inativa (não é apagada). */
+/** Conta pessoal do gestor, que o seed não cria: se existir no banco, fica inativa (não é apagada). */
 const EMAIL_GESTOR_ANTIGO = 'gestor@chokolaten.com.br';
 
 /**
@@ -1091,7 +1092,7 @@ async function seedUsuarios(prisma: Banco): Promise<void> {
     create: { nome, email, senhaHash, role, telefone },
   });
 
-  // Conta de demonstração antiga (gestor pessoal): inativada, não apagada.
+  // Conta pessoal do gestor: inativada, não apagada.
   await prisma.user.updateMany({
     where: { email: EMAIL_GESTOR_ANTIGO },
     data: { ativo: false },
@@ -1155,7 +1156,7 @@ async function seedCliente(
   }
 }
 
-/** Calendário sazonal (Etapa 6A) do ano de hoje e do seguinte; idempotente por `nome` (upsert). */
+/** Calendário sazonal do ano de hoje e do seguinte; idempotente por `nome` (upsert). */
 async function seedEventosSazonais(prisma: Banco, hoje: DataCalendario): Promise<void> {
   const ano = Number(hoje.slice(0, 4));
 
@@ -1256,7 +1257,7 @@ async function clientesGravados(prisma: Banco): Promise<Map<string, ClienteGrava
 
 /**
  * Grava as visitas geradas, em lote. Idempotente por cliente: se o cliente
- * já tem visita registrada, pula (não duplica) — o `semear` não renova
+ * já tem visita registrada, pula (não duplica): o `semear` não renova
  * visitas; quem renova é o reinício. Venda no período da campanha em
  * andamento, com produto dela, fica vinculada à campanha.
  */
@@ -1424,7 +1425,7 @@ function dataDaMensagem(hoje: DataCalendario, posicaoDoRepresentante: number, in
 }
 
 /**
- * Mensagens de estoque (UC12) para a aba "Mensagens geradas" e a taxa de
+ * Mensagens de estoque para a aba "Mensagens geradas" e a taxa de
  * registro do painel: para cada representante, uma para cada um dos 3
  * clientes ativos com `erpId` de venda mais recente nas visitas geradas, em
  * dias úteis das últimas 4 semanas (`dataDaMensagem`). O texto é o da regra
@@ -1559,8 +1560,8 @@ async function seedMetas(prisma: Banco, metas: readonly MetaSeed[], representant
  * Carga de demonstração que só acrescenta (`npm run db:seed`): devolve às
  * contas, clientes e contatos de demonstração os valores do seed (os
  * representantes de demonstração voltam à senha de demonstração e ficam
- * ativos; a conta Gestão fica ativa com a senha dela, e a conta antiga do
- * gestor, inativa) e cria o que falta — eventos sazonais, produtos de
+ * ativos; a conta Gestão fica ativa com a senha dela, e a conta pessoal do
+ * gestor, inativa) e cria o que falta: eventos sazonais, produtos de
  * demonstração no catálogo importado (`ErpProduct`, upsert pelo código),
  * campanhas pelo nome, visitas geradas em cliente ainda sem visita, próxima
  * visita em cliente sem uma, lembretes, mensagens de estoque e metas que não
@@ -1623,7 +1624,7 @@ async function religarNotasOrfas(tx: Banco): Promise<void> {
  * Renova a demonstração (`npm run db:seed:reset` ou o "Modo demonstração" da
  * tela de login), numa transação só: se algo falhar no meio (inclusive no
  * `semear`), nada é apagado. Só os clientes da demonstração (CNPJ em
- * `cnpjsDaDemonstracao()`) são apagados e recriados, com o que é deles —
+ * `cnpjsDaDemonstracao()`) são apagados e recriados, com o que é deles,
  * inclusive o que o app gravou neles; o cliente real (outro CNPJ, cadastrado
  * à mão ou pela nota fiscal) fica com contatos, visitas e itens, lembretes,
  * mensagens de estoque, mudanças de recorrência e notas vinculadas. Apaga,
@@ -1634,9 +1635,9 @@ async function religarNotasOrfas(tx: Banco): Promise<void> {
  * campanha, pelo `SetNull`). Recria tudo com `semear`, com datas relativas a
  * `hoje`. Os representantes de demonstração voltam à senha de demonstração e
  * ficam ativos; a conta Gestão (conta real) fica ativa e mantém a senha dela;
- * a conta antiga do gestor fica inativa; os demais usuários (criados pelo
+ * a conta pessoal do gestor fica inativa; os demais usuários (criados pelo
  * app) ficam intactos, com a senha deles. Os eventos sazonais não são
- * apagados (o upsert os mantém em dia). Nada do ERP importado é apagado —
+ * apagados (o upsert os mantém em dia). Nada do ERP importado é apagado:
  * notas, importações e produtos (`ErpProduct`) ficam; os produtos de
  * demonstração voltam ao nome e preço do catálogo pelo upsert. Antes de
  * apagar as visitas, as notas sem cliente ou de cliente da demonstração que

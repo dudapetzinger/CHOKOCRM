@@ -1,7 +1,7 @@
 /**
- * Controle segmentado genérico (Etapa 8): opções lado a lado no padrão
- * `radiogroup`, como `SegmentadoResultado` — só a opção marcada entra no Tab
- * e as setas trocam a seleção. Base dos filtros de período e de horizonte
+ * Controle segmentado genérico: opções lado a lado no padrão
+ * `radiogroup`, como `SegmentadoResultado` (só a opção marcada entra no Tab
+ * e as setas trocam a seleção). Base dos filtros de período e de horizonte
  * (via `FiltroPilulas`). Cada opção pode ter um rótulo curto na tela e um
  * nome acessível mais longo (ex.: "30" e "30 dias"). Visual do `Segmented`
  * do protótipo: trilho cinza com a opção marcada em branco. `compacto` deixa
@@ -15,7 +15,7 @@ import { proximoIndicePorSeta } from '../lib/navegacaoSetas';
 
 /**
  * Trilho e opções do controle segmentado, compartilhados com
- * `SeletorRecorrencia`. No celular toda opção tem 44 px (spec 6.4).
+ * `SeletorRecorrencia`. No celular toda opção tem 44 px.
  */
 export const CLASSES_TRILHO = 'inline-flex max-w-full flex-wrap rounded-lg border bg-muted p-0.5';
 export const CLASSES_OPCAO =

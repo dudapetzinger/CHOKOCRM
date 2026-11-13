@@ -8,7 +8,7 @@
  *   viram uma exceção `ApiError` com `code`/`message`/`details`.
  * - Quando uma chamada QUE JÁ ENVIOU um Bearer token recebe 401 de volta
  *   (token expirado/inválido), dispara o callback registrado via
- *   `setUnauthorizedHandler` — o `AuthProvider` usa isso para limpar a
+ *   `setUnauthorizedHandler`: o `AuthProvider` usa isso para limpar a
  *   sessão e redirecionar para `/login`. Um 401 de `/auth/login` (sem
  *   token, credenciais erradas) não passa por essa checagem: quem chama
  *   trata o erro localmente (ver `LoginPage`).
@@ -19,7 +19,7 @@
  * - Sem rede (o `fetch` rejeita, sem resposta nenhuma), a exceção é
  *   `ApiError('NETWORK', 'Você está sem internet.')`, e a falha fica
  *   registrada em `pwa/estadoRede` para o aviso de sem internet; a próxima
- *   resposta que chegar apaga o aviso (ADR-012).
+ *   resposta que chegar apaga o aviso.
  */
 
 import { registrarFalhaDeRede, registrarRespostaDaApi } from '../pwa/estadoRede';
@@ -63,7 +63,7 @@ let unauthorizedHandler: UnauthorizedHandler | null = null;
 
 /**
  * Registra o callback disparado quando uma chamada autenticada (com Bearer
- * token) recebe 401 da API — ver nota no topo do arquivo. Passe `null` para
+ * token) recebe 401 da API (ver nota no topo do arquivo). Passe `null` para
  * remover o callback (ex.: no cleanup de um `useEffect`).
  */
 export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
@@ -114,7 +114,7 @@ async function request<T>(
     // Token que acompanhava a chamada foi rejeitado (expirado/inválido):
     // encerra a sessão local e deixa o AuthProvider redirecionar para
     // /login. Um 401 sem token (ex.: /auth/login com senha errada) não
-    // aciona isso — é responsabilidade de quem chamou tratar o erro.
+    // aciona isso: é responsabilidade de quem chamou tratar o erro.
     if (response.status === 401 && token) {
       unauthorizedHandler?.();
     }

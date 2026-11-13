@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { representanteIdFiltroSchema } from './client.schema';
 
 /**
- * Query da agenda do dia (UC10): `?representanteId=` restringe a agenda do
+ * Query da agenda do dia: `?representanteId=` restringe a agenda do
  * gestor à carteira daquele representante (o representante sempre vê a
  * própria). Parâmetros desconhecidos são ignorados.
  */
@@ -13,7 +13,7 @@ export const agendaQuerySchema = z.object({
 const MENSAGEM_MES = 'Mês deve estar no formato AAAA-MM.';
 
 /**
- * Query do calendário da Agenda (spec 7.6): `?mes=AAAA-MM` (obrigatório, mês
+ * Query do calendário da Agenda: `?mes=AAAA-MM` (obrigatório, mês
  * de 01 a 12) e o mesmo `representanteId` da agenda do dia.
  */
 export const calendarioQuerySchema = z.object({

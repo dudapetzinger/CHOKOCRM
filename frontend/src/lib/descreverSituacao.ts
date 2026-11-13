@@ -1,5 +1,5 @@
 /**
- * Texto pronto da etiqueta de situação do cliente (Etapa 7, spec 5.1): diz em
+ * Texto pronto da etiqueta de situação do cliente: diz em
  * palavras o que a cor quer dizer e há quanto tempo. Função pura.
  */
 import { LIMIAR_SEM_COMPRA_DIAS } from '../config/classificacao';

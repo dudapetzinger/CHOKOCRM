@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Validação da geração da mensagem de consulta de estoque (UC12). O texto
+ * Validação da geração da mensagem de consulta de estoque. O texto
  * final é o que o representante revisou (proposta em `services/
  * stock-message.service.ts::propor`) e pode divergir do texto sugerido;
  * `contactId`, quando ausente, indica "usar o telefone do cliente"
@@ -24,5 +24,3 @@ export type GerarMensagemInput = z.infer<typeof gerarMensagemSchema>;
 export const listarQuerySchema = z.object({
   clientId: z.string().uuid('Identificador de cliente inválido.').optional(),
 });
-
-export type ListarQuery = z.infer<typeof listarQuerySchema>;

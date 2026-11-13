@@ -4,7 +4,7 @@ import { env } from '../src/config/env';
 
 /**
  * Testa apenas o middleware `cors()` (ver `app.ts`), usando POST /auth/login
- * com um corpo inválido — a validação do Zod responde 400 antes de qualquer
+ * com um corpo inválido: a validação do Zod responde 400 antes de qualquer
  * acesso ao banco (ver `postLogin`/`loginSchema` em `auth.controller.ts`),
  * então este arquivo não usa `truncateAllTables` nem depende de dados.
  * Propositalmente não importa `prisma` nem faz `$disconnect`, já que nenhuma

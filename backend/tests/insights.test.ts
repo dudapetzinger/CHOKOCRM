@@ -218,7 +218,7 @@ describe('GET /insights/manager-alerts', () => {
     // ERP-1001 e ERP-1000-0: o cliente inativo e o sem erpId ficam de fora.
     expect(res.body.clientesConsultados).toBe(2);
     expect(res.body.clientesIndisponiveis).toBe(0);
-    // Etapa 12b: no mock o estoque existe.
+    // No mock o estoque existe.
     expect(res.body.estoqueIndisponivel).toBe(false);
 
     for (const alerta of res.body.alertas) {

@@ -445,7 +445,7 @@ describe('PUT /users/:id/senha', () => {
     expect(await bcrypt.compare('provisoria1', salvo.senhaHash)).toBe(true);
   });
 
-  // Review Focus 5: não há revogação de JWT; a sessão aberta continua até expirar.
+  // Não há revogação de JWT: a sessão aberta continua até expirar.
   it('a sessão já aberta da pessoa continua valendo (GET /auth/me 200)', async () => {
     const res = await definirSenha(representanteAId, 'provisoria1');
     expect(res.status).toBe(204);
@@ -501,7 +501,7 @@ describe('PUT /users/:id/senha', () => {
   });
 });
 
-describe('redefinição de senha por e-mail removida', () => {
+describe('sem redefinição de senha por e-mail', () => {
   it('POST /users/:id/redefinicao-de-senha responde 404', async () => {
     const res = await autenticado(
       request(app).post(`/users/${representanteBId}/redefinicao-de-senha`),

@@ -1,5 +1,5 @@
 /**
- * Foco nos formulários (Etapa 8): para o teclado e o leitor de tela não se
+ * Foco nos formulários: para o teclado e o leitor de tela não se
  * perderem quando um formulário em linha abre e fecha ou quando a validação
  * falha.
  */

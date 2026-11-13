@@ -218,7 +218,7 @@ describe('ritmoNoPeriodo', () => {
     expect(meses.faixas.map((f) => f.inicio)).toEqual(['2026-07-01', '2026-08-01', '2026-09-01', '2026-10-01']);
   });
 
-  it('91 dias começando numa quarta (21/10/2026 a 19/01/2027): 14 semanas, a primeira e a última parciais — o teto de colunas do ritmo semanal', () => {
+  it('91 dias começando numa quarta (21/10/2026 a 19/01/2027): 14 semanas, a primeira e a última parciais: o teto de colunas do ritmo semanal', () => {
     const ritmo = ritmoNoPeriodo([], { dias: 91, inicio: '2026-10-21', fim: '2027-01-19' });
 
     expect(ritmo.granularidade).toBe('SEMANA');

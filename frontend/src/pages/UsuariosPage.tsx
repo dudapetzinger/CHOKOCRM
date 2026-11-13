@@ -1,9 +1,9 @@
 /**
- * Gestão de usuários do gestor (Etapa 8, spec 7.13), no visual de
+ * Gestão de usuários do gestor, no visual de
  * `routes/usuarios.tsx` do protótipo: "Novo usuário" e a lista de todos os
  * usuários, ativos e inativos. Cada linha tem avatar, nome, "e-mail ·
  * telefone", o papel, a situação, "N clientes" e o menu de ações:
- *   - Editar dados: nome, e-mail, telefone e — para os outros — o papel;
+ *   - Editar dados: nome, e-mail, telefone e, para os outros, o papel;
  *   - Transferir carteira (representante com clientes): para um
  *     representante ativo;
  *   - Definir senha provisória: "Nova senha" e "Confirmar"; a pessoa a
@@ -13,7 +13,7 @@
  * As ações abrem um painel abaixo da linha, um de cada vez; o foco vai para
  * o painel e volta ao botão de ações quando ele fecha. No celular a linha
  * quebra em dois andares (avatar e nome em cima; etiquetas, carteira e menu
- * embaixo, spec 8). As regras valem no backend; as mensagens dele aparecem
+ * embaixo). As regras valem no backend; as mensagens dele aparecem
  * como vêm.
  */
 import { useRef, useState, type FormEvent } from 'react';

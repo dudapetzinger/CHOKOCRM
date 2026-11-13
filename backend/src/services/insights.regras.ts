@@ -15,7 +15,7 @@ import type { ItemBaixo } from './erp.service';
 import { listarProdutos } from './stock-message.template';
 
 /**
- * Regras puras de insights sazonais (UC13) e alertas de produção (UC15) —
+ * Regras puras de insights sazonais e alertas de produção, com o
  * mesmo papel de `agenda.montagem.ts`: nenhuma dependência de banco, de
  * `env` nem da instância do provedor de ERP (só tipos, importados com
  * `import type`), para que o teste unitário rode sem `DATABASE_URL`. Quem
@@ -92,8 +92,8 @@ export function eventosNoHorizonte(
 
 /**
  * Janela de pico do mesmo evento no ano anterior: com `D'` =
- * `dataDoEvento(chave, anoDoEvento − 1)`, `[D' − JANELA_PICO_DIAS, D']` —
- * mesma convenção de `dataInicio`/`dataFim` do `SeasonalEvent`. Calculada a
+ * `dataDoEvento(chave, anoDoEvento − 1)`, `[D' − JANELA_PICO_DIAS, D']`
+ * (mesma convenção de `dataInicio`/`dataFim` do `SeasonalEvent`). Calculada a
  * partir da data real do evento no ano anterior, e não deslocando a janela
  * deste ano, porque a Páscoa muda até cinco semanas de um ano para o outro.
  */
@@ -110,7 +110,7 @@ export function periodoBase(janela: Janela): Janela {
 
 /**
  * Vendas cuja data de calendário (no fuso do negócio) cai na janela, limites
- * inclusivos, na ordem recebida — o mesmo recorte de `totalNaJanela`, para
+ * inclusivos, na ordem recebida: o mesmo recorte de `totalNaJanela`, para
  * quem precisa das vendas em si (ex.: produtos mais comprados na janela).
  */
 export function vendasNaJanela(vendas: Sale[], janela: Janela): Sale[] {
@@ -125,7 +125,7 @@ export function totalNaJanela(vendas: Sale[], janela: Janela): number {
 /**
  * Quanto o cliente compraria em `diasJanela` dias no ritmo do período de
  * base: `totalBase × diasJanela / DIAS_DE_BASE`. É a régua de
- * `calcularVariacao` e também o valor exibido na sugestão — uma única conta
+ * `calcularVariacao` e também o valor exibido na sugestão: uma única conta
  * para os dois não divergirem.
  */
 export function mediaNaJanela(totalBase: number, diasJanela: number): number {
@@ -137,7 +137,7 @@ export function mediaNaJanela(totalBase: number, diasJanela: number): number {
  * base: `variação = totalJanela / mediaNaJanela − 1` (0,85 = +85%).
  * `diasJanela` conta a janela inclusiva (31 dias para uma janela de 30 dias
  * antes do evento mais o próprio dia). Devolve `null` sem base
- * (`totalBase` = 0) ou sem compra na janela (`totalJanela` = 0) — UC13 A1.
+ * (`totalBase` = 0) ou sem compra na janela (`totalJanela` = 0).
  */
 export function calcularVariacao(totalJanela: number, totalBase: number, diasJanela: number): number | null {
   if (totalBase === 0 || totalJanela === 0) {
@@ -252,7 +252,7 @@ function compararAlerta(a: AlertaProducao, b: AlertaProducao): number {
 }
 
 /**
- * Alertas de produção (UC15): cada item `BAIXO` cujo SKU está em
+ * Alertas de produção: cada item `BAIXO` cujo SKU está em
  * `SKUS_SUGERIDOS[evento.chave]` entra no alerta do par (evento, produto),
  * com os clientes em ordem crescente de quantidade (o mais crítico primeiro).
  * Itens de SKU fora do evento (ex.: `PAO-MEL` antes do Natal) e clientes sem

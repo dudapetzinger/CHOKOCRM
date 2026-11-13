@@ -1,6 +1,6 @@
 /**
- * Uma linha da seção "Lembretes" da agenda do dia (Etapa 9), no visual de
- * `AgendaItemRow`: avatar e nome do cliente (link para a ficha, UC06), o
+ * Uma linha da seção "Lembretes" da agenda do dia, no visual de
+ * `AgendaItemRow`: avatar e nome do cliente (link para a ficha), o
  * texto do lembrete, "cidade · Lembrete venceu há N dias (dd/mm)" ou
  * "Lembrete para hoje" (`descreverPrazoDoLembrete`) e, para o gestor com o
  * seletor em "Todos", "Rep.: Nome". Com `podeConcluir`, o botão "Concluir"

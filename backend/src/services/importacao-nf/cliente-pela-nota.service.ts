@@ -60,7 +60,7 @@ function paraSemClienteDTO(nota: DestinatarioDaNota, notas: number): SemClienteD
  * Endereço do cliente no formato do cadastro: `"<endereço> - <bairro>,
  * <município>/<UF>"`, omitindo as partes ausentes junto com o separador. Sem
  * endereço e sem bairro, devolve `''`: só município/UF não é endereço, e o
- * vazio faz a ficha mostrar "—" e a edição pedir o endereço.
+ * vazio faz a ficha mostrar um traço e a edição pedir o endereço.
  */
 export function montarEndereco(nota: {
   destinatarioEndereco: string | null;

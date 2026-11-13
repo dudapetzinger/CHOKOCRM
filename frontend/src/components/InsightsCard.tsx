@@ -1,11 +1,11 @@
 /**
- * Card "Insights e sugestões" na ficha do cliente (UC13, Etapa 6B): para cada
+ * Card "Insights e sugestões" na ficha do cliente: para cada
  * evento sazonal dentro do horizonte escolhido, compara as compras do cliente
  * na janela do mesmo evento no ano anterior com a média dele e sugere uma ação
  * (aumentar oferta, criar promoção ou ofertar desconto), com os números que
  * sustentam a sugestão em "Como calculamos". Visível para todos os papéis
- * (representante e gestor). Visual do protótipo (Etapa 8): cada sugestão
- * numa caixa com a ação numa etiqueta. Desde 11/11/2026 o card não mostra aviso
+ * (representante e gestor). Visual do protótipo: cada sugestão
+ * numa caixa com a ação numa etiqueta. O card não mostra aviso
  * sobre a fonte dos dados (simulada ou importada).
  */
 import { useState, type ReactElement } from 'react';

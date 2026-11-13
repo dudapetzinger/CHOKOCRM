@@ -2,7 +2,7 @@ import { formatarDiaMes } from './formatarData';
 
 /**
  * Prazo até um evento em linguagem natural: 'é hoje', 'é amanhã' ou 'em N dias'.
- * Mesma redação que o backend usa no título da sugestão (UC13), para o Painel e
+ * Mesma redação que o backend usa no título da sugestão, para o Painel e
  * o card de insights falarem igual.
  */
 export function descreverPrazo(dias: number): string {
@@ -12,7 +12,7 @@ export function descreverPrazo(dias: number): string {
 }
 
 /**
- * Prazo da visita prevista numa linha da agenda (spec 7.4): "Visita prevista
+ * Prazo da visita prevista numa linha da agenda: "Visita prevista
  * venceu há N dias" (atrasada), "Visita prevista para hoje" ou "Prevista para
  * dd/mm" (próximos dias). A data prevista é a marcada no check-in ou a da
  * recorrência; `diasAtraso` vem do backend (positivo atrasada, 0 hoje,

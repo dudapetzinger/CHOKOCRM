@@ -1,21 +1,10 @@
 /**
- * Estado de servidor da importação de notas (Etapa 12b), dos CNPJs sem
- * cliente (de onde o gestor cria o cliente pela nota) e da situação da fonte
- * de vendas do ERP, que qualquer papel lê para o aviso das telas.
+ * Estado de servidor da importação de notas e dos CNPJs sem cliente (de onde
+ * o gestor cria o cliente pela nota).
  */
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/useAuth';
-import { buscarSituacaoErp } from '../services/erp';
 import { listarImportacoes, listarPendencias, listarSemCliente } from '../services/importacoes';
-
-/** Situação do ERP (simulado × importado, última venda). Muda pouco: 60 s em cache. */
-export function useSituacaoErp() {
-  return useQuery({
-    queryKey: ['erp', 'situacao'],
-    queryFn: buscarSituacaoErp,
-    staleTime: 60 * 1000,
-  });
-}
 
 /** Últimas importações do gestor. */
 export function useImportacoes() {

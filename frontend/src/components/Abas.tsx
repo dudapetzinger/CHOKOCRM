@@ -1,5 +1,5 @@
 /**
- * Abas de verdade (Etapa 9, spec das abas do Painel e da ficha do cliente):
+ * Abas de verdade (as do Painel e da ficha do cliente):
  * `tablist` com um `tab` por aba e um `tabpanel` por conteúdo (`PainelDaAba`),
  * ligados por `aria-controls`/`aria-labelledby` a partir de `idBase`. Como só
  * o painel da aba marcada é montado, só ela leva `aria-controls` (nas outras,

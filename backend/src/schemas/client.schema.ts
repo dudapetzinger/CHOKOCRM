@@ -3,9 +3,9 @@ import { CORES } from '../services/classificacao.service';
 import { proximaVisitaSchema } from './visit.schema';
 
 /**
- * Validação de clientes e contatos (UC02/UC03/UC04). O schema Prisma
+ * Validação de clientes e contatos. O schema Prisma
  * (`prisma/schema.prisma`) exige endereco do Client e cargo/telefone/email do
- * Contact como NOT NULL — este zod reflete essa obrigatoriedade, conforme o
+ * Contact como NOT NULL, e este zod reflete essa obrigatoriedade, conforme o
  * dicionário de dados (docs/modelo-de-dados.md). O e-mail do Client é
  * opcional no banco (o cliente criado pela nota fiscal nasce sem ele), mas o
  * cadastro do representante continua exigindo; na atualização, `null` apaga.
@@ -56,14 +56,14 @@ export const createClientSchema = z
 export type CreateClientInput = z.infer<typeof createClientSchema>;
 
 /**
- * Atualização parcial (UC03) — nunca inclui `contatos` (gerenciados via
- * UC04, fora do escopo desta task). Campos ausentes do body permanecem
+ * Atualização parcial: nunca inclui `contatos` (gerenciados pelas rotas
+ * de contato). Campos ausentes do body permanecem
  * inalterados; `ativo: false` aciona a inativação lógica do cliente.
- * Não inclui `recorrenciaDias`: sua alteração passa a ter rota dedicada,
- * com justificativa obrigatória (Etapa 4, fora do escopo desta task).
+ * Não inclui `recorrenciaDias`: sua alteração tem rota dedicada,
+ * com justificativa obrigatória.
  * `representanteId`, quando presente, só pode ser enviado por um GESTOR
  * (regra aplicada em client.service.ts) e transfere a carteira do cliente.
- * `proximaVisita` (Etapa 11b) marca, troca ou limpa a próxima visita pela
+ * `proximaVisita` marca, troca ou limpa a próxima visita pela
  * ficha, com a mesma regra do check-in (`AAAA-MM-DD`, hoje ou depois); `null`
  * apaga a data e a campanha da próxima visita (aplicado em client.service.ts).
  * Ausente, a data marcada não muda.

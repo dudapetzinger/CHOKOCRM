@@ -16,7 +16,7 @@ import { truncateAllTables } from './helpers/db';
 const SENHA = 'senha-do-escritorio';
 const EMAIL_GESTOR = 'gestao.demonstracao-teste@chokolaten.com.br';
 const EMAIL_REP = 'eduarda.demonstracao-teste@chokolaten.com.br';
-// A recriação de verdade (26 clientes, visitas, pedidos, bcrypt das contas) passa de 15 s sob carga.
+// A recriação de verdade (cerca de 80 clientes, visitas, pedidos, bcrypt das contas) passa de 15 s sob carga.
 const PRAZO_DA_RECRIACAO_MS = 90_000;
 
 let gestorId: string;
@@ -58,7 +58,7 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe('POST /sistema/demonstracao — autenticação', () => {
+describe('POST /sistema/demonstracao: autenticação', () => {
   it('e-mail desconhecido responde 401 e não muda nada', async () => {
     const espiao = jest.spyOn(seedDemonstracao, 'reiniciarDemonstracao');
 
@@ -113,7 +113,7 @@ describe('POST /sistema/demonstracao — autenticação', () => {
   });
 });
 
-describe('POST /sistema/demonstracao — recriação', () => {
+describe('POST /sistema/demonstracao: recriação', () => {
   it(
     'gestão + data: grava a configuração, recria a demonstração na data e responde { relogio }',
     async () => {
@@ -257,7 +257,7 @@ describe('POST /sistema/demonstracao — recriação', () => {
 });
 
 describe('login com o modo demonstração ligado', () => {
-  it('o token emitido pelo relógio real vale em GET /auth/me (Review Focus 1)', async () => {
+  it('o token emitido pelo relógio real vale em GET /auth/me', async () => {
     await ativarDataDeDemonstracao();
 
     const login = await request(app).post('/auth/login').send({ email: EMAIL_GESTOR, senha: SENHA });

@@ -1,11 +1,11 @@
 /**
- * Seletor de representante do gestor (Etapa 7; `<select>` na Etapa 8): "Todos
+ * Seletor de representante do gestor (um `<select>`): "Todos
  * os representantes" e o nome completo de cada um, logo abaixo do cabeçalho
- * de Clientes, Agenda e Painel. O select não quebra linha no celular, como
- * as pílulas quebravam, e comporta mais representantes. A escolha fica no
+ * de Clientes, Agenda e Painel. O select não quebra linha no celular
+ * e comporta muitos representantes. A escolha fica no
  * `RepresentanteContext`, então vale nas três telas. Para o representante
  * não aparece. Enquanto a lista carrega, só "Todos os representantes".
- * Visual do `selectCls` do protótipo (Etapa 8), com 44 px no celular. Por
+ * Visual do `selectCls` do protótipo, com 44 px no celular. Por
  * padrão ocupa a linha toda no celular, a largura do texto a partir de
  * 768 px e deixa 16 px de respiro embaixo (Agenda e Painel, onde ele fica
  * solto acima do conteúdo); `className` troca essa regra de layout (Clientes,

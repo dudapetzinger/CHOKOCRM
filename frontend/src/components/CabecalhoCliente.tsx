@@ -1,12 +1,11 @@
 /**
- * Cabeçalho da ficha do cliente (Etapa 7, spec 5.5; visual do protótipo na
- * Etapa 8, spec 7.2): avatar, nome, "Cidade · Rep.: Nome", etiqueta de
+ * Cabeçalho da ficha do cliente (visual do protótipo): avatar, nome, "Cidade · Rep.: Nome", etiqueta de
  * situação, o contato principal (ou o telefone do cliente) com "Adicionar
  * contato" e as ações Ligar, WhatsApp e, com `podeCheckIn` (representante
  * dono, cliente ativo), "Novo check-in".
  *
- * Com `podeCheckIn`, o WhatsApp abre já com a mensagem sugerida de estoque
- * (UC12, Etapa 11): o link leva o texto e o toque no botão também registra a
+ * Com `podeCheckIn`, o WhatsApp abre já com a mensagem sugerida de estoque:
+ * o link leva o texto e o toque no botão também registra a
  * mensagem no histórico (se o registro falhar, só avisa; o WhatsApp já
  * abriu). Sem `podeCheckIn` (gestor, cliente inativo), o link vai só com o
  * número. O botão WhatsApp só aparece quando o telefone serve para o

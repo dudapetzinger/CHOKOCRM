@@ -1,7 +1,7 @@
 /**
  * "Quem está visitando pouco?" (gestor) ou "Como está a minha carteira?"
- * (representante) — os números de visitas do Painel (UC14, Etapa 6C; cartões
- * do protótipo na Etapa 8): o título com o período e os clientes
+ * (representante), os números de visitas do Painel, nos cartões
+ * do protótipo: o título com o período e os clientes
  * ativos e, embaixo, visitas, taxa de registro, conversão em vendas e
  * clientes inativos no período escolhido, cada um num cartão (quatro em linha
  * a partir de 1024 px, dois por linha abaixo). O período e o representante

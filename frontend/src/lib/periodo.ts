@@ -1,5 +1,5 @@
 /**
- * Período de análise do Painel (Etapa 9): ou uma janela em dias que termina
+ * Período de análise do Painel: ou uma janela em dias que termina
  * hoje (30, 90 ou 365) ou uma faixa personalizada `inicio`–`fim`
  * ('AAAA-MM-DD', as duas pontas inclusas). É o formato que o filtro, os
  * serviços e os hooks trocam entre si; `queryDoPeriodo` o traduz para o

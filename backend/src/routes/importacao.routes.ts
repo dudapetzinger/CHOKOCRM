@@ -13,7 +13,7 @@ import { authJwt } from '../middlewares/authJwt';
 import { requireRole } from '../middlewares/requireRole';
 
 /**
- * Importação de notas fiscais e vínculo com as visitas (Etapa 12b), montado em
+ * Importação de notas fiscais e vínculo com as visitas, montado em
  * `/erp`. Só o gestor importa e responde as pendências; o `requireRole` fica em
  * cada rota (e não em `router.use`) para não barrar `/erp/produtos`, que o
  * representante lê. `/importacoes/leitura` lê o PDF sem gravar (conferência antes

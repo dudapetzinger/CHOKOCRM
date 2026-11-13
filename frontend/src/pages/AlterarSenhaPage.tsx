@@ -1,5 +1,5 @@
 /**
- * Troca da própria senha (Etapa 8, spec 7.13), para todos os papéis, pelo
+ * Troca da própria senha, para todos os papéis, pelo
  * menu da conta; visual de `routes/senha.tsx` do protótipo (cartão de 480
  * px). Senha atual, nova (mínimo de 6) e confirmação. A senha atual errada
  * volta da API como 400 e aparece junto do campo "Senha atual". Sucesso:

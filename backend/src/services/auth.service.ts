@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import type { Role, User } from '@prisma/client';
@@ -14,12 +15,13 @@ const MENSAGEM_SENHA_ATUAL_INCORRETA = 'Senha atual incorreta.';
 const CUSTO_BCRYPT = 10;
 
 /**
- * Hash bcrypt de uma senha que nunca corresponde a nenhuma conta real.
+ * Hash bcrypt de uma senha aleatória, gerado ao carregar o módulo, que nunca
+ * corresponde a nenhuma conta real.
  * Quando o e-mail informado não existe, comparamos a senha recebida contra
  * este hash (em vez de encerrar cedo) para que o tempo de resposta não
  * revele se o e-mail está cadastrado (mitigação de timing attack).
  */
-const HASH_DUMMY = '$2b$10$31T9jxWOlrUWt5hDRFaJAOHkYb2KYeI4XL//ymLpJ/UDuhsYxHSY2';
+const HASH_DUMMY = bcrypt.hashSync(randomBytes(32).toString('hex'), CUSTO_BCRYPT);
 
 /** O usuário como o app o vê (login e `GET /auth/me`), sem o hash da senha. */
 export type UsuarioDaSessao = {

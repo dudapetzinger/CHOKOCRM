@@ -1,10 +1,10 @@
 /**
- * Roteiro do dia (spec 7.9, decisão 10): ordem das paradas, distâncias por
+ * Roteiro do dia: ordem das paradas, distâncias por
  * cidade e o link do Google Maps, calculados no front a partir da agenda do
  * dia (endereço e cidade de cada cliente). Sem serviço externo de
  * geocodificação: a distância sai da tabela estática dos municípios de SC
- * (`municipiosSC.ts`) — a carteira é catarinense e o trajeto rua a rua fica
- * com o Google Maps.
+ * (`municipiosSC.ts`), porque a carteira é catarinense e o trajeto rua a rua
+ * fica com o Google Maps.
  */
 import { MUNICIPIOS_SC } from './municipiosSC';
 
@@ -65,10 +65,10 @@ function distanciaKm([lat1, lng1]: Coordenada, [lat2, lng2]: Coordenada): number
  * menos; as atrasadas ficam fora). A primeira com cidade conhecida fica
  * fixa como parada 1 (a mais urgente; não há ponto de saída fixo); dali em
  * diante, sempre a mais próxima da anterior (vizinho mais próximo; no
- * empate, a mais urgente) — por isso as da mesma cidade (distância 0) ficam
+ * empate, a mais urgente); por isso as da mesma cidade (distância 0) ficam
  * juntas. Distância = linha reta × 1,3, arredondada. As de cidade fora da
- * tabela vão para o fim, na ordem recebida, sem distância (minha escolha:
- * sem coordenada não há como encaixá-las no caminho).
+ * tabela vão para o fim, na ordem recebida, sem distância (sem coordenada
+ * não há como encaixá-las no caminho).
  */
 export function montarRoteiro(paradas: Parada[], limite = LIMITE_DE_PARADAS): Roteiro {
   const escolhidas = paradas.slice(0, limite);
@@ -164,7 +164,7 @@ export function dividirEmTrechos(total: number): Trecho[] {
  * Link de rota do Google Maps (Maps URLs, `api=1`) para um trecho: origem na
  * primeira parada, destino na última e as do meio como `waypoints` separados
  * por `|` (codificado `%7C`), de carro; cada endereço com
- * `encodeURIComponent`. Com uma parada só, vai só o destino — sem origem, o
+ * `encodeURIComponent`. Com uma parada só, vai só o destino: sem origem, o
  * Google Maps parte da localização do aparelho (origem e destino iguais
  * dariam um trajeto vazio).
  */

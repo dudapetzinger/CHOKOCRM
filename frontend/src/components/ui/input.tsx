@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-/** Campo do shadcn (copiado do protótipo): 16 px e 44 px de altura abaixo de 768 px (spec 6.2 e 6.4). */
+/** Campo do shadcn (copiado do protótipo): 16 px e 44 px de altura abaixo de 768 px. */
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<'input'>>(
   ({ className, type, ...props }, ref) => {
     return (

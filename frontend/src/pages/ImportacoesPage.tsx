@@ -1,5 +1,5 @@
 /**
- * "Importar notas" do gestor (Etapa 12b; diálogo na rodada 2026-11-12): sobe
+ * "Importar notas" do gestor: sobe
  * as DANFEs em PDF e traz as vendas reais para o CRM. A importação tem três
  * estados:
  *   - Escolher (cartão do topo, sempre na tela): um ou vários PDFs e "Ler
@@ -28,18 +28,17 @@
  * Os blocos de baixo ficam sempre na tela:
  *   - "CNPJs sem cliente no CRM (N)": bloco persistente (`GET /erp/sem-cliente`,
  *     lido como as pendências), um item por CNPJ das notas cujo destinatário
- *     ainda não é cliente — razão social, CNPJ formatado, município, quantas notas. O
+ *     ainda não é cliente (razão social, CNPJ formatado, município, quantas notas). O
  *     gestor cria o cliente pela nota ali mesmo ("Criar cliente",
  *     `CriarClientePelaNota`): escolhe o representante, e o cadastro vem da
  *     DANFE; as notas do CNPJ passam ao cliente novo e o item some. Serve às
  *     notas de importações anteriores (as de agora ganham o cliente no fecho);
  *   - "Pendências": notas com uma visita sugerida, à espera de o gestor
  *     vincular ou deixar só no ERP; a linha avisa que os itens do pedido
- *     passam a ser os da nota e, se a visita não é Venda, que ela passa a ser
- *     (spec 2.4);
+ *     passam a ser os da nota e, se a visita não é Venda, que ela passa a ser;
  *   - "Importações anteriores": as últimas 20, cada uma com as suas notas e o
  *     estado do vínculo hoje ("Vinculada à visita", "Pendente" ou "Só no
- *     ERP"); a nota vinculada tem "Desvincular" (spec 2.5), a mesma ação do
+ *     ERP"); a nota vinculada tem "Desvincular", a mesma ação do
  *     "Deixar só no ERP" da pendência, com confirmação na própria linha
  *     (não tem volta: a nota não é vinculada de novo).
  * As regras valem no backend; as mensagens dele aparecem como vêm.
@@ -79,9 +78,6 @@ import { ROTULO_RESULTADO } from '../services/visits';
 const MENSAGEM_ERRO_LER = 'Não foi possível ler este arquivo.';
 const MENSAGEM_ERRO_IMPORTAR = 'Não foi possível importar este arquivo.';
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar a lista.';
-
-/** Âncora do bloco "CNPJs sem cliente no CRM". */
-const ID_SEM_CLIENTE = 'cnpjs-sem-cliente';
 
 /** Os três estados do cartão "Importar notas". */
 type Etapa = 'escolher' | 'conferir' | 'concluida';
@@ -267,7 +263,7 @@ function SemCliente() {
   if (!itens || itens.length === 0) return null;
 
   return (
-    <div id={ID_SEM_CLIENTE} className="scroll-mt-4">
+    <div>
       <Cartao titulo={`CNPJs sem cliente no CRM (${itens.length})`}>
         <ul aria-label="CNPJs sem cliente no CRM" className="divide-y">
           {itens.map((item) => (

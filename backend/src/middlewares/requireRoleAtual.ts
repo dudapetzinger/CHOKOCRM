@@ -10,7 +10,7 @@ const MENSAGEM_ACESSO_NEGADO = 'Você não tem permissão para acessar este recu
  * Como `requireRole`, mas confere no banco: o autor ainda existe, está
  * ativo e tem o papel exigido. O JWT vale até 8 h com o papel do momento do
  * login; sem esta checagem, um gestor inativado ou rebaixado continuaria
- * agindo como gestor até o token vencer — e poderia, por exemplo, se
+ * agindo como gestor até o token vencer, e poderia, por exemplo, se
  * reativar ou criar outra conta de gestor. Usado depois de `authJwt` e
  * `requireRole` nas rotas que mexem em contas (`/users`).
  */

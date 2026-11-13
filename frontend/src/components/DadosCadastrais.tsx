@@ -1,16 +1,16 @@
 /**
- * Dados cadastrais da ficha do cliente (Etapa 7, spec 5.5): "Dados do
+ * Dados cadastrais da ficha do cliente: "Dados do
  * cliente" (com editar, inativar e reativar) e "Contatos" (listar, editar,
  * tornar principal, remover e adicionar, com o mesmo formulário `NovoContato`
- * do cabeçalho da ficha — Etapa 12). Etapa 9: são o conteúdo da aba
+ * do cabeçalho da ficha). São o conteúdo da aba
  * "Cadastro" da ficha, então os dois blocos aparecem direto, abertos, cada um
- * num cartão, um embaixo do outro (antes ficavam recolhidos num `<details>`).
+ * num cartão, um embaixo do outro.
  * A aba só monta quando está aberta, então uma edição em andamento se perde
  * ao trocar de aba.
  *
- * Etapa 8 (visual do protótipo, `Cadastro` de `crm/ficha.tsx`): os dados
+ * Visual do protótipo (`Cadastro` de `crm/ficha.tsx`): os dados
  * numa lista rótulo | valor, os contatos numa lista com bordas e os avisos de
- * sucesso em `toast` (com os mesmos textos de antes).
+ * sucesso em `toast`.
  *
  * Cliente criado pelo gestor a partir da nota fiscal: nasce sem e-mail e sem
  * contatos, e às vezes sem telefone ou cidade (a nota não trazia). O dado

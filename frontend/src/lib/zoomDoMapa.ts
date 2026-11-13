@@ -1,13 +1,13 @@
 /**
- * Zoom e deslocamento do mapa de clientes do Painel (Etapa 10c, spec seção
- * 5), como funções puras sobre o `viewBox` do SVG. O enquadramento
+ * Zoom e deslocamento do mapa de clientes do Painel, como funções puras
+ * sobre o `viewBox` do SVG. O enquadramento
  * `inicial` é `{0, 0, largura, altura}` (o das cidades da carteira com
  * margem); o nível de zoom é a razão entre a largura inicial e a atual (1 =
  * inicial; 2 = o mapa aparece com o dobro do tamanho). Cada toque em
  * "Aproximar"/"Afastar" multiplica ou divide o nível por `FATOR_DO_ZOOM`,
  * preso entre os `limites`: por padrão `NIVEL_MINIMO` (0,5×) e
  * `NIVEL_MAXIMO` (6×). O mínimo de verdade é 0,5× ou o que for preciso para
- * o estado inteiro caber, o que for menor — `nivelMinimoParaCaber` tira esse
+ * o estado inteiro caber, o que for menor: `nivelMinimoParaCaber` tira esse
  * nível da caixa do contorno do estado, e `conterCaixa` encosta o viewBox
  * nela quando o afastamento a deixou de fora. Cada toque mantém um ponto
  * (`centro`, por padrão o centro do que está visível) parado na tela: é o

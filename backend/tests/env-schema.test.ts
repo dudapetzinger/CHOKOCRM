@@ -18,10 +18,10 @@ describe('envSchema', () => {
   });
 });
 
-describe('envSchema — sem envio de e-mail', () => {
+describe('envSchema: sem envio de e-mail', () => {
   const OBRIGATORIAS = { DATABASE_URL: 'x', JWT_SECRET: 'y' };
 
-  it('SMTP_*, EMAIL_FROM e APP_URL não existem mais: são ignoradas', () => {
+  it('SMTP_*, EMAIL_FROM e APP_URL não fazem parte do schema: são ignoradas', () => {
     const parsed = envSchema.parse({
       ...OBRIGATORIAS,
       SMTP_HOST: 'smtp.exemplo.com',
@@ -38,7 +38,7 @@ describe('envSchema — sem envio de e-mail', () => {
   });
 });
 
-describe('envSchema — limpeza das fotos', () => {
+describe('envSchema: limpeza das fotos', () => {
   const OBRIGATORIAS = { DATABASE_URL: 'x', JWT_SECRET: 'y' };
 
   it('padrões: job ligado, 3h30 e retenção de 90 dias', () => {
@@ -67,7 +67,7 @@ describe('envSchema — limpeza das fotos', () => {
   });
 });
 
-describe('envSchema — provedor de ERP', () => {
+describe('envSchema: provedor de ERP', () => {
   const OBRIGATORIAS = { DATABASE_URL: 'x', JWT_SECRET: 'y' };
 
   it('padrão hibrido (notas por CNPJ, simulado para os demais); aceita mock e importado', () => {
@@ -82,8 +82,8 @@ describe('envSchema — provedor de ERP', () => {
   });
 });
 
-describe('envSchema — data de demonstração', () => {
-  it('DATA_DE_DEMONSTRACAO não existe mais: a data mora na tabela configuracoes', () => {
+describe('envSchema: data de demonstração', () => {
+  it('DATA_DE_DEMONSTRACAO não é variável de ambiente: a data mora na tabela configuracoes', () => {
     expect(Object.keys(envSchema.shape)).not.toContain('DATA_DE_DEMONSTRACAO');
     const resultado = envSchema.parse({ DATABASE_URL: 'x', JWT_SECRET: 'y', DATA_DE_DEMONSTRACAO: '2027-03-15' });
     expect(resultado).not.toHaveProperty('DATA_DE_DEMONSTRACAO');

@@ -1,6 +1,6 @@
 /**
  * "Mais urgentes" do bloco "Quais clientes estão esfriando?" do Painel
- * (Etapa 7; linhas do protótipo na Etapa 8): os cinco clientes mais urgentes
+ * (linhas do protótipo): os cinco clientes mais urgentes
  * entre os laranja e vermelho, na mesma ordem da aba Prioridade de Clientes
  * (`ordenarPorUrgencia`: vermelho antes, "nunca visitado" à frente), cada um
  * levando à ficha. Com "Todos" no seletor, mostra de quem é cada cliente. As

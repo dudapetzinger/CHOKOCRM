@@ -2,7 +2,7 @@
  * Exibe a foto de comprovação de uma visita. Os bytes chegam pelo hook
  * `useVisitaFoto` (chamada autenticada) e viram um `blob:` URL, liberado
  * no cleanup para não vazar memória. Na ficha aparece em miniatura (visual
- * do protótipo, Etapa 8); tocar nela abre a foto inteira numa aba nova.
+ * do protótipo); tocar nela abre a foto inteira numa aba nova.
  */
 import { useEffect, useState } from 'react';
 import { useVisitaFoto } from '../hooks/useVisitas';

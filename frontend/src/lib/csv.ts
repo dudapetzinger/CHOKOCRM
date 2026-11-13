@@ -1,6 +1,6 @@
 /**
- * Planilha do Painel (spec 7.12): o relatório em CSV para abrir no Excel em
- * português — BOM (para o Excel ler UTF-8), `;` como separador, vírgula
+ * Planilha do Painel: o relatório em CSV para abrir no Excel em
+ * português, com BOM (para o Excel ler UTF-8), `;` como separador, vírgula
  * decimal, todo campo entre aspas (aspas internas dobradas, então `;` e
  * quebra de linha dentro do campo não quebram a coluna), texto livre que
  * começa como fórmula com um apóstrofo à frente, e linhas com `\r\n`. Os

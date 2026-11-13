@@ -1,11 +1,11 @@
 /**
- * Gera os ícones PNG do PWA a partir de `public/logo.svg` (ADR-012).
+ * Gera os ícones PNG do PWA a partir de `public/logo.svg`.
  * Rodado uma vez (e de novo só se o logo mudar): `npm run icones`.
  *
  * - `pwa-192.png` e `pwa-512.png` ("any"): o logo como está, quadrado de
  *   cantos arredondados sobre fundo transparente.
  * - `pwa-maskable-512.png` e `apple-touch-icon.png`: fundo creme cheio até as
- *   bordas — o Android recorta o maskable no formato do aparelho e o iOS
+ *   bordas: o Android recorta o maskable no formato do aparelho e o iOS
  *   pinta de preto o que for transparente. O texto do logo fica nos 60 %
  *   centrais, então o recorte não o alcança.
  */

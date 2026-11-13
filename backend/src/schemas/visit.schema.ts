@@ -3,12 +3,12 @@ import { dataCalendario } from '../services/classificacao.service';
 import { agora } from '../lib/relogio';
 
 /**
- * Validação do check-in de visita (UC07), com o pedido opcional da visita
+ * Validação do check-in de visita, com o pedido opcional da visita
  * com venda, a próxima visita prevista, o lembrete (com data própria) e as
  * campanhas da visita e da próxima visita, e da edição
- * posterior da descrição (UC08), que não mexe em nenhum dos dois. O schema
+ * posterior da descrição, que não mexe em nenhum deles. O schema
  * Prisma (`prisma/schema.prisma`) exige
- * `descricao` e `resultado` como NOT NULL — este zod reflete a mesma
+ * `descricao` e `resultado` como NOT NULL, e este zod reflete a mesma
  * obrigatoriedade, conforme o dicionário de dados
  * (docs/modelo-de-dados.md).
  */
@@ -23,10 +23,10 @@ const descricaoSchema = z.string().trim().min(3, MENSAGEM_DESCRICAO);
  * Data/hora entra **exclusivamente** como ISO 8601, com `Z` ou com offset
  * (`-03:00`, que é o que o celular envia). Coerção solta (`z.coerce.date`)
  * não serve aqui: ela delega para `new Date(valor)`, que engole `null`,
- * `true`, `0` e `"05/09/2026"` — todos viram uma visita gravada em 1970 ou
- * na data errada. Como só a descrição é editável (UC08) e não há exclusão
+ * `true`, `0` e `"05/09/2026"`: todos viram uma visita gravada em 1970 ou
+ * na data errada. Como só a descrição é editável e não há exclusão
  * de visita, esse registro ficaria errado para sempre e ainda distorceria
- * a classificação por cor do cliente (UC05).
+ * a classificação por cor do cliente.
  *
  * O limite superior usa `refine`, e não `max`, porque é "agora, no momento
  * da requisição": um `max(new Date())` ficaria congelado no instante em
@@ -44,8 +44,8 @@ const MAXIMO_QUANTIDADE_POR_ITEM = 99999;
 const MENSAGEM_QUANTIDADE = 'Quantidade do item deve ser um número inteiro maior que zero.';
 
 /**
- * Item do pedido (spec 7.5): só o SKU e a quantidade. Nome e preço vêm do
- * catálogo do ERP no serviço — por isso o objeto é `strict`: um preço
+ * Item do pedido: só o SKU e a quantidade. Nome e preço vêm do
+ * catálogo do ERP no serviço, por isso o objeto é `strict`: um preço
  * mandado pelo cliente HTTP é recusado, nunca usado. Quantidade em texto
  * ("10") também é recusada, como a data solta acima.
  */
@@ -65,12 +65,12 @@ export const MENSAGEM_PROXIMA_VISITA_PASSADA = 'A próxima visita não pode ser 
 const MAXIMO_LEMBRETE = 200;
 
 /**
- * Próxima visita prevista (spec 7.4): data de calendário `AAAA-MM-DD`
+ * Próxima visita prevista: data de calendário `AAAA-MM-DD`
  * (data que não existe, como 30/02, é recusada), hoje ou depois. "Hoje" é o
- * de São Paulo no momento da requisição — `refine`, pelo mesmo motivo da
- * data/hora da visita acima. `abort` no formato: data inválida não ganha
+ * de São Paulo no momento da requisição (`refine`, pelo mesmo motivo da
+ * data/hora da visita acima). `abort` no formato: data inválida não ganha
  * também a mensagem de data passada. Exportada porque a ficha do cliente
- * (`PUT /clients/:id`, Etapa 11b) aceita a mesma data, com as mesmas regras.
+ * (`PUT /clients/:id`) aceita a mesma data, com as mesmas regras.
  */
 export const proximaVisitaSchema = z.iso
   .date({ error: MENSAGEM_PROXIMA_VISITA_INVALIDA, abort: true })
@@ -79,10 +79,10 @@ export const proximaVisitaSchema = z.iso
 const MENSAGEM_TEXTO_DO_LEMBRETE = 'Informe o texto do lembrete.';
 
 /**
- * Lembrete como tarefa própria (Etapa 9): texto e data, os dois
+ * Lembrete como tarefa própria: texto e data, os dois
  * obrigatórios; a data segue a regra da próxima visita (calendário, hoje ou
  * depois em São Paulo), mas é independente dela. Sem lembrete, o campo fica
- * ausente. O formato antigo é tratado em `lembreteDoCheckInSchema`, abaixo.
+ * ausente. `null` e texto solto são tratados em `lembreteDoCheckInSchema`, abaixo.
  */
 const lembreteSchema = z
   .object({
@@ -103,8 +103,8 @@ const lembreteSchema = z
 const MENSAGEM_ATUALIZE_O_APP = 'Atualize o app para registrar o lembrete.';
 
 /**
- * Lembrete no corpo do check-in, compatível com o front da versão anterior
- * (o PWA só troca o JS quando a pessoa toca em "Atualizar"): ele manda
+ * Lembrete no corpo do check-in, compatível com um PWA ainda desatualizado
+ * (ele só troca o JS quando a pessoa toca em "Atualizar"): esse front manda
  * `lembrete: null` em todo check-in sem lembrete, que aqui vale como
  * ausente (`undefined`, que o serviço já ignora); e o lembrete como texto
  * solto, que não tem data e não dá para gravar, recebe uma mensagem pedindo
@@ -146,7 +146,7 @@ export const createVisitSchema = z
      */
     lembrete: lembreteDoCheckInSchema,
     /**
-     * Campanhas (spec 7.7): a da visita e a da próxima visita, que vai para
+     * Campanhas: a da visita e a da próxima visita, que vai para
      * o cliente com a data (sem data, é ignorada). Só campanha não encerrada
      * (regra no serviço, com a mensagem própria).
      */
@@ -157,7 +157,7 @@ export const createVisitSchema = z
 
 export type CreateVisitInput = z.infer<typeof createVisitSchema>;
 
-/** Edição posterior altera apenas a descrição (ver UC08). */
+/** Edição posterior altera apenas a descrição. */
 export const updateVisitSchema = z.object({ descricao: descricaoSchema }).strict();
 
 export type UpdateVisitInput = z.infer<typeof updateVisitSchema>;

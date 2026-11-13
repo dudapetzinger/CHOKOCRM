@@ -1,4 +1,4 @@
-import { env, type Env } from '../config/env';
+import { env } from '../config/env';
 import { erpProvider } from '../providers/erp';
 import { chaveHibrida } from '../providers/erp/chave-hibrida';
 import {
@@ -15,7 +15,7 @@ import * as erpSaleRepository from '../repositories/erp-sale.repository';
 import { logger } from '../lib/logger';
 // De `carteira`, não de `client.service`: este depende daqui (`consultarUltimasVendas`).
 import { exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
-import { dataCalendario, dataDaColunaDate, fimDoDia, inicioDoDia, somarDias } from './classificacao.service';
+import { dataCalendario, fimDoDia, inicioDoDia, somarDias } from './classificacao.service';
 import { agora } from '../lib/relogio';
 
 const DIAS_DE_VOLUME = 90;
@@ -23,15 +23,15 @@ const DIAS_DE_VOLUME = 90;
 const QUANTIDADE_DE_ULTIMAS_VENDAS = 5;
 
 /**
- * Único módulo do sistema que fala com `erpProvider` (Task 4 do plano de
- * design da Etapa 5) e com o catálogo do ERP: services e controllers de
+ * Único módulo do sistema que fala com `erpProvider` e com o
+ * catálogo do ERP: services e controllers de
  * cliente/agenda consomem `consultarUltimasVendas` daqui; o check-in e as
- * campanhas, `buscarProduto`. Nunca o provider diretamente. Exceção
- * autorizada: o seed de demonstração (`seed/demonstracao.ts`) lê o catálogo
+ * campanhas, `buscarProduto`. Nunca o provider diretamente. Única
+ * exceção: o seed de demonstração (`seed/demonstracao.ts`) lê o catálogo
  * de demonstração (`CATALOGO`) direto, seja qual for o provedor, e o grava
  * em `ErpProduct` para o importado e o híbrido também o oferecerem. Três
  * provedores (`ERP_PROVIDER`): `mock`, que identifica o cliente pelo `erpId`
- * e tem o catálogo fixo de demonstração; `importado` (Etapa 12b), que
+ * e tem o catálogo fixo de demonstração; `importado`, que
  * identifica o cliente pelo CNPJ, lê as notas fiscais importadas mais os
  * pedidos dos check-ins sem nota e o catálogo aprendido das notas
  * (`ErpProduct`), sem estoque; e `hibrido` (o padrão), com chave composta
@@ -67,17 +67,6 @@ export type DadosErpDTO =
  * sem nota (`visitaId`); o mock não preenche.
  */
 export type VendaDTO = Omit<Sale, 'data'> & { data: string };
-
-/** Situação da fonte de vendas (`GET /erp/situacao`). */
-export type SituacaoErpDTO = {
-  provedor: Env['ERP_PROVIDER'];
-  simulado: boolean;
-  estoqueDisponivel: boolean;
-  /** Emissão da nota mais recente (de qualquer cliente), 'AAAA-MM-DD'; `null` sem notas ou no mock. */
-  ultimaVendaEm: string | null;
-  /** Instante (ISO) da importação mais recente; `null` se nunca houve. */
-  ultimaImportacaoEm: string | null;
-};
 
 /**
  * O que o ERP precisa do cliente para identificá-lo: `erpId` (mock), CNPJ
@@ -191,8 +180,8 @@ export function chaveDoCliente(cliente: ClienteDoErp): string | null {
  * Fonte dos dados de venda do cliente (ver `FonteDoCliente`): no mock,
  * `simulado` com `erpId`; no importado, sempre `notas` (cliente sem nota é
  * `OK` sem venda); no híbrido, `notas` se há nota importada do CNPJ (uma
- * consulta de existência), senão `simulado` com `erpId`, senão `nenhuma` —
- * a mesma regra que `HibridoErpProvider` aplica a cada chamada.
+ * consulta de existência), senão `simulado` com `erpId`, senão `nenhuma`
+ * (a mesma regra que `HibridoErpProvider` aplica a cada chamada).
  */
 export async function fonteDoCliente(cliente: ClienteDoErp): Promise<FonteDoCliente> {
   switch (env.ERP_PROVIDER) {
@@ -222,30 +211,10 @@ export function estoqueDisponivel(): boolean {
   return erpProvider.estoqueDisponivel;
 }
 
-/**
- * Situação da fonte de vendas (`GET /erp/situacao`): o provedor e, no
- * importado e no híbrido, até que dia há notas. A última importação vem do
- * banco em qualquer provedor.
- */
-export async function obterSituacao(): Promise<SituacaoErpDTO> {
-  const [ultimaEmissao, ultimaImportacao] = await Promise.all([
-    usaCatalogoDasNotas() ? erpSaleRepository.ultimaDataDeEmissao() : Promise.resolve(null),
-    erpSaleRepository.ultimaImportacaoEm(),
-  ]);
-
-  return {
-    provedor: env.ERP_PROVIDER,
-    simulado: erpProvider.simulado,
-    estoqueDisponivel: erpProvider.estoqueDisponivel,
-    ultimaVendaEm: ultimaEmissao ? dataDaColunaDate(ultimaEmissao) : null,
-    ultimaImportacaoEm: ultimaImportacao ? ultimaImportacao.toISOString() : null,
-  };
-}
-
 export type ProdutoDTO = { sku: string; nome: string; precoUnitario: number };
 
 /**
- * Produtos que o check-in oferece no pedido (spec 7.5), com o preço do dia:
+ * Produtos que o check-in oferece no pedido, com o preço do dia:
  * no mock, o catálogo fixo de demonstração, na ordem dele; no importado e no
  * híbrido, o catálogo das notas (`ErpProduct`, que o seed também preenche),
  * por nome.
@@ -284,7 +253,7 @@ export async function buscarProduto(sku: string): Promise<ProdutoDTO | null> {
 /**
  * Última venda de cada chave (de `chaveDoCliente`), para telas que listam
  * vários clientes de uma vez (lista de clientes, ficha do cliente, agenda).
- * Se o ERP estiver indisponível, devolve `null` para o cliente afetado — quem
+ * Se o ERP estiver indisponível, devolve `null` para o cliente afetado: quem
  * chama não precisa saber que o ERP está fora do ar.
  */
 export async function consultarUltimasVendas(chaves: (string | null)[]): Promise<Map<string, Date | null>> {
@@ -315,7 +284,7 @@ export async function consultarUltimasVendasPorCliente(
 
 /**
  * Vendas de um cliente (pela chave) no período (para os insights sazonais).
- * `null` quando o ERP está indisponível — o warn é registrado aqui e quem
+ * `null` quando o ERP está indisponível: o warn é registrado aqui e quem
  * chama decide como degradar; qualquer outro erro propaga.
  */
 export async function consultarVendas(chave: string, periodo: Period): Promise<Sale[] | null> {
@@ -334,7 +303,7 @@ export async function consultarVendas(chave: string, periodo: Period): Promise<S
 /**
  * Vendas de cada chave no período (para o gráfico de vendas mensais). O que
  * o ERP não conseguiu responder vai para `indisponiveis` e fica fora do mapa
- * — um único warn para o lote —, para quem chama distinguir "sem venda" de
+ * (um único warn para o lote), para quem chama distinguir "sem venda" de
  * "não sei".
  */
 export async function consultarVendasEmLote(
@@ -405,11 +374,11 @@ function paraVendaDTO(venda: Sale): VendaDTO {
 }
 
 /**
- * Dados de venda/estoque do cliente no ERP (UC11): busca o cliente, decide a
+ * Dados de venda/estoque do cliente no ERP: busca o cliente, decide a
  * fonte (`fonteDoCliente`), resolve a chave (`chaveDoCliente`) e consulta o
  * provedor. Cliente de outra carteira responde ao representante como
  * inexistente (404). Qualquer `ErpIndisponivelError` vira
- * `{ status: 'INDISPONIVEL' }` — outros erros propagam para o errorHandler.
+ * `{ status: 'INDISPONIVEL' }`; outros erros propagam para o errorHandler.
  * Por fonte: `nenhuma` → `SEM_ERP_ID`; `notas` (importado, ou híbrido com
  * nota do CNPJ) → nunca `NAO_ENCONTRADO` (cliente sem nota é `OK` sem última
  * venda), a ficha recebe as últimas vendas e o estoque é indisponível;

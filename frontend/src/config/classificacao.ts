@@ -1,7 +1,7 @@
 /**
- * Limiares da classificação por cor (Etapas 4 e 5), usados pelos textos da
- * interface (legenda e etiqueta de situação). Espelha
- * backend/src/config/classificacao.ts — ao mudar lá, mudar aqui.
+ * Limiares da classificação por cor, usados pelos textos da interface
+ * (legenda e etiqueta de situação). Espelha
+ * backend/src/config/classificacao.ts: ao mudar lá, mudar aqui.
  */
 
 /** Visitado há até este número de dias: VERDE (com venda) ou AMARELO (sem venda). */

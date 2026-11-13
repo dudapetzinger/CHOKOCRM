@@ -14,7 +14,7 @@ import { ROTULO_PAPEL } from '@/lib/papel';
 import { Avatar } from './ui';
 
 /**
- * Menu da conta, à direita da barra superior (spec 6.5): as iniciais num
+ * Menu da conta, à direita da barra superior: as iniciais num
  * círculo de 36 px (alvo de 44 px no celular) abrem nome, papel, "Alterar
  * senha" e "Sair". Para o gestor, o menu também leva a "Usuários", que não tem
  * lugar na barra de navegação ("Importar notas" é o botão central da barra).

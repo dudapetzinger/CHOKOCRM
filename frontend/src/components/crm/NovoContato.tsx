@@ -1,10 +1,10 @@
 /**
- * Contato novo em linha (`NovoContato` do protótipo, spec 7.3): nome, cargo,
+ * Contato novo em linha (`NovoContato` do protótipo): nome, cargo,
  * telefone e e-mail, todos obrigatórios como em `contact.schema.ts` do
  * backend, e "Tornar principal" (o backend rebaixa o principal anterior).
  * Grava com `POST /clients/:id/contacts` e atualiza a ficha e a lista.
  *
- * Abre na ficha ("Adicionar contato") e, a partir da tarefa do check-in,
+ * Abre na ficha ("Adicionar contato") e
  * dentro do formulário do check-in: por isso não é um `<form>` (formulário
  * dentro de formulário não vale em HTML). Os botões são `type="button"` e
  * Enter num campo adiciona o contato em vez de enviar o formulário em volta.

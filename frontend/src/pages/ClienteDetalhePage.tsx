@@ -33,20 +33,19 @@ const ABAS: Aba<AbaDaFicha>[] = [
 ];
 
 /**
- * Ficha do cliente (UC06). Desde a Etapa 7 (spec 5.5) abre pelo que se usa em
- * campo; na Etapa 8 (spec 7.2) tem o visual do protótipo (`crm/ficha.tsx`); na
- * Etapa 9 o conteúdo se divide em abas. No topo, sempre à vista: o cabeçalho
+ * Ficha do cliente, no visual do protótipo (`crm/ficha.tsx`), com o conteúdo
+ * dividido em abas. No topo, sempre à vista: o cabeçalho
  * (com Ligar, WhatsApp, "Novo check-in", "Adicionar contato" e, para o gestor,
  * a transferência) e o aviso da próxima visita marcada no check-in ou pela ficha, da
  * campanha dela e dos lembretes abertos do cliente (concluir cabe ao
- * representante e ao gestor). Na Etapa 11b, os dois também marcam, mudam e
+ * representante e ao gestor). Os dois também marcam, mudam e
  * limpam a data da próxima visita ali mesmo (cliente ativo ou inativo); a
  * página grava (`PUT /clients/:id`), põe a resposta em `['client', id]` e
  * invalida a lista de clientes e a agenda. Abaixo, as abas "ERP e sugestões" (insights,
  * dados do ERP e mensagem de estoque, nessa ordem), "Visitas" (histórico e
  * recorrência) e "Cadastro" (`DadosCadastrais`), guardadas em `?aba=`; sem o
- * parâmetro, ou com um valor desconhecido, abre em "ERP e sugestões" (Etapa
- * 12). Só o painel da aba aberta é montado, então os
+ * parâmetro, ou com um valor desconhecido, abre em "ERP e sugestões".
+ * Só o painel da aba aberta é montado, então os
  * cartões de ERP e insights só consultam a API quando a aba é aberta. Os
  * avisos de sucesso são `toast`; os erros ficam na própria ficha.
  *
@@ -67,7 +66,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
 
   /**
    * A tela de check-in redireciona para cá com este aviso quando a visita
-   * foi gravada mas a foto não subiu (sinal instável em campo, UC07 E2).
+   * foi gravada mas a foto não subiu (sinal instável em campo).
    * Sem ele, a volta para a ficha é idêntica à de um envio bem-sucedido e
    * a representante acredita que a comprovação está registrada.
    */
@@ -79,7 +78,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
   const mutationAnexarFoto = useAnexarFotoVisita(id);
   const queryClient = useQueryClient();
 
-  /** Marca, muda (`AAAA-MM-DD`) ou limpa (`null`) a próxima visita pela ficha (Etapa 11b). */
+  /** Marca, muda (`AAAA-MM-DD`) ou limpa (`null`) a próxima visita pela ficha. */
   const mutationProximaVisita = useMutation({
     mutationFn: (proximaVisita: string | null) => updateCliente(id!, { proximaVisita }),
     onSuccess: (atualizado, proximaVisita) => {
@@ -138,7 +137,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
   }
 
   // Sem ficha nenhuma para mostrar, só o erro. Com a ficha no cache, o erro de
-  // um refetch (rede caída) vira um aviso acima dela (spec 5.7).
+  // um refetch (rede caída) vira um aviso acima dela.
   if (!cliente) {
     return envolver(
       <Aviso tom="erro" role="alert">

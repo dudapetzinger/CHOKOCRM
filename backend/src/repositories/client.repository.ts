@@ -8,8 +8,8 @@ export type AtivoFiltro = 'ativos' | 'todos';
 
 /**
  * Projeção da última visita (por `dataHora`), reaproveitada tanto na
- * listagem quanto na ficha para classificar a cor do cliente (ADR-006:
- * a cor nunca é persistida, sempre calculada a partir da última visita).
+ * listagem quanto na ficha para classificar a cor do cliente (a cor
+ * nunca é persistida, sempre calculada a partir da última visita).
  */
 export const SELECT_ULTIMA_VISITA = {
   take: 1,
@@ -45,15 +45,15 @@ export type ClienteParaAgenda = {
   visits: { dataHora: Date; resultado: ResultadoVisita }[];
   /** Dono da carteira, exibido nos itens da agenda. */
   representante: { id: string; nome: string };
-  /** Data marcada no check-in (spec 7.4), já como data de calendário. */
+  /** Data marcada no check-in, já como data de calendário. */
   proximaVisita: DataCalendario | null;
-  /** Campanha da próxima visita (spec 7.7), para a etiqueta da agenda. */
+  /** Campanha da próxima visita, para a etiqueta da agenda. */
   proximaCampanha: { id: string; nome: string } | null;
 };
 
 /**
- * Clientes ativos elegíveis para a agenda do dia (UC10), também base dos
- * indicadores (UC14) e dos alertas (UC15): sem `representanteId`, todos os
+ * Clientes ativos elegíveis para a agenda do dia, também base dos
+ * indicadores e dos alertas: sem `representanteId`, todos os
  * representantes (visão do gestor); com `representanteId`, só a carteira
  * daquele representante. A próxima visita sai daqui já como `DataCalendario`
  * (ver `dataDaColunaDate`), para ninguém a passar pelo fuso por engano.
@@ -206,8 +206,8 @@ export async function update(id: string, data: UpdateClientData): Promise<Client
 }
 
 /**
- * Passa a carteira inteira de um usuário para outro — clientes ativos e
- * inativos, num único UPDATE — e devolve quantos clientes mudaram de dono.
+ * Passa a carteira inteira de um usuário para outro (clientes ativos e
+ * inativos, num único UPDATE) e devolve quantos clientes mudaram de dono.
  */
 export async function transferirCarteira(origemId: string, destinoId: string): Promise<number> {
   const { count } = await prisma.client.updateMany({
@@ -218,12 +218,12 @@ export async function transferirCarteira(origemId: string, destinoId: string): P
 }
 
 /**
- * Única via de alteração de `Client.recorrenciaDias` (UC09): grava o
+ * Única via de alteração de `Client.recorrenciaDias`: grava o
  * histórico auditável em `VisitScheduleChange` e atualiza o cliente na
  * mesma transação, para que nunca exista mudança de recorrência sem o
  * respectivo registro de justificativa. Apaga a próxima visita marcada no
  * check-in: quem muda o ritmo espera que a próxima data acompanhe a
- * recorrência nova; os lembretes (tabela própria) continuam (spec 7.4).
+ * recorrência nova; os lembretes (tabela própria) continuam.
  */
 export async function updateRecorrenciaComHistorico(params: {
   clientId: string;

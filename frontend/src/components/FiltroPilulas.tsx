@@ -1,8 +1,8 @@
 /**
- * Filtro "rótulo + controle segmentado" (Etapas 6B/6C, genérico na Etapa 7,
- * segmentado na Etapa 8): base dos filtros de horizonte dos eventos sazonais
- * (`FiltroHorizonte`) e de período dos indicadores (`FiltroPeriodo`). O nome
- * ficou da época das pílulas. Controlado: quem usa guarda o valor. Cada opção
+ * Filtro "rótulo + controle segmentado": base dos filtros de horizonte dos
+ * eventos sazonais (`FiltroHorizonte`) e de período dos indicadores
+ * (`FiltroPeriodo`). Apesar do nome, o visual é o do controle segmentado, não
+ * o de pílulas. Controlado: quem usa guarda o valor. Cada opção
  * traz o próprio rótulo (ex.: `{ valor: 30, rotulo: '30 dias' }`) e, se o
  * rótulo for curto, o nome acessível (`rotuloAcessivel: '30 dias'`). Se não
  * couber na linha, o segmentado desce inteiro para a de baixo. Por padrão

@@ -8,10 +8,10 @@ import { buscarRelogio } from './services/sistema';
 import { getCliente, listClients, type ClienteCompleto, type ClienteListItem } from './services/clients';
 
 /**
- * `/clientes/:id` (rota única `ClientesOuFicha`, Etapa 7): desktop = lista com
+ * `/clientes/:id` (rota única `ClientesOuFicha`): desktop = lista com
  * a ficha ao lado; celular = só a ficha. Renderiza o `App` de verdade (com o
  * `BrowserRouter` na URL do teste e a sessão salva em `localStorage`), dentro
- * da moldura (Etapa 8); só a camada de serviços é simulada.
+ * da moldura; só a camada de serviços é simulada.
  */
 
 const LISTA: ClienteListItem[] = [
@@ -231,7 +231,7 @@ describe('rota /clientes/:id', () => {
 
 describe('rota /clientes/:id/check-in', () => {
   // O seletor do botão central de check-in só troca o `:id`, com a página
-  // montada: sem a chave por cliente, o formulário do cliente anterior ficava.
+  // montada: sem a chave por cliente, o formulário do cliente anterior ficaria.
   it('trocar de cliente sem sair da rota abre um check-in limpo do novo cliente', async () => {
     simularLargura(false);
     const EMPORIO: ClienteCompleto = { ...FICHA, id: 'c2', nomeFantasia: 'Empório Central', razaoSocial: 'Empório Central Ltda' };
@@ -297,7 +297,7 @@ describe('troca de usuário no mesmo navegador', () => {
 
     // Campos preenchidos de uma vez, sem digitar tecla a tecla: o teste é da
     // troca de usuário, não da digitação (cada tecla re-renderiza o app
-    // inteiro, e a digitação longa passava dos 15 s com a suíte toda rodando).
+    // inteiro, e a digitação longa passa dos 15 s com a suíte toda rodando).
     fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'rafael@exemplo.com' } });
     fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'segredo123' } });
     await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
@@ -331,7 +331,7 @@ describe('tela inicial por papel', () => {
 });
 
 describe('rotas da gestão de usuários', () => {
-  // Usuários saiu da navegação (vai para o menu da conta): a rota continua aberta ao gestor.
+  // Usuários fica fora da navegação (abre pelo menu da conta), mas a rota é aberta ao gestor.
   it('gestor abre /usuarios, fora da navegação principal', async () => {
     simularLargura(true);
     abrirApp('/usuarios', GESTOR);
@@ -353,7 +353,7 @@ describe('rotas da gestão de usuários', () => {
     expect(screen.getByLabelText('Senha atual')).toBeInTheDocument();
   });
 
-  it('/redefinir-senha não existe mais: sem sessão, vai para o login', async () => {
+  it('/redefinir-senha não é uma rota do app: sem sessão, vai para o login', async () => {
     abrirApp('/redefinir-senha#token-do-email', null);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Entrar' })).toBeInTheDocument();

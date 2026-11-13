@@ -139,8 +139,8 @@ let usuario: ReturnType<typeof userEvent.setup>;
  * Preenche um campo de uma vez (um evento de mudança), em vez de digitar
  * tecla a tecla: o que estes testes conferem é o formulário, não a
  * digitação, e cada tecla (e cada clique simulado) re-renderiza a página
- * inteira — com a suíte toda rodando, a digitação longa passava dos 15 s do
- * limite por teste e travava o CI.
+ * inteira: com a suíte toda rodando, a digitação longa passa dos 15 s do
+ * limite por teste e trava o CI.
  */
 function preencher(campo: HTMLElement, texto: string) {
   fireEvent.change(campo, { target: { value: texto } });
@@ -205,7 +205,7 @@ async function salvar() {
 
 const FOTO_DA_VITRINE = () => new File(['foto'], 'vitrine.jpg', { type: 'image/jpeg' });
 
-/** Do passo 3 ao 4, com uma descrição válida e a foto (obrigatória, Etapa 11). */
+/** Do passo 3 ao 4, com uma descrição válida e a foto (obrigatória). */
 async function descreverEContinuar(descricao = 'Reposição do mostruário.', foto = FOTO_DA_VITRINE()) {
   preencher(screen.getByLabelText('O que aconteceu na visita'), descricao);
   await usuario.upload(screen.getByLabelText('Foto'), foto);
@@ -230,7 +230,7 @@ function marcado(pergunta: string): string | null | undefined {
     .find((opcao) => opcao.getAttribute('aria-checked') === 'true')?.textContent;
 }
 
-describe('CheckInPage — passos', () => {
+describe('CheckInPage: passos', () => {
   it('abre no passo 1 "A visita" com data e hora, contato e campanha; Continuar leva ao passo 2 e foca o título', async () => {
     renderizar();
     await esperarCliente();
@@ -802,7 +802,7 @@ describe('CheckInPage — passos', () => {
   });
 });
 
-describe('CheckInPage — próxima visita e lembrete no passo 4 (spec 7.4)', () => {
+describe('CheckInPage: próxima visita e lembrete no passo 4', () => {
   /** Abre o passo 4 com "sim" na próxima visita (e no lembrete, se pedido). */
   async function abrirPasso4({ lembrete = false } = {}) {
     renderizar();
@@ -979,7 +979,7 @@ describe('CheckInPage — próxima visita e lembrete no passo 4 (spec 7.4)', () 
   });
 });
 
-describe('CheckInPage — campanhas (spec 7.7)', () => {
+describe('CheckInPage: campanhas', () => {
   /** Os textos das opções de um select, na ordem. */
   function opcoes(select: HTMLElement): string[] {
     return within(select)

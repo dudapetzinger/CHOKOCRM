@@ -1,7 +1,7 @@
 /**
- * Barra de ferramentas (Etapa 8, spec 7.1): os controles de uma lista lado a
- * lado, numa linha acima dela — select de representante, busca, legenda,
- * ação principal. Só layout: quem usa decide o que vai dentro. Se não
+ * Barra de ferramentas: os controles de uma lista lado a
+ * lado, numa linha acima dela (select de representante, busca, legenda,
+ * ação principal). Só layout: quem usa decide o que vai dentro. Se não
  * couberem, os controles quebram linha (celular), nunca rolam na horizontal.
  */
 import type { ReactNode } from 'react';

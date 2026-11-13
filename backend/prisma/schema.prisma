@@ -23,7 +23,7 @@ enum TipoCampanha {
   EVENTO
 }
 
-/// Periodicidade da meta (spec 7.8): semana de segunda a domingo, mês do
+/// Periodicidade da meta: semana de segunda a domingo, mês do
 /// primeiro ao último dia, período livre ou dentro do período da campanha.
 enum PeriodoMeta {
   SEMANAL
@@ -73,11 +73,10 @@ model Client {
   email             String?
   erpId             String?               @map("erp_id")
   recorrenciaDias   Int                   @default(15) @map("recorrencia_dias")
-  /// Data prevista da próxima visita, marcada no check-in ou pela ficha
-  /// (spec 7.4, Etapa 11b). Nula: a agenda usa a última visita (ou o
-  /// cadastro) + a recorrência.
+  /// Data prevista da próxima visita, marcada no check-in ou pela ficha.
+  /// Nula: a agenda usa a última visita (ou o cadastro) + a recorrência.
   proximaVisita     DateTime?             @map("proxima_visita") @db.Date
-  /// Campanha da próxima visita (spec 7.7): gravada no check-in e apagada no
+  /// Campanha da próxima visita: gravada no check-in e apagada no
   /// check-in seguinte ou ao limpar a data pela ficha. Excluir a campanha só
   /// desvincula.
   proximaCampanhaId String?               @map("proxima_campanha_id")
@@ -127,12 +126,12 @@ model Visit {
   fotoApagadaEm DateTime?       @map("foto_apagada_em")
   criadoEm      DateTime        @default(now()) @map("criado_em")
   editadoEm     DateTime?       @map("editado_em")
-  /// Campanha da visita (spec 7.7). Excluir a campanha só desvincula.
+  /// Campanha da visita. Excluir a campanha só desvincula.
   campanhaId    String?         @map("campanha_id")
   campanha      Campaign?       @relation(fields: [campanhaId], references: [id], onDelete: SetNull)
   itens         VisitItem[]
   lembretes     Reminder[]
-  /// Nota fiscal importada vinculada a esta visita (Etapa 12). Uma nota só
+  /// Nota fiscal importada vinculada a esta visita. Uma nota só
   /// vincula a uma visita; se a nota sumir, só desvincula.
   erpSaleId     String?         @unique @map("erp_sale_id")
   erpSale       ErpSale?        @relation(fields: [erpSaleId], references: [id], onDelete: SetNull)
@@ -142,7 +141,7 @@ model Visit {
   @@map("visits")
 }
 
-/// Lembrete do cliente como tarefa própria (Etapa 9): vários por cliente, cada
+/// Lembrete do cliente como tarefa própria: vários por cliente, cada
 /// um com a sua data, aberto até o representante (ou o gestor) concluir. Criado
 /// no check-in (`visitId`) e independente da próxima visita: um check-in novo
 /// não apaga nem conclui lembretes abertos. Texto de até 200 caracteres (CHECK
@@ -221,7 +220,7 @@ model SeasonalEvent {
   @@map("seasonal_events")
 }
 
-/// Campanha, promoção ou evento comercial (spec 7.7), criado pelo gestor.
+/// Campanha, promoção ou evento comercial, criado pelo gestor.
 /// `inicio` e `fim` são dias de calendário, os dois inclusivos (o status é
 /// calculado em `campaign.regras.ts`, nunca gravado). `desconto` em % (0–100)
 /// e `produtos` com os SKUs do catálogo do ERP em destaque.
@@ -243,7 +242,7 @@ model Campaign {
   @@map("campaigns")
 }
 
-/// Meta de visitas e vendas de um representante (spec 7.8), sem campanha ou
+/// Meta de visitas e vendas de um representante, sem campanha ou
 /// de uma campanha (excluir a campanha apaga as metas dela). O realizado é
 /// calculado a cada leitura, das visitas do representante no período.
 model Goal {
@@ -264,7 +263,7 @@ model Goal {
   @@map("goals")
 }
 
-/// Situação do vínculo da nota importada com uma visita (Etapa 12).
+/// Situação do vínculo da nota importada com uma visita.
 enum VinculoNota {
   AUTOMATICO
   PENDENTE
@@ -274,7 +273,7 @@ enum VinculoNota {
   SEM_CLIENTE
 }
 
-/// Um PDF de DANFEs importado pelo gestor (Etapa 12), com os totais do resultado.
+/// Um PDF de DANFEs importado pelo gestor, com os totais do resultado.
 model ErpImport {
   id                        String    @id @default(uuid())
   userId                    String    @map("user_id")
@@ -292,7 +291,7 @@ model ErpImport {
   @@map("erp_imports")
 }
 
-/// Nota fiscal de venda lida de uma DANFE (Etapa 12); a chave de acesso evita duplicar.
+/// Nota fiscal de venda lida de uma DANFE; a chave de acesso evita duplicar.
 model ErpSale {
   id                    String        @id @default(uuid())
   chaveAcesso           String        @unique @map("chave_acesso")
@@ -328,7 +327,7 @@ model ErpSale {
   @@map("erp_sales")
 }
 
-/// Item de uma nota importada (Etapa 12).
+/// Item de uma nota importada.
 model ErpSaleItem {
   id            String  @id @default(uuid())
   saleId        String  @map("sale_id")
@@ -344,7 +343,7 @@ model ErpSaleItem {
   @@map("erp_sale_items")
 }
 
-/// Catálogo de produtos aprendido das notas importadas (Etapa 12).
+/// Catálogo de produtos aprendido das notas importadas.
 model ErpProduct {
   id            String   @id @default(uuid())
   codigo        String   @unique

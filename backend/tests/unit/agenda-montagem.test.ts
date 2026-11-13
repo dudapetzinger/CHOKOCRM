@@ -158,7 +158,7 @@ describe('montarAgenda', () => {
   });
 });
 
-describe('montarAgenda com a próxima visita marcada no check-in (spec 7.4)', () => {
+describe('montarAgenda com a próxima visita marcada no check-in', () => {
   /** 2026-09-27 é o `hoje` dos testes; `diasDepois(1)` é amanhã. */
   function diasDepois(n: number): string {
     return somarDias('2026-09-27', n);
@@ -243,7 +243,7 @@ describe('montarAgenda com a próxima visita marcada no check-in (spec 7.4)', ()
     expect(todasAsListas(agenda).map((item) => item.id)).not.toContain('oito');
   });
 
-  it('marcada para ontem e visitado hoje (Etapa 10d): cumprida, volta à recorrência, sem marcadaNoCheckIn nem campanha', () => {
+  it('marcada para ontem e visitado hoje: cumprida, volta à recorrência, sem marcadaNoCheckIn nem campanha', () => {
     const cliente = clienteFabricado({
       id: 'cumprida',
       recorrenciaDias: 15,

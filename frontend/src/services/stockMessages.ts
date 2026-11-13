@@ -1,5 +1,5 @@
 /**
- * Acesso tipado à mensagem de consulta de estoque (UC12, Etapa 6A). Espelha
+ * Acesso tipado à mensagem de consulta de estoque. Espelha
  * os DTOs de `backend/src/services/stock-message.service.ts`.
  */
 import { api } from './api';

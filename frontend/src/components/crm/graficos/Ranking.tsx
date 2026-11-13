@@ -1,5 +1,5 @@
 /**
- * "Ranking dos representantes" do Painel (Etapa 9, spec 6.6; só o gestor, com
+ * "Ranking dos representantes" do Painel (só o gestor, com
  * "Todos os representantes"): três listas numeradas, de visitas, de conversão
  * em vendas e de receita no período, lado a lado a partir de 1280 px e
  * empilhadas abaixo. Cada lista é um cartão (section com borda) com título

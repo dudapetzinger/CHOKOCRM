@@ -52,7 +52,7 @@ const NOMES_DAS_ANCORAS = [
 ] as const;
 /** Contas de demonstração que voltam à senha de demonstração no reset (a conta Gestão não: é uma conta real). */
 const EMAILS_DEMONSTRACAO = ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br'];
-/** Conta pessoal do gestor das versões anteriores do seed: o seed a inativa quando existe. */
+/** Conta pessoal do gestor, que o seed não cria: quando ela existe no banco, o seed a inativa. */
 const EMAIL_GESTOR_ANTIGO = 'gestor@chokolaten.com.br';
 
 const horaEmSaoPaulo = new Intl.DateTimeFormat('en-GB', {
@@ -273,7 +273,7 @@ describe('seed de demonstração', () => {
     expect(lembretes.every((lembrete) => lembrete.criadoPorId === lembrete.client.representanteId)).toBe(true);
     expect(lembretes.every((lembrete) => lembrete.texto.length > 0 && lembrete.texto.length <= 200)).toBe(true);
 
-    // O lembrete saiu do cliente: a coluna não existe mais
+    // O lembrete é tabela própria: `clients` não tem a coluna `lembrete`
     const colunas = await prisma.$queryRaw<{ column_name: string }[]>`
       SELECT column_name FROM information_schema.columns WHERE table_name = 'clients'`;
     expect(colunas.map((coluna) => coluna.column_name)).not.toContain('lembrete');
@@ -378,7 +378,7 @@ describe('seed de demonstração', () => {
     expect((await prisma.user.findUniqueOrThrow({ where: { id: joana.id } })).senhaHash).toBe(joana.senhaHash);
   });
 
-  it('cria a conta compartilhada Gestão Chokolaten (GESTOR, ativa) e não cria a conta antiga do gestor', async () => {
+  it('cria a conta compartilhada Gestão Chokolaten (GESTOR, ativa) e não cria a conta pessoal do gestor', async () => {
     await reiniciarDemonstracao(prisma, HOJE);
 
     expect(EMAIL_GESTAO).toBe('gestao@chokolaten.com.br');
@@ -396,7 +396,7 @@ describe('seed de demonstração', () => {
     expect(await prisma.user.count({ where: { email: EMAIL_GESTOR_ANTIGO } })).toBe(0);
   });
 
-  it('inativa a conta antiga do gestor quando ela existe, sem apagá-la', async () => {
+  it('inativa a conta pessoal do gestor quando ela existe, sem apagá-la', async () => {
     await prisma.user.create({
       data: {
         nome: 'Gestor de demonstração',
@@ -412,7 +412,7 @@ describe('seed de demonstração', () => {
       where: { email: EMAIL_GESTOR_ANTIGO },
     });
     expect(antiga.ativo).toBe(false);
-    // Eduarda, Rafael, Gestão e a conta antiga (inativa): o seed não apaga usuários
+    // Eduarda, Rafael, Gestão e a conta pessoal do gestor (inativa): o seed não apaga usuários
     expect(await prisma.user.count()).toBe(4);
     const login = await request(app)
       .post('/auth/login')
@@ -509,7 +509,7 @@ describe('cadastro realista', () => {
     expect(daEduarda.every((cliente) => CIDADES_EDUARDA.includes(cliente.cidade))).toBe(true);
     expect(doRafael.every((cliente) => CIDADES_RAFAEL.includes(cliente.cidade))).toBe(true);
 
-    // Os 26 âncoras: os mesmos nomes e o mesmo cadastro de antes
+    // Os 26 âncoras: nomes fixos e o cadastro gravado igual ao de `CLIENTES_ANCORA`
     expect(CLIENTES_ANCORA.map((cliente) => cliente.nomeFantasia).sort()).toEqual([...NOMES_DAS_ANCORAS].sort());
     for (const ancora of CLIENTES_ANCORA) {
       const salvo = clientes.find((cliente) => cliente.cnpj === ancora.cnpj);
@@ -591,7 +591,6 @@ describe('cadastro realista', () => {
     expect(meses('Empório do Vale Brusque')).toBe(0);
     expect(meses('Mercearia Alto Vale')).toBe(0);
     expect(meses('Panificadora Vila Lenzi')).toBe(0);
-    // Os dois âncoras que ficavam sem ERP até 12/11/2026: compram em dia
     expect(meses('Padaria Vale Europeu')).toBe(0);
     expect(meses('Confeitaria Rota das Cachoeiras')).toBe(0);
 

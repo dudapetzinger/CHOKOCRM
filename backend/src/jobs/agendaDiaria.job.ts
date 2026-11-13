@@ -10,8 +10,8 @@ import { agora } from '../lib/relogio';
 export const NOME_JOB = 'agenda-diaria';
 
 /**
- * Job diário (UC10): calcula a agenda de cada representante e registra um
- * log estruturado por representante — não persiste nada, apenas alerta via
+ * Job diário: calcula a agenda de cada representante e registra um
+ * log estruturado por representante. Não persiste nada, apenas alerta via
  * log (o consumo/alerta em si fica a cargo de quem lê os logs). O alerta é
  * do que já venceu ou vence hoje: os próximos 7 dias da agenda ficam fora do
  * log. Falha ao calcular a agenda de um representante não interrompe os
@@ -57,7 +57,7 @@ export async function executarAgendaDiaria(hoje: Date = agora()): Promise<void> 
  * Wrapper usado pelo agendamento (`cron.schedule`): `executarAgendaDiaria`
  * mantém o contrato honesto de rejeitar quando nem consegue listar os
  * representantes (ex.: falha transitória do banco), mas o callback do
- * cron descarta a promise (`void`) sem anexar `.catch` — uma rejeição ali
+ * cron descarta a promise (`void`) sem anexar `.catch`: uma rejeição ali
  * vira unhandled rejection e, sob os defaults do Node, derruba o processo
  * inteiro da API (job roda no mesmo processo do Express). Este wrapper
  * consome a rejeição e só loga, garantindo que a promise retornada nunca
@@ -81,7 +81,7 @@ export function iniciarAgendaDiaria(): void {
   }
 
   // AGENDA_JOB_CRON já é validado em `config/env.ts` (falha no parse do
-  // ambiente, antes do `app.listen` — ver M8 da revisão final).
+  // ambiente, antes do `app.listen`).
   cron.schedule(env.AGENDA_JOB_CRON, () => void executarAgendaDiariaComSeguranca(), {
     timezone: FUSO_HORARIO,
   });

@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils';
 
 /**
  * Botão do shadcn (copiado do protótipo). Medidas do desktop como no
- * protótipo; abaixo de 768 px todo tamanho tem 44 px de alvo de toque
- * (spec 6.4). Os botões cheios escurecem no hover (`--primary-hover`,
+ * protótipo; abaixo de 768 px todo tamanho tem 44 px de alvo de toque.
+ * Os botões cheios escurecem no hover (`--primary-hover`,
  * `--destructive-hover`), para o texto branco manter 4,5:1 ou mais.
  */
 const buttonVariants = cva(

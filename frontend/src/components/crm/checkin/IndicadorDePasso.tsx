@@ -1,5 +1,5 @@
 /**
- * Topo do cartão do check-in em passos (Etapa 10b): "Passo N de 4", os
+ * Topo do cartão do check-in em passos: "Passo N de 4", os
  * quatro pontos de progresso (decorativos: o texto já diz onde se está) e o
  * título do passo num `h2` focável por script (`tabIndex={-1}`), que a
  * página foca ao trocar de passo para o leitor de tela anunciar o passo novo.

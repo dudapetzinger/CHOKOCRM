@@ -2,7 +2,7 @@ import type { Prisma, SeasonalEvent } from '@prisma/client';
 import * as seasonalEventRepository from '../repositories/seasonal-event.repository';
 import { dataCalendario } from './classificacao.service';
 
-/** Projeção do evento sazonal vigente, usada pela mensagem de estoque (UC12) e pelos insights. */
+/** Projeção do evento sazonal vigente, usada pela mensagem de estoque e pelos insights. */
 export type EventoVigente = {
   id: string;
   nome: string;

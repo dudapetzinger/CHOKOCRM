@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { recorrenciaDiasSchema } from './client.schema';
 
 /**
- * Validação da alteração de recorrência de visitas (UC09). A única forma
+ * Validação da alteração de recorrência de visitas. A única forma
  * de mudar `Client.recorrenciaDias` passa por aqui: exige justificativa
  * (auditada em `VisitScheduleChange`, ver recurrence.service.ts).
  */

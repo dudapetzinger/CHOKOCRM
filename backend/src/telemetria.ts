@@ -7,7 +7,7 @@ import * as appInsights from 'applicationinsights';
  * chamada antes de qualquer outro módulo e testada sem tocar `process.env`.
  *
  * Devolve `true` se a telemetria foi iniciada; string vazia = desligada (`false`),
- * sem tocar no SDK — é o caso de desenvolvimento, testes e CI.
+ * sem tocar no SDK (é o caso de desenvolvimento, testes e CI).
  */
 export function iniciarTelemetria(connectionString: string): boolean {
   if (!connectionString) return false;

@@ -1,11 +1,11 @@
 /**
- * Card de recorrência de visitas na ficha do cliente (UC09, Etapa 4).
+ * Card de recorrência de visitas na ficha do cliente.
  *
  * Separado do formulário genérico de edição do cliente porque alterar a
  * recorrência exige justificativa e fica registrado no histórico (só a
- * representante pode alterar — o gestor vê o valor e o histórico, mas não
+ * representante pode alterar; o gestor vê o valor e o histórico, mas não
  * o botão "Alterar", ver `podeAlterar` em `ClienteDetalhePage`). Visual do
- * protótipo (Etapa 8): "Alterar" na ação do cartão.
+ * protótipo: "Alterar" na ação do cartão.
  */
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';

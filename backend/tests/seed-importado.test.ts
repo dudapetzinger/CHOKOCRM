@@ -10,8 +10,8 @@ import { EMAIL_GESTAO, reiniciarDemonstracao, SENHA_DEMONSTRACAO, semear } from 
 import { truncateAllTables } from './helpers/db';
 
 /**
- * O seed de demonstração roda também com `ERP_PROVIDER=importado` (produção,
- * Etapa 12b), sem nenhum produto importado (`ErpProduct` vazio): os pedidos
+ * O seed de demonstração roda também com `ERP_PROVIDER=importado`, sem
+ * nenhum produto importado (`ErpProduct` vazio): os pedidos
  * saem do catálogo de demonstração direto, e o mesmo catálogo vai para
  * `ErpProduct`, para o check-in e as campanhas da demonstração o acharem. Os
  * totais e o resto do seed estão em `seed.test.ts` (provedor mock). O reset

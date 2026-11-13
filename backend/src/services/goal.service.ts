@@ -13,7 +13,7 @@ import { resolverPeriodo } from './periodo';
 import { agora } from '../lib/relogio';
 
 /**
- * Metas de visitas e vendas (spec 7.8). O gestor cria, altera e exclui
+ * Metas de visitas e vendas. O gestor cria, altera e exclui
  * (barrado nas rotas); o representante lê só as próprias. O realizado é
  * calculado a cada leitura, das visitas do representante no período.
  */
@@ -85,7 +85,7 @@ async function montarDTO(meta: MetaComRepresentante): Promise<MetaDTO> {
 
 /**
  * Confere o que depende do banco e devolve a meta como colunas. O
- * representante existe, é REPRESENTANTE e está ativo — manter o
+ * representante existe, é REPRESENTANTE e está ativo; manter o
  * representante de uma meta existente que foi inativado não é trocar para
  * um inativo, e passa. Semanal e mensal: o período sai da data de início.
  * Por campanha: a campanha existe e a meta cabe no período dela.

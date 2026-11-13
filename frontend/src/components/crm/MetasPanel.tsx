@@ -1,26 +1,26 @@
 /**
- * Metas de visitas e vendas (spec 7.8; `MetasPanel` de `crm/metas.tsx` do
+ * Metas de visitas e vendas (`MetasPanel` de `crm/metas.tsx` do
  * protótipo). Sem `campanha`, é o bloco "Metas de visitas e vendas" do
- * Painel (cartão próprio, título de nível 2), com as metas sem campanha —
- * para o gestor, filtradas pelo `representanteId` escolhido. Com `campanha`,
+ * Painel (cartão próprio, título de nível 2), com as metas sem campanha
+ * (para o gestor, filtradas pelo `representanteId` escolhido). Com `campanha`,
  * é a área "Metas da campanha" dentro do cartão da campanha (título de nível
  * 3), com as metas daquela campanha. O representante recebe do backend só
  * as próprias e não vê criar, editar nem excluir (o backend também barra).
- * No Painel, o `periodo` escolhido limita a lista às metas que cruzam a janela
- * (Etapa 9); sem `periodo`, todas. No Painel do representante (Etapa 9, spec
- * 6.3), o bloco tem a largura das metas a partir de 768 px: colunas de 20 rem,
+ * No Painel, o `periodo` escolhido limita a lista às metas que cruzam a janela;
+ * sem `periodo`, todas. No Painel do representante,
+ * o bloco tem a largura das metas a partir de 768 px: colunas de 20 rem,
  * no máximo duas (~22 rem com uma meta, ~43 rem com duas ou mais); para o
  * gestor e na campanha, a largura toda.
  *
  * Cada meta é um cartão (uma coluna no celular, duas a partir de 768 px)
  * com o representante, a periodicidade, o período e as barras de visitas e
  * de vendas, com o realizado calculado no backend; cada barra abre o balão
- * (Etapa 9) com os clientes do realizado — as visitas de cada um e, nas
+ * com os clientes do realizado: as visitas de cada um e, nas
  * vendas, só os que compraram, com o valor. O formulário abre num
  * cartão acima da lista, para criar e para editar: representante (os
- * ativos; na meta nova, já vem o escolhido no Painel e, sem ele — gestor em
- * "Todos" e sempre na campanha —, começa em "Escolha um representante", que
- * a validação exige trocar, spec 10.4), periodicidade (semanal, mensal ou período personalizado; não
+ * ativos; na meta nova, já vem o escolhido no Painel e, sem ele, com o gestor em
+ * "Todos" e sempre na campanha, começa em "Escolha um representante", que
+ * a validação exige trocar), periodicidade (semanal, mensal ou período personalizado; não
  * aparece na meta de campanha), início, fim (travado e calculado na semanal
  * e na mensal), meta de visitas e meta de vendas. As regras do backend são
  * conferidas antes de enviar, com as mesmas mensagens, junto do campo. O

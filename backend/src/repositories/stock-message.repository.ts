@@ -22,7 +22,7 @@ export async function create(data: CreateStockMessageData): Promise<StockMessage
 }
 
 /**
- * Histórico de mensagens geradas (UC12): mais recente primeiro, opcionalmente
+ * Histórico de mensagens geradas: mais recente primeiro, opcionalmente
  * filtrado por cliente e/ou pela carteira (`Client.representanteId`) do
  * cliente.
  */
@@ -41,8 +41,8 @@ export async function list(filtro: {
 }
 
 /**
- * Mensagens geradas no período, só com o cliente (indicadores do painel,
- * UC14); `dataGeracao` entre `inicio` e `fim`, inclusive. Com
+ * Mensagens geradas no período, só com o cliente (indicadores do
+ * painel); `dataGeracao` entre `inicio` e `fim`, inclusive. Com
  * `representanteId`, só mensagens a clientes da carteira dele.
  */
 export async function listNoPeriodo(

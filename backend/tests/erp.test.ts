@@ -170,7 +170,7 @@ describe('GET /clients/:id/erp', () => {
     expect(['BAIXO', 'NORMAL', 'ALTO']).toContain(res.body.estoque.nivel);
     expect(new Date(res.body.estoque.atualizadoEm).toString()).not.toBe('Invalid Date');
     expect(Array.isArray(res.body.estoque.itensBaixos)).toBe(true);
-    // Etapa 12b: no mock o estoque existe e as últimas vendas não são listadas.
+    // No mock o estoque existe e as últimas vendas não são listadas.
     expect(res.body.estoqueIndisponivel).toBe(false);
     expect(res.body.ultimasVendas).toEqual([]);
   });
@@ -201,12 +201,12 @@ describe('GET /clients/:id/erp', () => {
     expect(res.body).toEqual({ status: 'INDISPONIVEL' });
   });
 
-  it('a janela de volume90Dias usa dias de calendário, não uma janela corrida de 90×24h (I2)', async () => {
+  it('a janela de volume90Dias usa dias de calendário, não uma janela corrida de 90×24h', async () => {
     // 04h UTC = 01h em America/Sao_Paulo (-03:00): ainda madrugada de
     // 29/09, bem antes das 09h locais em que o mock carimba as vendas
-    // (T12:00Z). Antes da correção, `inicio`/`fim` eram `hoje ± 90×24h` em
-    // instante, não em dia de calendário, então a venda de hoje (e o
-    // início da janela) ficavam de fora até passar das 09h locais.
+    // (T12:00Z). Com `inicio`/`fim` como `hoje ± 90×24h` em instante, e
+    // não em dia de calendário, a venda de hoje (e o início da janela)
+    // ficaria de fora até passar das 09h locais.
     const hoje = new Date('2026-09-29T04:00:00Z');
     const hojeCal = dataCalendario(hoje);
     const espiaoVolume = jest.spyOn(erpProvider, 'getPurchaseVolume');
@@ -259,34 +259,6 @@ describe('GET /erp/produtos', () => {
   });
 });
 
-describe('GET /erp/situacao', () => {
-  it('sem token responde 401', async () => {
-    const res = await request(app).get('/erp/situacao');
-
-    expect(res.status).toBe(401);
-    expect(res.body.error.code).toBe('UNAUTHORIZED');
-  });
-
-  it('no mock: simulado, com estoque e sem data de venda importada, para representante e gestor', async () => {
-    const [doRepresentante, doGestor] = await Promise.all([
-      request(app).get('/erp/situacao').set('Authorization', `Bearer ${token}`),
-      request(app).get('/erp/situacao').set('Authorization', `Bearer ${tokenGestor}`),
-    ]);
-
-    const esperado = {
-      provedor: 'mock',
-      simulado: true,
-      estoqueDisponivel: true,
-      ultimaVendaEm: null,
-      ultimaImportacaoEm: null,
-    };
-    expect(doRepresentante.status).toBe(200);
-    expect(doRepresentante.body).toEqual(esperado);
-    expect(doGestor.status).toBe(200);
-    expect(doGestor.body).toEqual(esperado);
-  });
-});
-
 describe('erp.service.buscarProduto', () => {
   it('acha o produto do catálogo pelo SKU, com o preço do dia', async () => {
     await expect(erpService.buscarProduto('PAO-MEL')).resolves.toEqual({
@@ -302,7 +274,7 @@ describe('erp.service.buscarProduto', () => {
   });
 });
 
-describe('erp.service — chave do cliente no mock', () => {
+describe('erp.service: chave do cliente no mock', () => {
   it('é o erpId (null sem ele), e o estoque está disponível', () => {
     expect(erpService.chaveDoCliente({ erpId: 'ERP-1001', cnpj: '11222333000181' })).toBe('ERP-1001');
     expect(erpService.chaveDoCliente({ erpId: null, cnpj: '11222333000181' })).toBeNull();
@@ -310,7 +282,7 @@ describe('erp.service — chave do cliente no mock', () => {
   });
 });
 
-describe('erp.service — consultas para insights', () => {
+describe('erp.service: consultas para insights', () => {
   /** Itens com `quantidade < 10` do snapshot de data mais recente, derivados direto do histórico do provider. */
   function itensBaixosDaDataMaisRecente(historico: StockSnapshot[]): ItemBaixo[] {
     const maisRecente = Math.max(...historico.map((item) => item.data.getTime()));

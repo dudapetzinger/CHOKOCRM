@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 /*
  * Menu suspenso do shadcn (copiado do protótipo). Itens com 44 px de alvo de
- * toque abaixo de 768 px (spec 6.4).
+ * toque abaixo de 768 px.
  */
 
 const DropdownMenu = DropdownMenuPrimitive.Root;

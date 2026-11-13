@@ -29,12 +29,15 @@ import { clientVisitsRouter, visitRouter } from './routes/visit.routes';
 
 export const app: Express = express();
 
+// Não anuncia a tecnologia do servidor no cabeçalho das respostas.
+app.disable('x-powered-by');
+
 // Habilita o frontend (origem separada em dev, ver frontend/.env.example;
 // em produção a mesma origem da API, ver WEB_DIR abaixo) a consumir a API.
 // Autenticação usa Bearer token (sem cookies), então
 // `credentials` não precisa ser habilitado. Usa uma função (em vez de uma
 // string estática) para que apenas requisições com Origin === FRONTEND_URL
-// recebam Access-Control-Allow-Origin — origens diferentes seguem sem o
+// recebam Access-Control-Allow-Origin: origens diferentes seguem sem o
 // header, e o navegador bloqueia a leitura da resposta.
 app.use(
   cors({
@@ -78,11 +81,11 @@ app.use(
   visitRouter,
 );
 
-// Frontend (build do Vite) servido pela própria API em produção — um host só
-// no App Service (ADR-007). Fica depois dos routers: a API sempre tem
+// Frontend (build do Vite) servido pela própria API em produção (um host só
+// no App Service). Fica depois dos routers: a API sempre tem
 // prioridade. Arquivos de `assets/` têm hash no nome e podem ficar em cache
 // para sempre; o `index.html` é revalidado a cada navegação. Os arquivos do
-// PWA na raiz (service worker, registro, Workbox e manifest — ADR-012) têm
+// PWA na raiz (service worker, registro, Workbox e manifest) têm
 // nome fixo e também são revalidados sempre, senão uma versão nova do app
 // demoraria a chegar a quem já instalou.
 const ARQUIVOS_PWA = /^(sw\.js|registerSW\.js|manifest\.webmanifest|workbox-[\w-]+\.js)$/;

@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // Fonte servida pelo próprio app (sem CDN, o PWA abre sem rede): Plus
-// Jakarta Sans, a do protótipo (Etapa 8), nos pesos que as telas usam
+// Jakarta Sans, a do protótipo, nos pesos que as telas usam
 import '@fontsource/plus-jakarta-sans/400.css';
 import '@fontsource/plus-jakarta-sans/500.css';
 import '@fontsource/plus-jakarta-sans/600.css';

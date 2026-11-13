@@ -1,5 +1,5 @@
 /**
- * Acesso tipado à API de visitas do ChokoCRM (UC07/UC08).
+ * Acesso tipado à API de visitas do ChokoCRM.
  *
  * Espelha o `VisitaDTO` de `backend/src/services/visit.service.ts`. A foto
  * vai numa chamada separada do check-in, de propósito: a visita fica
@@ -40,9 +40,9 @@ export type Visita = {
   itens: ItemPedidoVisita[];
   /** Calculado no backend, em reais. */
   totalPedido: number;
-  /** Campanha da visita (spec 7.7); `null` sem campanha ou depois de a campanha ser excluída. */
+  /** Campanha da visita; `null` sem campanha ou depois de a campanha ser excluída. */
   campanha: { id: string; nome: string } | null;
-  /** Nota fiscal importada vinculada à visita (Etapa 12); `null` sem vínculo. */
+  /** Nota fiscal importada vinculada à visita; `null` sem vínculo. */
   notaFiscal: { numero: string; valorTotal: number } | null;
 };
 
@@ -69,7 +69,7 @@ export type CheckInInput = {
    * não cria lembrete; os já abertos ficam como estão.
    */
   lembrete?: { texto: string; data: string };
-  /** Campanha da visita, não encerrada (spec 7.7). */
+  /** Campanha da visita, não encerrada. */
   campanhaId?: string;
   /** Campanha da próxima visita: só vale com data; ausente apaga a anterior, como o lembrete. */
   proximaCampanhaId?: string;

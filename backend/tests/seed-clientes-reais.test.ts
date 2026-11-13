@@ -17,8 +17,8 @@ import { truncateAllTables } from './helpers/db';
 
 /**
  * Clientes reais no reset: `reiniciarDemonstracao` apaga e recria só os
- * clientes da demonstração (CNPJ em `CLIENTES`); o cliente real — cadastrado à
- * mão ou criado pela nota fiscal — sobrevive com contatos, visitas (itens),
+ * clientes da demonstração (CNPJ em `CLIENTES`); o cliente real (cadastrado à
+ * mão ou criado pela nota fiscal) sobrevive com contatos, visitas (itens),
  * lembretes, mensagens de estoque, mudanças de recorrência e notas vinculadas.
  * Metas e campanhas continuam apagadas para todos: a visita do cliente real
  * que era de uma campanha da demonstração fica sem campanha.

@@ -1,5 +1,5 @@
 /**
- * Estado de servidor do calendário da Agenda (spec 7.6), por mês e pelo
+ * Estado de servidor do calendário da Agenda, por mês e pelo
  * representante escolhido pelo gestor (`'todos'` sem filtro), como
  * `useAgenda`. A chave começa por `'agenda'`: quem invalida a agenda (check-in,
  * troca de recorrência) também renova o calendário.

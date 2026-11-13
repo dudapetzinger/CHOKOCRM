@@ -1,5 +1,5 @@
 /**
- * Senha da própria conta (Etapa 8, spec 7.13): trocar estando logado. Senha
+ * Senha da própria conta: trocar estando logado. Senha
  * esquecida volta pela senha provisória que o gestor define em Usuários.
  */
 import { api } from './api';

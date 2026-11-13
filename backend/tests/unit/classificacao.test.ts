@@ -205,7 +205,7 @@ describe('calcularProximaVisita', () => {
   });
 });
 
-describe('proximaVisitaVigente (Etapa 10d: marcada cumprida pelo check-in)', () => {
+describe('proximaVisitaVigente (marcada cumprida pelo check-in)', () => {
   const ultimaEm = (dia: string, hora = '12:00:00'): { dataHora: Date; resultado: 'VENDA' } => ({
     dataHora: new Date(`${dia}T${hora}Z`),
     resultado: 'VENDA',

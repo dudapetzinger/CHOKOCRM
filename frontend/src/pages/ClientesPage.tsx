@@ -34,13 +34,13 @@ function contarPorAba(clientes: readonly ClienteListItem[]): Record<Aba, number>
 
 /**
  * Lista de clientes (visual do protótipo, `routes/index.tsx` e
- * `crm/lista.tsx`, Etapa 8). A partir de 1024 px (spec 7.1) a mesma tela
+ * `crm/lista.tsx`). A partir de 1024 px a mesma tela
  * atende `/clientes` e `/clientes/:id`: a lista (até 440 px) à esquerda, com
  * o cliente aberto destacado, e a ficha dele à direita (ou o convite para
  * escolher um). Abaixo de 1024, `/clientes/:id` abre só a ficha (ver
  * `ClientesOuFicha` em App.tsx). "Novo cliente" do representante fica na
  * barra de ferramentas a partir de 768 px e, no celular, no botão flutuante.
- * O select "Cidade" (Etapa 11) filtra a lista e as contagens das abas pelas
+ * O select "Cidade" filtra a lista e as contagens das abas pelas
  * cidades da carteira do representante (a carteira toda, sem a busca); se a
  * cidade escolhida deixar de existir na carteira, volta a "Todas as cidades".
  */
@@ -129,7 +129,7 @@ export function ClientesPage() {
       : 'Nenhum cliente cadastrado ainda.';
   }
 
-  // Barra de ferramentas no topo da coluna da lista (spec 7.1): select do
+  // Barra de ferramentas no topo da coluna da lista: select do
   // gestor, busca, legenda e, a partir de 768 px, "Novo cliente" do
   // representante. No celular o select ocupa a primeira linha e a busca e a
   // legenda a segunda; "Novo cliente" é o botão flutuante, no fim da página.
@@ -185,7 +185,7 @@ export function ClientesPage() {
       {isLoading && <p className="text-sm text-muted-foreground">Carregando clientes...</p>}
 
       {/* Com a lista já carregada, o erro de um refetch (rede caída) vira só um
-          aviso acima dela: o que está no cache continua visível (spec 5.7). */}
+          aviso acima dela: o que está no cache continua visível. */}
       {isError && (
         <Aviso tom="erro" role="alert">
           {mensagemErroApi(error, 'Não foi possível carregar os clientes.')}
@@ -215,7 +215,7 @@ export function ClientesPage() {
     // No celular, espaço embaixo para o botão flutuante não cobrir a última linha
     <div className={cn(botaoFlutuante && 'pb-16')}>
       {duasColunas ? (
-        // Lista de até 440 px (spec 7.1); entre 1024 e ~1150 px ela cede espaço
+        // Lista de até 440 px; entre 1024 e ~1150 px ela cede espaço
         // para a ficha nunca ficar mais estreita que um celular (380 px).
         <div className="grid grid-cols-[minmax(320px,440px)_minmax(380px,1fr)] items-start gap-4">
           {/* A lista rola na própria coluna, presa abaixo da barra superior

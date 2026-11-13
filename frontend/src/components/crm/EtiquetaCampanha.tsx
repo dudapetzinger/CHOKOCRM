@@ -1,5 +1,5 @@
 /**
- * Etiqueta da campanha vinculada (spec 7.2, 7.4 e 7.7): no histórico de
+ * Etiqueta da campanha vinculada: no histórico de
  * visitas, no aviso da próxima visita e na linha da agenda. Azul das
  * campanhas, com o texto em `--chart-text` (5,7:1 sobre o cartão, 4,9:1
  * sobre o laranja suave do aviso). O ícone é decorativo; o leitor de tela

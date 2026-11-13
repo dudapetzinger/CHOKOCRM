@@ -4,10 +4,10 @@ import { dataCalendario, type DataCalendario } from './classificacao.service';
 import { proporcao, type Proporcao } from './kpis.regras';
 
 /**
- * Regras puras das campanhas, promoções e eventos (spec 7.7): status pelo
+ * Regras puras das campanhas, promoções e eventos: status pelo
  * dia de calendário, resultados vinculados por representante (visitas,
  * clientes atendidos, vendas e conversão), produtos mais vendidos e a lista
- * de vendas (uma por visita com VENDA). Sem banco nem relógio — quem chama
+ * de vendas (uma por visita com VENDA). Sem banco nem relógio: quem chama
  * passa o "hoje" (de São Paulo) e as visitas já lidas.
  */
 
@@ -59,8 +59,8 @@ type LinhaEmMontagem = {
 };
 
 /**
- * Resultados vinculados a uma campanha, por autor da visita (spec 7.7 e
- * 7.8): `visitas` conta todas as visitas vinculadas; `clientesAtendidos`, os
+ * Resultados vinculados a uma campanha, por autor da visita:
+ * `visitas` conta todas as visitas vinculadas; `clientesAtendidos`, os
  * clientes distintos delas; `vendas` soma o pedido (quantidade × preço
  * gravado) só das visitas com VENDA; `conversao` é visitas com VENDA ÷
  * visitas. `base` são as pessoas que aparecem mesmo sem visita (com zero);

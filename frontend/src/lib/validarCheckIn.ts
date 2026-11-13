@@ -1,9 +1,9 @@
 /**
- * Validação do check-in em quatro passos (Etapa 10b, spec 5): cada passo
- * confere só os seus campos, com as mesmas regras e mensagens de antes do
- * passo a passo (e as do `visit.schema.ts` do backend onde ele confere o
- * mesmo). O "Continuar" valida o passo em que está; o "Salvar", o passo 4 —
- * os anteriores já passaram pelo "Continuar" e não mudam fora da tela deles.
+ * Validação do check-in em quatro passos: cada passo confere só os seus
+ * campos, com as mesmas regras e mensagens do `visit.schema.ts` do backend
+ * onde ele confere o mesmo. O "Continuar" valida o passo em que está; o
+ * "Salvar", só o passo 4, porque os anteriores já passaram pelo "Continuar"
+ * e não mudam fora da tela deles.
  *
  * `errosDaApi` traduz os `details` do 400 do backend (zod: `{ path, message }`
  * por problema, ver `errorHandler.ts`) para os campos da tela; com
@@ -24,7 +24,7 @@ export type Erros = Partial<Record<'dataHora' | 'contato' | 'descricao' | 'foto'
 /**
  * O que a validação precisa do formulário. Datas como nos campos:
  * `dataHora` e `agora` em `AAAA-MM-DDTHH:mm` (fuso do dispositivo),
- * `proximaVisita`, `lembreteData` e `hoje` em `AAAA-MM-DD` — a comparação
+ * `proximaVisita`, `lembreteData` e `hoje` em `AAAA-MM-DD`: a comparação
  * de texto basta.
  */
 export type DadosDoCheckIn = {
@@ -32,7 +32,7 @@ export type DadosDoCheckIn = {
   agora: string;
   novoContatoAberto: boolean;
   descricao: string;
-  /** Há foto escolhida (Etapa 11: a foto é obrigatória, ela registra que a pessoa esteve no cliente). */
+  /** Há foto escolhida (a foto é obrigatória: ela registra que a pessoa esteve no cliente). */
   temFoto: boolean;
   proximaVisita: string;
   marcarProximaVisita: boolean;

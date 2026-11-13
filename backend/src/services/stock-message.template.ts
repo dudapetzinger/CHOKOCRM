@@ -1,5 +1,5 @@
 /**
- * Template puro da mensagem de consulta de estoque (UC12) e do link do
+ * Template puro da mensagem de consulta de estoque e do link do
  * WhatsApp gerado a partir dela. Sem I/O: apenas montagem de texto.
  */
 export type DadosDoTemplate = {
@@ -14,7 +14,7 @@ const REGEX_ANO_FINAL = / \d{4}$/;
 
 /**
  * Nome do evento no template (sem o ano): o banco grava "Páscoa 2026", o
- * template recebe "Páscoa". Usado pela geração real (UC12) e pelo seed.
+ * template recebe "Páscoa". Usado pela geração real e pelo seed.
  */
 export function nomeDoEventoNoTemplate(nome: string): string {
   return nome.replace(REGEX_ANO_FINAL, '');
@@ -22,7 +22,7 @@ export function nomeDoEventoNoTemplate(nome: string): string {
 
 /**
  * Junta os produtos com vírgula e "e" antes do último item (sem depender de
- * locale). Lista vazia retorna `''` — quem chama deve tratar esse caso (ver
+ * locale). Lista vazia retorna `''`: quem chama deve tratar esse caso (ver
  * `montarMensagemDeEstoque`), nunca exibir a lista vazia ao cliente.
  */
 export function listarProdutos(produtos: string[]): string {
@@ -46,7 +46,7 @@ export function listarProdutos(produtos: string[]): string {
 /**
  * Monta o texto sugerido da mensagem de estoque, com ou sem evento sazonal
  * vigente. Um evento sem produtos sugeridos (`produtosSugeridos: []`) é
- * tratado como se não houvesse evento — o cliente nunca deve receber
+ * tratado como se não houvesse evento: o cliente nunca deve receber
  * "estoque de  na loja" com a lista de produtos vazia.
  */
 export function montarMensagemDeEstoque(dados: DadosDoTemplate): string {

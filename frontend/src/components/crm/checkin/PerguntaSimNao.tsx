@@ -1,5 +1,5 @@
 /**
- * Pergunta de sim ou não do passo "Próximos passos" do check-in (Etapa 10b):
+ * Pergunta de sim ou não do passo "Próximos passos" do check-in:
  * um `fieldset` com a pergunta na legenda e o `Segmentado` "Não | Sim" na
  * largura toda no celular. Com "Sim", os campos (`children`) aparecem logo
  * abaixo, dentro do mesmo grupo.

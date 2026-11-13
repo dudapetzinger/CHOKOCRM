@@ -1,6 +1,6 @@
 /**
- * Estado de servidor dos lembretes (Etapa 9), como manda a arquitetura do
- * projeto: as páginas não chamam a API diretamente (ver
+ * Estado de servidor dos lembretes, como manda a arquitetura do projeto: as
+ * páginas não chamam a API diretamente (ver
  * docs/arquitetura.md). A ficha lê os abertos do cliente; a agenda do dia os
  * recebe em `['agenda']`. Concluir invalida as duas chaves, para o lembrete
  * sumir de onde estiver, e avisa num toast.

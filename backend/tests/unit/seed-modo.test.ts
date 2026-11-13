@@ -44,10 +44,10 @@ describe('modoDoSeed', () => {
     expect(modoDoSeed(['--confirmar', '--reset'], 'production', LOCAL)).toBe('reiniciar');
   });
 
-  it('o aviso diz o que é apagado, que só as contas ficam e como confirmar', () => {
+  it('o aviso diz o que é apagado, o que fica e como confirmar', () => {
     expect(AVISO_RESET_SEM_CONFIRMACAO).toContain('produção ou o banco é remoto');
-    expect(AVISO_RESET_SEM_CONFIRMACAO).toContain('representantes de verdade');
-    expect(AVISO_RESET_SEM_CONFIRMACAO).toContain('só as contas ficam');
+    expect(AVISO_RESET_SEM_CONFIRMACAO).toContain('clientes da demonstração');
+    expect(AVISO_RESET_SEM_CONFIRMACAO).toContain('Os clientes reais e as contas ficam.');
     expect(AVISO_RESET_SEM_CONFIRMACAO).toContain('npm run db:seed:reset -- --confirmar');
   });
 });

@@ -152,7 +152,7 @@ describe('frontend servido pela API (WEB_DIR)', () => {
 });
 
 describe('WEB_DIR sob um diretório iniciado por ponto', () => {
-  // Ex.: `.claude/worktrees/...` ou `~/.cache/...`: os segmentos do próprio
+  // Ex.: `~/.cache/...`: os segmentos do próprio
   // WEB_DIR não podem contar como dotfiles para o fallback.
   it('GET / e a navegação para uma rota da SPA respondem o index.html', async () => {
     const appOculto = await carregarApp(criarBuild(path.join(baseTmp, '.oculto', 'web')));

@@ -4,7 +4,7 @@ import { authJwt } from '../middlewares/authJwt';
 import { requireRole } from '../middlewares/requireRole';
 
 /**
- * Metas de visitas e vendas, montado em `/goals` (spec 7.8). Qualquer
+ * Metas de visitas e vendas, montado em `/goals`. Qualquer
  * usuário autenticado lê (o representante, só as próprias); criar, alterar
  * e excluir é só do gestor (403 para o representante).
  */

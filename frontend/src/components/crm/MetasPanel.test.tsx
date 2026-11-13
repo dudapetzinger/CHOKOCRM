@@ -111,7 +111,7 @@ async function cartaoDe(nome: string) {
     .find((item) => within(item).queryByText(nome)) as HTMLElement;
 }
 
-describe('MetasPanel — lista', () => {
+describe('MetasPanel: lista', () => {
   it('gestor: título, um cartão por meta com representante, periodicidade, período e as duas barras', async () => {
     renderizar();
 
@@ -227,7 +227,7 @@ describe('MetasPanel — lista', () => {
   });
 });
 
-describe('MetasPanel — criar, editar e excluir (gestor)', () => {
+describe('MetasPanel: criar, editar e excluir (gestor)', () => {
   it('cria meta mensal: o fim fica travado e segue o mês do início', async () => {
     renderizar();
     await cartaoDe('Eduarda Fischer');
@@ -425,7 +425,7 @@ describe('MetasPanel — criar, editar e excluir (gestor)', () => {
   });
 });
 
-describe('MetasPanel — campanha', () => {
+describe('MetasPanel: campanha', () => {
   it('"Metas da campanha": busca as da campanha; sem metas, avisa', async () => {
     vi.mocked(listarMetas).mockResolvedValue([]);
     renderizar({ campanha: NATAL });

@@ -1,5 +1,5 @@
 /**
- * Acesso tipado à API de clientes/contatos do ChokoCRM (UC02/UC03/UC04).
+ * Acesso tipado à API de clientes/contatos do ChokoCRM.
  *
  * Espelha os DTOs de `backend/src/services/client.service.ts` e
  * `contact.service.ts`. Além das chamadas HTTP, concentra aqui a validação
@@ -19,7 +19,7 @@ export type Contato = {
   principal: boolean;
 };
 
-/** Classificação de cliente por cor (UC05, Etapa 4). */
+/** Classificação de cliente por cor. */
 export type Cor = 'VERDE' | 'AMARELO' | 'LARANJA' | 'VERMELHO';
 
 export const CORES: readonly Cor[] = ['VERDE', 'AMARELO', 'LARANJA', 'VERMELHO'];
@@ -45,7 +45,7 @@ export type ClienteListItem = {
   rebaixadoPorVenda: boolean;
 };
 
-/** Uma alteração registrada da recorrência de visitas (UC09, Etapa 4). */
+/** Uma alteração registrada da recorrência de visitas. */
 export type RecorrenciaChange = {
   id: string;
   de: number;
@@ -78,7 +78,7 @@ export type ClienteCompleto = {
   diasSemCompra: number | null;
   /** Próxima visita marcada no check-in ou pela ficha (`AAAA-MM-DD`); `null` quando a agenda segue a recorrência. */
   proximaVisita: string | null;
-  /** Campanha da próxima visita (spec 7.7). */
+  /** Campanha da próxima visita. */
   proximaCampanha: { id: string; nome: string } | null;
 };
 
@@ -238,7 +238,7 @@ const CNPJ_REGEX = /^\d{14}$/;
 /**
  * Validação client-side dos campos do cliente, espelhando
  * `createClientSchema`/`updateClientSchema` (zod). Não substitui a validação
- * do backend — apenas evita idas e vindas desnecessárias à API. O cadastro
+ * do backend, apenas evita idas e vindas desnecessárias à API. O cadastro
  * do representante exige e-mail; com `emailOpcional` (edição na ficha), o
  * e-mail vazio passa e só o preenchido é conferido.
  */
@@ -286,7 +286,7 @@ export function normalizarDadosCliente(
 
 /**
  * Mesma normalização de `normalizarDadosCliente`, mas sem `recorrenciaDias`:
- * usada na edição dos dados do cliente, já que a recorrência agora tem seu
+ * usada na edição dos dados do cliente, já que a recorrência tem seu
  * próprio fluxo (com justificativa e histórico) em `RecorrenciaCard`. Na
  * edição o e-mail é opcional: vazio vai como `null`.
  */

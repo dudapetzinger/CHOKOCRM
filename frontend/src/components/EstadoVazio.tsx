@@ -34,7 +34,7 @@ const ICONES = {
 export type SimboloVazio = keyof typeof ICONES;
 
 /**
- * Estado vazio de listas e cartões (Etapa 8, visual do protótipo): ícone
+ * Estado vazio de listas e cartões (visual do protótipo): ícone
  * decorativo à frente de uma frase curta, numa caixa tracejada.
  */
 export function EstadoVazio({ icone, children }: { icone: SimboloVazio; children: ReactNode }) {

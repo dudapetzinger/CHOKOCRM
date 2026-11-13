@@ -340,7 +340,7 @@ describe('BalaoDoGrafico', () => {
   });
 });
 
-describe('BalaoDoGrafico — uma parada do Tab por área, setas entre os gatilhos (Etapa 10)', () => {
+describe('BalaoDoGrafico: uma parada do Tab por área, setas entre os gatilhos', () => {
   function renderizarTres() {
     return render(
       <>

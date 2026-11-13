@@ -102,7 +102,7 @@ describe('gerarHistoricoErp', () => {
   });
 
   it('meses passados não mudam quando hoje avança um mês', () => {
-    // 2025-06 está a 14/16 meses de distância de setembro/outubro de 2026 —
+    // 2025-06 está a 14/16 meses de distância de setembro/outubro de 2026,
     // fora de qualquer janela de mesesSemCompra (no máximo 4 meses).
     const mesAntigo = '2025-06';
     const hojeSetembro = new Date('2026-09-29T15:00:00Z');

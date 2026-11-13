@@ -1,6 +1,6 @@
 /**
- * Onde vão os nomes dos eventos sazonais no gráfico de vendas mensais
- * (Etapa 9, spec 6.4): na horizontal, no topo, à direita da linha tracejada
+ * Onde vão os nomes dos eventos sazonais no gráfico de vendas mensais:
+ * na horizontal, no topo, à direita da linha tracejada
  * de cada evento, em duas linhas de texto. A largura de cada nome é estimada
  * (`larguraDoCaractere` por caractere, 10 px de fonte), sem medir o DOM.
  *

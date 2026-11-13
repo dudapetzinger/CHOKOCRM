@@ -1,11 +1,11 @@
 /**
- * Acesso tipado às metas de visitas e vendas (spec 7.8). Espelha o
+ * Acesso tipado às metas de visitas e vendas. Espelha o
  * `MetaDTO` de `backend/src/services/goal.service.ts`: o realizado vem
  * calculado do backend (o front não recalcula regra). Todos leem (o
  * representante, só as próprias); criar, alterar e excluir é só do gestor no
  * backend. `periodoDaMeta` repete a regra do backend só para preencher o fim
- * no formulário — o backend recalcula. Com `periodo` (Etapa 9), a listagem
- * traz só as metas que cruzam a janela; sem ele, todas.
+ * no formulário (o backend recalcula). Com `periodo`, a listagem traz só as
+ * metas que cruzam a janela; sem ele, todas.
  */
 import { queryDoPeriodo, type Periodo } from '../lib/periodo';
 import { api } from './api';

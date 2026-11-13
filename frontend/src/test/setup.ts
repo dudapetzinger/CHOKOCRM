@@ -5,14 +5,14 @@ import { toast } from 'sonner'
 /**
  * `findBy*` e `waitFor` esperam até 5 s em vez de 1 s: com a cobertura ligada
  * (como no CI), o jsdom fica bem mais lento, e o calendário (42 dias, cada um
- * um botão) passava de 1 s para aparecer quando a suíte inteira rodava junto —
+ * um botão) passa de 1 s para aparecer quando a suíte inteira roda junto. É
  * o mesmo motivo do `testTimeout` de 15 s em vitest.config.ts.
  */
 configure({ asyncUtilTimeout: 5000 })
 
 /**
- * O que o jsdom não implementa e o Radix (menus e popovers do shadcn, Etapa 8)
- * chama ao abrir: medir o conteúdo, capturar o ponteiro e rolar até o item.
+ * O que o jsdom não implementa e o Radix (menus e popovers do shadcn) chama
+ * ao abrir: medir o conteúdo, capturar o ponteiro e rolar até o item.
  */
 class ResizeObserverFalso {
   observe() {}

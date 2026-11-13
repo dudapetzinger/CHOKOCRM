@@ -1,9 +1,8 @@
 /**
- * Guarda o representante escolhido pelo gestor (Etapa 7) para que a escolha
- * valha nas três telas (Clientes, Agenda, Painel). Estado só em memória: ao
- * recarregar a página volta para "Todos" (decisão registrada na Task 8). Ao
- * sair (ou trocar de usuário), também volta para "Todos". Precisa ficar dentro
- * do `AuthProvider`.
+ * Guarda o representante escolhido pelo gestor para que a escolha valha nas
+ * três telas (Clientes, Agenda, Painel). Estado só em memória: ao recarregar
+ * a página volta para "Todos". Ao sair (ou trocar de usuário), também volta
+ * para "Todos". Precisa ficar dentro do `AuthProvider`.
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from '../auth/useAuth';

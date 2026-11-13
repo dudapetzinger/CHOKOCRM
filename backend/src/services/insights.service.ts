@@ -40,10 +40,10 @@ import {
 import { agora } from '../lib/relogio';
 
 /**
- * Insights sazonais do cliente (UC13) e alertas de produção do gestor (UC15):
+ * Insights sazonais do cliente e alertas de produção do gestor:
  * busca os dados (repositórios e, via `erp.service`, o ERP), entrega às regras
- * puras de `insights.regras.ts` e projeta os DTOs — mesmo papel de
- * `agenda.service.ts` sobre `agenda.montagem.ts`. Não fala com o provedor de
+ * puras de `insights.regras.ts` e projeta os DTOs (mesmo papel de
+ * `agenda.service.ts` sobre `agenda.montagem.ts`). Não fala com o provedor de
  * ERP diretamente: indisponibilidade chega como `null` (vendas) ou em
  * `indisponiveis` (estoque), já registrada por `erp.service`; a chave do
  * cliente no ERP (`erpId` no mock, CNPJ no importado, `cnpj|erpId` no
@@ -133,13 +133,13 @@ function arredondarCentavos(valor: number): number {
 }
 
 /**
- * Sugestões sazonais para o cliente (UC13): para cada evento do horizonte,
+ * Sugestões sazonais para o cliente: para cada evento do horizonte,
  * compara as compras na janela do mesmo evento no ano anterior com a média do
  * cliente no período de base. Todas as janelas e bases saem de uma única
  * consulta de vendas ao ERP; evento sem base ou sem compra na janela vai para
  * `eventosSemHistorico`. Chave desconhecida no ERP (vendas vazias) cai aí
- * para todos os eventos — não há status `NAO_ENCONTRADO`, porque a
- * pré-condição do UC13 é "histórico disponível". Cliente de outra carteira
+ * para todos os eventos: não há status `NAO_ENCONTRADO`, porque os
+ * insights pressupõem histórico disponível. Cliente de outra carteira
  * responde ao representante como inexistente (404). `hoje` é parametrizável
  * para os testes fixarem a data.
  */
@@ -218,10 +218,10 @@ export async function obterInsights(
 }
 
 /**
- * Alertas de produção do gestor (UC15): itens em estoque BAIXO, nos clientes
+ * Alertas de produção do gestor: itens em estoque BAIXO, nos clientes
  * ativos com chave no ERP, dos SKUs sugeridos para os eventos do horizonte.
  * Sem evento no horizonte não há o que cruzar, e nem clientes nem ERP são
- * consultados; com o ERP sem estoque (importado, Etapa 12b), também não:
+ * consultados; com o ERP sem estoque (importado), também não:
  * vão os eventos, nenhum alerta e `estoqueIndisponivel`. No híbrido o
  * estoque é por cliente: o de fonte `notas` devolve histórico vazio, então
  * entra sem item baixo (nem alerta, nem indisponível), e o

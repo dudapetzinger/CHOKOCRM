@@ -27,9 +27,7 @@ const GESTOR = {
 
 /**
  * App isolado, montado apenas para este arquivo de teste, usado para
- * exercitar `requireRole` sem depender de uma rota real de produção
- * (que ainda não existe nesta task — o único endpoint protegido "real"
- * hoje é GET /auth/me, sem exigência de papel específico).
+ * exercitar `requireRole` sem depender de uma rota real de produção.
  */
 function buildRotaDeTesteComRole(): Express {
   const testApp = express();
@@ -231,7 +229,7 @@ describe('PUT /auth/password', () => {
   });
 
   // 400, não 401: o front trata todo 401 com token como sessão vencida e
-  // desloga; senha atual errada é erro de digitação, não de sessão (R14).
+  // desloga; senha atual errada é erro de digitação, não de sessão.
   it('senha atual errada responde 400 "Senha atual incorreta." e nada muda', async () => {
     const res = await request(app)
       .put('/auth/password')
@@ -280,7 +278,7 @@ describe('PUT /auth/password', () => {
   });
 });
 
-describe('redefinição de senha por e-mail removida', () => {
+describe('sem redefinição de senha por e-mail', () => {
   it('POST /auth/redefinir-senha responde 404', async () => {
     const res = await request(app).post('/auth/redefinir-senha').send({ token: 'qualquer', novaSenha: 'senha-nova' });
 

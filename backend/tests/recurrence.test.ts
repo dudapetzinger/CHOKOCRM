@@ -192,7 +192,7 @@ describe('PUT /clients/:id/recurrence', () => {
     expect(registro).toMatchObject({ recorrenciaAnterior: 15, recorrenciaNova: 45, userId: representanteId });
   });
 
-  it('alterar a recorrência apaga a próxima visita marcada e mantém os lembretes (spec 7.4)', async () => {
+  it('alterar a recorrência apaga a próxima visita marcada e mantém os lembretes', async () => {
     await prisma.client.update({
       where: { id: clienteId },
       data: { proximaVisita: new Date('2026-12-01T00:00:00.000Z') },

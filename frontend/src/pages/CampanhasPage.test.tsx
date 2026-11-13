@@ -186,7 +186,7 @@ async function cartao(nome: string) {
   return titulo.closest('li') as HTMLElement;
 }
 
-describe('CampanhasPage — cartões', () => {
+describe('CampanhasPage: cartões', () => {
   it('lista as campanhas na ordem da API, com o status de cada uma', async () => {
     renderizar();
 
@@ -285,7 +285,7 @@ function titulosDosCartoes(): (string | null)[] {
     .map((titulo) => titulo.textContent);
 }
 
-describe('CampanhasPage — filtro por campanha', () => {
+describe('CampanhasPage: filtro por campanha', () => {
   it('o select lista "Todas as campanhas" e cada campanha com o status, na ordem da lista', async () => {
     renderizar();
 
@@ -388,7 +388,7 @@ describe('CampanhasPage — filtro por campanha', () => {
   });
 });
 
-describe('CampanhasPage — representante', () => {
+describe('CampanhasPage: representante', () => {
   it('não vê "Nova campanha ou evento" nem editar/excluir; vê "Minhas vendas vinculadas"', async () => {
     vi.mocked(listarCampanhas).mockResolvedValue([
       { ...NATAL, resultados: [resultado('r1', 'Eduarda Fischer', 503.7, 2)] },
@@ -405,7 +405,7 @@ describe('CampanhasPage — representante', () => {
   });
 });
 
-describe('CampanhasPage — formulário do gestor', () => {
+describe('CampanhasPage: formulário do gestor', () => {
   async function abrirNova() {
     renderizar();
     await usuario.click(await screen.findByRole('button', { name: 'Nova campanha ou evento' }));

@@ -1,7 +1,7 @@
 import type { Cor } from '../services/classificacao.service';
 
 /**
- * Parâmetros do painel de indicadores do gestor (Etapa 6C): período de
+ * Parâmetros do painel de indicadores do gestor: período de
  * análise padrão, o único conjunto de períodos aceito pela rota e as cores
  * da classificação composta que contam como cliente "inativo": LARANJA e
  * VERMELHO (o LARANJA também vem do rebaixamento pelo ERP; ver

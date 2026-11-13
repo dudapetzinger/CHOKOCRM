@@ -1,6 +1,6 @@
 /**
- * Acesso tipado aos insights sazonais do cliente (UC13) e aos alertas de
- * produção do gestor (UC15), Etapa 6B. Espelha os shapes de `InsightsDTO`,
+ * Acesso tipado aos insights sazonais do cliente e aos alertas de
+ * produção do gestor. Espelha os shapes de `InsightsDTO`,
  * `SugestaoDTO`, `AlertasDTO` e `AlertaProducaoDTO` de
  * `backend/src/services/insights.service.ts`. Datas de calendário chegam como
  * 'AAAA-MM-DD' (formatar com `formatarDataCalendario`).

@@ -1,13 +1,13 @@
 /**
- * Mapa de clientes por cidade do Painel (spec 7.11): agrupa a carteira por
+ * Mapa de clientes por cidade do Painel: agrupa a carteira por
  * cidade com as coordenadas da tabela dos municípios de SC (a mesma do
- * roteiro, spec 7.9) e projeta as cidades presentes numa área retangular,
+ * roteiro) e projeta as cidades presentes numa área retangular,
  * com margem, mantendo a proporção (a área enquadra só as cidades da
  * carteira, não um recorte fixo do estado).
  *
- * O `Enquadramento` (Etapa 10c) é essa projeção separada do que ela projeta:
+ * O `Enquadramento` é essa projeção separada do que ela projeta:
  * `calcularEnquadramento` a tira das cidades e `projetarPonto` leva qualquer
- * `lng`/`lat` ao mesmo sistema — as bolhas (`projetarCidades`) e os anéis do
+ * `lng`/`lat` ao mesmo sistema. As bolhas (`projetarCidades`) e os anéis do
  * contorno do estado e dos municípios (`caminhoDoContorno`, o `d` de um
  * `<path>`) usam o mesmo enquadramento, então o contorno fica atrás das
  * cidades no lugar certo, saindo da área (o `viewBox` do SVG corta).

@@ -5,7 +5,7 @@ import { requireRole } from '../middlewares/requireRole';
 import { requireRoleAtual } from '../middlewares/requireRoleAtual';
 
 /**
- * Router montado em `/users`: gestão de usuários (spec da Etapa 8, 7.13),
+ * Router montado em `/users`: gestão de usuários,
  * exclusiva do gestor em todas as rotas. Também serve o seletor de
  * representante (`GET /users?role=REPRESENTANTE`). Além do papel do token,
  * confere no banco que o gestor continua ativo e gestor (`requireRoleAtual`).

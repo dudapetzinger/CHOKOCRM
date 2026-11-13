@@ -1,18 +1,17 @@
 /**
- * "Alertas de produção" do Painel (UC15, Etapa 6B; barras do protótipo na
- * Etapa 8): o título com o segmentado "Próximos 30 · 60 · 90 · 180" e, para
+ * "Alertas de produção" do Painel (barras do protótipo):
+ * o título com o segmentado "Próximos 30 · 60 · 90 · 180" e, para
  * cada produto sugerido de um evento próximo, quantos clientes estão com
- * estoque baixo — em texto e numa barra (comprimento = clientes ÷ o maior
- * alerta). Os clientes ficam só no balão da barra (Etapa 9, spec 6.7:
- * "Bombons sortidos — Natal · 5 clientes" e cada cliente com a quantidade em
- * estoque); a linha "Estoque baixo: …" com links saiu (decisão da parceira).
+ * estoque baixo, em texto e numa barra (comprimento = clientes ÷ o maior
+ * alerta). Os clientes ficam só no balão da barra
+ * ("Bombons sortidos — Natal · 5 clientes" e cada cliente com a quantidade em
+ * estoque).
  * No celular, o gatilho é um invólucro com 44 px de toque (`TOQUE_NA_BARRA`).
  * A tabela escondida lista evento, produto e clientes para leitores de tela.
- * Desde 11/11/2026 não há frase sobre o ERP não informar o estoque.
  *
  * O segmentado fica fora da área de resultados: continua na tela enquanto o
  * horizonte novo carrega e depois de um erro, para sempre dar para escolher
- * outro. Mesmos estados de antes: com alertas, a lista é `role="alert"`; sem
+ * outro. Os estados: com alertas, a lista é `role="alert"`; sem
  * alertas, uma frase neutra (que não interrompe o leitor de tela) ou, se o
  * ERP não respondeu por nenhum cliente, o aviso de indisponibilidade.
  */

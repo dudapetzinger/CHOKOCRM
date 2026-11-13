@@ -1,8 +1,8 @@
 /**
- * Acesso tipado aos usuários. `listRepresentantes` (Etapa 7) serve o
- * seletor do gestor e espelha `GET /users?role=REPRESENTANTE` (só os ativos,
- * por nome). O resto é a gestão de usuários do gestor (Etapa 8, spec 7.13):
- * todas as rotas de `/users` são só do gestor no backend.
+ * Acesso tipado aos usuários. `listRepresentantes` serve o seletor do
+ * gestor e espelha `GET /users?role=REPRESENTANTE` (só os ativos, por nome).
+ * O resto é a gestão de usuários do gestor: todas as rotas de `/users` são
+ * só do gestor no backend.
  */
 import type { Role } from '../auth/auth-context';
 import { api } from './api';

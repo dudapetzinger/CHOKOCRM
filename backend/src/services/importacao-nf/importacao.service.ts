@@ -1,5 +1,5 @@
 /**
- * Importação de notas fiscais (DANFE em PDF) pelo gestor (Etapa 12b): lê o PDF,
+ * Importação de notas fiscais (DANFE em PDF) pelo gestor: lê o PDF,
  * casa cada nota com o cliente pelo CNPJ (guardando o endereço do destinatário
  * lido da DANFE), decide o vínculo com a última visita
  * (`vinculo.regras.ts`) e grava tudo numa transação por arquivo. Também cuida
@@ -245,8 +245,8 @@ async function decidirSituacao(
 /**
  * Nota já gravada (`SEM_CLIENTE`) que acabou de ser ligada a `clientId`
  * (cliente criado pela nota fiscal): decide o vínculo com as mesmas regras da
- * importação e grava o status — e, no mesmo dia da última visita, os itens na
- * visita. Roda na transação de quem chama. Devolve o status decidido.
+ * importação e grava o status (e, no mesmo dia da última visita, os itens na
+ * visita). Roda na transação de quem chama. Devolve o status decidido.
  */
 export async function decidirVinculoDaNotaLigada(
   tx: Prisma.TransactionClient,

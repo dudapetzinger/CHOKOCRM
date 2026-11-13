@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { getAgendaCalendario, getAgendaToday } from '../controllers/agenda.controller';
 import { authJwt } from '../middlewares/authJwt';
 
-/** UC10: agenda do dia (visitas atrasadas e previstas para hoje) e o calendário do mês (spec 7.6). */
+/** Agenda do dia (visitas atrasadas e previstas para hoje) e o calendário do mês. */
 export const agendaRouter = Router();
 
 // Autenticação por rota (e não `agendaRouter.use`): `/agenda` também é uma

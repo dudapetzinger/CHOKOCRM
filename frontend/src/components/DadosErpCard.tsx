@@ -1,16 +1,16 @@
 /**
- * Card "Dados do ERP" na ficha do cliente (UC11, Etapa 5): última venda,
+ * Card "Dados do ERP" na ficha do cliente: última venda,
  * volume de compras dos últimos 90 dias e nível de estoque, consultados via
  * `useDadosErp`. Visível para todos os papéis (representante e gestor).
- * Visual do protótipo (Etapa 8): compras e estoque em duas colunas quando o
+ * Visual do protótipo: compras e estoque em duas colunas quando o
  * cartão tem espaço, com os itens em baixa numa lista com a quantidade numa
  * etiqueta vermelha.
- * Etapa 12b (notas importadas): a seção "Últimas vendas" lista as 5 vendas mais
+ * A seção "Últimas vendas" lista as 5 vendas mais
  * recentes (notas ou pedidos; data, valor e os itens, "16× BARRA AO LEITE 35%
  * 500 G") e só aparece quando há vendas.
  * Cada venda mostra a origem em texto miúdo ("NF 2455" ou "Pedido do
  * check-in"); sem `origem` nada é exibido.
- * Desde 11/11/2026 o card não mostra aviso sobre a fonte dos dados (nada de
+ * O card não mostra aviso sobre a fonte dos dados (nada de
  * "dados simulados"): a coluna "Estoque" só existe quando há estoque a mostrar
  * (`!estoqueIndisponivel && estoque`), sem frase no lugar; sem compras, a frase é
  * "Nenhuma compra registrada." e, sem histórico, "Sem histórico de compras
@@ -33,7 +33,7 @@ const ROTULO_NIVEL_ESTOQUE: Record<NivelEstoque, string> = {
   ALTO: 'Alto',
 };
 
-/** "1 venda" / "N vendas" — evita o plural incorreto quando há exatamente uma venda. */
+/** "1 venda" / "N vendas": evita o plural incorreto quando há exatamente uma venda. */
 function formatarQuantidadeVendas(quantidade: number): string {
   return quantidade === 1 ? '1 venda' : `${quantidade} vendas`;
 }

@@ -98,7 +98,7 @@ afterEach(() => {
 });
 
 describe('Moldura', () => {
-  // Gestão (spec 2026-11-09, §3): Importar notas é o botão central; Usuários fica no menu da conta.
+  // Gestão: Importar notas é o botão central; Usuários fica no menu da conta.
   it('celular, gestor: barra com Painel, Clientes, o botão central Importar notas, Agenda e Campanhas', () => {
     renderizar({ papel: 'GESTOR', entradas: ['/painel'] });
 

@@ -59,8 +59,8 @@ let usuario: ReturnType<typeof userEvent.setup>;
  * Preenche um campo de uma vez (um evento de mudança), em vez de digitar
  * tecla a tecla: o que estes testes conferem é o formulário, não a
  * digitação, e cada tecla (e cada clique simulado) re-renderiza a página
- * inteira — com a suíte toda rodando, a digitação longa passava dos 15 s do
- * limite por teste e travava o CI.
+ * inteira: com a suíte toda rodando, a digitação longa passa dos 15 s do
+ * limite por teste e trava o CI.
  */
 function preencher(campo: HTMLElement, texto: string) {
   fireEvent.change(campo, { target: { value: texto } });

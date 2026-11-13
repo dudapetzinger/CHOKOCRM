@@ -26,8 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Desde a Etapa 7 cada usuário vê só a própria carteira (spec 5.0): o cache
-  // de quem saiu não pode aparecer, nem por um instante, para quem entra.
+  // Cada usuário vê só a própria carteira: o cache de quem saiu não pode
+  // aparecer, nem por um instante, para quem entra.
   const login = useCallback(
     async (email: string, senha: string): Promise<UsuarioAutenticado> => {
       const resultado = await api.post<LoginResposta>('/auth/login', { email, senha });

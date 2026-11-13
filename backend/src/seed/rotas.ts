@@ -1,13 +1,13 @@
 import { diasEntre, type DataCalendario } from '../services/classificacao.service';
 
 /**
- * Rotas da demonstração (seed "últimos 3 meses"): cada representante roda as
+ * Rotas da demonstração (seed dos últimos 3 meses): cada representante roda as
  * mesmas cidades no mesmo dia da semana, e cada cliente tem o seu dia (pela
  * cidade) e a sua fase dentro da recorrência. As recorrências são múltiplos
  * de 7 (7, 14, 21, 28 ou 42 dias), então o cliente cai sempre no mesmo dia da
  * semana. A agenda é absoluta, contada a partir de uma segunda-feira fixa
  * (`SEGUNDA_DE_REFERENCIA`), e não a partir de `hoje`: a visita prevista
- * numa data não muda quando `hoje` avança (Review Focus 4 do plano).
+ * numa data não muda quando `hoje` avança.
  *
  * A distribuição dos clientes por dia e fase (âncoras aqui e gerados em
  * `clientes-gerados.ts`) foi balanceada para que cada dia útil de cada
@@ -18,8 +18,6 @@ import { diasEntre, type DataCalendario } from '../services/classificacao.servic
 
 /** Dia útil: 1 = segunda … 5 = sexta. */
 export type DiaUtil = 1 | 2 | 3 | 4 | 5;
-
-export const RECORRENCIAS_DA_ROTA = [7, 14, 21, 28, 42] as const;
 
 /** Lugar do cliente na rota: o dia da semana e a fase (em semanas) dentro da recorrência. */
 export type AgendaDaRota = { dia: DiaUtil; fase: number };

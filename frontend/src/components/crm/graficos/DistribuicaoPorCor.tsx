@@ -1,15 +1,15 @@
 /**
- * Distribuição dos clientes ativos por cor, hoje (UC14, Etapa 6C; barra do
+ * Distribuição dos clientes ativos por cor, hoje (barra do
  * bloco "Quais clientes estão esfriando?" de `routes/painel.tsx` do
- * protótipo na Etapa 8): barra segmentada (cada segmento cresce com
+ * protótipo): barra segmentada (cada segmento cresce com
  * `flex-grow` igual à contagem) e, embaixo, a legenda com o ponto e o número
  * de cada cor, então a cor nunca é o único canal. A barra é um grupo com o
  * resumo em texto como nome acessível.
  *
  * Cada segmento (com 44 px de toque no celular, por `TOQUE_NO_SEGMENTO`)
- * abre o balão (Etapa 9, spec 6.7) "Verde · 3 clientes" com os
- * clientes daquela cor, do mais urgente ao menos — a carteira que o Painel já
- * busca para os "Mais urgentes". A tabela escondida repete as contagens e os
+ * abre o balão "Verde · 3 clientes" com os
+ * clientes daquela cor, do mais urgente ao menos (a carteira que o Painel já
+ * busca para os "Mais urgentes"). A tabela escondida repete as contagens e os
  * clientes de cada cor.
  */
 import { contar } from '@/lib/contar';

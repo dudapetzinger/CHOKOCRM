@@ -1,7 +1,7 @@
 {
   "name": "chokocrm-backend",
   "version": "0.1.0",
-  "description": "API backend do ChokoCRM (Express + TypeScript)",
+  "description": "Servidor (API) do ChokoCRM, em Express e TypeScript",
   "main": "dist/server.js",
   "engines": {
     "node": ">=22.13"
@@ -18,9 +18,8 @@
     "db:seed": "prisma db seed",
     "db:seed:reset": "node --import tsx prisma/seed.ts --reset"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Eduarda Petzinger Rodrigues",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

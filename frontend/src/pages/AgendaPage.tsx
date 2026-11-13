@@ -1,25 +1,24 @@
 /**
- * Agenda do dia (UC10, Etapa 4; visual de `routes/agenda.tsx` do protótipo na
- * Etapa 8): visitas atrasadas e previstas para hoje, priorizadas pela cor de
+ * Agenda do dia (visual de `routes/agenda.tsx` do protótipo):
+ * visitas atrasadas e previstas para hoje, priorizadas pela cor de
  * classificação, e as previstas para os próximos 7 dias, em ordem de data. A
- * data prevista é a marcada no check-in ou, sem ela, a da recorrência (spec
- * 7.4). O representante vê só a própria carteira; o gestor vê todos os
+ * data prevista é a marcada no check-in ou, sem ela, a da recorrência.
+ * O representante vê só a própria carteira; o gestor vê todos os
  * clientes ou só os do representante escolhido no seletor (ver `GET
  * /agenda/today`). Com o seletor em "Todos", cada linha diz de qual
- * representante é o cliente. No topo, os chips das campanhas em andamento
- * (spec 7.7).
+ * representante é o cliente. No topo, os chips das campanhas em andamento.
  *
- * A partir de 1024 px (spec 8), Atrasadas e Hoje ficam lado a lado e aparecem
+ * A partir de 1024 px, Atrasadas e Hoje ficam lado a lado e aparecem
  * mesmo vazias. Abaixo disso (celular e tablet, com o menu lateral de 240 px
  * as duas colunas não cabem) ficam empilhadas, só as que têm visitas, e a
  * agenda vazia vira uma única mensagem. Depois, na largura toda e só quando
- * têm itens, "Lembretes" (Etapa 9: os lembretes abertos vencidos e os de
+ * têm itens, "Lembretes" (os lembretes abertos vencidos e os de
  * hoje, cada um com "Concluir") e "Próximos 7 dias" (como "Próximas
  * agendadas" no protótipo).
  *
- * No topo, o segmentado "Agenda do dia | Calendário" (spec 7.6; a escolha
+ * No topo, o segmentado "Agenda do dia | Calendário" (a escolha
  * fica na URL, `?visao=calendario`, para voltar da ficha no mesmo lugar). Na
- * agenda do dia, o "Roteiro do dia" (spec 7.9) vem acima das seções, só com
+ * agenda do dia, o "Roteiro do dia" vem acima das seções, só com
  * as visitas de hoje, na ordem de urgência (as atrasadas ficam na seção
  * delas, fora do roteiro); para o gestor, só com um representante escolhido.
  */
@@ -111,7 +110,7 @@ export function SecaoAgenda({ titulo, itens, textoVazio = 'Nenhuma visita.' }: S
 }
 
 /**
- * Seção "Lembretes" (Etapa 9): os lembretes abertos vencidos e os de hoje,
+ * Seção "Lembretes": os lembretes abertos vencidos e os de hoje,
  * uma linha por lembrete (`LembreteRow`). Quem usa só a desenha com itens.
  * Concluir cabe ao dono da carteira e ao gestor; com o seletor em "Todos", a
  * linha diz o representante, como nas visitas.
@@ -139,7 +138,7 @@ function SecaoLembretes({ lembretes }: { lembretes: LembreteItem[] }) {
 }
 
 /**
- * Chips das campanhas em andamento hoje (spec 7.6 e 7.7; `routes/agenda.tsx`
+ * Chips das campanhas em andamento hoje (`routes/agenda.tsx`
  * do protótipo), cada um levando a Campanhas. Sem nenhuma, não desenha nada.
  * Azul das campanhas com o texto em `--chart-text` (5,3:1 sobre o fundo da
  * página); 44 px de altura no celular.
@@ -188,8 +187,8 @@ export function AgendaPage() {
     <div className="flex flex-col gap-4">
       {/* Área de topo, acima das seções: a troca entre agenda do dia e
           calendário, a barra do gestor (o select some para o representante)
-          e os chips das campanhas em andamento — os controles que valem para
-          a agenda inteira. */}
+          e os chips das campanhas em andamento (os controles que valem para
+          a agenda inteira). */}
       <div className="flex flex-wrap items-center gap-3">
         <Segmentado ariaLabel="Visão da agenda" opcoes={OPCOES_VISAO} valor={visao} onChange={trocarVisao} />
         <SeletorRepresentante className="w-full md:w-auto" />
@@ -225,7 +224,7 @@ function AgendaDoDia({ representanteId, mostrarRoteiro }: { representanteId?: st
       {isLoading && <p className="text-sm text-muted-foreground">Carregando agenda...</p>}
 
       {/* Com a agenda já carregada, o erro de um refetch (rede caída) vira só
-          um aviso acima dela: o que está no cache continua visível (spec 5.7). */}
+          um aviso acima dela: o que está no cache continua visível. */}
       {isError && (
         <Aviso tom="erro" role="alert">
           {mensagemErroApi(error, 'Não foi possível carregar a agenda.')}

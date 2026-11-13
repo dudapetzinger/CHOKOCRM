@@ -7,7 +7,7 @@ import type { DataCalendario } from '../services/classificacao.service';
  * Início (00:00:00 UTC) do dia, para comparar com as colunas `@db.Date`
  * `dataInicio`/`dataFim`. O Postgres armazena `@db.Date` sem hora e, ao
  * comparar com um `timestamptz`, converte a coluna para `timestamptz` à
- * meia-noite na timezone da sessão (UTC aqui) — por isso o instante de
+ * meia-noite na timezone da sessão (UTC aqui). Por isso o instante de
  * comparação também precisa ser meia-noite UTC: usar meio-dia (como no
  * seed) faria `dataFim >= dia` ficar falso no próprio dia do evento
  * (meia-noite < meio-dia), quebrando o limite superior inclusivo.
@@ -34,7 +34,7 @@ export async function findVigentes(
 
 /**
  * Eventos cujo `dataFim` (dia do evento) cai em `[de, ate]`, ambos
- * inclusivos, do mais próximo ao mais distante — base dos insights sazonais.
+ * inclusivos, do mais próximo ao mais distante (base dos insights sazonais).
  * Compara em meia-noite UTC, como `findVigentes`.
  */
 export async function findNoIntervalo(de: DataCalendario, ate: DataCalendario): Promise<SeasonalEvent[]> {
@@ -48,7 +48,7 @@ export async function findById(id: string): Promise<SeasonalEvent | null> {
   return prisma.seasonalEvent.findUnique({ where: { id } });
 }
 
-/** Upsert por `nome` (chave única) — usado pelo seed para ser idempotente entre execuções. */
+/** Upsert por `nome` (chave única), usado pelo seed para ser idempotente entre execuções. */
 export async function upsertMany(eventos: EventoSazonalSeed[]): Promise<void> {
   for (const evento of eventos) {
     await prisma.seasonalEvent.upsert({

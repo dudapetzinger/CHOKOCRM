@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2329 # o open_url da biblioteca é sempre redefinido abaixo do marcador
 #
-# ChokoCRM — wizard dos passos manuais do deploy no Azure (Etapa 6D).
+# ChokoCRM: wizard dos passos manuais do deploy no Azure.
 # Guia, um passo por vez, tudo o que só pode ser feito à mão: portal do Azure,
 # SonarCloud e secrets/variables do GitHub. Não cria nada no Azure sozinho.
 #
@@ -16,7 +16,7 @@
 set -euo pipefail
 
 # ──────────────────────────────────────────────────────────────────────────
-# Wizard library — delightful, consistent UX. Identical across every wizard.
+# Wizard library: delightful, consistent UX. Identical across every wizard.
 # ──────────────────────────────────────────────────────────────────────────
 
 if [[ -t 1 ]] && command -v tput >/dev/null 2>&1 && [[ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]]; then
@@ -35,14 +35,14 @@ WRITTEN_ENV=()    # KEYs written to ENV_FILE this run
 WRITTEN_SECRET=() # secret NAMEs set this run
 SKIPPED=()        # things we couldn't do (e.g. gh missing)
 
-# _clear — wipe the terminal so only the current step is on screen. No-op when
+# _clear: wipe the terminal so only the current step is on screen. No-op when
 # output isn't a terminal, so piped logs stay readable.
 _clear() {
   [[ -t 1 ]] || return 0
   if command -v tput >/dev/null 2>&1; then tput clear; else printf '\033[2J\033[3J\033[H'; fi
 }
 
-# banner "Title" — opening frame: what this wizard does.
+# banner "Title": opening frame (what this wizard does).
 banner() {
   _clear
   printf '\n%s%s  %s%s\n' "$BOLD" "$BLUE" "$1" "$RESET"
@@ -53,7 +53,7 @@ banner() {
   pause "Ready to start?"
 }
 
-# stage "Name" — clear the screen, then announce a stage and show progress.
+# stage "Name": clear the screen, then announce a stage and show progress.
 # Clearing keeps only the current step on screen.
 stage() {
   _clear
@@ -62,14 +62,14 @@ stage() {
     "$BOLD" "$BLUE" "$_STAGE_INDEX" "$TOTAL_STAGES" "$1" "$RESET"
 }
 
-# say "..." — a plain instruction line.
+# say "...": a plain instruction line.
 say()  { printf '  %s\n' "$1"; }
-# step "..." — a numbered-feeling action the human takes in the browser.
+# step "...": a numbered-feeling action the human takes in the browser.
 step() { printf '  %s•%s %s\n' "$BLUE" "$RESET" "$1"; }
 note() { printf '  %s%s%s\n' "$DIM" "$1" "$RESET"; }
 warn() { printf '  %s⚠ %s%s\n' "$YELLOW" "$1" "$RESET"; }
 
-# open_url URL — open in the human's browser, cross-platform incl. WSL.
+# open_url URL: open in the human's browser, cross-platform incl. WSL.
 open_url() {
   local url="$1"
   printf '  %s↗ opening%s %s\n' "$GREEN" "$RESET" "$url"
@@ -81,13 +81,13 @@ open_url() {
   } >/dev/null 2>&1 || warn "couldn't open a browser — visit it manually: $url"
 }
 
-# pause "msg" — wait for the human to confirm they've done the manual part.
+# pause "msg": wait for the human to confirm they've done the manual part.
 pause() {
   printf '  %s%s%s ' "$DIM" "${1:-Press Enter to continue}" "$RESET"
   read -r _ || true
 }
 
-# confirm "question" — y/N gate; returns success on yes.
+# confirm "question": y/N gate; returns success on yes.
 confirm() {
   local reply=""
   printf '  %s? %s [y/N] ' "$YELLOW" "$1"
@@ -95,14 +95,14 @@ confirm() {
   [[ "$reply" =~ ^[Yy] ]]
 }
 
-# _existing KEY — current value of KEY in ENV_FILE, if any.
+# _existing KEY: current value of KEY in ENV_FILE, if any.
 _existing() {
   [[ -f "$ENV_FILE" ]] || return 1
   local line; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
   printf '%s' "${line#*=}"
 }
 
-# ask KEY "Prompt" — read a value into $KEY. Offers the existing .env value as
+# ask KEY "Prompt": read a value into $KEY. Offers the existing .env value as
 # a default on re-runs (Enter keeps it). Visible input (non-secret).
 ask() {
   local key="$1" prompt="$2" current input
@@ -117,7 +117,7 @@ ask() {
   printf -v "$key" '%s' "$input"
 }
 
-# ask_secret KEY "Prompt" — like ask, but input is hidden.
+# ask_secret KEY "Prompt": like ask, but input is hidden.
 ask_secret() {
   local key="$1" prompt="$2" current input
   current=$(_existing "$key" || true)
@@ -132,7 +132,7 @@ ask_secret() {
   printf -v "$key" '%s' "$input"
 }
 
-# write_env KEY VALUE — upsert KEY=VALUE into ENV_FILE (creates it; replaces
+# write_env KEY VALUE: upsert KEY=VALUE into ENV_FILE (creates it; replaces
 # any existing line). Idempotent.
 write_env() {
   local key="$1" value="$2" tmp
@@ -145,7 +145,7 @@ write_env() {
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
 }
 
-# set_secret NAME VALUE — set a GitHub Actions repo secret via gh. Falls back
+# set_secret NAME VALUE: set a GitHub Actions repo secret via gh. Falls back
 # to a warning (and records it) if gh is unavailable or unauthenticated.
 set_secret() {
   local name="$1" value="$2"
@@ -160,7 +160,7 @@ set_secret() {
   warn "skipped GitHub secret $name — gh not ready; set it later"
 }
 
-# set_var NAME VALUE — set a GitHub Actions repo variable (non-secret).
+# set_var NAME VALUE: set a GitHub Actions repo variable (non-secret).
 set_var() {
   local name="$1" value="$2"
   if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
@@ -173,7 +173,7 @@ set_var() {
   warn "skipped GitHub variable $name — gh not ready; set it later"
 }
 
-# finish — clear, then a closing summary of everything configured.
+# finish: clear, then a closing summary of everything configured.
 finish() {
   _clear
   printf '\n%s%s  ✓ Setup complete%s\n' "$BOLD" "$GREEN" "$RESET"
@@ -187,7 +187,7 @@ finish() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────
-# STAGES — author this section. One stage() per step the human takes.
+# STAGES: author this section. One stage() per step the human takes.
 # Replace the example below. Set TOTAL_STAGES to match the stages you write.
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -257,7 +257,7 @@ fi
 
 # ── Ajudantes do roteiro ──────────────────────────────────────────────────
 
-# _limpar "valor" — tira \r e espaços nas pontas.
+# _limpar "valor": tira \r e espaços nas pontas.
 _limpar() {
   local v="${1//$'\r'/}"
   v="${v#"${v%%[![:space:]]*}"}"
@@ -265,21 +265,21 @@ _limpar() {
   printf '%s' "$v"
 }
 
-# _anterior KEY — mostra o valor lembrado da execução anterior (só não secretos).
+# _anterior KEY: mostra o valor lembrado da execução anterior (só não secretos).
 _anterior() {
   local v
   v=$(_existing "$1" || true)
   if [[ -n "$v" ]]; then note "Valor anterior: $v"; fi
 }
 
-# _desistir "motivo" — encerra com erro (em vermelho).
+# _desistir "motivo": encerra com erro (em vermelho).
 _desistir() {
   printf '\n  %s✗ %s%s\n' "$RED" "$1" "$RESET"
   note "Rode o wizard de novo quando tiver o valor certo (os valores não secretos ficam lembrados)."
   exit 1
 }
 
-# _url_responde URL — HEAD com curl; no ensaio, não chama nada.
+# _url_responde URL: HEAD com curl; no ensaio, não chama nada.
 _url_responde() {
   if (( DRY_RUN )); then
     note "(dry-run) pularia a checagem com curl de $1"
@@ -288,7 +288,7 @@ _url_responde() {
   curl -fsSI --max-time 15 "$1" >/dev/null 2>&1 </dev/null
 }
 
-# _pedir_url KEY "Pergunta" dominio — URL https sem caminho nem barra final,
+# _pedir_url KEY "Pergunta" dominio: URL https sem caminho nem barra final,
 # conferida com curl (páginas padrão do Azure respondem 200 antes do deploy).
 _pedir_url() {
   local chave="$1" rotulo="$2" dominio="$3" valor tentativa
@@ -317,7 +317,7 @@ _pedir_url() {
   _desistir "Não consegui um endereço válido para $chave em $MAX_TENTATIVAS tentativas."
 }
 
-# _pedir_segredo KEY "Pergunta" regex "dica" — entrada oculta, validada só pelo
+# _pedir_segredo KEY "Pergunta" regex "dica": entrada oculta, validada só pelo
 # formato. Nunca é gravada em disco nem repetida na tela.
 _pedir_segredo() {
   local chave="$1" rotulo="$2" regex="$3" dica="$4" valor tentativa
@@ -333,7 +333,7 @@ _pedir_segredo() {
   _desistir "Não recebi um valor válido para $chave em $MAX_TENTATIVAS tentativas."
 }
 
-# _pedir_texto KEY "Pergunta" regex "dica" [padrão] — valor público validado;
+# _pedir_texto KEY "Pergunta" regex "dica" [padrão]: valor público validado;
 # Enter vazio usa o padrão (quando houver).
 _pedir_texto() {
   local chave="$1" rotulo="$2" regex="$3" dica="$4" padrao="${5:-}" valor tentativa
@@ -351,7 +351,7 @@ _pedir_texto() {
   _desistir "Não recebi um valor válido para $chave em $MAX_TENTATIVAS tentativas."
 }
 
-# _gerar_jwt — 48 bytes aleatórios em base64 (64 caracteres, uma linha).
+# _gerar_jwt: 48 bytes aleatórios em base64 (64 caracteres, uma linha).
 _gerar_jwt() {
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -base64 48 | tr -d '\r\n'
@@ -365,7 +365,7 @@ _tem_area_de_transferencia() {
     command -v wl-copy >/dev/null 2>&1 || command -v xclip >/dev/null 2>&1
 }
 
-# _para_area_de_transferencia — copia o stdin para a área de transferência.
+# _para_area_de_transferencia: copia o stdin para a área de transferência.
 _para_area_de_transferencia() {
   if   command -v clip.exe >/dev/null 2>&1; then clip.exe
   elif command -v pbcopy   >/dev/null 2>&1; then pbcopy
@@ -373,7 +373,7 @@ _para_area_de_transferencia() {
   else xclip -selection clipboard; fi
 }
 
-# _copiar NOME VALOR — põe um segredo na área de transferência sem mostrá-lo.
+# _copiar NOME VALOR: põe um segredo na área de transferência sem mostrá-lo.
 # Consome uma linha de entrada em todos os caminhos (inclusive no ensaio).
 _copiar() {
   local nome="$1" valor="$2"
@@ -400,12 +400,12 @@ _limpar_area_de_transferencia() {
   fi
 }
 
-# _prop_sonar CHAVE — valor atual em sonar-project.properties.
+# _prop_sonar CHAVE: valor atual em sonar-project.properties.
 _prop_sonar() {
   { grep -E "^$1=" "$SONAR_PROPS" | tail -n1 | cut -d= -f2-; } || true
 }
 
-# _pedir_publish_profile — caminho do .PublishSettings; lê só para validar.
+# _pedir_publish_profile: caminho do .PublishSettings; lê só para validar.
 _pedir_publish_profile() {
   local caminho tentativa
   for ((tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++)); do
@@ -430,7 +430,7 @@ _pedir_publish_profile() {
   _desistir "Não encontrei o perfil de publicação em $MAX_TENTATIVAS tentativas."
 }
 
-# _configuracoes_app MODO — configurações do App Service (spec §5.4).
+# _configuracoes_app MODO: configurações do App Service.
 # MODO=tela mostra os valores públicos e o JWT_SECRET recém-gerado;
 # MODO=resumo nunca mostra segredos.
 _configuracoes_app() {
@@ -781,7 +781,7 @@ pause "Enter para continuar"
 stage "Primeiro deploy"
 say "O deploy roda no GitHub Actions: CI verde na main → workflow Deploy (api → smoke)."
 step "Se o $SONAR_PROPS mudou no passo 8, commite-o."
-step "Envie a main: git push origin main (os commits locais da Etapa 6D vão junto e disparam o CI)."
+step "Envie a main: git push origin main (os commits locais vão junto e disparam o CI)."
 note "Se o CI já estiver verde no GitHub e o Deploy não tiver rodado, dispare à mão: gh workflow run deploy.yml"
 open_url "$URL_GITHUB/actions"
 step "Acompanhe CI → Deploy até o job smoke ficar verde (o primeiro start roda as migrations)."

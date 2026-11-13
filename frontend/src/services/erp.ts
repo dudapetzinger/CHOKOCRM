@@ -1,8 +1,8 @@
 /**
- * Acesso tipado aos dados de venda/estoque do cliente no ERP (UC11, Etapa 5).
+ * Acesso tipado aos dados de venda/estoque do cliente no ERP.
  * Espelha o shape de `DadosErpDTO` de `backend/src/services/erp.service.ts`,
- * com as últimas notas importadas e a marca de estoque indisponível (Etapa 12b)
- * e a origem de cada venda (nota ou pedido do check-in).
+ * com as últimas notas importadas, a marca de estoque indisponível e a
+ * origem de cada venda (nota ou pedido do check-in).
  */
 import { api } from './api';
 
@@ -46,23 +46,8 @@ export function buscarDadosErp(clienteId: string): Promise<DadosErp> {
 /** Produto do catálogo do ERP, com o preço do dia (`ProdutoDTO` do backend). */
 export type Produto = { sku: string; nome: string; precoUnitario: number };
 
-/** Catálogo para o pedido do check-in (spec 7.5), na ordem do ERP. */
+/** Catálogo para o pedido do check-in, na ordem do ERP. */
 export async function listarProdutos(): Promise<Produto[]> {
   const resposta = await api.get<{ data: Produto[] }>('/erp/produtos');
   return resposta.data;
-}
-
-/** Situação da fonte de vendas do ERP (`GET /erp/situacao`, qualquer papel). */
-export type SituacaoErp = {
-  provedor: 'mock' | 'importado' | 'hibrido';
-  simulado: boolean;
-  estoqueDisponivel: boolean;
-  /** 'AAAA-MM-DD' da venda mais recente; `null` sem notas. */
-  ultimaVendaEm: string | null;
-  /** ISO da última importação; `null` se nunca houve. */
-  ultimaImportacaoEm: string | null;
-};
-
-export function buscarSituacaoErp(): Promise<SituacaoErp> {
-  return api.get<SituacaoErp>('/erp/situacao');
 }

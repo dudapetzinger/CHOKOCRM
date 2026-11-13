@@ -1,12 +1,12 @@
 /**
- * Larguras de tela que mudam o layout (Etapa 7; duas larguras na Etapa 8).
+ * Larguras de tela que mudam o layout.
  *
  * - `useLarguraDesktop` (≥ 768 px, o `md` do Tailwind): a moldura troca a
  *   navegação inferior pelo menu lateral; em Clientes, "Novo cliente" sai do
  *   botão flutuante para a barra de ferramentas.
  * - `useLarguraDuasColunas` (≥ 1024 px, o `lg`): Clientes mostra a lista com
- *   a ficha ao lado (spec 7.1) e a Agenda põe Atrasadas | Hoje lado a lado
- *   (spec 8). Abaixo disso, com o menu lateral de 240 px, as duas não cabem:
+ *   a ficha ao lado e a Agenda põe Atrasadas | Hoje lado a lado.
+ *   Abaixo disso, com o menu lateral de 240 px, as duas não cabem:
  *   lista e ficha ficam em telas separadas e as seções da Agenda se empilham.
  *   (O Painel faz o mesmo só com CSS: `lg:grid-cols-2`.)
  *

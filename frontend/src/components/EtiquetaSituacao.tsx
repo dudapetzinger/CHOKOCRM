@@ -1,6 +1,6 @@
 /**
- * Etiqueta de situação do cliente (Etapa 7, spec 5.1), no visual do
- * `StatusTag` do protótipo (Etapa 8): pílula com o fundo suave da cor da
+ * Etiqueta de situação do cliente, no visual do
+ * `StatusTag` do protótipo: pílula com o fundo suave da cor da
  * classificação, um ponto decorativo e o texto pronto de
  * lib/descreverSituacao.ts. Ocupa só a largura do texto (também numa coluna
  * flex) e, se não couber, quebra linha em vez de estourar a tela.

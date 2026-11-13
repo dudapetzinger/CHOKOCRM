@@ -1,5 +1,5 @@
 /**
- * Acesso tipado à API dos lembretes (Etapa 9): o lembrete é uma tarefa
+ * Acesso tipado à API dos lembretes: o lembrete é uma tarefa
  * própria, com data, criada no check-in e independente da próxima visita.
  * Espelha o `LembreteDTO` do backend. A agenda do dia traz os abertos com
  * data até hoje (`Agenda.lembretes`); a ficha lista os abertos do cliente.

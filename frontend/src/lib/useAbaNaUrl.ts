@@ -1,6 +1,6 @@
 /**
- * Aba guardada na URL (Etapa 9, spec das abas do Painel e da ficha do
- * cliente): lê `?<parametro>=` e devolve a aba e a função que a troca. Valor
+ * Aba guardada na URL (as abas do Painel e da ficha do cliente): lê
+ * `?<parametro>=` e devolve a aba e a função que a troca. Valor
  * ausente ou fora da lista vira o padrão. Trocar usa `replace` (as abas não
  * enchem o histórico), preserva os outros parâmetros (a Agenda usa
  * `?visao=`, Clientes usa a busca) e omite o parâmetro quando a aba é a

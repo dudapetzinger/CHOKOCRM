@@ -8,7 +8,7 @@ import { agora } from '../lib/relogio';
  * Itens do pedido em ordem alfabética do produto: a tabela não guarda a
  * ordem das linhas do formulário, e o id (uuid) não serve de ordem. O
  * serviço junta as linhas do mesmo SKU, então o nome não se repete.
- * A nota fiscal vinculada à visita (Etapa 12) vem só com número e valor total.
+ * A nota fiscal vinculada à visita vem só com número e valor total.
  */
 const INCLUDE_RELACOES = {
   contact: { select: { id: true, nome: true } },
@@ -32,8 +32,8 @@ export type ItemDoPedidoData = {
 };
 
 /**
- * Campos do cliente que todo check-in regrava junto com a visita (spec 7.4
- * e 7.7): `proximaVisita` já como valor de coluna `@db.Date`; `null` apaga.
+ * Campos do cliente que todo check-in regrava junto com a visita:
+ * `proximaVisita` já como valor de coluna `@db.Date`; `null` apaga.
  */
 export type ProximaVisitaDoClienteData = {
   proximaVisita: Date | null;
@@ -165,7 +165,7 @@ const SELECT_DO_PERIODO = {
 } satisfies Prisma.VisitSelect;
 
 /**
- * Visitas do período para os indicadores do painel (UC14): só o que as regras
+ * Visitas do período para os indicadores do painel: só o que as regras
  * usam, sem os itens do pedido (`obterKpis` não soma vendas). `dataHora`
  * entre `inicio` e `fim`, inclusive. Com `representanteId`, só visitas a
  * clientes da carteira dele (a carteira do cliente, não o autor da visita).
@@ -192,7 +192,7 @@ export async function listNoPeriodo(
 /**
  * O mesmo de `listNoPeriodo`, com `totalPedido` (a soma `quantidade ×
  * precoUnitario` dos itens, zero sem itens, como em `listarVisitasParaMetas`),
- * para o comparativo por representante e o relatório da planilha (spec 7.12).
+ * para o comparativo por representante e o relatório da planilha.
  */
 export async function listNoPeriodoComPedido(
   inicio: Date,
@@ -222,7 +222,7 @@ export type UltimaVisitaDoCliente = {
   erpSaleId: string | null;
 };
 
-/** Visita mais recente do cliente, de qualquer resultado, para o vínculo com a nota (Etapa 12). */
+/** Visita mais recente do cliente, de qualquer resultado, para o vínculo com a nota. */
 export async function ultimaVisitaDoCliente(
   clientId: string,
   banco: Banco = prisma,
@@ -252,7 +252,7 @@ export async function findManyComItens(
 
 /**
  * Vincula a nota à visita: os itens do pedido são substituídos pelos da nota e
- * o resultado passa a VENDA (spec 2.4 da Etapa 12). Serve também para
+ * o resultado passa a VENDA. Serve também para
  * atualizar os itens quando a mesma nota é importada de novo.
  */
 export async function substituirItensPorNota(

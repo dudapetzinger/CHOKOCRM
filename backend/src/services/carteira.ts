@@ -3,7 +3,7 @@ import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 
 /**
- * Regra de carteira (spec da Etapa 7, 5.0): o representante só enxerga e
+ * Regra de carteira: o representante só enxerga e
  * altera clientes da própria carteira (`Client.representanteId`); o gestor
  * enxerga todos. Módulo sem dependência de repositório nem de ERP para que
  * qualquer service (inclusive `erp.service`, de quem `client.service`

@@ -132,7 +132,7 @@ describe('montarCalendario', () => {
     ]);
   });
 
-  it('visita marcada já cumprida (check-in no dia dela ou depois) não entra; antes dela, entra (Etapa 10d)', () => {
+  it('visita marcada já cumprida (check-in no dia dela ou depois) não entra; antes dela, entra', () => {
     const cumpridaDepois = clienteFabricado({
       id: 'cumprida-depois',
       visits: [{ dataHora: diasAtras(3), resultado: 'VENDA' }],

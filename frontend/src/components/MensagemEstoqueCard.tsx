@@ -1,14 +1,14 @@
 /**
- * Card "Mensagem de estoque" na ficha do cliente (UC12, Etapa 6A): o
+ * Card "Mensagem de estoque" na ficha do cliente: o
  * representante gera uma mensagem de consulta de estoque com texto proposto
  * pelo sistema (evento sazonal vigente, se houver), revisa e abre no
  * WhatsApp via link `wa.me` montado no próprio toque de "Confirmar e abrir no
- * WhatsApp" (Etapa 11; o registro da mensagem vai ao backend em paralelo,
+ * WhatsApp" (o registro da mensagem vai ao backend em paralelo,
  * sem bloquear a abertura; com telefone que não serve para o WhatsApp o link
  * vem vazio, nada abre e o backend recusa o registro com a explicação); o histórico de mensagens geradas fica visível
  * para todos os papéis (só a geração é exclusiva do representante com
  * cliente ativo, ver `podeGerar` em `ClienteDetalhePage`). Visual do
- * protótipo (Etapa 8): "Gerar mensagem" na ação do cartão e cada mensagem
+ * protótipo: "Gerar mensagem" na ação do cartão e cada mensagem
  * gerada numa caixa cinza, recolhida (data · autor · evento) até ser aberta.
  */
 import { useState, type FormEvent } from 'react';
@@ -75,9 +75,9 @@ export function MensagemEstoqueCard({ clienteId, podeGerar }: Props) {
   }
 
   /**
-   * Troca "Enviar para" (I2): a saudação sugerida segue o destinatário
-   * escolhido, mas só enquanto o representante não tiver editado o texto —
-   * se o texto atual ainda é exatamente a última sugestão aplicada, troca
+   * Troca "Enviar para": a saudação sugerida segue o destinatário
+   * escolhido, mas só enquanto o representante não tiver editado o texto.
+   * Se o texto atual ainda é exatamente a última sugestão aplicada, troca
    * pela sugestão do novo destinatário; caso contrário, o texto já editado
    * é preservado.
    */

@@ -1,10 +1,9 @@
 /**
- * Acesso tipado à API da agenda do dia (UC10, Etapa 4; com os lembretes
- * abertos até hoje desde a Etapa 9) e do calendário do mês (spec 7.6, Etapa
- * 8). Espelha o shape de `GET /agenda/today` e `GET
+ * Acesso tipado à API da agenda do dia (com os lembretes abertos até hoje)
+ * e do calendário do mês. Espelha o shape de `GET /agenda/today` e `GET
  * /agenda/calendario` do backend: o representante vê só a própria carteira,
  * o gestor vê todos os clientes ou só os de um representante
- * (`representanteId`, Etapa 7).
+ * (`representanteId`).
  */
 import { api } from './api';
 import type { Cor } from './clients';
@@ -24,7 +23,7 @@ export type AgendaItem = {
   diasAtraso: number;
   /** A data prevista veio do check-in (e não da recorrência). */
   marcadaNoCheckIn: boolean;
-  /** Campanha da próxima visita (spec 7.7). */
+  /** Campanha da próxima visita. */
   proximaCampanha: { id: string; nome: string } | null;
   rebaixadoPorVenda: boolean;
   representante: { id: string; nome: string };
@@ -48,7 +47,7 @@ export function buscarAgendaDoDia(representanteId?: string): Promise<Agenda> {
 }
 
 /**
- * Um item num dia do calendário (spec 7.6), como `ItemCalendario` de
+ * Um item num dia do calendário, como `ItemCalendario` de
  * `backend/src/services/agenda.calendario.ts`: a visita marcada no check-in ou pela ficha
  * para um cliente (no dia marcado, mesmo vencida), um lembrete aberto (no dia
  * dele), um dia de campanha (só para o gestor) ou uma data sazonal.

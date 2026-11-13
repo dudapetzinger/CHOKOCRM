@@ -1,5 +1,5 @@
 /**
- * Convite para instalar o ChokoCRM na tela inicial (ADR-012).
+ * Convite para instalar o ChokoCRM na tela inicial.
  *
  * - Chrome/Edge (Android e desktop) disparam `beforeinstallprompt` quando o
  *   app é instalável: guardamos o evento (o `preventDefault` tira o

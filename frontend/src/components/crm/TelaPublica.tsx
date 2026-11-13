@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 
 /**
  * Tela aberta sem sessão e sem a moldura (login):
- * logotipo de 96 px e slogan centralizados, com o cartão da tela abaixo
- * (spec 7.14). `topo` (opcional) fica fixo na borda de cima, fora do
+ * logotipo de 96 px e slogan centralizados, com o cartão da tela abaixo.
+ * `topo` (opcional) fica fixo na borda de cima, fora do
  * centro: no login, o botão ou a faixa do modo demonstração.
  */
 export function TelaPublica({ children, topo }: { children: ReactNode; topo?: ReactNode }) {

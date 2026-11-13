@@ -19,7 +19,7 @@ import * as erpService from '../src/services/erp.service';
 import { truncateAllTables } from './helpers/db';
 
 /**
- * Provedor de ERP `importado` (Etapa 12b): as vendas vêm das notas fiscais
+ * Provedor de ERP `importado`: as vendas vêm das notas fiscais
  * importadas (`ErpSale`), lidas pelo CNPJ do destinatário. As notas são
  * gravadas direto via prisma (a leitura do PDF já tem os próprios testes em
  * `importacao-nf.test.ts`). Os pedidos dos check-ins (visitas VENDA com itens
@@ -320,7 +320,7 @@ describe('ImportadoErpProvider: notas + pedidos dos check-ins sem nota', () => {
     expect((await provedor.getLastSale(CNPJ_EMPORIO))?.origem).toEqual({ tipo: 'pedido', visitaId: recente.id });
   });
 
-  it('visita VENDA com nota vinculada (Review Focus 1) entra uma vez só, como a nota', async () => {
+  it('visita VENDA com nota vinculada entra uma vez só, como a nota', async () => {
     const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
     const nota = await criarNota(CNPJ_EMPORIO, '2026-10-01', 100, ITENS_PADRAO, '2455');
     await criarPedido(emporioId, noDia('2026-09-30', 10), ITENS_DO_PEDIDO, { erpSaleId: nota.id });
@@ -336,7 +336,7 @@ describe('ImportadoErpProvider: notas + pedidos dos check-ins sem nota', () => {
     });
   });
 
-  it('visita VENDA sem itens (Review Focus 2) e visita SEM_VENDA são ignoradas: nenhuma venda de valor 0', async () => {
+  it('visita VENDA sem itens e visita SEM_VENDA são ignoradas: nenhuma venda de valor 0', async () => {
     const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
     await criarPedido(emporioId, noDia('2026-10-10', 10), []);
     await criarPedido(emporioId, noDia('2026-10-11', 10), ITENS_DO_PEDIDO, { resultado: 'SEM_VENDA' });
@@ -508,7 +508,7 @@ describe('GET /clients/:id/erp (importado)', () => {
     ]);
   });
 
-  it('cliente sem nota (Review Focus 5): OK, sem última venda, volume zerado e sem últimas vendas', async () => {
+  it('cliente sem nota: OK, sem última venda, volume zerado e sem últimas vendas', async () => {
     const clienteId = await criarCliente(CNPJ_SEM_NOTAS, 'Doceria Jaragua', 'ERP-1001');
     await criarNota(CNPJ_EMPORIO, diaRelativo(-5), 100);
 
@@ -679,51 +679,5 @@ describe('GET /insights/manager-alerts (importado)', () => {
     expect(res.body.alertas).toEqual([]);
     expect(res.body.clientesConsultados).toBe(0);
     expect(res.body.clientesIndisponiveis).toBe(0);
-  });
-});
-
-describe('GET /erp/situacao (importado)', () => {
-  it('sem notas nem importações: datas nulas', async () => {
-    await prisma.erpImport.deleteMany();
-
-    const res = await request(app).get('/erp/situacao').set('Authorization', `Bearer ${tokenRep}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      provedor: 'importado',
-      simulado: false,
-      estoqueDisponivel: false,
-      ultimaVendaEm: null,
-      ultimaImportacaoEm: null,
-    });
-  });
-
-  it('com notas: a data de emissão mais recente e o instante da última importação', async () => {
-    await criarNota(CNPJ_EMPORIO, '2026-10-20', 100);
-    await criarNota(CNPJ_CAFE, '2026-11-03', 100);
-    await criarNota(CNPJ_CAFE, '2026-09-01', 100);
-    const maisRecente = await prisma.erpImport.create({
-      data: {
-        userId: gestorId,
-        nomeArquivo: 'notas-2.pdf',
-        criadoEm: new Date('2030-01-02T10:00:00.000Z'),
-        notasImportadas: 0,
-        notasIgnoradas: 0,
-        vinculadasAutomaticamente: 0,
-        pendentes: 0,
-        cnpjsSemCliente: [],
-      },
-    });
-
-    const res = await request(app).get('/erp/situacao').set('Authorization', `Bearer ${tokenGestor}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      provedor: 'importado',
-      simulado: false,
-      estoqueDisponivel: false,
-      ultimaVendaEm: '2026-11-03',
-      ultimaImportacaoEm: maisRecente.criadoEm.toISOString(),
-    });
   });
 });

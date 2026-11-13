@@ -36,7 +36,7 @@ import { obterAlertasDeProducao, obterInsights, type InsightsDTO } from '../src/
  * de consulta rejeita, para que uma chamada não prevista falhe alto em vez de
  * cair no banco ou no ERP de verdade; cada teste stuba só o que o cenário
  * precisa. `erpSimulado` e `estoqueDisponivel` são spies com valor padrão
- * (`true`); `chaveDoCliente` roda de verdade — os testes rodam no mock, onde
+ * (`true`); `chaveDoCliente` roda de verdade: os testes rodam no mock, onde
  * a chave é o `erpId`.
  */
 
@@ -95,7 +95,7 @@ const paoDeMel = (quantidade: number) => itemBaixo('PAO-MEL', 'Pães de mel', qu
 
 /**
  * Oráculo de uma sugestão: as mesmas regras puras aplicadas às mesmas vendas
- * do mock. Falha se o fixture não tiver histórico na janela — os cenários que
+ * do mock. Falha se o fixture não tiver histórico na janela: os cenários que
  * o usam precisam produzir sugestão, não `eventosSemHistorico`.
  */
 function comparacaoEsperada(vendas: Sale[], janela: Janela) {

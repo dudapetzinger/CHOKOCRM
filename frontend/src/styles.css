@@ -1,12 +1,10 @@
-/* ChokoCRM — o único arquivo de estilo do front (Etapa 8, revisão pelo
-   protótipo Lovable). Tailwind 4 + os tokens do protótipo
-   (.superpowers/referencia-lovable/src/styles.css), com os ajustes de
-   contraste da spec (6.3): texto sempre com 4,5:1 ou mais. O CSS escrito à
-   mão das Etapas 1–7 e os ícones SVG próprios saíram: as telas usam só
-   utilidades do Tailwind, os componentes do shadcn (src/components/ui/) e
-   as peças do protótipo (src/components/crm/: Cartao, Etiqueta, Aviso,
-   Campo, Avatar, CLASSES_COR, CLASSES_SELECT, CLASSES_BOTAO_PERIGO, a
-   Moldura). Ícones: lucide-react, decorativos (aria-hidden) ao lado do texto.
+/* ChokoCRM: o único arquivo de estilo do front. Tailwind 4 + os tokens do
+   protótipo, com os ajustes de contraste: texto sempre com 4,5:1 ou mais.
+   As telas usam só utilidades do Tailwind, os componentes do shadcn
+   (src/components/ui/) e as peças do protótipo (src/components/crm/:
+   Cartao, Etiqueta, Aviso, Campo, Avatar, CLASSES_COR, CLASSES_SELECT,
+   CLASSES_BOTAO_PERIGO, a Moldura). Ícones: lucide-react, decorativos
+   (aria-hidden) ao lado do texto.
 
    Ordem de import (main.tsx): as fontes @fontsource/plus-jakarta-sans
    (400, 500, 600, 700, 800), servidas pelo próprio app para o PWA abrir sem
@@ -17,7 +15,7 @@
    (lg:) as telas de duas colunas (lista + ficha, Agenda, Painel) abrem lado
    a lado. Abaixo de 768 px todo controle tocável tem 44 px ou mais
    (max-md:min-h-11 / max-md:h-11) e os campos têm 16 px de fonte, para o
-   iOS não dar zoom (spec 6.2 e 6.4).
+   iOS não dar zoom.
 
    Tokens (nas telas, use estes nomes em vez de cores cruas):
    - background: fundo da página; card: cartões, listas, barra superior,
@@ -116,18 +114,18 @@
   --card-foreground: oklch(0.24 0.02 50);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.24 0.02 50);
-  /* Contraste (spec 6.3): o laranja do protótipo (#e66e20) dá 3,2:1 com
+  /* Contraste: o laranja do protótipo (#e66e20) dá 3,2:1 com
      branco. O tom escuro dá 4,6:1 sobre branco (fundo de botão, texto
      text-primary em cartão); sobre --background fica em 4,2:1, então
      text-primary só em superfície branca. */
   --primary: #c55200;
   --primary-foreground: oklch(1 0 0);
-  /* Hover do botão primário (spec 6.3, --acao-hover): escurece em vez de
-     clarear, para o texto branco subir de 4,6:1 para 5,5:1 (o bg-primary/90
-     do shadcn clareava para 3,9:1) */
+  /* Hover do botão primário: escurece em vez de clarear, para o texto
+     branco subir de 4,6:1 para 5,5:1 (o bg-primary/90 do shadcn clarearia
+     para 3,9:1) */
   --primary-hover: #b04900;
   --primary-soft: oklch(0.95 0.035 60);
-  /* O laranja original, só onde não há texto em cima: anel de foco, ícone
+  /* O laranja do protótipo, só onde não há texto em cima: anel de foco, ícone
      ativo do menu, ponto da linha do tempo, linha "Hoje" do gráfico */
   --primary-vivo: #e66e20;
   /* Texto sobre --primary-soft vai em text-brown (9,6:1), nunca em text-primary */
@@ -142,7 +140,7 @@
   --destructive: oklch(0.58 0.2 27);
   --destructive-foreground: oklch(1 0 0);
   /* Hover do botão destrutivo: vermelho mais escuro, 6,6:1 com o texto
-     branco (o bg-destructive/90 do shadcn clareava para 4,2:1) */
+     branco (o bg-destructive/90 do shadcn clarearia para 4,2:1) */
   --destructive-hover: #b7191c;
   --border: oklch(0.91 0.008 70);
   --input: oklch(0.88 0.01 70);
@@ -185,7 +183,7 @@
     padding-right: env(safe-area-inset-right);
   }
 
-  /* Movimento reduzido (spec 6.4): sem transições nem animações */
+  /* Movimento reduzido: sem transições nem animações */
   @media (prefers-reduced-motion: reduce) {
     *,
     ::before,

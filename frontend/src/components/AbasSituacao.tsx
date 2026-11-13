@@ -1,10 +1,10 @@
 /**
- * Abas da lista de clientes por ação (Etapa 7, spec 5.1): Prioridade
+ * Abas da lista de clientes por ação: Prioridade
  * (LARANJA e VERMELHO), Atenção (AMARELO), Em dia (VERDE) e Todos, cada uma
- * com a contagem. Na Etapa 8 viram abas sublinhadas com a contagem numa
- * pastilha ("Prioridade 7"), no visual do protótipo; continuam botões com
+ * com a contagem. São abas sublinhadas com a contagem numa
+ * pastilha ("Prioridade 7"), no visual do protótipo; são botões com
  * `aria-pressed` (filtram a lista, não trocam de painel) e o nome acessível
- * continua "Prioridade · 7". Numa linha só: se não couberem (celular), rolam
+ * é "Prioridade · 7". Numa linha só: se não couberem (celular), rolam
  * na horizontal dentro da faixa, sem rolar a página. Controlado: quem usa
  * guarda a aba e calcula as contagens.
  */

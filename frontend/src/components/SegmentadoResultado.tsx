@@ -1,8 +1,8 @@
 /**
- * Controle segmentado do resultado da visita no check-in (UC07): três
+ * Controle segmentado do resultado da visita no check-in: três
  * opções lado a lado em vez de um `<select>`, para escolher com um toque.
  * Segue o padrão `radiogroup`: só a opção marcada entra no Tab e as setas
- * trocam a seleção. Desde a Etapa 8 é o `Segmentado` genérico (visual do
+ * trocam a seleção. É o `Segmentado` genérico (visual do
  * `Segmented` do protótipo, 44 px por opção no celular) com as três opções
  * fixas, numa linha só e na largura toda no celular.
  */

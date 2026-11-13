@@ -8,7 +8,7 @@ import {
 
 const MILISSEGUNDOS_POR_DIA = 86_400_000;
 
-/** Tupla (não union solto): a Task 3 passa `CORES` direto para `z.enum`. */
+/** Tupla (não union solto): `client.schema.ts` passa `CORES` direto para `z.enum`. */
 export const CORES = ['VERDE', 'AMARELO', 'LARANJA', 'VERMELHO'] as const;
 export type Cor = (typeof CORES)[number];
 
@@ -85,7 +85,7 @@ export function diasSemVisita(ultima: UltimaVisita, hoje: Date): number | null {
 }
 
 /**
- * Tabela de classificação (spec §4.1):
+ * Tabela de classificação:
  * sem visita → VERMELHO; ≤15 dias com VENDA → VERDE; ≤15 dias sem VENDA →
  * AMARELO; 16–30 dias → LARANJA; >30 dias → VERMELHO.
  */
@@ -117,7 +117,7 @@ export function diasSemCompra(ultimaVenda: Date | null, hoje: Date): number | nu
 }
 
 /**
- * Regra de cor composta (spec Etapa 5): se a última venda no ERP está há
+ * Regra de cor composta: se a última venda no ERP está há
  * mais de `LIMIAR_SEM_COMPRA_DIAS` dias, VERDE/AMARELO são rebaixados para
  * LARANJA. LARANJA e VERMELHO não mudam; sem `ultimaVenda`, mantém a base.
  */
@@ -137,7 +137,7 @@ export function aplicarRebaixamentoPorVenda(corBase: Cor, ultimaVenda: Date | nu
 
 /**
  * Deriva a última visita (mais recente por `dataHora`) e a cor/dias sem
- * visita a partir dela — ponto único usado pelos dois DTOs de cliente
+ * visita a partir dela: ponto único usado pelos dois DTOs de cliente
  * (lista e ficha) para não divergirem sobre como `ultima` é obtida. `cor`
  * já é a composta (rebaixada por `ultimaVenda` quando aplicável).
  */
@@ -166,14 +166,14 @@ export function classificacaoDoCliente(
 }
 
 /**
- * Data marcada (no check-in ou na ficha) que ainda vale (Etapa 10d: "visita
+ * Data marcada (no check-in ou na ficha) que ainda vale (regra da "visita
  * marcada cumprida"). A marcada só conta enquanto não há check-in no dia dela
  * ou depois: se a última visita (dia de calendário em São Paulo, via
  * `dataCalendario`) cai no dia marcado ou mais tarde, a marcação foi cumprida
- * e a função devolve `null` — o cliente volta à recorrência. Sem visita
+ * e a função devolve `null`: o cliente volta à recorrência. Sem visita
  * alguma, a marcada vale mesmo no passado (não há o que cumprir). Regra só de
  * leitura: `Client.proximaVisita` no banco não muda; só o check-in e a ficha
- * do cliente (Etapa 11b) escrevem nela. Usada pela agenda do dia, pelo
+ * do cliente escrevem nela. Usada pela agenda do dia, pelo
  * calendário e pelo DTO do cliente, para a ficha não mostrar como vencida uma
  * data que uma visita posterior já cobriu (dados fora do fluxo do check-in,
  * como o seed, podem deixar a marcada antiga na coluna).
@@ -191,10 +191,10 @@ export function proximaVisitaVigente(marcada: DataCalendario | null, ultima: Ult
 }
 
 /**
- * Data prevista da próxima visita (spec 7.4): a marcada no check-in ou na ficha, quando
+ * Data prevista da próxima visita: a marcada no check-in ou na ficha, quando
  * existe e ainda vale (`proximaVisitaVigente`), ganha; senão, a recorrência
  * somada à data da última visita ou, sem visita, à de `criadoEm`. Só a
- * agenda usa esta data — a cor de classificação continua pela última visita.
+ * agenda usa esta data: a cor de classificação continua pela última visita.
  */
 export function calcularProximaVisita(
   ultima: UltimaVisita,

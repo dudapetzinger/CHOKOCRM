@@ -10,7 +10,7 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  * código gera sempre o mesmo cadastro.
  *
  * Cada cliente nasce de uma vaga da grade (`GRADE`: dia da rota,
- * recorrência e fase, balanceadas junto com os âncoras — ver `rotas.ts`); a
+ * recorrência e fase, balanceadas junto com os âncoras, ver `rotas.ts`); a
  * cidade é uma das cidades daquele dia da rota; o tipo do negócio segue a
  * recorrência (semanais são padarias, mercearias, cafés; os de 28 dias,
  * pousadas, lojas de presentes, casas de chá). Cadastro de sistema de

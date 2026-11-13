@@ -1,10 +1,10 @@
 /**
- * Seletor da recorrência de visitas (UC09): atalhos de 15, 20 e 30 dias
+ * Seletor da recorrência de visitas: atalhos de 15, 20 e 30 dias
  * (a faixa sugerida) e "Outro", que revela um campo numérico de 1 a 365.
  * Um valor fora dos atalhos já abre com "Outro" marcado e o campo
  * preenchido. O campo vazio é repassado como `NaN`, para a validação de
  * quem usa o seletor (ver `RecorrenciaCard`) acusar o erro. Visual do
- * controle segmentado do protótipo (Etapa 8), o mesmo de `Segmentado`; no
+ * controle segmentado do protótipo, o mesmo de `Segmentado`; no
  * celular, as quatro opções numa linha só, na largura toda.
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';

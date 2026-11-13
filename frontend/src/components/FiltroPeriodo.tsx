@@ -1,6 +1,6 @@
 /**
- * Filtro de período de análise dos indicadores do gestor (UC14, Etapa 6C):
- * controle segmentado "30 · 90 · 365 dias · Personalizado" (Etapas 8 e 9) que
+ * Filtro de período de análise dos indicadores do gestor:
+ * controle segmentado "30 · 90 · 365 dias · Personalizado" que
  * escolhe a janela que os indicadores consideram. Controlado: quem usa guarda
  * o valor (`useState<Periodo>(PERIODO_PADRAO)`).
  *

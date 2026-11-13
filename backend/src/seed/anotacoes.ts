@@ -9,7 +9,7 @@ import type { TipoDeCliente } from './clientes-gerados';
  *
  * Sem repetição em sequência no mesmo cliente: a abertura é escolhida pelo
  * número de ordem absoluto da visita na rota (`ordemDaVisita`), e visitas
- * consecutivas têm números consecutivos — duas seguidas com a mesma situação
+ * consecutivas têm números consecutivos: duas seguidas com a mesma situação
  * caem em aberturas diferentes, e com situações diferentes vêm de bancos
  * diferentes. O resto da frase vem do sorteio determinístico da visita.
  */

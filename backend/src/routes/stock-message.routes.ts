@@ -6,8 +6,8 @@ import { requireRole } from '../middlewares/requireRole';
 /**
  * Router aninhado sob `/clients/:id/stock-message` (montado com
  * `mergeParams` para enxergar o `:id` do cliente definido no prefixo do
- * app.ts). Propor e gerar a mensagem de estoque (UC12) é exclusivo do
- * representante — o gestor só consulta o histórico global abaixo.
+ * app.ts). Propor e gerar a mensagem de estoque é exclusivo do
+ * representante: o gestor só consulta o histórico global abaixo.
  */
 export const clientStockMessageRouter = Router({ mergeParams: true });
 

@@ -1,5 +1,5 @@
 /**
- * Calendário do mês na Agenda (spec 7.6; visual de `crm/calendario.tsx` do
+ * Calendário do mês na Agenda (visual de `crm/calendario.tsx` do
  * protótipo). Grade 7 × 6 a partir do domingo, "‹ Hoje ›", até 3 itens por
  * dia e "+N", hoje em círculo, dia selecionado com anel e dias de fora do
  * mês esmaecidos; legenda abaixo. Os itens vêm prontos de `GET
@@ -17,7 +17,7 @@
  * selecionado, `aria-pressed`. Item de cliente no painel abre a ficha; a
  * conclusão do lembrete fica na agenda do dia e na ficha, não aqui.
  *
- * Cores (spec 6.3 e 7.6): visita marcada em `bg-primary` com texto branco (o
+ * Cores: visita marcada em `bg-primary` com texto branco (o
  * `--primary` escuro, 4,6:1); lembrete em `bg-st-yellow-soft` com
  * `text-brown` (cerca de 9:1); campanha em `bg-chart-soft` com `--chart-text`;
  * data sazonal em `bg-st-green-soft` com `--st-green-text`. O ponto do

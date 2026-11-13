@@ -1,12 +1,12 @@
 /**
  * Barra de progresso de uma meta (`Progresso` de `crm/metas.tsx` do
- * protótipo, spec 7.8): o rótulo e "real de alvo · N %" em cima ("R$
+ * protótipo): o rótulo e "real de alvo · N %" em cima ("R$
  * 4.200,00 de R$ 6.000,00 · 70 %" com `moeda`; abaixo do alvo o percentual
  * arredonda para baixo e só chega a 100 % com a meta batida) e a barra
  * embaixo, azul (`--chart`) e verde (`--st-green`) a partir de 100 %. A barra é um
  * `progressbar` com o mesmo texto em `aria-valuetext`; `data-atingida`
  * marca a meta batida sem depender da cor. Com alvo zero não há barra: o
- * texto diz "· sem meta". Com `balao` (Etapa 9, spec 6.7), a barra abre no
+ * texto diz "· sem meta". Com `balao`, a barra abre no
  * hover, no foco e no toque o balão com os clientes que fizeram o realizado;
  * aí o `progressbar` é o gatilho, um invólucro com 44 px de toque no celular
  * (`TOQUE_NA_BARRA`), e a barra desenhada fica dentro.

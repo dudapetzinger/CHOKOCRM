@@ -7,7 +7,7 @@ import { colunaDateDaData, dataCalendario, somarDias } from '../src/services/cla
 import { truncateAllTables } from './helpers/db';
 
 /**
- * Lembrete como tarefa própria (Etapa 9): criado no check-in com data
+ * Lembrete como tarefa própria: criado no check-in com data
  * própria, sobrevive a check-ins novos e à próxima visita apagada, listado
  * por cliente (só os abertos) e concluído pelo dono da carteira ou pelo
  * gestor.
@@ -180,7 +180,7 @@ describe('POST /clients/:id/visits com lembrete', () => {
     expect(await prisma.visit.count()).toBe(0);
   });
 
-  it('lembrete null (front da versão anterior, ainda em cache) → 201 sem lembrete', async () => {
+  it('lembrete null (front desatualizado, ainda em cache) → 201 sem lembrete', async () => {
     const res = await checkIn({ proximaVisita: daquiA(7), lembrete: null });
 
     expect(res.status).toBe(201);
@@ -188,7 +188,7 @@ describe('POST /clients/:id/visits com lembrete', () => {
     expect(await prisma.reminder.count()).toBe(0);
   });
 
-  it('lembrete como texto solto (formato antigo) → 400 "Atualize o app para registrar o lembrete."', async () => {
+  it('lembrete como texto solto (front desatualizado) → 400 "Atualize o app para registrar o lembrete."', async () => {
     const res = await checkIn({ lembrete: 'Levar amostras' });
 
     expect(res.status).toBe(400);

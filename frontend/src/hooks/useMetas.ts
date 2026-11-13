@@ -1,5 +1,5 @@
 /**
- * Estado de servidor das metas de visitas e vendas (spec 7.8): o bloco do
+ * Estado de servidor das metas de visitas e vendas: o bloco do
  * Painel e o de cada campanha leem `['metas', campanhaId, representanteId,
  * período]` (o período, por `chaveDoPeriodo`; `null` sem período: todas).
  * Quem cria, altera ou exclui uma meta, ou faz check-in, invalida `['metas']`

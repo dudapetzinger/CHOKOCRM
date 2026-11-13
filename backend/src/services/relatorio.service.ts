@@ -13,7 +13,7 @@ import type { Janela } from './kpis.regras';
 import { agora } from '../lib/relogio';
 
 /**
- * Relatório da planilha do Painel (spec 7.12): uma linha por cliente ativo
+ * Relatório da planilha do Painel: uma linha por cliente ativo
  * da carteira, na ordem de urgência da lista de clientes, com a situação
  * (rótulo da cor composta, como a lista mostra), os dias sem visita e as
  * visitas e vendas do período dos indicadores. Vendas = soma dos pedidos

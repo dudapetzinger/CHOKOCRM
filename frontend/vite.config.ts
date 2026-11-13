@@ -6,7 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 /**
  * Caminhos da API (backend/src/app.ts). Em produção a API e o app estão no
- * mesmo host (ADR-007), então o service worker precisa saber o que é API.
+ * mesmo host, então o service worker precisa saber o que é API.
  * `/agenda` sozinho é tela do app (a API só tem `/agenda/...`), assim como
  * `/usuarios` e `/conta/senha`; `/auth/...` e `/users/...` são API.
  */
@@ -19,9 +19,9 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    // Base de interface do protótipo (Etapa 8): Tailwind 4 lê src/styles.css
+    // Base de interface do protótipo: Tailwind 4 lê src/styles.css
     tailwindcss(),
-    // PWA instalável, sem modo offline de escrita (ADR-012): o service worker
+    // PWA instalável, sem modo offline de escrita: o service worker
     // guarda só a casca do app (HTML, JS, CSS, fontes, ícones); a API passa
     // sempre pela rede. Service worker só no build/preview, não no `npm run dev`.
     VitePWA({

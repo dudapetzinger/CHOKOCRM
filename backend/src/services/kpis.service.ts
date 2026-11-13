@@ -22,10 +22,10 @@ import {
 import { agora } from '../lib/relogio';
 
 /**
- * Indicadores do painel do gestor (UC14): busca visitas, mensagens e clientes
+ * Indicadores do painel do gestor: busca visitas, mensagens e clientes
  * ativos (e, via `erp.service`, a última compra para a cor composta), entrega
- * às regras puras de `kpis.regras.ts` e projeta o DTO — mesmo papel de
- * `insights.service.ts` sobre `insights.regras.ts`. Indisponibilidade do ERP
+ * às regras puras de `kpis.regras.ts` e projeta o DTO (mesmo papel de
+ * `insights.service.ts` sobre `insights.regras.ts`). Indisponibilidade do ERP
  * chega como `null` em `consultarUltimasVendas` e a cor cai na regra base,
  * como na lista de clientes.
  */
@@ -37,9 +37,9 @@ export type KpisDTO = {
   taxaDeRegistro: Proporcao;
   conversaoEmVendas: Proporcao;
   inativos: { total: number; distribuicao: DistribuicaoPorCor };
-  /** Nenhuma visita nem mensagem no período (UC14 A1). */
+  /** Nenhuma visita nem mensagem no período. */
   semDados: boolean;
-  /** `erpSimulado()` — a cor composta consulta o ERP. */
+  /** `erpSimulado()`: a cor composta consulta o ERP. */
   simulado: boolean;
 };
 

@@ -1,9 +1,9 @@
 /**
- * Acesso tipado aos números dos gráficos do Painel (Etapa 7; contagens por
- * resultado, ritmo e relatório da planilha na Etapa 8; período personalizado
- * e detalhe por cliente na Etapa 9): o comparativo por representante, o ritmo
- * de visitas (por semana ou por mês, conforme o período), as vendas mensais da
- * carteira (os meses inteiros do período, no mínimo três) e as linhas do CSV. Espelha `KpisPorRepresentanteDTO` de
+ * Acesso tipado aos números dos gráficos do Painel: o comparativo por
+ * representante (com as contagens por resultado e o detalhe por cliente), o
+ * ritmo de visitas (por semana ou por mês, conforme o período), as vendas
+ * mensais da carteira (os meses inteiros do período, no mínimo três) e as
+ * linhas do CSV. Espelha `KpisPorRepresentanteDTO` de
  * `backend/src/services/kpis.service.ts`, `KpiRepresentante`, `Ritmo` e
  * `FaixaDoRitmo` de `kpis.regras.ts`, `VendasMensaisDTO` de
  * `vendas-mensais.service.ts` e `LinhaDoRelatorioDTO` de
@@ -109,7 +109,7 @@ export function buscarVendasMensais(periodo: Periodo, representanteId?: string):
   return api.get<VendasMensais>(`/dashboard/vendas-mensais?${query}`);
 }
 
-/** Uma linha da planilha do Painel (spec 7.12), já em ordem de urgência. */
+/** Uma linha da planilha do Painel, já em ordem de urgência. */
 export type LinhaDoRelatorio = {
   cliente: string;
   cidade: string;

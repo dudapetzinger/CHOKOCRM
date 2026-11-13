@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Validação de contatos (UC04). Espelha o `contatoSchema` interno de
+ * Validação de contatos. Espelha o `contatoSchema` interno de
  * `client.schema.ts`: nome/cargo/telefone/email obrigatórios e `principal`
  * como boolean explícito, refletindo a obrigatoriedade "Sim" do dicionário
  * de dados para todos os campos de `Contact`.
@@ -18,7 +18,7 @@ export const createContactSchema = z.object({
 export type CreateContactInput = z.infer<typeof createContactSchema>;
 
 /**
- * Atualização parcial (UC04, alternativa A1) — qualquer subconjunto dos
+ * Atualização parcial: qualquer subconjunto dos
  * campos do contato pode ser enviado, incluindo `principal` isoladamente
  * para promover/rebaixar (regras de negócio em contact.service.ts).
  */

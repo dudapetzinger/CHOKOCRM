@@ -1,5 +1,5 @@
 /**
- * Moldura das telas autenticadas (spec 6.5), a partir do `crm/shell.tsx` do
+ * Moldura das telas autenticadas, a partir do `crm/shell.tsx` do
  * protótipo, sem o seletor "Ver como" e sem o login embutido (o app tem
  * `LoginPage` e `RequireAuth`). A partir de 768 px: menu lateral de 240 px
  * com a marca. Abaixo: navegação inferior fixa. Nos dois: barra superior de
@@ -7,7 +7,7 @@
  * existe de cada vez (pela mesma largura de `useLarguraDesktop`), para o
  * leitor de tela não achar dois menus iguais.
  *
- * Barra inferior (specs 2026-11-06 §3 B e 2026-11-09 §3): os dois papéis têm
+ * Barra inferior: os dois papéis têm
  * 5 posições, com um botão central (`BotaoCentral`, círculo primário elevado).
  * Representante: Clientes, Agenda, `BotaoCheckIn` (abre "Para qual cliente?"),
  * Painel, Campanhas. Gestor: Painel, Clientes, "Importar notas" (navega para

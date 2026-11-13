@@ -330,9 +330,9 @@ describe('GET /dashboard/kpis', () => {
 });
 
 /**
- * Carteira de B: um cliente ativo com duas visitas no período — uma do
+ * Carteira de B: um cliente ativo com duas visitas no período, uma do
  * próprio B e uma do representante principal (autor de outra carteira,
- * que ainda assim conta para B: o filtro é a carteira do cliente) — e uma
+ * que ainda assim conta para B: o filtro é a carteira do cliente), e uma
  * mensagem de estoque.
  */
 async function criarCarteiraB(): Promise<string> {

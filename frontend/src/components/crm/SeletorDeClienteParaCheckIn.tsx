@@ -1,5 +1,5 @@
 /**
- * Painel inferior "Para qual cliente?" (spec 2026-11-06, §3 B), aberto pelo
+ * Painel inferior "Para qual cliente?", aberto pelo
  * botão central de check-in da barra do representante (`BotaoCheckIn`).
  * Mostra os clientes ativos da carteira (`useClientesDaCarteira`), em ordem
  * alfabética, com busca pelo nome fantasia ou pela cidade sem acento nem

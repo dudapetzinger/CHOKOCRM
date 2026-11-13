@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { PERIODOS_DIAS } from '../config/kpis';
 
 /**
- * O período de análise nas queries (UC14, spec 7.8 e 7.12): em dias
+ * O período de análise nas queries: em dias
  * (`?periodoDias=`, só os valores de `PERIODOS_DIAS`) ou por datas
  * (`?inicio=&fim=`, 'AAAA-MM-DD'), nunca os dois; sem nenhum, vale o padrão.
  * Os indicadores, o relatório e a lista de metas compõem os campos daqui

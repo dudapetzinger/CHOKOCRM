@@ -29,13 +29,13 @@ import { diaDaSemana, ordemDaVisita, ROTAS, visitaPrevista, type AgendaDaRota, t
  *   tiram, para nenhum horário mudar quando `hoje` avança. Nenhuma visita
  *   depois de `hoje`: num sábado, a última é a de sexta; antes das 8h, o
  *   dia corrente ainda não tem visita.
- * - Resultado: sorteio por cliente + data — VENDA 55 %, NEGOCIACAO 25 %,
- *   SEM_VENDA 20 % —; pedidos de 1 a 4 itens do `CATALOGO` nas vendas, com
+ * - Resultado: sorteio por cliente + data (VENDA 55 %, NEGOCIACAO 25 %,
+ *   SEM_VENDA 20 %); pedidos de 1 a 4 itens do `CATALOGO` nas vendas, com
  *   quantidades pelo tipo do negócio (`QUANTIDADES`) e produto da época
  *   (`SAZONAIS_DO_MES`) com frequência.
  * - Determinismo: todo sorteio usa como semente o CNPJ do cliente e a data
  *   (nunca a posição na lista), então o mesmo `hoje` gera as mesmas visitas,
- *   e as visitas dos dias anteriores não mudam quando `hoje` avança — fora as
+ *   e as visitas dos dias anteriores não mudam quando `hoje` avança, fora as
  *   dos clientes de propósito, que dependem de `hoje` por definição.
  * - Casos de propósito (`Proposito`): nunca visitado (sem agenda), inativo
  *   (visitas só até N semanas antes de `hoje`), atrasado (as últimas

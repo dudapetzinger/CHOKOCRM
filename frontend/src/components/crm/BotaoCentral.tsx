@@ -2,7 +2,7 @@
  * Botão central da barra inferior (celular): círculo de 56 px na cor primária
  * com um ícone, elevado acima da barra, e o rótulo embaixo no estilo dos
  * atalhos. Serve ao `BotaoCheckIn` do representante e ao "Importar notas" da
- * Gestão (spec 2026-11-09, §3). O nome acessível (`ariaLabel`) deve conter o
+ * Gestão. O nome acessível (`ariaLabel`) deve conter o
  * rótulo visível. As propriedades de ARIA (`aria-haspopup`, `aria-expanded`) e
  * o `ref` (para devolver o foco) são repassados ao `<button>`.
  */

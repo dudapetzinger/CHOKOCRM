@@ -16,8 +16,7 @@ import { somarDias, type DataCalendario } from '../../src/services/classificacao
  * relógio de demonstração nos testes) numa quarta, numa segunda e numa
  * sexta: ≥ 2 por representante em cada dia útil da janela, de preferência na
  * data natural do cliente, a agenda de hoje intacta e a de amanhã perdendo no
- * máximo 3; e as carteiras curtas, em que as regras de completar entram
- * (Review Focus 1 e 2 do plano).
+ * máximo 3; e as carteiras curtas, em que as regras de completar entram.
  */
 
 const CLIENTES = clientesDaDemonstracao();

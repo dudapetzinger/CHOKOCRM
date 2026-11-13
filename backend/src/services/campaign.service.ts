@@ -23,7 +23,7 @@ import { buscarProduto, listarProdutos } from './erp.service';
 import { agora } from '../lib/relogio';
 
 /**
- * Campanhas, promoções e eventos (spec 7.7). Todos leem; só o gestor cria,
+ * Campanhas, promoções e eventos. Todos leem; só o gestor cria,
  * altera e exclui (barrado nas rotas). O status sai do dia de hoje em São
  * Paulo; os resultados, os produtos mais vendidos e as vendas, das visitas
  * com a campanha.
@@ -190,7 +190,7 @@ export async function excluirCampanha(id: string): Promise<void> {
 }
 
 /**
- * Check-in (spec 7.7): a visita e a próxima visita só se vinculam a
+ * Check-in: a visita e a próxima visita só se vinculam a
  * campanha que existe e não está encerrada no dia de hoje em São Paulo
  * (programada ou em andamento). Senão, 400.
  */

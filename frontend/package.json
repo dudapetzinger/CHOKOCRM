@@ -1,5 +1,8 @@
 {
   "name": "chokocrm-frontend",
+  "description": "Interface do ChokoCRM, em React e TypeScript",
+  "author": "Eduarda Petzinger Rodrigues",
+  "license": "MIT",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,7 +15,8 @@
     "test:watch": "vitest",
     "preview": "vite preview",
     "icones": "node scripts/gerar-icones.mjs",
-    "gerar:contorno": "node scripts/gerar-contorno-sc.mjs"
+    "gerar:contorno": "node scripts/gerar-contorno-sc.mjs",
+    "gerar:municipios": "node scripts/gerar-municipios-sc.mjs"
   },
   "dependencies": {
     "@fontsource/plus-jakarta-sans": "^5.3.0",

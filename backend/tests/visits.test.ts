@@ -289,9 +289,9 @@ describe('POST /clients/:id/visits', () => {
 
   /**
    * Data/hora só é aceita como ISO 8601. Sem isso, qualquer valor que o
-   * `new Date()` do JavaScript engole vira uma visita gravada em 1970 —
-   * e como só a descrição é editável e não há exclusão, o registro fica
-   * errado para sempre e ainda distorce a cor do cliente (UC05).
+   * `new Date()` do JavaScript engole vira uma visita gravada em 1970.
+   * Como só a descrição é editável e não há exclusão, o registro fica
+   * errado para sempre e ainda distorce a cor do cliente.
    */
   it.each([
     ['nulo', null],
@@ -448,7 +448,7 @@ describe('POST /clients/:id/visits com pedido', () => {
   });
 });
 
-describe('POST /clients/:id/visits com a próxima visita (spec 7.4)', () => {
+describe('POST /clients/:id/visits com a próxima visita', () => {
   const MENSAGEM_DATA_PASSADA = 'A próxima visita não pode ser antes de hoje.';
 
   /** Hoje + `dias`, como data de calendário em São Paulo (o "hoje" do servidor). */
@@ -501,7 +501,7 @@ describe('POST /clients/:id/visits com a próxima visita (spec 7.4)', () => {
     expect(await proximaVisitaNoBanco()).toBeNull();
   });
 
-  it('sem proximaVisita, a visita nova substitui a data marcada: apaga a data e a agenda volta à recorrência (R22)', async () => {
+  it('sem proximaVisita, a visita nova substitui a data marcada: apaga a data e a agenda volta à recorrência', async () => {
     // Data marcada que já venceu: sem apagar, o cliente recém-visitado continuaria atrasado
     await prisma.client.update({
       where: { id: clienteId },
@@ -594,7 +594,7 @@ describe('POST /clients/:id/visits com a próxima visita (spec 7.4)', () => {
   });
 });
 
-describe('POST /clients/:id/visits com campanha (spec 7.7)', () => {
+describe('POST /clients/:id/visits com campanha', () => {
   const MENSAGEM_CAMPANHA = 'Campanha encerrada ou inexistente.';
 
   function daquiA(dias: number): string {

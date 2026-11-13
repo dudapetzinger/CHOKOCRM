@@ -1,6 +1,5 @@
 /**
- * Diálogo modal do projeto (spec 2026-11-12, §3), extraído do painel "Para
- * qual cliente?" do check-in. O projeto não tem `Dialog`/`Sheet` do shadcn:
+ * Diálogo modal do projeto. O projeto não tem `Dialog`/`Sheet` do shadcn:
  * é um `role="dialog"` com `aria-modal`, num fundo escurecido fixo, desenhado
  * em `document.body` (fora da navegação e de quem o usa).
  *

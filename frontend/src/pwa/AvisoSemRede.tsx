@@ -2,11 +2,11 @@ import { WifiOff } from 'lucide-react';
 import { useOnline } from './useOnline';
 
 /**
- * Faixa no topo quando o app está sem rede (ADR-012): a casca abre pelo
- * service worker, mas os dados vêm só da API — o que está na tela é o que
- * já tinha sido carregado. Ver `useOnline` (navegador offline ou chamada à
- * API que falhou por rede). Visual do protótipo (Etapa 8): vermelho suave
- * com o texto vermelho escuro (5,6:1) e o ícone na linha do texto.
+ * Faixa no topo quando o app está sem rede: a casca abre pelo service
+ * worker, mas os dados vêm só da API, então o que está na tela é o que já
+ * tinha sido carregado. Ver `useOnline` (navegador offline ou chamada à API
+ * que falhou por rede). Visual do protótipo: vermelho suave com o texto
+ * vermelho escuro (5,6:1) e o ícone na linha do texto.
  */
 export function AvisoSemRede() {
   const online = useOnline();

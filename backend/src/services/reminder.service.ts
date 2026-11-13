@@ -8,7 +8,7 @@ import { toLembreteDTO, type LembreteDTO } from './lembrete.dto';
 import { agora } from '../lib/relogio';
 
 /**
- * Lembrete como tarefa própria (Etapa 9): criado no check-in, listado na
+ * Lembrete como tarefa própria: criado no check-in, listado na
  * ficha do cliente (só os abertos) e concluído pelo dono da carteira ou pelo
  * gestor. A regra de carteira segue o dono atual do cliente: se o cliente for
  * transferido, o lembrete vai junto.
@@ -47,7 +47,7 @@ export async function concluir(
   }
 
   // A conclusão é condicional no banco (`concluidoEm` ainda nulo): dois
-  // toques ao mesmo tempo não gravam duas datas — o segundo recebe o 409.
+  // toques ao mesmo tempo não gravam duas datas: o segundo recebe o 409.
   if (!(await reminderRepository.concluir(id, concluidoEm))) {
     throw new AppError(ErrorCode.CONFLICT, MENSAGEM_LEMBRETE_JA_CONCLUIDO, 409);
   }

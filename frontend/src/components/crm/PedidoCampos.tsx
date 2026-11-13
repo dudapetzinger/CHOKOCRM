@@ -1,5 +1,5 @@
 /**
- * Bloco "Pedido" do check-in (spec 7.5, `checkin.$id.tsx` do protótipo):
+ * Bloco "Pedido" do check-in (`checkin.$id.tsx` do protótipo):
  * total à direita; uma linha por item com produto · preço | quantidade |
  * remover; "Adicionar item". Componente controlado: a página guarda os
  * itens, mostra o bloco só com resultado Venda e envia só as linhas com

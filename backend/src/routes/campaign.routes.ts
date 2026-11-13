@@ -4,7 +4,7 @@ import { authJwt } from '../middlewares/authJwt';
 import { requireRole } from '../middlewares/requireRole';
 
 /**
- * Campanhas, promoções e eventos, montado em `/campaigns` (spec 7.7).
+ * Campanhas, promoções e eventos, montado em `/campaigns`.
  * Qualquer usuário autenticado lê (a lista tem as vendas vinculadas no
  * escopo dele); criar, alterar e excluir é só do gestor (403 para o
  * representante).

@@ -3,7 +3,7 @@ import { CORES_INATIVAS, DIAS_MAXIMOS_DO_RITMO_SEMANAL, PERIODO_PADRAO_DIAS } fr
 import { CORES, dataCalendario, diasEntre, somarDias, type Cor, type DataCalendario } from './classificacao.service';
 
 /**
- * Regras puras dos indicadores do painel do gestor (UC14) — mesmo papel de
+ * Regras puras dos indicadores do painel do gestor, com o mesmo papel de
  * `agenda.montagem.ts` e `insights.regras.ts`: nenhuma dependência de banco
  * nem de provider. Quem busca os dados (`kpis.service.ts`) importa daqui,
  * nunca o contrário.
@@ -24,7 +24,7 @@ export function proporcao(numerador: number, denominador: number): Proporcao {
   };
 }
 
-/** [hoje − (periodoDias − 1), hoje] — 30 dias inclui hoje; usado com inicioDoDia/fimDoDia para os instantes. */
+/** [hoje − (periodoDias − 1), hoje]: 30 dias inclui hoje; usado com inicioDoDia/fimDoDia para os instantes. */
 export function periodoDeAnalise(
   hoje: DataCalendario,
   periodoDias: number,
@@ -38,7 +38,7 @@ export type Janela = { dias: number; inicio: DataCalendario; fim: DataCalendario
 /**
  * A janela pedida: com `inicio` e `fim`, as datas (e `dias` = `diasEntre` + 1);
  * com `periodoDias`, os últimos dias terminando hoje; sem nada, 30 dias. Pura:
- * não valida — quem confere as datas é `resolverPeriodo` (periodo.ts).
+ * não valida; quem confere as datas é `resolverPeriodo` (periodo.ts).
  */
 export function janelaDoPeriodo(
   pedido: { periodoDias?: number | undefined; inicio?: DataCalendario | undefined; fim?: DataCalendario | undefined },

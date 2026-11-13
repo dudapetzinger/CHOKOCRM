@@ -1,8 +1,8 @@
 /**
- * Peças de interface do protótipo (`crm/ui.tsx` do Lovable) adaptadas ao app:
- * nomes em português, `Cor` em maiúsculas e os ajustes de contraste da spec
- * (6.3) — texto verde, vermelho e azul nos tons `*-text`, texto sobre o
- * laranja suave em `text-brown`.
+ * Peças de interface do protótipo (`crm/ui.tsx`) adaptadas ao app:
+ * nomes em português, `Cor` em maiúsculas e os ajustes de contraste
+ * (texto verde, vermelho e azul nos tons `*-text`, texto sobre o
+ * laranja suave em `text-brown`).
  */
 import { cloneElement, useId, type ComponentProps, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
@@ -88,7 +88,7 @@ export function Aviso({
 
 /**
  * `<select>` nativo com o visual do protótipo (`selectCls` de `crm/shell.tsx`):
- * 36 px no desktop; 44 px e 16 px no celular (spec 6.2 e 6.4).
+ * 36 px no desktop; 44 px e 16 px no celular.
  */
 export const CLASSES_SELECT =
   'h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 max-md:h-11 max-md:text-base';

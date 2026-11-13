@@ -1,5 +1,5 @@
 /**
- * Histórico de interações do cliente (UC08). A última visita aparece em
+ * Histórico de interações do cliente. A última visita aparece em
  * destaque, num bloco com moldura, e as anteriores vêm abaixo, na linha do
  * tempo, atrás de um filtro de quantidade ("Últimas 3", "Últimas 6" ou
  * "Todas"; o padrão é 3) com a contagem total ao lado. Com uma visita só, há
@@ -7,19 +7,19 @@
  * anexar a foto que não subiu no momento do check-in, tanto no destaque quanto
  * na lista (os dois usam o mesmo `ItemDaVisita`).
  *
- * Visual do protótipo (Etapa 8): linha do tempo com um ponto por visita, a
- * data e o resultado numa etiqueta só de contorno (Etapa 10c: venda verde,
+ * Visual do protótipo: linha do tempo com um ponto por visita, a
+ * data e o resultado numa etiqueta só de contorno (venda verde,
  * negociação azul, sem venda vermelho claro), a etiqueta azul preenchida da
- * campanha vinculada (spec 7.7), o pedido da visita com venda ("Pedido ·
+ * campanha vinculada, o pedido da visita com venda ("Pedido ·
  * total" e, ao abrir "Ver itens", uma linha por item, com o preço gravado no check-in; o
- * pedido vem recolhido; com a nota fiscal importada vinculada (Etapa 12b), "Pedido
+ * pedido vem recolhido; com a nota fiscal importada vinculada, "Pedido
  * conforme NF 2455 · total do pedido" e, só quando o valor da nota difere,
  * "Total da nota R$ ...") e a foto em
- * miniatura — ou, depois da limpeza dos 90 dias, o aviso "Foto removida após
+ * miniatura ou, depois da limpeza dos 90 dias, o aviso "Foto removida após
  * 90 dias." no lugar da foto e do botão de anexar.
  *
- * O filtro é estado local do componente, não vai para a URL (spec da Etapa
- * 10b, seção 6). Componente de apresentação: não chama a API: recebe os dados
+ * O filtro é estado local do componente, não vai para a URL.
+ * Componente de apresentação: não chama a API: recebe os dados
  * e os callbacks da página (ver docs/arquitetura.md).
  */
 import { useId, useState } from 'react';
@@ -147,7 +147,7 @@ function ItemDaVisita({
       {visita.itens.length > 0 && (
         <div className="mt-2 rounded-lg bg-muted p-2.5 text-sm">
           <p id={`pedido-${visita.id}`} className="mb-1 flex items-center gap-1.5 font-medium">
-            {/* Marca sem texto: o laranja vivo vale aqui (spec 6.3) */}
+            {/* Marca sem texto: o laranja vivo vale aqui */}
             <ShoppingBag aria-hidden="true" className="size-4 shrink-0 text-primary-vivo" />
             {visita.notaFiscal ? `Pedido conforme NF ${visita.notaFiscal.numero}` : 'Pedido'} ·{' '}
             {formatarMoeda(visita.totalPedido)}

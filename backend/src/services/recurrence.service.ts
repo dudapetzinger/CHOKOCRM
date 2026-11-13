@@ -13,7 +13,7 @@ const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 export const MENSAGEM_RECORRENCIA_IGUAL = 'A recorrência informada é igual à atual.';
 
 /**
- * Única forma de alterar `Client.recorrenciaDias` (UC09): a checagem de
+ * Única forma de alterar `Client.recorrenciaDias`: a checagem de
  * papel (só REPRESENTANTE) já ocorre em `requireRole` na rota, então este
  * serviço não a repete. Ordem das checagens: cliente existe -> cliente
  * é da carteira do representante -> valor difere do atual -> grava

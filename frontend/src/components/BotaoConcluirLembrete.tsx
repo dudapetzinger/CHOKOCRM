@@ -1,7 +1,7 @@
 /**
- * "Concluir" de um lembrete (Etapa 9), na agenda do dia (`LembreteRow`) e
+ * "Concluir" de um lembrete, na agenda do dia (`LembreteRow`) e
  * no aviso da ficha (`AvisoProximaVisita`): desabilitado enquanto conclui e
- * depois de concluir, até a lista recarregada tirar a linha — um segundo
+ * depois de concluir, até a lista recarregada tirar a linha; um segundo
  * toque não repete o pedido (que daria "Lembrete já concluído."). O nome
  * acessível (`rotulo`) diz qual lembrete, porque costuma haver vários botões
  * iguais na tela; o sucesso e o erro vêm num toast (`useConcluirLembrete`).

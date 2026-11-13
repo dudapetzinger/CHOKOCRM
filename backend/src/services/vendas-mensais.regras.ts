@@ -5,11 +5,11 @@ import { dataCalendario, type DataCalendario } from './classificacao.service';
 import type { Janela } from './kpis.regras';
 
 /**
- * Regras puras do gráfico de vendas mensais da carteira (Etapa 7) — mesmo
+ * Regras puras do gráfico de vendas mensais da carteira, com o mesmo
  * papel de `kpis.regras.ts`: nenhuma dependência de banco nem de provider.
  * Quem busca as vendas (`vendas-mensais.service.ts`) importa daqui. Mês é
  * sempre `'AAAA-MM'` do dia de calendário no `FUSO_HORARIO`. A janela de
- * meses segue o período do painel (Etapa 11), com piso de `MESES_MINIMOS_DO_GRAFICO`.
+ * meses segue o período do painel, com piso de `MESES_MINIMOS_DO_GRAFICO`.
  */
 export type TotalDoMes = { mes: string; total: number };
 
@@ -106,8 +106,8 @@ export function ultimoDiaDoMes(mes: string): DataCalendario {
 }
 
 /**
- * Eventos sazonais que caem nos `meses` (de `mesesDaJanela`) — do primeiro
- * dia do mês mais antigo ao último dia do mais recente —, em todos os anos
+ * Eventos sazonais que caem nos `meses` (de `mesesDaJanela`), do primeiro
+ * dia do mês mais antigo ao último dia do mais recente, em todos os anos
  * que os meses cobrem; ordenados por data.
  */
 export function marcadoresDeEventos(meses: string[]): MarcadorDeEvento[] {

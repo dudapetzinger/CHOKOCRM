@@ -1,20 +1,19 @@
 /**
- * Painel (UC14 e UC15; gráficos na Etapa 7; visual de `routes/painel.tsx` do
- * protótipo, com os gráficos dele desenhados à mão, na Etapa 8; duas abas na
- * Etapa 9, spec 6.2). Gestor e representante (spec 7.10): o gestor vê a
+ * Painel, no visual de `routes/painel.tsx` do protótipo, com os gráficos dele
+ * desenhados à mão e duas abas. Gestor e representante: o gestor vê a
  * empresa toda ou o representante do seletor; o representante, sem seletor,
  * só a própria carteira (o backend ignora o `representanteId` dele).
  *
  * Fora das abas, no topo: a barra com o seletor (gestor), o período (30, 90,
  * 365 dias ou personalizado) e, à direita (linha própria no celular),
- * "Planilha" (spec 7.12), ao lado do período (abaixo dele no celular); e as abas
+ * "Planilha", ao lado do período (abaixo dele no celular); e as abas
  * "Metas e resultados" e "Produção e sazonalidade", com a aba na URL
  * (`?aba=producao`; sem o parâmetro, a primeira). Só o painel da aba aberta
- * fica montado. Desde 11/11/2026 não há faixa sobre a fonte do ERP no topo.
+ * fica montado.
  *
  * "Metas e resultados", nesta ordem: "Quem está visitando pouco?" (gestor) ou
  * "Como está a minha carteira?" (representante) com os quatro indicadores; as
- * "Metas de visitas e vendas" do período (spec 7.8; só leitura para o
+ * "Metas de visitas e vendas" do período (só leitura para o
  * representante); e, a partir de 1024 px (empilhados abaixo, nessa ordem):
  *   - gestor: à esquerda, o resultado das visitas por representante e o ritmo
  *     de visitas; à direita, o ranking dos representantes (só com "Todos");
@@ -25,14 +24,14 @@
  * "Hoje", e os alertas de produção do horizonte escolhido); e, a partir de
  * 1024 px, à esquerda "Quais clientes estão esfriando?" (distribuição por cor
  * e os cinco mais urgentes) e, à direita, a "Época do ano" com os eventos do
- * horizonte e o mapa de clientes por cidade (spec 7.11).
+ * horizonte e o mapa de clientes por cidade.
  *
  * Os números vêm da API. Com um bloco já carregado, o erro de um refetch
- * (rede caída) aparece como aviso acima do conteúdo, que continua visível
- * (spec 5.7). "Planilha" baixa o CSV do relatório do backend (mesmo período
+ * (rede caída) aparece como aviso acima do conteúdo, que continua visível.
+ * "Planilha" baixa o CSV do relatório do backend (mesmo período
  * e mesma carteira; a faixa personalizada acima de 365 dias só vale para
  * ela, o Painel segue no período anterior). Não há botão "PDF": o app
- * instalado não imprime (removido em 12/11/2026).
+ * instalado não imprime.
  */
 import { useState, type ReactNode } from 'react';
 import { Download } from 'lucide-react';

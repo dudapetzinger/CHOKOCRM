@@ -6,7 +6,6 @@ import { AuthContext } from '../auth/auth-context';
 import { Toaster } from '../components/ui/sonner';
 import { useClientesDaCarteira, useKpisPorRepresentante, useVendasMensais } from '../hooks/useDashboard';
 import { useAlertasDeProducao } from '../hooks/useInsights';
-import { useSituacaoErp } from '../hooks/useImportacoes';
 import { useKpis } from '../hooks/useKpis';
 import { baixarCsv } from '../lib/csv';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
@@ -20,7 +19,6 @@ import {
 } from '../services/dashboard';
 import { listarMetas, type Meta } from '../services/goals';
 import type { Alertas } from '../services/insights';
-import type { SituacaoErp } from '../services/erp';
 import type { Kpis } from '../services/kpis';
 import { PainelPage } from './PainelPage';
 
@@ -34,11 +32,6 @@ vi.mock('../hooks/useRepresentantes', () => ({
 }));
 
 vi.mock('../hooks/useKpis', () => ({ useKpis: vi.fn() }));
-
-vi.mock('../hooks/useImportacoes', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../hooks/useImportacoes')>()),
-  useSituacaoErp: vi.fn(),
-}));
 
 vi.mock('../hooks/useDashboard', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../hooks/useDashboard')>()),
@@ -179,16 +172,7 @@ const LINHA_DO_RELATORIO: LinhaDoRelatorio = {
 
 type Retorno<F extends (...args: never[]) => unknown> = ReturnType<F>;
 
-const SITUACAO_MOCK: SituacaoErp = {
-  provedor: 'mock',
-  simulado: true,
-  estoqueDisponivel: true,
-  ultimaVendaEm: null,
-  ultimaImportacaoEm: null,
-};
-
 beforeEach(() => {
-  vi.mocked(useSituacaoErp).mockReturnValue(consulta(SITUACAO_MOCK) as unknown as Retorno<typeof useSituacaoErp>);
   vi.mocked(buscarRelatorio).mockReset().mockResolvedValue([LINHA_DO_RELATORIO]);
   vi.mocked(baixarCsv).mockReset();
   vi.mocked(listarMetas).mockReset().mockResolvedValue([META_DA_EDUARDA]);
@@ -241,23 +225,6 @@ describe('PainelPage (gestor)', () => {
     ]);
     expect(screen.queryByText(/Dados simulados/)).not.toBeInTheDocument();
     expect(screen.queryByText(/integração com o ERP/)).not.toBeInTheDocument();
-  });
-
-  it('com o provedor importado, também não há faixa sobre a fonte do ERP', () => {
-    vi.mocked(useSituacaoErp).mockReturnValue(
-      consulta({
-        provedor: 'importado',
-        simulado: false,
-        estoqueDisponivel: false,
-        ultimaVendaEm: '2026-11-04',
-        ultimaImportacaoEm: '2026-11-05T12:00:00.000Z',
-      }) as unknown as Retorno<typeof useSituacaoErp>,
-    );
-    renderizarComo('GESTOR');
-
-    expect(screen.queryByText(/Dados simulados/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Vendas do ERP importadas/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Nenhuma nota/)).not.toBeInTheDocument();
   });
 
   it('título "Quem está visitando pouco?" com o período e os clientes ativos, e os quatro indicadores', () => {

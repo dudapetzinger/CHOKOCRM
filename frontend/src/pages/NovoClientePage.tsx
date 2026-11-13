@@ -1,6 +1,6 @@
 /**
- * Cadastro de cliente (UC02), no visual do protótipo
- * (`routes/clientes.novo.tsx`, Etapa 8): um cartão de 560 px com razão
+ * Cadastro de cliente, no visual do protótipo
+ * (`routes/clientes.novo.tsx`): um cartão de 560 px com razão
  * social, nome fantasia, CNPJ | cidade, endereço, telefone | e-mail, o
  * identificador no ERP (opcional, regra do app), a recorrência de visitas
  * (15, 20, 30 ou Outro; 15 por padrão, como no backend) e os contatos, com o
@@ -10,8 +10,8 @@
  * recebe o foco. Sucesso: aviso "Cliente cadastrado" e a ficha do cliente
  * criado. Só o representante cadastra por aqui (o cliente entra na carteira
  * dele; as notas importadas sem cliente do CNPJ passam a ser dele); o gestor
- * volta para a lista — o gestor também cria clientes pela nota, em Importar
- * notas. Os campos não usam o preenchimento automático
+ * volta para a lista (o gestor também cria clientes pela nota, em Importar
+ * notas). Os campos não usam o preenchimento automático
  * do navegador: os dados são do cliente, não da representante.
  */
 import { useState, type ComponentProps, type FormEvent } from 'react';

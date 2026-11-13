@@ -1,8 +1,8 @@
 /**
- * O app tem rede? (ADR-012) `false` quando o navegador diz que está offline
+ * O app tem rede? `false` quando o navegador diz que está offline
  * (`navigator.onLine` + eventos `online`/`offline`) ou quando a última
  * chamada à API falhou por rede (`estadoRede`, registrado por
- * `services/api.ts`) — com Wi-Fi sem internet o `navigator.onLine` continua
+ * `services/api.ts`): com Wi-Fi sem internet o `navigator.onLine` continua
  * `true`. O evento `online` limpa a falha da API: a próxima chamada confirma.
  */
 import { useSyncExternalStore } from 'react';

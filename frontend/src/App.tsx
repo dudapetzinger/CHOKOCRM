@@ -28,10 +28,10 @@ import { BannerInstalar } from './pwa/BannerInstalar';
 const PainelPage = lazy(() => import('./pages/PainelPage'));
 
 /**
- * `/clientes` e `/clientes/:id` numa rota só (Etapa 7). A partir de 1024 px
- * (spec 7.1) as duas mostram a lista com a ficha ao lado — a mesma rota
- * mantém a lista montada (busca, aba, rolagem) ao trocar de cliente. Abaixo
- * disso (celular e tablet), com id, só a ficha.
+ * `/clientes` e `/clientes/:id` numa rota só. A partir de 1024 px as duas
+ * mostram a lista com a ficha ao lado: a mesma rota mantém a lista montada
+ * (busca, aba, rolagem) ao trocar de cliente. Abaixo disso (celular e
+ * tablet), com id, só a ficha.
  */
 function ClientesOuFicha() {
   const { id } = useParams<{ id?: string }>();
@@ -49,7 +49,7 @@ function CheckInDoCliente() {
   return <CheckInPage key={id} />;
 }
 
-/** `/` e endereços desconhecidos levam à tela inicial do papel (spec 6.5). */
+/** `/` e endereços desconhecidos levam à tela inicial do papel. */
 function TelaInicial() {
   const { user } = useAuth();
   return user ? <Navigate to={rotaInicialDoPapel(user.role)} replace /> : null;
@@ -60,7 +60,7 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <RepresentanteProvider>
-          {/* PWA (ADR-012): faixas de sem internet e de versão nova, no fluxo
+          {/* PWA: faixas de sem internet e de versão nova, no fluxo
               acima da barra superior (não grudam no topo, para nunca cobrir o
               "Voltar" e o menu da conta); abaixo, o convite para instalar (só
               com usuário logado), que rola com a página. */}

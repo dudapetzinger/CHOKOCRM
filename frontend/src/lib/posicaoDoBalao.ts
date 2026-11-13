@@ -1,5 +1,5 @@
 /**
- * Posição do balão dos gráficos (Etapa 9, spec do balão de hover): conta
+ * Posição do balão de hover dos gráficos: conta
  * pura, testada com retângulos literais; o componente (`BalaoDoGrafico`)
  * mede com `getBoundingClientRect()`. Devolve `x`/`y` relativos à área
  * (`relative`) onde o balão é desenhado: centralizado no gatilho, acima dele

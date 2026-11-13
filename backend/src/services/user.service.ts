@@ -9,7 +9,7 @@ import { hashDaSenha } from './auth.service';
 import type { UsuarioAutenticado } from './carteira';
 
 /**
- * Gestão de usuários pelo gestor (spec da Etapa 8, 7.13). Quem pode chamar
+ * Gestão de usuários pelo gestor. Quem pode chamar
  * já foi barrado nas rotas (`requireRole('GESTOR')`); aqui ficam as regras
  * que dependem de quem é o alvo. O app não manda e-mail: senha esquecida
  * volta pela senha provisória que o gestor define (`definirSenhaProvisoria`).

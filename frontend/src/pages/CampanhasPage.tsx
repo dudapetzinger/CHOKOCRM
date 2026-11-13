@@ -1,13 +1,13 @@
 /**
- * Campanhas e eventos (spec 7.7), no visual de `routes/campanhas.tsx` do
+ * Campanhas e eventos, no visual de `routes/campanhas.tsx` do
  * protótipo, até 896 px de largura (largura toda no celular). Todos veem os
  * cartões, em ordem de início: nome, tipo, status (Programada em laranja, Em
- * andamento em verde, Encerrada neutra — calculado no backend pelo dia de
+ * andamento em verde, Encerrada neutra; calculado no backend pelo dia de
  * hoje em São Paulo), desconto em vermelho, período, descrição, produtos em
  * destaque e as vendas vinculadas, resumidas: por representante para o
  * gestor, "Minhas vendas vinculadas" para o representante (o backend já
- * manda só a linha dele) e, embaixo, as "Metas da campanha" (spec 7.8,
- * `MetasPanel`).
+ * manda só a linha dele) e, embaixo, as "Metas da campanha"
+ * (`MetasPanel`).
  *
  * No topo, o filtro "Campanha" (`?campanha=<id>`, `replace`; id desconhecido
  * vale "Todas as campanhas"). Com uma campanha escolhida, só o cartão dela

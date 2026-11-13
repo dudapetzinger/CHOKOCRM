@@ -1,5 +1,5 @@
 /**
- * Telefone para os atalhos de contato da ficha (Etapa 7, spec 5.5): links
+ * Telefone para os atalhos de contato da ficha: links
  * `tel:` e `https://wa.me/`, que exigem o número internacional só com
  * dígitos, e o link do WhatsApp com a mensagem já preenchida (mesmo formato e
  * mesmas regras de validação do link que o backend monta em

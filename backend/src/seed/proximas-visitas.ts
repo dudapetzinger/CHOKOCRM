@@ -82,7 +82,7 @@ export function dataNatural(
  * propósito (nunca visitado, inativo, atrasados), fora os "sempre com venda",
  * que entram mas só num dia que a rota prevê para eles (o propósito, visita
  * com venda, não muda). Em cada dia, nesta ordem:
- * 1. os que têm a data natural (`dataNatural`) exatamente em `d` — marcados
+ * 1. os que têm a data natural (`dataNatural`) exatamente em `d`: marcados
  *    no dia em que a recorrência já os põe, a agenda não muda (por nome,
  *    girado pelo índice do dia);
  * 2. para completar, os ainda sem marcação com a data natural mais longe de
