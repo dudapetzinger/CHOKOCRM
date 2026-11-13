@@ -344,7 +344,7 @@ describe('ImportacoesPage', () => {
     gravacaoA.resolver(GRAVACOES['a.pdf']);
 
     const titulo = await screen.findByRole('heading', { name: 'Importação concluída.' });
-    expect(titulo).toHaveFocus();
+    await waitFor(() => expect(titulo).toHaveFocus());
     expect(ordem).toEqual(['a.pdf', 'b.pdf']);
     expect(screen.getByText('2 notas novas · 1 vinculada · 1 só no ERP')).toBeInTheDocument();
     expect(screen.getByText('Deseja verificar?')).toBeInTheDocument();
@@ -522,7 +522,8 @@ describe('ImportacoesPage', () => {
 
     gravacaoA.resolver(GRAVACOES['a.pdf']);
 
-    expect(await within(dialogo).findByRole('heading', { name: 'Importação concluída.' })).toHaveFocus();
+    const tituloDaConclusao = await within(dialogo).findByRole('heading', { name: 'Importação concluída.' });
+    await waitFor(() => expect(tituloDaConclusao).toHaveFocus());
     expect(within(dialogo).getByText('Deseja verificar?')).toBeInTheDocument();
     expect(within(dialogo).getByRole('button', { name: 'Fechar' })).toBeEnabled();
   });
