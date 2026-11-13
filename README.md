@@ -3,9 +3,9 @@
 [![CI](https://github.com/dudapetzinger/CHOKOCRM/actions/workflows/ci.yml/badge.svg)](https://github.com/dudapetzinger/CHOKOCRM/actions/workflows/ci.yml)
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=dudapetzinger_CHOKOCRM&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=dudapetzinger_CHOKOCRM)
 
-O ChokoCRM é um sistema de acompanhamento de clientes e visitas feito para os representantes comerciais da Chokolaten, fábrica de chocolates artesanais de Pomerode (SC). Ele abre no navegador, foi desenhado primeiro para o celular e pode ser instalado como aplicativo.
+O ChokoCRM é um sistema de acompanhamento de clientes e visitas feito para os representantes comerciais da Chokolaten, fábrica de chocolates artesanais de Pomerode (SC). Projetado com foco no uso mobile e pode ser instalado como PWA.
 
-É o projeto extensionista (PAC) do curso de Engenharia de Software do Centro Universitário Católica de Santa Catarina, desenvolvido em parceria com a empresa.
+Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Universitário Católica de Santa Catarina, desenvolvido em parceria com a empresa.
 
 ## Sumário
 
@@ -35,15 +35,15 @@ O representante:
 - abre a agenda do dia, com as visitas atrasadas, as de hoje e os lembretes, e traça o roteiro no Google Maps;
 - registra a visita em quatro passos, com foto, resultado, o pedido feito e a data da próxima visita;
 - consulta a ficha do cliente, com o histórico de visitas, as compras e sugestões do que oferecer conforme a época do ano (Páscoa, Dia das Mães, Natal e outras datas);
-- envia ao cliente, pelo WhatsApp, uma mensagem pronta perguntando sobre o estoque;
+- envia ao cliente, pelo WhatsApp, uma mensagem pré-definida por ele, perguntando sobre o estoque;
 - acompanha as próprias metas e os resultados no painel.
 
-A gestão, além de tudo isso:
+A gestão:
 
 - acompanha no painel as visitas, as vendas e a conversão de cada representante, com gráficos, ranking e mapa dos clientes por cidade;
 - recebe alertas dos clientes que estão esfriando e dos produtos com estoque baixo antes de uma data comemorativa;
 - cria campanhas e metas e acompanha o resultado de cada uma;
-- importa as notas fiscais em PDF emitidas pelo sistema de gestão da empresa, que passam a alimentar o histórico de compras de cada cliente;
+- importa as notas fiscais em PDF emitidas pelo sistema de gestão (ERP) da empresa, que passam a alimentar o histórico de compras de cada cliente;
 - cria as contas dos usuários e transfere clientes de um representante para outro.
 
 A descrição completa, com as regras de cada funcionalidade, está em [docs/funcionalidades.md](docs/funcionalidades.md).
@@ -66,7 +66,7 @@ A senha de todas as contas é `chokocrm123`.
 | Representante | Rafael Schmitt | `rafael@chokolaten.com.br` |
 | Gestor | Gestão Chokolaten | `gestao@chokolaten.com.br` |
 
-Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular três meses de uso.
+Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular diferentes períodos de uso.
 
 ### Roteiro sugerido
 
@@ -93,7 +93,21 @@ A tela de login tem o botão Modo demonstração. Ele pede uma data e a senha da
 
 ### Usando como aplicativo
 
-No celular, depois do login, o sistema oferece a instalação com o aviso "Use o ChokoCRM como app". Instalado, ele abre em tela cheia, como qualquer aplicativo. É preciso estar com internet para registrar visitas.
+No Android (Google Chrome):
+1. Acesse o ChokoCRM pelo navegador e faça login.
+2. Toque nos três pontinhos (⋮) no canto superior direito.
+3. Selecione "Instalar aplicativo" ou "Adicionar à tela inicial".
+4. Confirme a instalação.
+   
+No iPhone (Safari):
+1. Acesse o ChokoCRM pelo Safari e faça login.
+2. Toque no ícone de compartilhamento (quadrado com uma seta para cima).
+3. Selecione "Adicionar à Tela de Início".
+4. Toque em "Adicionar" para confirmar.
+   
+Depois de instalado, o ChokoCRM aparecerá na tela inicial do celular. Basta tocar no ícone para abrir o sistema, sem precisar acessar o navegador.
+
+Importante: é necessário estar conectado à internet para registrar as visitas.
 
 ## Como instalar no seu computador
 
