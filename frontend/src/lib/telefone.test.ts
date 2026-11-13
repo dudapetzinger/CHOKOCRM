@@ -1,4 +1,8 @@
-import { linkWhatsapp, somenteDigitos, telefoneParaWaMe } from './telefone';
+import { linkLigar, linkWhatsapp, somenteDigitos, telefoneDeTeste, telefoneParaWaMe } from './telefone';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('somenteDigitos', () => {
   it('tira tudo que não é dígito', () => {
@@ -68,5 +72,44 @@ describe('linkWhatsapp', () => {
 
   it('com zero de tronco, monta o link normalmente', () => {
     expect(linkWhatsapp('047 99900-8080', 'Oi')).toBe('https://wa.me/5547999008080?text=Oi');
+  });
+});
+
+describe('linkLigar', () => {
+  it('monta o link tel: com o número internacional', () => {
+    expect(linkLigar('(47) 99900-8080')).toBe('tel:+5547999008080');
+  });
+
+  it('sem dígitos, vazio', () => {
+    expect(linkLigar('')).toBe('');
+  });
+});
+
+describe('telefone de teste (VITE_TELEFONE_DE_TESTE)', () => {
+  it('sem a variável, não há telefone de teste e os links usam o telefone cadastrado', () => {
+    vi.stubEnv('VITE_TELEFONE_DE_TESTE', '');
+    expect(telefoneDeTeste()).toBe('');
+    expect(linkWhatsapp('(47) 99900-8080')).toBe('https://wa.me/5547999008080');
+    expect(linkLigar('(47) 3333-4444')).toBe('tel:+554733334444');
+  });
+
+  it('com a variável, os links de WhatsApp e de ligação vão para o telefone de teste', () => {
+    vi.stubEnv('VITE_TELEFONE_DE_TESTE', ' (47) 99783-2223 ');
+    expect(telefoneDeTeste()).toBe('(47) 99783-2223');
+    expect(linkWhatsapp('(48) 3222-1111', 'Oi')).toBe('https://wa.me/5547997832223?text=Oi');
+    expect(linkLigar('(48) 3222-1111')).toBe('tel:+5547997832223');
+  });
+
+  it('com a variável, um telefone cadastrado que não serve continua sem link', () => {
+    vi.stubEnv('VITE_TELEFONE_DE_TESTE', '(47) 99783-2223');
+    expect(linkWhatsapp('0800 123 4567')).toBe('');
+    expect(linkWhatsapp('3333-4444')).toBe('');
+    expect(linkLigar('')).toBe('');
+  });
+
+  it('com a variável inválida, nenhum link é montado, para não ligar ao cliente por engano', () => {
+    vi.stubEnv('VITE_TELEFONE_DE_TESTE', '1234');
+    expect(linkWhatsapp('(47) 99900-8080')).toBe('');
+    expect(linkLigar('(47) 99900-8080')).toBe('');
   });
 });

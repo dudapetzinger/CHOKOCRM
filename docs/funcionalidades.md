@@ -361,7 +361,7 @@ A recriação apaga os clientes de demonstração, com as visitas e os lembretes
 
 As visitas de venda da demonstração já trazem produtos e valores, como se a nota fiscal tivesse sido importada.
 
-Todos os contatos dos clientes de demonstração usam o mesmo telefone, o da autora do projeto, para que as mensagens de teste pelo WhatsApp cheguem a um número conhecido.
+Todos os contatos dos clientes de demonstração usam o mesmo telefone, o da autora do projeto, para que as mensagens de teste pelo WhatsApp cheguem a um número conhecido. No ambiente publicado, o telefone de teste (`VITE_TELEFONE_DE_TESTE`) faz o mesmo com os clientes reais: os botões Ligar e WhatsApp de qualquer cliente vão para esse número, a ficha mostra um aviso disso e os telefones cadastrados continuam como estão.
 
 ## 14. Uso como aplicativo
 

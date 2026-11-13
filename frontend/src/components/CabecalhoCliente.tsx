@@ -14,7 +14,9 @@
  * sem principal, o do cliente; se esse não serve, só "Ligar", e a proposta
  * nem é buscada. Sem telefone nenhum (cliente criado pelo gestor a partir
  * da nota, sem contato), nem "Ligar" nem WhatsApp; sem cidade, a linha
- * começa direto no representante.
+ * começa direto no representante. Com telefone de teste (`lib/telefone.ts`),
+ * "Ligar" e WhatsApp vão para ele e uma linha avisa disso; o telefone
+ * cadastrado continua na tela.
  *
  * Com `podeTransferir` (gestor), o nome do representante vira um select que
  * transfere o cliente na hora (`PUT /clients/:id { representanteId }`), com
@@ -38,7 +40,7 @@ import { useRepresentantes } from '../hooks/useRepresentantes';
 import { descreverSituacao } from '../lib/descreverSituacao';
 import { useDevolverFoco } from '../lib/useFoco';
 import { contatosParaWhatsapp, textoSugeridoDoDestino } from '../lib/contatosWhatsapp';
-import { linkWhatsapp, telefoneParaWaMe } from '../lib/telefone';
+import { linkLigar, linkWhatsapp, telefoneDeTeste } from '../lib/telefone';
 import { mensagemErroApi, updateCliente, type ClienteCompleto, type Contato } from '../services/clients';
 import type { Proposta } from '../services/stockMessages';
 import { EtiquetaSituacao } from './EtiquetaSituacao';
@@ -197,8 +199,9 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
   const { ref: botaoAdicionarContato, devolverFoco } = useDevolverFoco<HTMLButtonElement>(adicionandoContato);
   const contatoPrincipal = cliente.contatos.find((contato) => contato.principal);
   const telefone = contatoPrincipal?.telefone ?? cliente.telefone;
-  const numeroInternacional = telefoneParaWaMe(telefone);
+  const hrefLigar = linkLigar(telefone);
   const destinos = destinosWhatsapp(cliente, contatoPrincipal);
+  const teste = telefoneDeTeste();
   const { data: proposta } = usePropostaDeMensagem(cliente.id, podeCheckIn && destinos.length > 0);
 
   return (
@@ -238,8 +241,11 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
                 <Etiqueta>Inativo</Etiqueta>
               )}
             </div>
-            {numeroInternacional && (
+            {hrefLigar && (
               <p className="text-sm">{contatoPrincipal ? `${contatoPrincipal.nome} · ${telefone}` : telefone}</p>
+            )}
+            {teste && (hrefLigar || destinos.length > 0) && (
+              <p className="text-xs text-muted-foreground">Modo de teste: "Ligar" e WhatsApp vão para {teste}.</p>
             )}
             {!adicionandoContato && (
               <button
@@ -255,11 +261,11 @@ export function CabecalhoCliente({ cliente, podeCheckIn, podeTransferir }: Props
           </div>
         </div>
 
-        {(numeroInternacional || destinos.length > 0 || podeCheckIn) && (
+        {(hrefLigar || destinos.length > 0 || podeCheckIn) && (
           <div className="grid grid-cols-2 gap-2 @md:flex @md:flex-wrap @2xl:shrink-0 @2xl:flex-nowrap">
-            {numeroInternacional && (
+            {hrefLigar && (
               <Button variant="outline" asChild>
-                <a href={`tel:+${numeroInternacional}`} aria-label="Ligar">
+                <a href={hrefLigar} aria-label="Ligar">
                   <Phone aria-hidden="true" />
                   Ligar
                 </a>

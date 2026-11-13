@@ -1,10 +1,22 @@
 /**
  * Telefone para os atalhos de contato da ficha: links
  * `tel:` e `https://wa.me/`, que exigem o número internacional só com
- * dígitos, e o link do WhatsApp com a mensagem já preenchida. Funções puras.
+ * dígitos, e o link do WhatsApp com a mensagem já preenchida.
+ *
+ * Com `VITE_TELEFONE_DE_TESTE` definido, os links de ligação e de WhatsApp
+ * de qualquer cliente vão para esse número, e os telefones cadastrados ficam
+ * como estão. Serve para os testes com pessoas de fora não chegarem aos
+ * clientes de verdade. O telefone cadastrado continua decidindo se há link:
+ * o que não serve (sem DDD, 0800) segue sem link. Com o telefone de teste
+ * inválido, nenhum link é montado.
  */
 
 const CODIGO_BRASIL = '55';
+
+/** Telefone de teste definido em `VITE_TELEFONE_DE_TESTE`, ou vazio. */
+export function telefoneDeTeste(): string {
+  return String(import.meta.env.VITE_TELEFONE_DE_TESTE ?? '').trim();
+}
 
 export function somenteDigitos(telefone: string): string {
   return telefone.replace(/\D/g, '');
@@ -56,10 +68,29 @@ function numeroParaWhatsapp(telefone: string): string {
  * tamanho inválido) devolve vazio.
  */
 export function linkWhatsapp(telefone: string, texto?: string): string {
-  const numero = numeroParaWhatsapp(telefone);
+  if (numeroParaWhatsapp(telefone) === '') {
+    return '';
+  }
+  const teste = telefoneDeTeste();
+  const numero = numeroParaWhatsapp(teste === '' ? telefone : teste);
   if (numero === '') {
     return '';
   }
   const link = `https://wa.me/${numero}`;
   return texto ? `${link}?text=${encodeURIComponent(texto)}` : link;
+}
+
+/**
+ * Link `tel:+<número internacional>` do telefone, ou vazio quando não há
+ * dígitos.
+ */
+export function linkLigar(telefone: string): string {
+  if (telefoneParaWaMe(telefone) === '') {
+    return '';
+  }
+  const teste = telefoneDeTeste();
+  if (teste !== '' && numeroParaWhatsapp(teste) === '') {
+    return '';
+  }
+  return `tel:+${telefoneParaWaMe(teste === '' ? telefone : teste)}`;
 }

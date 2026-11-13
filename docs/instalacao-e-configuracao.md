@@ -166,6 +166,7 @@ A variável `ERP_PROVIDER` aceita três valores:
 | Variável | Valor padrão | Para quê |
 |----------|--------------|----------|
 | `VITE_API_URL` | `http://localhost:3000` | Endereço do servidor que a interface consulta |
+| `VITE_TELEFONE_DE_TESTE` | vazio (desligado) | Telefone de teste. Definido, os botões Ligar e WhatsApp de qualquer cliente, real ou de demonstração, vão para esse número, e os telefones cadastrados continuam como estão. Serve para os testes com pessoas de fora não chegarem aos clientes de verdade |
 
 ## 7. Testando o aplicativo instalável
 
@@ -228,6 +229,7 @@ O repositório precisa destes valores em Settings, Secrets and variables, Action
 | `SONAR_TOKEN` | segredo | Token gerado no SonarCloud |
 | `AZURE_WEBAPP_NAME` | variável | Nome do App Service |
 | `VITE_API_URL` | variável | Endereço público do App Service |
+| `VITE_TELEFONE_DE_TESTE` | variável | Opcional. Telefone de teste da [seção 6](#6-variáveis-de-ambiente); entra na interface na próxima publicação |
 
 ### 9.3 Configurações da aplicação no Azure
 

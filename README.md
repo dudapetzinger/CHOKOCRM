@@ -66,7 +66,7 @@ O acesso é feito com usuário e senha. A senha de todas as contas é `chokocrm1
 | Representante | Rafael Schmitt | `rafael` |
 | Gestor | Gestão Chokolaten | `gestao` |
 
-Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular diferentes períodos de uso. Todos os contatos usam o telefone da autora do projeto, então as mensagens de teste pelo WhatsApp chegam a um número conhecido.
+Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular diferentes períodos de uso. Todos os contatos usam o telefone da autora do projeto, e os botões Ligar e WhatsApp dos clientes reais também vão para esse número, então as mensagens de teste chegam a um número conhecido.
 
 ### Roteiro sugerido
 

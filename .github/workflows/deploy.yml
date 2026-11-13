@@ -35,6 +35,7 @@ jobs:
         working-directory: frontend
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_TELEFONE_DE_TESTE: ${{ vars.VITE_TELEFONE_DE_TESTE }}
       - run: cp -r ../frontend/dist web
       # Pacote final: só dependências de produção (prisma e tsx ficam, para migrate deploy e seed).
       - run: npm ci --omit=dev
