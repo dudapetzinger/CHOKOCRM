@@ -24,22 +24,23 @@ Este documento descreve o que o ChokoCRM faz, tela por tela, e as regras que val
 
 O sistema tem dois perfis.
 
-O representante cuida de uma carteira de clientes. Ele só vê e altera os clientes da própria carteira. É quem cadastra clientes, registra visitas e envia mensagens.
+O representante cuida de uma carteira de clientes. Ele só vê e altera os clientes da própria carteira. É quem registra as visitas e fala com os clientes.
 
-O gestor enxerga todas as carteiras. Nas telas de clientes, agenda e painel, um seletor permite ver a equipe inteira ou um representante por vez. É quem cria usuários, campanhas e metas, importa notas fiscais e transfere clientes entre representantes.
+O gestor enxerga todas as carteiras. Nas telas de clientes, agenda e painel, um seletor permite ver a equipe inteira ou um representante por vez. É quem importa as notas fiscais, cria os clientes, as campanhas, as metas e os usuários.
 
 | Ação | Representante | Gestor |
 |------|:-------------:|:------:|
 | Ver clientes, agenda e painel | Só a própria carteira | Todas as carteiras |
-| Cadastrar cliente pelo formulário | Sim | Não |
-| Criar cliente a partir de uma nota fiscal | Não | Sim |
+| Criar cliente, a partir de uma nota fiscal | Não | Sim |
 | Editar dados e contatos do cliente | Sim | Sim |
+| Inativar e reativar cliente | Não | Sim |
+| Transferir clientes de carteira | Não | Sim |
 | Registrar visita e enviar foto | Sim | Não |
+| Corrigir a descrição e o resultado de uma visita | Só as próprias | Não |
 | Alterar o intervalo entre visitas | Sim | Não |
 | Marcar a data da próxima visita | Sim | Sim |
-| Gerar mensagem de estoque | Sim | Não |
+| Abrir a conversa com o cliente no WhatsApp | Sim | Sim |
 | Concluir lembrete | Sim | Sim |
-| Transferir clientes de carteira | Não | Sim |
 | Criar campanhas e metas | Não | Sim |
 | Importar notas fiscais | Não | Sim |
 | Gerenciar usuários | Não | Sim |
@@ -48,17 +49,23 @@ A tela inicial depende do perfil: o representante entra pela Agenda e o gestor e
 
 ## 2. Acesso e senhas
 
-O acesso é feito com e-mail e senha. O login vale por oito horas.
+O acesso é feito com usuário e senha. O usuário é um nome curto, como `eduarda` ou `gestao`, definido pelo gestor ao criar a conta. O acesso vale por oito horas.
 
-Qualquer usuário pode trocar a própria senha no menu da conta, em Alterar senha, informando a senha atual.
+Qualquer pessoa pode trocar a própria senha no menu da conta, em Alterar senha, informando a senha atual.
 
-Não há recuperação de senha por e-mail. Quem esquece a senha pede ao gestor, que define uma senha provisória na tela de Usuários. A pessoa entra com ela e escolhe uma nova.
+Quem esquece a senha pede ao gestor, que define uma senha provisória na tela de Usuários. A pessoa entra com a senha provisória e depois a troca por uma só dela, no próprio perfil, em Alterar senha. Não há recuperação de senha por e-mail.
 
 Uma conta inativada pelo gestor não consegue mais entrar. Os clientes dela continuam na carteira até serem transferidos.
 
 ## 3. Carteira de clientes e cores
 
 A tela Clientes lista a carteira com busca por nome, filtro por cidade e abas por situação. Cada cliente aparece com uma cor e uma frase curta que explica a cor, como "Atrasado · 42 dias sem visita".
+
+### Como o cliente entra no sistema
+
+O cliente é criado pela gestão, a partir de uma nota fiscal importada. O sistema lê na nota a razão social, o CNPJ, o endereço, a cidade e o telefone, e a gestão escolhe o representante que vai atender. O representante não cadastra clientes. Ele completa os dados que a nota não traz, como os contatos.
+
+O passo a passo está na seção [Importação de notas fiscais](#11-importação-de-notas-fiscais).
 
 ### Como a cor é definida
 
@@ -79,28 +86,34 @@ A cor nunca é gravada. Ela é calculada toda vez que a lista é aberta, então 
 
 ### Abas
 
-| Aba | Cores | Sentido |
-|-----|-------|---------|
-| Prioridade | Vermelho e laranja | Quem precisa de visita primeiro |
-| Atenção | Amarelo | Visitado há pouco, mas sem venda |
-| Em dia | Verde | Visitado há pouco, com venda |
-| Todos | Todas | A carteira inteira |
+| Aba | O que mostra | Sentido |
+|-----|--------------|---------|
+| Prioridade | Clientes em vermelho e laranja | Quem precisa de visita primeiro |
+| Atenção | Clientes em amarelo | Visitado há pouco, mas sem venda |
+| Em dia | Clientes em verde | Visitado há pouco, com venda |
+| Todos | A carteira inteira, com os inativos no fim | Consulta geral |
 
 Dentro de cada aba, os clientes aparecem do mais urgente para o menos urgente.
 
-### Cadastro
+### Cliente inativo
 
-O representante cadastra o cliente com razão social, nome fantasia, CNPJ, cidade, endereço, telefone e, se quiser, e-mail e o código do cliente no sistema de gestão da empresa. O cliente entra na carteira de quem cadastrou. O CNPJ não pode se repetir.
+Só a gestão inativa e reativa um cliente. O cliente inativo:
+
+- aparece apenas na aba Todos, no fim da lista, com a etiqueta "Inativo";
+- não tem cor, porque não está mais sendo visitado;
+- sai da agenda, do roteiro e dos indicadores do painel;
+- não recebe novas visitas;
+- mantém todo o histórico, que continua disponível na ficha.
 
 ## 4. Ficha do cliente
 
 A ficha reúne tudo sobre o cliente em três abas.
 
-A aba ERP e sugestões mostra a última compra, o volume comprado, o histórico de compras, o estoque informado e as sugestões do que oferecer na época do ano.
+A aba ERP e sugestões mostra a última compra, o volume comprado, o histórico de compras, o estoque informado e as sugestões do que oferecer na época do ano. Para o representante, com o cliente ativo, ela traz também o cartão Mensagem de estoque: um texto sugerido que pode ser editado, a escolha do contato e o botão Abrir no WhatsApp. Nada do que é escrito ali fica guardado.
 
-A aba Visitas mostra a última visita em destaque e as anteriores, com o resultado, a descrição, a foto e o pedido de cada uma. Quando a visita corresponde a uma nota fiscal importada, o pedido aparece como "Pedido conforme NF", com o número e o total da nota.
+A aba Visitas mostra a última visita em destaque e as anteriores, com o resultado, a descrição e a foto de cada uma. Quando a visita tem produtos, vindos de uma nota fiscal vinculada ou dos dados de demonstração, aparecem também os produtos e o total, e o número da nota quando há nota.
 
-A aba Cadastro mostra os dados do cliente e os contatos, e permite editar, inativar e reativar o cliente. Um dos contatos é o principal.
+A aba Cadastro mostra os dados do cliente e os contatos. Um dos contatos é o principal.
 
 No alto da ficha ficam as ações do dia a dia: iniciar o check-in, abrir a conversa no WhatsApp e ver ou alterar a data da próxima visita.
 
@@ -114,13 +127,9 @@ A data da próxima visita vem de uma destas fontes, nesta ordem:
 
 1. a data marcada pelo representante no check-in ou na ficha;
 2. a data da última visita mais o intervalo do cliente;
-3. para quem nunca foi visitado, a data do cadastro mais o intervalo.
+3. para quem nunca foi visitado, a data de criação do cliente mais o intervalo.
 
 Uma data marcada vale até o cliente receber uma visita naquele dia ou depois. A partir daí ela é considerada cumprida e o cliente volta a seguir o intervalo.
-
-### Cliente inativo
-
-Um cliente inativo não recebe novas visitas e sai da agenda. O histórico dele continua disponível.
 
 ## 5. Check-in de visita
 
@@ -129,7 +138,7 @@ O check-in é o registro da visita, feito pelo representante, de preferência na
 | Passo | O que é informado |
 |-------|-------------------|
 | A visita | Data e hora, pessoa atendida e, se houver, a campanha trabalhada |
-| Resultado | Venda, negociação ou sem venda. Em caso de venda, o pedido |
+| Resultado | Venda, negociação ou sem venda |
 | O que aconteceu | Descrição da visita e foto |
 | Próximos passos | Data da próxima visita e lembrete, os dois opcionais |
 
@@ -138,12 +147,19 @@ Regras:
 - A descrição é obrigatória e precisa ter pelo menos três caracteres.
 - A data da visita não pode estar no futuro.
 - A foto é obrigatória no aplicativo. São aceitas imagens JPEG, PNG ou WebP de até 5 MB, uma por visita.
-- O pedido só existe quando o resultado é venda. Ele tem até 30 produtos, escolhidos do catálogo. O preço vem do catálogo e é copiado para o pedido, de modo que mudanças futuras de preço não alteram pedidos antigos.
 - A data da próxima visita, quando informada, precisa ser de hoje em diante.
 - O lembrete tem um texto de até 200 caracteres e uma data, de hoje em diante.
 - Não é possível registrar visita em cliente inativo nem vincular a visita a uma campanha encerrada.
 
-Depois de registrada, a visita só aceita uma correção: o autor pode ajustar a descrição.
+### Venda e nota fiscal
+
+No check-in, o representante informa apenas que houve venda. Ele não digita produtos nem valores.
+
+Os produtos e o valor chegam depois, quando a gestão importa a nota fiscal daquela venda (nos dados de demonstração, já vêm gravados na visita). O sistema liga a nota à visita pela data, seguindo as regras da seção [Importação de notas fiscais](#11-importação-de-notas-fiscais). A partir daí, a visita passa a mostrar os produtos e o total da nota, e a venda entra nas metas, nas campanhas e no ranking.
+
+### Corrigir uma visita
+
+Depois de registrada, a visita pode ser corrigida pelo representante que a fez. Ele pode alterar a descrição e o resultado. Há uma exceção: uma visita que já tem produtos ou uma nota fiscal vinculada continua como venda, e o sistema recusa a troca do resultado.
 
 ### Retenção das fotos
 
@@ -172,7 +188,16 @@ Todos os dias, às 6h, uma rotina do servidor registra em log quantas visitas at
 
 ### Calendário
 
-O calendário do mês mostra apenas o que foi marcado: visitas com data definida, lembretes, datas comemorativas e, para o gestor, as campanhas.
+O calendário do mês mostra o que foi marcado. Caixas de seleção acima dele permitem escolher o que aparece:
+
+| Caixa | O que mostra | Quem vê |
+|-------|--------------|---------|
+| Visitas | Visitas com data marcada | Representante e gestor |
+| Lembretes | Lembretes abertos | Representante e gestor |
+| Datas comemorativas | Páscoa, Dia das Mães e as outras datas do ano | Representante e gestor |
+| Campanhas | Período de cada campanha | Gestor |
+
+Todas vêm marcadas. Desmarcar uma delas tira aquele tipo do calendário, para a pessoa ver, por exemplo, só os lembretes.
 
 ### Roteiro
 
@@ -182,9 +207,14 @@ O roteiro do dia pega as visitas de hoje, ordena pela distância entre as cidade
 
 ### De onde vêm os dados de compra
 
-As compras de cada cliente podem vir de duas fontes. A primeira são as notas fiscais em PDF importadas pela gestão, somadas aos pedidos registrados nas visitas. A segunda é uma simulação, usada para demonstrar o sistema: os números são gerados a partir do código do cliente e são sempre os mesmos para o mesmo código.
+As compras de cada cliente vêm de uma de duas fontes:
 
-No funcionamento padrão, o sistema escolhe uma fonte por cliente. Se o CNPJ do cliente tem nota importada, ele mostra as notas. Se não tem, mostra a simulação. As duas fontes nunca são somadas.
+| Fonte | Quando vale |
+|-------|-------------|
+| Notas fiscais importadas pela gestão | Para o cliente que tem nota importada |
+| Simulação | Para o cliente de demonstração, que não tem nota |
+
+O sistema usa uma fonte por cliente e nunca soma as duas. Na simulação, os números são gerados a partir do código do cliente e são sempre os mesmos para o mesmo código.
 
 A informação de estoque existe apenas na simulação, porque as notas fiscais não trazem o estoque do cliente.
 
@@ -204,9 +234,11 @@ A sugestão cita os três produtos que o cliente mais comprou naquele período. 
 
 ## 8. Mensagem pelo WhatsApp
 
-O representante pode enviar ao cliente uma mensagem perguntando como está o estoque. O sistema monta o texto, incluindo os produtos da data comemorativa do momento quando há uma, e abre a conversa no WhatsApp com o texto já escrito. O representante revisa e envia.
+O botão WhatsApp, no alto da ficha, abre a conversa com o cliente. Para o representante, com o cliente ativo, a conversa abre já com uma mensagem escrita, perguntando como está o estoque. Quando há uma data comemorativa próxima, a mensagem cita os produtos indicados para ela. Para o gestor e para um cliente inativo, o link leva só o número, sem texto.
 
-Cada mensagem gerada fica registrada no histórico do cliente. O sistema registra que a mensagem foi gerada, e não que foi entregue, porque o envio acontece fora dele.
+Se o cliente tem dois ou mais contatos com telefone válido, o botão mostra a lista para a pessoa escolher com quem quer falar. O contato principal aparece primeiro. Se há um contato só, a conversa abre direto.
+
+O envio acontece no WhatsApp, pelas mãos de quem está usando. A pessoa pode alterar o texto antes de enviar. Por isso o sistema não guarda registro dessas mensagens: ele não teria como saber o que foi realmente enviado.
 
 ## 9. Painel
 
@@ -219,7 +251,7 @@ O painel tem duas abas.
 | Indicador | Como é calculado |
 |-----------|------------------|
 | Visitas no período | Total de visitas e média por cliente ativo |
-| Taxa de registro | Parte dos clientes ativos que teve ao menos uma visita ou uma mensagem no período |
+| Taxa de registro | Parte dos clientes ativos que recebeu ao menos uma visita no período |
 | Conversão em vendas | Parte das visitas que terminou em venda |
 | Clientes inativos | Clientes em laranja ou vermelho, com a distribuição da carteira pelas quatro cores |
 
@@ -257,11 +289,11 @@ Excluir uma campanha apaga as metas dela. As visitas ligadas a ela continuam exi
 
 O gestor define metas de quantidade de visitas e de valor de vendas para cada representante. A meta pode ser semanal (de segunda a domingo), mensal, de um período livre ou de uma campanha. A meta de campanha precisa caber dentro do período da campanha.
 
-O realizado é contado das visitas feitas pelo representante no período e dos pedidos das visitas com venda. Na meta de campanha, contam apenas as visitas ligadas àquela campanha.
+O realizado de visitas é contado das visitas feitas pelo representante no período. O realizado de vendas soma o valor das visitas com venda, que vem da nota fiscal vinculada. Na meta de campanha, contam apenas as visitas ligadas àquela campanha.
 
 ## 11. Importação de notas fiscais
 
-A gestão importa as notas fiscais de venda em PDF (DANFE) emitidas pelo sistema de gestão da empresa. É assim que as compras reais chegam ao ChokoCRM.
+A gestão importa as notas fiscais de venda em PDF (DANFE) emitidas pelo sistema de gestão da empresa. É por elas que os clientes e as vendas reais chegam ao ChokoCRM.
 
 O processo tem três momentos:
 
@@ -281,32 +313,39 @@ Uma nota é deixada de fora quando não é de venda (devolução, bonificação 
 
 Importar a mesma nota de novo não a duplica: ela é reconhecida pela chave de acesso e apenas atualizada.
 
-### Ligação com o cliente e com a visita
-
-A nota encontra o cliente pelo CNPJ. Depois disso, o sistema tenta ligar a nota a uma visita:
-
-| Situação | O que acontece |
-|----------|----------------|
-| A última visita do cliente foi no mesmo dia da nota | A nota é ligada à visita, e os itens da nota passam a ser o pedido da visita |
-| A última visita foi em outro dia | A nota fica pendente, e a gestão decide se liga àquela visita ou se deixa só como compra |
-| O cliente não tem visita | A nota fica registrada como compra |
-| O CNPJ não é de nenhum cliente | A nota fica aguardando, e a gestão pode criar o cliente |
-
 ### Criar o cliente a partir da nota
 
 Quando o CNPJ da nota ainda não é cliente, a gestão cria o cadastro direto da tela de importação. Ela escolhe o representante que vai atender, e o cliente nasce com razão social, CNPJ, endereço, cidade e telefone lidos da nota. Todas as notas daquele CNPJ passam a ser dele.
+
+É a única forma de criar um cliente.
+
+### Ligação da nota com a visita
+
+A nota encontra o cliente pelo CNPJ. Depois disso, o sistema compara a data da nota com a data da última visita do cliente:
+
+| Situação | O que acontece |
+|----------|----------------|
+| A última visita foi no mesmo dia da nota | A nota é ligada à visita sozinha, e os produtos e o total da nota passam a aparecer na visita |
+| A última visita foi em outro dia | A nota fica pendente, e a gestão decide se liga àquela visita ou se deixa só como compra do cliente |
+| O cliente não tem visita | A nota fica registrada como compra do cliente |
+
+Em todos os casos a nota entra no histórico de compras do cliente e alimenta as sugestões e os gráficos de vendas.
 
 ## 12. Usuários
 
 A tela de Usuários fica no menu da conta e só aparece para o gestor. Nela é possível:
 
-- criar uma conta, com nome, e-mail, telefone, perfil e senha inicial de pelo menos seis caracteres;
+- criar uma conta, com nome, usuário, telefone, perfil e senha inicial de pelo menos seis caracteres;
 - editar os dados de uma conta;
 - inativar e reativar uma conta;
 - definir uma senha provisória para quem esqueceu a senha;
 - transferir todos os clientes de um representante para outro.
 
+O usuário tem de 3 a 30 caracteres e aceita letras minúsculas, números, ponto, hífen e sublinhado. Não pode haver dois iguais.
+
 ## 13. Modo demonstração
+
+Hoje o sistema trabalha com dados de demonstração: clientes, visitas e vendas fictícios, criados para mostrar todas as telas funcionando.
 
 O modo demonstração permite apresentar o sistema como se fosse outro dia do ano. Ele fica na tela de login e exige a senha da conta Gestão.
 
@@ -314,11 +353,15 @@ Ao escolher uma data, duas coisas acontecem. O sistema passa a tratar aquela dat
 
 Uma faixa com a data aparece em todas as telas enquanto a simulação está ativa. A data simulada avança um dia a cada dia real. A opção Voltar ao real encerra a simulação.
 
-A recriação apaga os clientes de demonstração, com as visitas, os pedidos e os lembretes deles, e também as campanhas e as metas. Ela preserva:
+A recriação apaga os clientes de demonstração, com as visitas e os lembretes deles, e também as campanhas e as metas. Ela preserva:
 
-- os clientes cadastrados à mão ou criados a partir de uma nota fiscal, com todo o histórico;
+- os clientes criados a partir de notas fiscais, com todo o histórico;
 - as contas de usuário e as senhas;
 - as notas fiscais importadas.
+
+As visitas de venda da demonstração já trazem produtos e valores, como se a nota fiscal tivesse sido importada.
+
+Todos os contatos dos clientes de demonstração usam o mesmo telefone, o da autora do projeto, para que as mensagens de teste pelo WhatsApp cheguem a um número conhecido.
 
 ## 14. Uso como aplicativo
 
@@ -331,6 +374,8 @@ Sem internet, o aplicativo abre e avisa que está sem conexão. Os dados mostrad
 ## 15. O que o sistema não faz
 
 - Não funciona offline para registrar visitas.
-- Não envia mensagens sozinho pelo WhatsApp. Ele prepara o texto e quem envia é o representante.
-- Não se conecta diretamente ao sistema de gestão da empresa. As compras entram pela importação das notas fiscais.
+- Não envia mensagens sozinho pelo WhatsApp. Ele prepara o texto e quem envia é a pessoa.
 - Não recupera senha por e-mail.
+- Não se conecta diretamente ao sistema de gestão da empresa. Os clientes e as vendas entram pela importação das notas fiscais.
+
+Esse último ponto é a melhoria planejada para depois deste projeto. Com a integração direta, os clientes cadastrados no sistema de gestão chegam sozinhos, o modo demonstração e os dados fictícios deixam de existir, e cada representante começa o próprio controle em um sistema zerado, só com clientes reais. Os detalhes estão em [Arquitetura](arquitetura.md#melhoria-futura-integração-com-o-sistema-de-gestão).

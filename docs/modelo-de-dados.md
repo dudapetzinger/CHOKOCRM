@@ -11,12 +11,12 @@ Este documento descreve as tabelas do banco de dados do ChokoCRM e como elas se 
 
 ## 1. Visão geral
 
-O banco é um PostgreSQL com 16 tabelas, que podem ser lidas em quatro grupos:
+O banco é um PostgreSQL com 15 tabelas, que podem ser lidas em quatro grupos:
 
 | Grupo | Tabelas | O que guardam |
 |-------|---------|---------------|
 | Pessoas e carteira | `users`, `clients`, `contacts` | Quem usa o sistema, os clientes de cada representante e as pessoas de contato em cada cliente |
-| Visitas | `visits`, `visit_items`, `lembretes`, `visit_schedule_changes`, `stock_messages` | Cada visita registrada, o pedido feito nela, os lembretes, as mudanças no intervalo de visitas e as mensagens de estoque geradas |
+| Visitas | `visits`, `visit_items`, `lembretes`, `visit_schedule_changes` | Cada visita registrada, os produtos vendidos nela, os lembretes e as mudanças no intervalo de visitas |
 | Planejamento comercial | `campaigns`, `goals`, `seasonal_events` | Campanhas, metas dos representantes e as datas comemorativas do ano |
 | Notas fiscais | `erp_imports`, `erp_sales`, `erp_sale_items`, `erp_products` | Os arquivos importados, as notas lidas, os itens de cada nota e o catálogo de produtos |
 
@@ -32,26 +32,23 @@ erDiagram
     USER ||--o{ VISIT : "registra"
     USER ||--o{ GOAL : "tem como meta"
     USER ||--o{ REMINDER : "cria"
-    USER ||--o{ STOCK_MESSAGE : "gera"
     USER ||--o{ VISIT_SCHEDULE_CHANGE : "altera"
     USER ||--o{ ERP_IMPORT : "importa"
 
     CLIENT ||--o{ CONTACT : "possui"
     CLIENT ||--o{ VISIT : "recebe"
     CLIENT ||--o{ REMINDER : "tem"
-    CLIENT ||--o{ STOCK_MESSAGE : "recebe"
     CLIENT ||--o{ VISIT_SCHEDULE_CHANGE : "tem"
     CLIENT |o--o{ ERP_SALE : "compra em"
 
     CONTACT |o--o{ VISIT : "atende em"
-    VISIT ||--o{ VISIT_ITEM : "tem no pedido"
+    VISIT ||--o{ VISIT_ITEM : "tem como produtos"
     VISIT |o--o{ REMINDER : "origina"
     VISIT |o--o| ERP_SALE : "corresponde a"
 
     CAMPAIGN |o--o{ VISIT : "é trabalhada em"
     CAMPAIGN |o--o{ CLIENT : "marca a próxima visita de"
     CAMPAIGN |o--o{ GOAL : "tem como meta"
-    SEASONAL_EVENT |o--o{ STOCK_MESSAGE : "dá contexto a"
 
     ERP_IMPORT ||--o{ ERP_SALE : "traz"
     ERP_SALE ||--o{ ERP_SALE_ITEM : "contém"
@@ -59,7 +56,7 @@ erDiagram
 
 As tabelas `erp_products` e `configuracoes` não se relacionam com as outras e por isso não aparecem no diagrama.
 
-Como ler: um usuário tem vários clientes na carteira, e cada cliente pertence a um único usuário. Um cliente recebe várias visitas. Uma visita pode ter um pedido com vários itens e pode corresponder a uma nota fiscal importada. Uma campanha pode estar ligada a várias visitas e a várias metas.
+Como ler: um usuário tem vários clientes na carteira, e cada cliente pertence a um único usuário. Um cliente recebe várias visitas. Uma visita com venda pode corresponder a uma nota fiscal importada, que traz os produtos vendidos. Uma campanha pode estar ligada a várias visitas e a várias metas.
 
 ## 3. Tabelas
 
@@ -73,7 +70,7 @@ Quem entra no sistema: representantes e gestores.
 |-------|------|-------------|-----------|
 | `id` | UUID | Sim | Identificador |
 | `nome` | Texto | Sim | Nome da pessoa |
-| `email` | Texto, único | Sim | E-mail de login, sempre em minúsculas |
+| `usuario` | Texto, único | Sim | Nome de usuário usado no login, de 3 a 30 caracteres, sempre em minúsculas |
 | `senha_hash` | Texto | Sim | Senha embaralhada com bcrypt. A senha original nunca é guardada |
 | `role` | `REPRESENTANTE` ou `GESTOR` | Sim | Perfil, que define o que a pessoa pode fazer |
 | `ativo` | Verdadeiro ou falso | Sim | Conta inativa não consegue entrar. O padrão é ativa |
@@ -99,7 +96,7 @@ Os estabelecimentos atendidos. Cada cliente pertence à carteira de um represent
 | `proxima_visita` | Data | Não | Data marcada para a próxima visita. Vazia, a data é calculada pelo intervalo |
 | `proxima_campanha_id` | UUID | Não | Campanha a trabalhar na próxima visita |
 | `ativo` | Verdadeiro ou falso | Sim | Cliente inativo não recebe visitas, mas mantém o histórico |
-| `criado_em` | Data e hora | Sim | Quando foi cadastrado |
+| `criado_em` | Data e hora | Sim | Quando foi criado |
 | `representante_id` | UUID | Sim | Representante dono da carteira |
 
 ### 3.3 Contato (`contacts`)
@@ -112,7 +109,7 @@ As pessoas com quem o representante fala em cada cliente.
 | `client_id` | UUID | Sim | Cliente ao qual pertence |
 | `nome` | Texto | Sim | Nome da pessoa |
 | `cargo` | Texto | Sim | Função no estabelecimento |
-| `telefone` | Texto | Sim | Telefone, usado na mensagem pelo WhatsApp |
+| `telefone` | Texto | Sim | Telefone, usado para abrir a conversa no WhatsApp |
 | `email` | Texto | Sim | E-mail |
 | `principal` | Verdadeiro ou falso | Sim | Indica o contato principal. Há um por cliente |
 
@@ -136,9 +133,9 @@ Cada check-in feito por um representante.
 | `campanha_id` | UUID | Não | Campanha trabalhada na visita |
 | `erp_sale_id` | UUID, único | Não | Nota fiscal que corresponde a esta visita |
 
-### 3.5 Item do pedido (`visit_items`)
+### 3.5 Item da visita (`visit_items`)
 
-Os produtos do pedido registrado em uma visita com resultado de venda. Nome e preço são copiados do catálogo na hora da visita, então o pedido não muda se o catálogo mudar depois.
+Os produtos vendidos em uma visita com resultado de venda. Eles chegam pela nota fiscal vinculada à visita e, nos dados de demonstração, são gravados direto na visita. Nome e preço ficam copiados na visita, então não mudam se o catálogo mudar depois.
 
 | Campo | Tipo | Obrigatório | Descrição |
 |-------|------|-------------|-----------|
@@ -146,7 +143,7 @@ Os produtos do pedido registrado em uma visita com resultado de venda. Nome e pr
 | `visit_id` | UUID | Sim | Visita à qual pertence. Apagada a visita, os itens vão junto |
 | `sku` | Texto | Sim | Código do produto |
 | `produto_nome` | Texto | Sim | Nome do produto |
-| `quantidade` | Inteiro | Sim | Quantidade pedida |
+| `quantidade` | Inteiro | Sim | Quantidade vendida |
 | `preco_unitario` | Decimal (10,2) | Sim | Preço de cada unidade |
 
 ### 3.6 Lembrete (`lembretes`)
@@ -178,20 +175,7 @@ Histórico das alterações no intervalo de visitas de um cliente. Toda alteraç
 | `justificativa` | Texto | Sim | Motivo da alteração |
 | `data` | Data e hora | Sim | Quando foi alterado |
 
-### 3.8 Mensagem de estoque (`stock_messages`)
-
-Registro de cada mensagem de consulta de estoque gerada para envio pelo WhatsApp.
-
-| Campo | Tipo | Obrigatório | Descrição |
-|-------|------|-------------|-----------|
-| `id` | UUID | Sim | Identificador |
-| `client_id` | UUID | Sim | Cliente destinatário |
-| `user_id` | UUID | Sim | Representante que gerou |
-| `evento_sazonal` | UUID | Não | Data comemorativa que deu contexto à mensagem |
-| `texto_final` | Texto | Sim | Texto enviado |
-| `data_geracao` | Data e hora | Sim | Quando foi gerada |
-
-### 3.9 Data comemorativa (`seasonal_events`)
+### 3.8 Data comemorativa (`seasonal_events`)
 
 As datas do ano que movimentam as vendas: Páscoa, Dia das Mães, Dia dos Namorados, Dia dos Pais e Natal. Há um registro por data e por ano.
 
@@ -204,7 +188,7 @@ As datas do ano que movimentam as vendas: Páscoa, Dia das Mães, Dia dos Namora
 | `data_fim` | Data | Sim | O dia da data comemorativa |
 | `produtos_sugeridos` | Lista de textos | Sim | Produtos indicados para o período |
 
-### 3.10 Campanha (`campaigns`)
+### 3.9 Campanha (`campaigns`)
 
 Campanhas, promoções e eventos comerciais criados pela gestão. A situação da campanha (programada, em andamento ou encerrada) não é gravada: sai das datas.
 
@@ -220,7 +204,7 @@ Campanhas, promoções e eventos comerciais criados pela gestão. A situação d
 | `produtos` | Lista de textos | Sim | Códigos dos produtos em destaque |
 | `criado_em` | Data e hora | Sim | Quando foi criada |
 
-### 3.11 Meta (`goals`)
+### 3.10 Meta (`goals`)
 
 Metas de visitas e de vendas de um representante. O realizado não é gravado: é contado das visitas do período.
 
@@ -236,7 +220,7 @@ Metas de visitas e de vendas de um representante. O realizado não é gravado: �
 | `campanha_id` | UUID | Não | Campanha à qual a meta pertence. Excluída a campanha, a meta vai junto |
 | `criado_em` | Data e hora | Sim | Quando foi criada |
 
-### 3.12 Importação (`erp_imports`)
+### 3.11 Importação (`erp_imports`)
 
 Cada arquivo PDF de notas fiscais enviado pela gestão, com o resumo do que foi lido.
 
@@ -252,7 +236,7 @@ Cada arquivo PDF de notas fiscais enviado pela gestão, com o resumo do que foi 
 | `pendentes` | Inteiro | Sim | Quantas aguardam a escolha de uma visita |
 | `cnpjs_sem_cliente` | JSON | Sim | Empresas das notas que ainda não são clientes |
 
-### 3.13 Nota fiscal (`erp_sales`)
+### 3.12 Nota fiscal (`erp_sales`)
 
 Cada nota fiscal de venda lida de um PDF. A chave de acesso impede que a mesma nota entre duas vezes.
 
@@ -287,7 +271,7 @@ Valores de `vinculo_status`:
 | `SEM_VISITA` | O cliente não tem visita para ligar |
 | `SEM_CLIENTE` | O CNPJ ainda não é cliente |
 
-### 3.14 Item da nota (`erp_sale_items`)
+### 3.13 Item da nota (`erp_sale_items`)
 
 | Campo | Tipo | Obrigatório | Descrição |
 |-------|------|-------------|-----------|
@@ -300,9 +284,9 @@ Valores de `vinculo_status`:
 | `valor_total` | Decimal (12,2) | Sim | Total do item |
 | `ordem` | Inteiro | Sim | Posição do item na nota |
 
-### 3.15 Produto (`erp_products`)
+### 3.14 Produto (`erp_products`)
 
-Catálogo de produtos, formado pelos produtos de demonstração e pelos que aparecem nas notas importadas. É usado no pedido do check-in e nas campanhas.
+Catálogo de produtos, formado pelos produtos de demonstração e pelos que aparecem nas notas importadas. É usado nas campanhas, para escolher os produtos em destaque.
 
 | Campo | Tipo | Obrigatório | Descrição |
 |-------|------|-------------|-----------|
@@ -312,7 +296,7 @@ Catálogo de produtos, formado pelos produtos de demonstração e pelos que apar
 | `preco_unitario` | Decimal (10,2) | Sim | Preço |
 | `atualizado_em` | Data e hora | Sim | Última atualização |
 
-### 3.16 Configuração (`configuracoes`)
+### 3.15 Configuração (`configuracoes`)
 
 Configurações do sistema, uma linha por chave. Hoje existe apenas a linha `demonstracao`.
 
@@ -335,8 +319,8 @@ Algumas informações que aparecem nas telas não existem em nenhuma tabela, por
 | Cor do cliente | Data e resultado da última visita, e data da última compra |
 | Agenda do dia | Data marcada da próxima visita ou, na falta dela, última visita mais o intervalo |
 | Situação da campanha | Datas de início e fim comparadas com o dia de hoje |
-| Realizado das metas | Visitas e pedidos do representante no período |
-| Indicadores e gráficos do painel | Visitas, pedidos e vendas do período |
+| Realizado das metas | Visitas do representante no período e o valor das que têm venda |
+| Indicadores e gráficos do painel | Visitas e vendas do período |
 | Sugestões por época do ano | Compras do cliente no mesmo período do ano anterior |
 
 As vendas e o estoque da fonte simulada também não ficam no banco: são gerados a partir do código do cliente toda vez que são consultados. As regras de cada cálculo estão em [Funcionalidades](funcionalidades.md).

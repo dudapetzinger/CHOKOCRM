@@ -33,9 +33,9 @@ O representante:
 
 - vê a carteira de clientes organizada por cores, do verde (visita em dia) ao vermelho (há muito tempo sem visita), e sabe quem atender primeiro;
 - abre a agenda do dia, com as visitas atrasadas, as de hoje e os lembretes, e traça o roteiro no Google Maps;
-- registra a visita em quatro passos, com foto, resultado, o pedido feito e a data da próxima visita;
+- registra a visita em quatro passos, com foto, resultado e a data da próxima visita;
 - consulta a ficha do cliente, com o histórico de visitas, as compras e sugestões do que oferecer conforme a época do ano (Páscoa, Dia das Mães, Natal e outras datas);
-- envia ao cliente, pelo WhatsApp, uma mensagem pronta perguntando sobre o estoque;
+- abre a conversa com o contato do cliente no WhatsApp, já com uma mensagem pronta perguntando sobre o estoque;
 - acompanha as próprias metas e os resultados no painel.
 
 A gestão, além de tudo isso:
@@ -43,8 +43,8 @@ A gestão, além de tudo isso:
 - acompanha no painel as visitas, as vendas e a conversão de cada representante, com gráficos, ranking e mapa dos clientes por cidade;
 - recebe alertas dos clientes que estão esfriando e dos produtos com estoque baixo antes de uma data comemorativa;
 - cria campanhas e metas e acompanha o resultado de cada uma;
-- importa as notas fiscais em PDF emitidas pelo sistema de gestão da empresa, que passam a alimentar o histórico de compras de cada cliente;
-- cria as contas dos usuários e transfere clientes de um representante para outro.
+- importa as notas fiscais em PDF emitidas pelo sistema de gestão da empresa. É a partir delas que os clientes são criados e que as vendas entram no sistema;
+- cria as contas dos usuários, inativa clientes e transfere clientes de um representante para outro.
 
 A descrição completa, com as regras de cada funcionalidade, está em [docs/funcionalidades.md](docs/funcionalidades.md).
 
@@ -58,15 +58,15 @@ Esse ambiente usa crédito estudantil do Azure e fica ligado nos períodos de te
 
 ### Contas de acesso
 
-A senha de todas as contas é `chokocrm123`.
+O acesso é feito com usuário e senha. A senha de todas as contas é `chokocrm123`.
 
-| Perfil | Nome | E-mail |
-|--------|------|--------|
-| Representante | Eduarda Fischer | `eduarda@chokolaten.com.br` |
-| Representante | Rafael Schmitt | `rafael@chokolaten.com.br` |
-| Gestor | Gestão Chokolaten | `gestao@chokolaten.com.br` |
+| Perfil | Nome | Usuário |
+|--------|------|---------|
+| Representante | Eduarda Fischer | `eduarda` |
+| Representante | Rafael Schmitt | `rafael` |
+| Gestor | Gestão Chokolaten | `gestao` |
 
-Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular três meses de uso.
+Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular três meses de uso. Todos os contatos usam o telefone da autora do projeto, então as mensagens de teste pelo WhatsApp chegam a um número conhecido.
 
 ### Roteiro sugerido
 
@@ -75,9 +75,10 @@ Como representante (conta da Eduarda ou do Rafael):
 1. Entre no sistema. A primeira tela é a Agenda, com as visitas atrasadas e as de hoje.
 2. Abra Clientes e observe as cores e as abas Prioridade, Atenção e Em dia.
 3. Toque em um cliente para abrir a ficha. Veja as compras, as sugestões da época e o histórico de visitas.
-4. Toque em Check-in, escolha um cliente e registre uma visita. A foto é obrigatória e pode ser qualquer imagem.
-5. Volte à ficha e confira a visita no histórico e a nova cor do cliente.
-6. Abra o Painel para ver as metas e os resultados da carteira.
+4. Toque em WhatsApp, no alto da ficha, e, se o cliente tiver dois contatos, escolha com quem falar. A conversa abre com a mensagem pronta.
+5. Toque em Check-in, escolha um cliente e registre uma visita. A foto é obrigatória e pode ser qualquer imagem.
+6. Volte à ficha e confira a visita no histórico e a nova cor do cliente.
+7. Abra o Painel para ver as metas e os resultados da carteira.
 
 Como gestor (conta Gestão Chokolaten):
 

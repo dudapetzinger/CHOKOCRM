@@ -70,23 +70,23 @@ Para encerrar, use `Ctrl+C` no terminal do Docker ou `docker compose down`. Os d
 
 ## 3. Contas de acesso
 
-O carregamento dos dados de demonstração cria três contas. A senha de todas é `chokocrm123`.
+O carregamento dos dados de demonstração cria três contas. O acesso é feito com usuário e senha, e a senha de todas é `chokocrm123`.
 
-| Perfil | Nome | E-mail |
-|--------|------|--------|
-| Representante | Eduarda Fischer | `eduarda@chokolaten.com.br` |
-| Representante | Rafael Schmitt | `rafael@chokolaten.com.br` |
-| Gestor | Gestão Chokolaten | `gestao@chokolaten.com.br` |
+| Perfil | Nome | Usuário |
+|--------|------|---------|
+| Representante | Eduarda Fischer | `eduarda` |
+| Representante | Rafael Schmitt | `rafael` |
+| Gestor | Gestão Chokolaten | `gestao` |
 
-Cada representante enxerga apenas a própria carteira de clientes. A conta Gestão enxerga as duas carteiras e é a única que cria usuários, campanhas e metas e que importa notas fiscais.
+Cada representante enxerga apenas a própria carteira de clientes. A conta Gestão enxerga as duas carteiras e é a única que importa notas fiscais e cria clientes, usuários, campanhas e metas.
 
-Outras contas são criadas pela conta Gestão, no menu da conta, em Usuários, Novo usuário. Não existe recuperação de senha por e-mail: quem esquece a senha pede ao gestor, que define uma senha provisória na mesma tela, e a pessoa a troca depois em Alterar senha.
+Outras contas são criadas pela conta Gestão, no menu da conta, em Usuários, Novo usuário. Não existe recuperação de senha por e-mail: quem esquece a senha pede ao gestor, que define uma senha provisória na mesma tela. A pessoa entra com ela e depois a troca no próprio perfil, em Alterar senha.
 
 A conta Gestão é tratada como conta real. O carregamento dos dados só define a senha dela quando a conta ainda não existe. Depois disso, a senha escolhida é sempre mantida.
 
 ## 4. Dados de demonstração
 
-Os dados de demonstração simulam três meses de uso do sistema: cerca de 40 clientes por representante, distribuídos em rotas por dia da semana, com visitas, pedidos, lembretes, campanhas, metas e visitas marcadas para as próximas semanas. Eles são gerados a partir do dia em que o comando roda, então a agenda e as cores dos clientes fazem sentido na data de hoje.
+Os dados de demonstração simulam três meses de uso do sistema: cerca de 40 clientes por representante, distribuídos em rotas por dia da semana, com visitas, vendas, lembretes, campanhas, metas e visitas marcadas para as próximas semanas. Todos os contatos e clientes de demonstração usam o mesmo telefone, o da autora do projeto. Eles são gerados a partir do dia em que o comando roda, então a agenda e as cores dos clientes fazem sentido na data de hoje.
 
 Com o passar dos dias, as visitas geradas ficam antigas e os clientes mudam de cor, como aconteceria de verdade. Para renovar os dados há dois caminhos.
 
@@ -98,7 +98,7 @@ O segundo é o comando abaixo, a partir da pasta `backend`:
 npm run db:seed:reset
 ```
 
-Nos dois caminhos, só os clientes de demonstração são apagados e recriados. Os clientes cadastrados à mão ou criados a partir de uma nota fiscal continuam no banco com tudo o que têm, assim como as contas de usuário e as notas importadas.
+Nos dois caminhos, só os clientes de demonstração são apagados e recriados. Os clientes criados a partir de uma nota fiscal continuam no banco com tudo o que têm, assim como as contas de usuário e as notas importadas.
 
 O comando `npm run db:seed`, sem o `reset`, apenas acrescenta o que falta e nunca apaga nada.
 
@@ -159,7 +159,7 @@ A variável `ERP_PROVIDER` aceita três valores:
 |-------|---------------|
 | `hibrido` | O cliente que tem nota fiscal importada mostra os dados das notas. Os demais mostram dados simulados. É o padrão e o valor usado no ambiente publicado |
 | `mock` | Todos os clientes mostram dados simulados. É o valor fixado nos testes automatizados |
-| `importado` | Só as notas fiscais importadas e os pedidos registrados nas visitas. Não há informação de estoque |
+| `importado` | As notas fiscais importadas e os produtos das visitas de venda que ainda não têm nota. Não há informação de estoque |
 
 ### Interface (`frontend/.env`)
 

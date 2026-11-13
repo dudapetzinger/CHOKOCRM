@@ -99,11 +99,11 @@ Alguns testes congelam a data do sistema. Isso evita falhas que só apareceriam 
 
 | Área | O que é conferido |
 |------|-------------------|
-| Login e senhas | Entrada com e-mail e senha, recusa de conta inativa, troca de senha e bloqueio de quem não tem o perfil exigido |
+| Login e senhas | Entrada com usuário e senha, recusa de conta inativa, troca de senha e bloqueio de quem não tem o perfil exigido |
 | Usuários | Criação e edição de contas pelo gestor, senha provisória e transferência de carteira |
-| Clientes e contatos | Cadastro, edição, listagem com filtros, regra de carteira e data da próxima visita |
+| Clientes e contatos | Edição, listagem com filtros, regra de carteira, data da próxima visita e inativação só pela gestão |
 | Intervalo de visitas | Alteração com justificativa obrigatória e registro no histórico |
-| Visitas | Check-in com pedido, próxima visita, lembrete e campanha, histórico e correção da descrição |
+| Visitas | Check-in com resultado, próxima visita, lembrete e campanha, histórico e correção da descrição e do resultado |
 | Fotos | Envio, leitura, tipos aceitos e a limpeza depois de 90 dias |
 | Lembretes | Criação no check-in, listagem e conclusão |
 | Agenda e calendário | Visitas atrasadas, de hoje e da semana, ordem por cor, filtro do gestor e a rotina diária |
@@ -112,7 +112,7 @@ Alguns testes congelam a data do sistema. Isso evita falhas que só apareceriam 
 | Painel | Indicadores por período, resultado por representante, vendas mensais e planilha |
 | Sugestões e alertas | Sugestões por época do ano e alertas de estoque baixo, com a regra de carteira |
 | Campanhas e metas | Criação, edição, exclusão, situação pelas datas e realizado |
-| Mensagem de estoque | Texto sugerido, registro e histórico |
+| Mensagem de estoque | Texto sugerido e contatos do cliente |
 | Modo demonstração | Troca de data com a senha da Gestão, recriação dos dados e sistema inteiro seguindo a data simulada |
 | Dados de demonstração | Geração repetível, preservação dos clientes reais e das contas, e completude do que é criado |
 | Infraestrutura | Endereço de saúde, regra de origem aceita, entrega da interface pelo servidor, validação das variáveis de ambiente e restrições do banco |
@@ -134,7 +134,7 @@ Em todas as áreas, os testes conferem também que o representante não lê nem 
 | Datas comemorativas | Cálculo da Páscoa e das datas móveis de cada ano |
 | Leitura da nota fiscal | Extração dos campos, das linhas de itens e do endereço |
 | Ligação da nota com a visita | Cada situação possível e a decisão tomada |
-| Mensagem de estoque | Montagem do texto e do link do WhatsApp |
+| Mensagem de estoque | Montagem do texto sugerido para o WhatsApp |
 | Fonte simulada | Mesmos números para o mesmo código de cliente |
 | Relógio do sistema | Data real, data simulada e avanço de um dia por dia |
 
@@ -156,7 +156,7 @@ Um utilitário simula a largura da tela, para conferir o comportamento no celula
 |------|-------------------|
 | Telas | Login, clientes, ficha, check-in em quatro passos, agenda, painel, campanhas, importação de notas, usuários e troca de senha |
 | Navegação | Tela inicial de cada perfil, menus, botão central e troca de usuário |
-| Componentes do sistema | Calendário, metas, pedido, aviso de próxima visita, lembretes, conferência das notas e criação do cliente pela nota |
+| Componentes do sistema | Calendário com os filtros, metas, escolha do contato no WhatsApp, aviso de próxima visita, lembretes, conferência das notas e criação do cliente pela nota |
 | Gráficos e mapa | Valores exibidos, tabela equivalente para leitor de tela, balão com os clientes de cada fatia e zoom do mapa |
 | Funções de apoio | Validação do check-in, cálculo do roteiro, links do Google Maps, formatação de telefone, datas e valores, e geração da planilha |
 | Aplicativo instalável | Convite para instalar, aviso de falta de internet e aviso de versão nova |

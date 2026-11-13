@@ -43,7 +43,7 @@ flowchart LR
 
 A interface conversa apenas com o servidor, por uma API REST que troca dados em JSON. Cada pedido leva o token de quem está logado. O servidor é o único que acessa o banco de dados e o único que conhece as regras: a interface mostra o que ele calcula.
 
-Dois sistemas de fora aparecem no desenho. O sistema de gestão da empresa (ERP) emite as notas fiscais, que a gestão importa em PDF para alimentar o histórico de compras dos clientes. O WhatsApp é usado pelo próprio representante: o ChokoCRM monta o texto e abre a conversa, e quem envia a mensagem é a pessoa.
+Dois sistemas de fora aparecem no desenho. O sistema de gestão da empresa (ERP) emite as notas fiscais, que a gestão importa em PDF para alimentar o histórico de compras dos clientes. O WhatsApp é usado pelo próprio representante: o ChokoCRM monta o texto e abre a conversa com o contato escolhido, e quem envia a mensagem é a pessoa.
 
 No computador de desenvolvimento, as três partes sobem juntas com o Docker Compose. No ambiente publicado, o servidor e a interface ficam no mesmo endereço, em um App Service do Azure, e o banco fica em um PostgreSQL gerenciado.
 
@@ -96,7 +96,7 @@ A interface é uma aplicação React de página única. Ela é dividida assim:
 | Pasta | Conteúdo |
 |-------|----------|
 | `pages` | Uma tela por arquivo: login, clientes, ficha do cliente, check-in, agenda, painel, campanhas, importação de notas, usuários e troca de senha |
-| `components` | Peças reaproveitadas pelas telas. Em `ui` ficam os componentes básicos (botão, campo, menu), em `crm` as peças próprias do sistema (moldura, calendário, metas, pedido, roteiro) e em `crm/graficos` os gráficos e o mapa do painel |
+| `components` | Peças reaproveitadas pelas telas. Em `ui` ficam os componentes básicos (botão, campo, menu), em `crm` as peças próprias do sistema (moldura, calendário, metas, roteiro) e em `crm/graficos` os gráficos e o mapa do painel |
 | `hooks` | Busca e atualização dos dados do servidor, com cache, usando TanStack Query |
 | `services` | As chamadas à API, com o envio do token de login |
 | `auth` | Controle de quem está logado e proteção das telas |
@@ -152,89 +152,53 @@ CHOKOCRM/
 
 ## 5. Decisões técnicas
 
-Cada decisão abaixo traz o que foi escolhido e o motivo.
+A tabela resume o que foi escolhido em cada assunto e o motivo.
 
-### Tecnologias definidas pela disciplina
+| Assunto | O que escolhemos | Por quê |
+|---------|------------------|---------|
+| Tecnologias | React na interface, Node.js com Express no servidor, API REST entre os dois, PostgreSQL e arquitetura em camadas | São exigências da disciplina |
+| Repositório | Um só, público, com servidor, interface e documentação | Uma mudança que envolve os dois lados entra de uma vez, e quem avalia encontra tudo em um lugar |
+| Acesso ao banco | Prisma, com o arquivo `schema.prisma` como única descrição das tabelas | As alterações do banco ficam versionadas e os tipos do código saem do mesmo arquivo |
+| Clientes | Só a gestão cria cliente, a partir de uma nota fiscal importada. Só a gestão inativa | O cadastro oficial é o do sistema de gestão da empresa. Assim não há cliente duplicado nem inventado |
+| Carteira | Cada cliente pertence a um representante, que só vê e altera a própria carteira | Reflete como a equipe trabalha. A regra é conferida no servidor, em um único módulo (`services/carteira.ts`) |
+| Compras dos clientes | Notas fiscais em PDF importadas pela gestão. Quem não tem nota usa dados simulados | A empresa não liberou acesso direto ao sistema de gestão durante o projeto |
+| Valor das vendas | O representante marca só o resultado da visita. O valor chega pela nota fiscal vinculada | A nota é o registro oficial da venda. Evita digitar o pedido duas vezes |
+| Cálculos | Cor do cliente, agenda, indicadores, metas e campanhas são calculados na hora da consulta, nunca gravados | Não existe dado desatualizado: uma visita nova muda a cor do cliente no mesmo instante |
+| Login | Usuário e senha, com dois perfis (representante e gestor). O acesso vale por oito horas | Simples para quem usa em campo. O e-mail não teria utilidade no sistema |
+| Senha esquecida | O gestor define uma senha provisória e a pessoa troca depois, no próprio perfil | Dispensa um serviço de envio de e-mails |
+| WhatsApp | O sistema monta o texto e abre a conversa com o contato escolhido. Nada é registrado | Não usa a API paga do WhatsApp. Quem envia é o representante, que pode alterar o texto antes |
+| Fotos das visitas | Gravadas no disco do servidor e apagadas depois de 90 dias | Comprovam a visita sem acumular arquivos. Só usuários com acesso ao cliente veem a foto |
+| Lembretes | Cada lembrete é uma tarefa com data, aberta até alguém concluir | Um lembrete não pode sumir só porque houve uma visita nova |
+| Aplicativo | Instalável no celular (PWA), sem gravação offline | Evita publicar em loja de aplicativos. Gravar offline exigiria resolver conflitos de sincronização |
+| Visual | Protótipo aprovado pela empresa, com Tailwind CSS e componentes shadcn | O visual já estava validado com quem vai usar |
+| Painel | A mesma tela para os dois perfis, com os dados limitados pelo servidor | O representante acompanha a própria carteira com os mesmos indicadores da gestão |
+| Mapa e roteiro | Coordenadas dos 295 municípios de Santa Catarina guardadas no código. O trajeto abre no Google Maps por link | Não depende de chave de API nem tem custo por uso |
+| Data do sistema | Um único módulo (`lib/relogio.ts`) responde que dia é hoje, no servidor e na interface | Permite o modo demonstração, que simula outra data. Um teste impede o uso direto do relógio do computador |
+| Ambientes | Docker Compose no computador de desenvolvimento e Azure na publicação | Qualquer pessoa roda o sistema com poucos comandos. No Azure, servidor e interface ficam no mesmo endereço |
+| Qualidade | SonarCloud a cada envio de código e Application Insights no ambiente publicado | Defeitos e trechos sem teste aparecem antes da publicação, e falhas em uso geram aviso |
 
-React na interface, Node.js com Express no servidor, API REST entre os dois, PostgreSQL como banco e arquitetura em camadas são exigências da disciplina. As demais escolhas foram feitas para combinar com esse conjunto.
+### De onde vêm os dados de compra
 
-### Um repositório para tudo
+Hoje o sistema trabalha com dados de demonstração, e as compras de cada cliente vêm de uma de duas fontes:
 
-Servidor, interface, documentação e configuração de ambiente ficam no mesmo repositório público. Assim, uma alteração que mexe nos dois lados entra de uma vez, e quem avalia o projeto encontra tudo em um lugar.
+| Fonte | Quando vale | O que traz |
+|-------|-------------|------------|
+| Notas fiscais importadas | Para o cliente que tem nota importada no CNPJ dele | As vendas reais, com produtos e valores. Não traz estoque |
+| Simulação | Para o cliente sem nota importada | Vendas e estoque gerados por um algoritmo, sempre os mesmos para o mesmo cliente, com variação conforme a época do ano |
 
-### Prisma para acessar o banco
+O sistema usa uma fonte por cliente e nunca soma as duas. A escolha é automática.
 
-O arquivo `schema.prisma` é a única descrição das tabelas. Dele saem as alterações do banco, que ficam versionadas, e os tipos usados no código. O Prisma só é usado dentro da camada de acesso a dados.
+No código, as duas fontes ficam atrás de uma mesma interface, `ErpProvider`. As regras do sistema pedem "as vendas deste cliente" a essa interface, sem saber de onde elas vêm. A variável `ERP_PROVIDER` permite forçar uma fonte só, o que é usado nos testes.
 
-### Dados de vendas por trás de uma interface
+### Melhoria futura: integração com o sistema de gestão
 
-O sistema de gestão da empresa não oferece uma API aberta ao projeto. Por isso, a camada de negócio não fala com ele diretamente. Ela depende de uma interface, `ErpProvider`, que tem três implementações, escolhidas pela variável `ERP_PROVIDER`:
+A evolução planejada para depois deste projeto é ligar o ChokoCRM diretamente ao sistema de gestão da empresa. Com a integração:
 
-| Fonte | O que entrega |
-|-------|---------------|
-| Simulada (`mock`) | Vendas e estoque gerados por um algoritmo a partir do código do cliente. O mesmo código gera sempre os mesmos números, com variação conforme a época do ano |
-| Notas importadas (`importado`) | As vendas lidas das notas fiscais em PDF que a gestão importa, somadas aos pedidos registrados nas visitas. Não tem estoque |
-| Híbrida (`hibrido`) | Escolhe uma das duas para cada cliente: quem tem nota importada usa as notas, quem não tem usa a simulação. É o padrão |
+- os clientes cadastrados pela gestão no sistema de gestão chegam ao ChokoCRM sozinhos, sem importação de notas;
+- as vendas e o estoque passam a ser sempre os reais;
+- o modo demonstração e os dados fictícios deixam de existir. O sistema começa zerado, e cada representante inicia o próprio controle com clientes reais.
 
-Uma integração direta com o sistema de gestão, no futuro, seria uma quarta implementação da mesma interface, sem mudança no restante do código.
-
-### Mensagem pelo WhatsApp por link
-
-O sistema não usa a API paga do WhatsApp. Ele monta o texto da mensagem e abre a conversa no aplicativo que o representante já usa, por um link `wa.me`. O representante revisa e envia. Cada mensagem gerada fica registrada no histórico do cliente.
-
-### Nada que pode ser calculado é gravado
-
-A cor do cliente, a agenda do dia, as sugestões, os indicadores do painel, o andamento das campanhas e o realizado das metas são calculados na hora da consulta, a partir das visitas e das vendas. Só é gravado o que alguém informou. Com isso, não existe dado desatualizado para corrigir: uma visita nova muda a cor do cliente no mesmo instante.
-
-O custo é refazer as contas a cada consulta, o que é aceitável para o tamanho das carteiras.
-
-### Carteira por representante
-
-Todo cliente pertence a um representante. O representante só lê e altera os clientes da própria carteira, e essa regra é conferida no servidor, em um único módulo (`services/carteira.ts`), usado por todas as funcionalidades. A gestão enxerga todas as carteiras e é a única que transfere clientes.
-
-### Login por token e dois perfis
-
-Ao entrar, o usuário recebe um token (JWT) válido por oito horas, enviado em cada pedido. O servidor não guarda sessão. Há dois perfis, representante e gestor, e cada endereço da API confere o perfil exigido. Uma conta inativada não consegue entrar.
-
-### Senha provisória em vez de e-mail
-
-Não há recuperação de senha por e-mail. Quem esquece a senha pede ao gestor, que define uma senha provisória. A empresa preferiu assim para não manter um serviço de envio de e-mails.
-
-### Fotos das visitas em disco, por 90 dias
-
-A foto que comprova a visita é gravada no disco do servidor, por trás de uma interface (`FileStorage`) que permite trocar o destino sem mexer nas regras. A foto só é entregue a usuários logados com acesso ao cliente. Uma rotina diária apaga as fotos com mais de 90 dias, e a visita passa a indicar que a foto foi removida.
-
-### Aplicativo instalável, sem uso offline
-
-A interface pode ser instalada no celular (PWA). O que fica guardado no aparelho é só a casca do aplicativo: telas, estilos e ícones. Os dados vêm sempre do servidor. Sem internet, o aplicativo abre e avisa que está sem conexão, mas não registra visitas. Gravar offline exigiria resolver conflitos de sincronização, o que ficou fora do escopo.
-
-### Interface baseada no protótipo aprovado pela empresa
-
-O visual segue o protótipo validado com a Chokolaten. Ele usa Tailwind CSS para os estilos e componentes do shadcn, que são copiados para o repositório e podem ser ajustados livremente.
-
-### Painel para os dois perfis
-
-O painel é a mesma tela para o gestor e para o representante. A diferença está nos dados: o servidor limita o representante à própria carteira, e a gestão pode ver a equipe inteira ou escolher um representante.
-
-### Mapa e roteiro sem serviço externo
-
-O mapa de clientes por cidade usa uma tabela com as coordenadas dos 295 municípios de Santa Catarina e o contorno do estado, guardados no próprio código. O roteiro do dia ordena as visitas pela distância entre as cidades e abre o trajeto no Google Maps por um link. Não há chave de API nem custo por uso.
-
-### Lembrete como tarefa
-
-O lembrete anotado em uma visita é um registro próprio, com data. Um cliente pode ter vários, e eles continuam abertos até alguém marcar como concluído, mesmo que novas visitas aconteçam.
-
-### Relógio único e modo demonstração
-
-Todo o código pergunta a data de hoje a um único módulo (`lib/relogio.ts`), no servidor e na interface. Um teste automatizado impede o uso direto do relógio do computador nas regras. Isso permite o modo demonstração: a gestão escolhe uma data na tela de login, ela é gravada no banco e o sistema inteiro passa a se comportar como se fosse aquele dia, com os dados de demonstração recriados em volta dele.
-
-### Docker no desenvolvimento, Azure na publicação
-
-O ambiente local sobe com Docker Compose, para que qualquer pessoa rode o sistema com poucos comandos. A publicação é feita no Azure, com um App Service que entrega o servidor e a interface no mesmo endereço e um PostgreSQL gerenciado. Um endereço só evita configurações de acesso entre domínios.
-
-### Análise de código e monitoramento
-
-O SonarCloud analisa o código a cada envio e aponta defeitos, duplicações e trechos sem teste. No ambiente publicado, o Application Insights registra os pedidos e os erros e testa o servidor a cada cinco minutos.
+No código, a integração entra como mais uma fonte atrás da interface `ErpProvider`. As telas e as regras não mudam.
 
 ## 6. API
 
@@ -246,7 +210,7 @@ Na coluna "Quem", R significa representante e G significa gestor.
 
 | Método | Endereço | Quem | O que faz |
 |--------|----------|------|-----------|
-| POST | `/auth/login` | público | Confere e-mail e senha e devolve o token |
+| POST | `/auth/login` | público | Confere usuário e senha e devolve o token |
 | GET | `/auth/me` | R e G | Devolve os dados de quem está logado |
 | PUT | `/auth/password` | R e G | Troca a própria senha, pedindo a atual |
 
@@ -255,9 +219,8 @@ Na coluna "Quem", R significa representante e G significa gestor.
 | Método | Endereço | Quem | O que faz |
 |--------|----------|------|-----------|
 | GET | `/clients` | R e G | Lista os clientes, com busca e filtros por cor e representante |
-| POST | `/clients` | R | Cadastra um cliente na própria carteira |
 | GET | `/clients/:id` | R e G | Ficha do cliente |
-| PUT | `/clients/:id` | R e G | Edita os dados e a data da próxima visita. Só o gestor transfere de carteira |
+| PUT | `/clients/:id` | R e G | Edita os dados e a data da próxima visita. Só o gestor transfere de carteira, inativa e reativa |
 | PUT | `/clients/:id/recurrence` | R | Altera o intervalo entre visitas, com justificativa |
 | POST | `/clients/:id/contacts` | R e G | Adiciona um contato ao cliente |
 | PUT | `/contacts/:id` | R e G | Edita um contato |
@@ -267,9 +230,9 @@ Na coluna "Quem", R significa representante e G significa gestor.
 
 | Método | Endereço | Quem | O que faz |
 |--------|----------|------|-----------|
-| POST | `/clients/:id/visits` | R | Registra a visita, com pedido, próxima visita e lembrete |
+| POST | `/clients/:id/visits` | R | Registra a visita, com resultado, próxima visita e lembrete |
 | GET | `/clients/:id/visits` | R e G | Histórico de visitas do cliente |
-| PATCH | `/visits/:id` | R | Corrige a descrição de uma visita própria |
+| PATCH | `/visits/:id` | R | Corrige a descrição ou o resultado de uma visita própria |
 | PUT | `/visits/:id/foto` | R | Envia a foto da visita |
 | GET | `/visits/:id/foto` | R e G | Devolve a foto da visita |
 | GET | `/agenda/today` | R e G | Visitas atrasadas, de hoje e dos próximos sete dias, e lembretes |
@@ -290,15 +253,13 @@ Na coluna "Quem", R significa representante e G significa gestor.
 | POST | `/erp/vendas/:id/vinculo` | G | Liga a nota a uma visita |
 | DELETE | `/erp/vendas/:id/vinculo` | G | Desfaz a ligação |
 | GET | `/erp/sem-cliente` | G | Notas de empresas que ainda não são clientes |
-| POST | `/erp/sem-cliente/:cnpj/cliente` | G | Cria o cliente a partir dos dados da nota |
+| POST | `/erp/sem-cliente/:cnpj/cliente` | G | Cria o cliente a partir dos dados da nota. É a única forma de criar cliente |
 
 ### Mensagens e sugestões
 
 | Método | Endereço | Quem | O que faz |
 |--------|----------|------|-----------|
-| GET | `/clients/:id/stock-message/proposta` | R | Texto sugerido para a mensagem de estoque |
-| POST | `/clients/:id/stock-message` | R | Registra a mensagem e devolve o link do WhatsApp |
-| GET | `/stock-messages` | R e G | Histórico de mensagens geradas |
+| GET | `/clients/:id/stock-message/proposta` | R | Texto sugerido para a mensagem de estoque e contatos do cliente |
 | GET | `/clients/:id/insights` | R e G | Sugestões do que oferecer ao cliente na época |
 | GET | `/insights/manager-alerts` | R e G | Alertas de estoque baixo antes das datas comemorativas |
 
@@ -330,7 +291,7 @@ Na coluna "Quem", R significa representante e G significa gestor.
 |--------|----------|------|-----------|
 | GET | `/users` | G | Lista as contas |
 | POST | `/users` | G | Cria uma conta |
-| PATCH | `/users/:id` | G | Edita nome, e-mail, telefone e perfil, ativa ou inativa a conta |
+| PATCH | `/users/:id` | G | Edita nome, usuário, telefone e perfil, ativa ou inativa a conta |
 | POST | `/users/:id/transferir-carteira` | G | Passa todos os clientes de um representante para outro |
 | PUT | `/users/:id/senha` | G | Define uma senha provisória |
 
@@ -340,7 +301,7 @@ Na coluna "Quem", R significa representante e G significa gestor.
 |--------|----------|------|-----------|
 | GET | `/health` | público | Confere se o servidor e o banco estão respondendo |
 | GET | `/sistema/relogio` | público | Informa se o modo demonstração está ativo e em que data |
-| POST | `/sistema/demonstracao` | público, com e-mail e senha de gestor no pedido | Define a data de demonstração e recria os dados |
+| POST | `/sistema/demonstracao` | público, com usuário e senha de gestor no pedido | Define a data de demonstração e recria os dados |
 
 ## 7. Publicação e monitoramento
 
