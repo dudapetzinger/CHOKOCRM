@@ -1,18 +1,12 @@
 import type { NextFunction, Request, Response } from 'express';
-import { z } from 'zod';
-import { alterarSenhaSchema } from '../schemas/user.schema';
+import { alterarSenhaSchema, credenciaisSchema } from '../schemas/user.schema';
 import { alterarSenha, login, obterUsuarioDaSessao } from '../services/auth.service';
 import { usuarioAutenticado } from './usuarioAutenticado';
 
-const loginSchema = z.object({
-  email: z.string().trim().email('E-mail inválido.'),
-  senha: z.string().min(1, 'Senha é obrigatória.'),
-});
-
 export async function postLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { email, senha } = loginSchema.parse(req.body);
-    const resultado = await login(email, senha);
+    const { usuario, senha } = credenciaisSchema.parse(req.body);
+    const resultado = await login(usuario, senha);
     res.status(200).json(resultado);
   } catch (err) {
     next(err);

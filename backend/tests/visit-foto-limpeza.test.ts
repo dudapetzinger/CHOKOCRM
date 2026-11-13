@@ -30,7 +30,7 @@ jest.mock('../src/storage', () => {
 const { diretorioDeTeste } = jest.requireMock<{ diretorioDeTeste: string }>('../src/storage');
 
 const SENHA_PADRAO = 'chokocrm123';
-const EMAIL = 'eduarda.limpeza-fotos-teste@chokolaten.com.br';
+const USUARIO = 'eduarda.limpeza-fotos-teste';
 const JPEG_VALIDO = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 7)]);
 const MENSAGEM_FOTO_REMOVIDA = 'A foto desta visita foi removida após 90 dias.';
 const MILISSEGUNDOS_POR_DIA = 24 * 60 * 60 * 1000;
@@ -51,7 +51,7 @@ beforeEach(async () => {
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
   const usuario = await prisma.user.create({
-    data: { nome: 'Eduarda Fischer', email: EMAIL, role: 'REPRESENTANTE', senhaHash },
+    data: { nome: 'Eduarda Fischer', usuario: USUARIO, role: 'REPRESENTANTE', senhaHash },
   });
   usuarioId = usuario.id;
 
@@ -69,7 +69,7 @@ beforeEach(async () => {
   });
   clienteId = cliente.id;
 
-  const login = await request(app).post('/auth/login').send({ email: EMAIL, senha: SENHA_PADRAO });
+  const login = await request(app).post('/auth/login').send({ usuario: USUARIO, senha: SENHA_PADRAO });
   token = login.body.token;
 });
 

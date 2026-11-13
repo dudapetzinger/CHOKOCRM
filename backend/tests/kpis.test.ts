@@ -14,13 +14,13 @@ const MILISSEGUNDOS_POR_DIA = 86_400_000;
 
 const REPRESENTANTE = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.kpis-teste@chokolaten.com.br',
+  usuario: 'eduarda.kpis-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const GESTOR = {
   nome: 'Ricardo Menezes',
-  email: 'ricardo.kpis-teste@chokolaten.com.br',
+  usuario: 'ricardo.kpis-teste',
   role: 'GESTOR' as const,
 };
 
@@ -31,11 +31,10 @@ let tokenGestor: string;
 let representanteId: string;
 let clienteAId: string;
 let clienteBId: string;
-let clienteCId: string;
 let clienteDId: string;
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -78,7 +77,7 @@ async function criarVisita(clientId: string, diasAtras: number, resultado: Resul
 async function criarClientes(): Promise<void> {
   clienteAId = await criarCliente('11222333000181', 'Emporio Pomerode', true);
   clienteBId = await criarCliente('11222333000262', 'Padaria Vale Europeu', true);
-  clienteCId = await criarCliente('11222333000424', 'Emporio do Chocolate', true);
+  await criarCliente('11222333000424', 'Emporio do Chocolate', true);
   clienteDId = await criarCliente('11222333000343', 'Armazem Sao Bento', false);
 }
 
@@ -94,8 +93,8 @@ beforeEach(async () => {
   representanteId = representante.id;
   await prisma.user.create({ data: { ...GESTOR, senhaHash } });
 
-  token = await logar(REPRESENTANTE.email);
-  tokenGestor = await logar(GESTOR.email);
+  token = await logar(REPRESENTANTE.usuario);
+  tokenGestor = await logar(GESTOR.usuario);
 
   await criarClientes();
 
@@ -105,15 +104,6 @@ beforeEach(async () => {
   await criarVisita(clienteDId, 3, 'VENDA');
   await criarVisita(clienteAId, 100, 'VENDA');
 
-  await prisma.stockMessage.create({
-    data: {
-      clientId: clienteCId,
-      userId: representanteId,
-      textoFinal: 'Mensagem de estoque de teste.',
-      dataGeracao: haDias(5),
-      eventoSazonalId: null,
-    },
-  });
 });
 
 afterEach(() => {
@@ -166,8 +156,8 @@ describe('GET /dashboard/kpis', () => {
     expect(res.body.visitas.mediaPorCliente).toBe(1);
     // 2 vendas em 3 visitas.
     expect(res.body.conversaoEmVendas).toEqual({ numerador: 2, denominador: 3, percentual: 67 });
-    // A por visita e C por mensagem; B (visita há 40 dias) fora; D inativo não entra.
-    expect(res.body.taxaDeRegistro).toEqual({ numerador: 2, denominador: 3, percentual: 67 });
+    // Só A tem visita no período; B (visita há 40 dias) e C (sem visita) ficam fora; D inativo não entra.
+    expect(res.body.taxaDeRegistro).toEqual({ numerador: 1, denominador: 3, percentual: 33 });
 
     // Sem ERP (erpId nulo): A VERDE (visita há 2 dias), B e C VERMELHO (visita há 40 dias e nenhuma).
     expect(res.body.inativos).toEqual({
@@ -310,13 +300,13 @@ describe('GET /dashboard/kpis', () => {
     });
   });
 
-  it('semDados é true quando o período não tem visita nem mensagem', async () => {
+  it('semDados é true quando o período não tem visita', async () => {
     await truncateAllTables();
     const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
     const representante = await prisma.user.create({ data: { ...REPRESENTANTE, senhaHash } });
     representanteId = representante.id;
     await prisma.user.create({ data: { ...GESTOR, senhaHash } });
-    tokenGestor = await logar(GESTOR.email);
+    tokenGestor = await logar(GESTOR.usuario);
     await criarClientes();
 
     const res = await request(app).get('/dashboard/kpis').set('Authorization', `Bearer ${tokenGestor}`);
@@ -332,13 +322,12 @@ describe('GET /dashboard/kpis', () => {
 /**
  * Carteira de B: um cliente ativo com duas visitas no período, uma do
  * próprio B e uma do representante principal (autor de outra carteira,
- * que ainda assim conta para B: o filtro é a carteira do cliente), e uma
- * mensagem de estoque.
+ * que ainda assim conta para B: o filtro é a carteira do cliente).
  */
 async function criarCarteiraB(): Promise<string> {
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
   const representanteB = await prisma.user.create({
-    data: { nome: 'Bruno Alencar', email: 'bruno.kpis-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    data: { nome: 'Bruno Alencar', usuario: 'bruno.kpis-teste', role: 'REPRESENTANTE', senhaHash },
   });
   const clienteDeB = await prisma.client.create({
     data: {
@@ -358,9 +347,6 @@ async function criarCarteiraB(): Promise<string> {
       { clientId: clienteDeB.id, userId: representanteB.id, dataHora: haDias(4), descricao: 'Visita.', resultado: 'VENDA' },
       { clientId: clienteDeB.id, userId: representanteId, dataHora: haDias(6), descricao: 'Visita.', resultado: 'SEM_VENDA' },
     ],
-  });
-  await prisma.stockMessage.create({
-    data: { clientId: clienteDeB.id, userId: representanteB.id, textoFinal: 'Mensagem de B.', dataGeracao: haDias(1) },
   });
 
   return representanteB.id;
@@ -399,7 +385,7 @@ describe('GET /dashboard/kpis com representanteId', () => {
   });
 
   it('gestor com representanteId de um usuário GESTOR recebe zeros', async () => {
-    const gestor = await prisma.user.findUniqueOrThrow({ where: { email: GESTOR.email } });
+    const gestor = await prisma.user.findUniqueOrThrow({ where: { usuario: GESTOR.usuario } });
 
     const res = await request(app)
       .get('/dashboard/kpis')
@@ -427,7 +413,7 @@ describe('GET /dashboard/kpis com representanteId', () => {
     expect(res.body.clientesAtivos).toBe(3);
     expect(res.body.visitas.total).toBe(3);
     expect(res.body.conversaoEmVendas).toEqual({ numerador: 2, denominador: 3, percentual: 67 });
-    expect(res.body.taxaDeRegistro).toEqual({ numerador: 2, denominador: 3, percentual: 67 });
+    expect(res.body.taxaDeRegistro).toEqual({ numerador: 1, denominador: 3, percentual: 33 });
   });
 
   it('representanteId que não é uuid responde 400 VALIDATION_ERROR', async () => {
@@ -484,7 +470,7 @@ describe('GET /dashboard/kpis/por-representante', () => {
     const representanteBId = await criarCarteiraB();
     const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
     const semCarteira = await prisma.user.create({
-      data: { nome: 'Carla Dias', email: 'carla.kpis-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+      data: { nome: 'Carla Dias', usuario: 'carla.kpis-teste', role: 'REPRESENTANTE', senhaHash },
     });
 
     const res = await request(app)

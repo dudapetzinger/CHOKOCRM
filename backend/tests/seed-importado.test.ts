@@ -6,7 +6,7 @@ import { prisma } from '../src/lib/prisma';
 import { erpProvider } from '../src/providers/erp';
 import { ImportadoErpProvider } from '../src/providers/erp/ImportadoErpProvider';
 import { CATALOGO } from '../src/providers/erp/mock/catalogo';
-import { EMAIL_GESTAO, reiniciarDemonstracao, SENHA_DEMONSTRACAO, semear } from '../src/seed/demonstracao';
+import { USUARIO_GESTAO, reiniciarDemonstracao, SENHA_DEMONSTRACAO, semear } from '../src/seed/demonstracao';
 import { truncateAllTables } from './helpers/db';
 
 /**
@@ -55,7 +55,7 @@ describe('seed de demonstração com o provedor importado', () => {
 
     const login = await request(app)
       .post('/auth/login')
-      .send({ email: EMAIL_GESTAO, senha: SENHA_DEMONSTRACAO });
+      .send({ usuario: USUARIO_GESTAO, senha: SENHA_DEMONSTRACAO });
     const token = login.body.token as string;
 
     const produtos = await request(app).get('/erp/produtos').set('Authorization', `Bearer ${token}`);
@@ -93,7 +93,7 @@ describe('seed de demonstração com o provedor importado', () => {
 
   it('notas de um cliente real (CNPJ fora do seed) continuam dele, com o vínculo e a visita de antes (inclusive as recusadas)', async () => {
     const gestor = await prisma.user.create({
-      data: { nome: 'Gestor do teste', email: 'gestor.reset@chokolaten.com.br', role: 'GESTOR', senhaHash: 'x' },
+      data: { nome: 'Gestor do teste', usuario: 'gestor.reset', role: 'GESTOR', senhaHash: 'x' },
     });
     const cliente = await prisma.client.create({
       data: {

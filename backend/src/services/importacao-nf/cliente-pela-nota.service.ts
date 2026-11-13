@@ -4,8 +4,7 @@
  * recente, na carteira do representante escolhido. Numa transação só: cria o
  * cliente (sem e-mail e sem contatos), liga a ele todas as notas
  * `SEM_CLIENTE` do CNPJ e decide o vínculo de cada uma com as regras da
- * importação (`adotarNotasSemCliente`, o mesmo do cadastro pelo
- * representante). Provisório até a API do Senior X.
+ * importação (`adotarNotasSemCliente`). Provisório até a API do Senior X.
  */
 import { AppError } from '../../errors/AppError';
 import { ErrorCode } from '../../errors/errorCodes';
@@ -82,9 +81,9 @@ export async function listarSemCliente(): Promise<SemClienteDTO[]> {
 
 /**
  * Cria o cliente do CNPJ com os dados da nota mais recente e liga a ele as
- * notas sem cliente. 409 se o CNPJ já tem cliente (inclusive quando o
- * representante o cadastra pelo app ao mesmo tempo: o índice único do CNPJ
- * desfaz a transação), 400 se o representante não é um REPRESENTANTE ativo,
+ * notas sem cliente. 409 se o CNPJ já tem cliente (inclusive quando dois
+ * gestores o criam ao mesmo tempo: o índice único do CNPJ desfaz a
+ * transação), 400 se o representante não é um REPRESENTANTE ativo,
  * 404 sem nota `SEM_CLIENTE` do CNPJ. Devolve a ficha (`GET /clients/:id`).
  */
 export async function criarClientePelaNota(

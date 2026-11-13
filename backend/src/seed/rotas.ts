@@ -22,19 +22,19 @@ export type DiaUtil = 1 | 2 | 3 | 4 | 5;
 /** Lugar do cliente na rota: o dia da semana e a fase (em semanas) dentro da recorrência. */
 export type AgendaDaRota = { dia: DiaUtil; fase: number };
 
-const EMAIL_EDUARDA = 'eduarda@chokolaten.com.br';
-const EMAIL_RAFAEL = 'rafael@chokolaten.com.br';
+const USUARIO_EDUARDA = 'eduarda';
+const USUARIO_RAFAEL = 'rafael';
 
 /** Cidades de cada dia da rota, na ordem em que o representante as percorre. */
 export const ROTAS: Record<string, Record<DiaUtil, readonly string[]>> = {
-  [EMAIL_EDUARDA]: {
+  [USUARIO_EDUARDA]: {
     1: ['Joinville'],
     2: ['Jaraguá do Sul'],
     3: ['Pomerode', 'Corupá'],
     4: ['São Bento do Sul'],
     5: ['Joinville', 'Jaraguá do Sul'],
   },
-  [EMAIL_RAFAEL]: {
+  [USUARIO_RAFAEL]: {
     1: ['Blumenau'],
     2: ['Indaial', 'Timbó'],
     3: ['Brusque'],

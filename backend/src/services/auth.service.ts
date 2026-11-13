@@ -5,9 +5,9 @@ import type { Role, User } from '@prisma/client';
 import { env } from '../config/env';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
-import { findByEmail, findById, updateSenha } from '../repositories/user.repository';
+import { findById, findByUsuario, updateSenha } from '../repositories/user.repository';
 
-const MENSAGEM_CREDENCIAIS_INVALIDAS = 'E-mail ou senha inválidos';
+const MENSAGEM_CREDENCIAIS_INVALIDAS = 'Usuário ou senha inválidos';
 const MENSAGEM_CONTA_INATIVA = 'Conta inativa. Fale com o gestor.';
 const MENSAGEM_SESSAO_INVALIDA = 'Token de autenticação ausente ou inválido.';
 const MENSAGEM_SENHA_ATUAL_INCORRETA = 'Senha atual incorreta.';
@@ -17,9 +17,9 @@ const CUSTO_BCRYPT = 10;
 /**
  * Hash bcrypt de uma senha aleatória, gerado ao carregar o módulo, que nunca
  * corresponde a nenhuma conta real.
- * Quando o e-mail informado não existe, comparamos a senha recebida contra
+ * Quando o usuário informado não existe, comparamos a senha recebida contra
  * este hash (em vez de encerrar cedo) para que o tempo de resposta não
- * revele se o e-mail está cadastrado (mitigação de timing attack).
+ * revele se o usuário está cadastrado (mitigação de timing attack).
  */
 const HASH_DUMMY = bcrypt.hashSync(randomBytes(32).toString('hex'), CUSTO_BCRYPT);
 
@@ -27,7 +27,7 @@ const HASH_DUMMY = bcrypt.hashSync(randomBytes(32).toString('hex'), CUSTO_BCRYPT
 export type UsuarioDaSessao = {
   id: string;
   nome: string;
-  email: string;
+  usuario: string;
   telefone: string | null;
   role: Role;
   ativo: boolean;
@@ -42,7 +42,7 @@ function toUsuarioDaSessao(usuario: User): UsuarioDaSessao {
   return {
     id: usuario.id,
     nome: usuario.nome,
-    email: usuario.email,
+    usuario: usuario.usuario,
     telefone: usuario.telefone,
     role: usuario.role,
     ativo: usuario.ativo,
@@ -54,23 +54,23 @@ export async function hashDaSenha(senha: string): Promise<string> {
 }
 
 /**
- * Confere e-mail e senha e devolve a conta, sem olhar papel nem situação
- * (quem chama decide): 401 genérico se o e-mail não existe ou a senha não
+ * Confere usuário e senha e devolve a conta, sem olhar papel nem situação
+ * (quem chama decide): 401 genérico se o usuário não existe ou a senha não
  * confere. Usado pelo login e pelo modo demonstração
  * (`demonstracao.service.ts`), que não emite token.
  */
-export async function conferirCredenciais(email: string, senha: string): Promise<User> {
-  const usuario = await findByEmail(email.toLowerCase());
-  const senhaConfere = await bcrypt.compare(senha, usuario?.senhaHash ?? HASH_DUMMY);
+export async function conferirCredenciais(usuario: string, senha: string): Promise<User> {
+  const conta = await findByUsuario(usuario.trim().toLowerCase());
+  const senhaConfere = await bcrypt.compare(senha, conta?.senhaHash ?? HASH_DUMMY);
 
-  if (!usuario || !senhaConfere) {
+  if (!conta || !senhaConfere) {
     throw new AppError(ErrorCode.UNAUTHORIZED, MENSAGEM_CREDENCIAIS_INVALIDAS, 401);
   }
-  return usuario;
+  return conta;
 }
 
-export async function login(email: string, senha: string): Promise<LoginResultado> {
-  const usuario = await conferirCredenciais(email, senha);
+export async function login(nomeDeUsuario: string, senha: string): Promise<LoginResultado> {
+  const usuario = await conferirCredenciais(nomeDeUsuario, senha);
 
   // Só depois de conferir a senha: quem não a sabe recebe o 401 genérico e
   // não descobre que a conta existe e está inativa.

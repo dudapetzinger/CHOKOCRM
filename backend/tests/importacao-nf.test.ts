@@ -33,8 +33,8 @@ let tokenRep: string;
 let representanteId: string;
 let clienteId: string;
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -114,14 +114,14 @@ beforeEach(async () => {
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
   await prisma.user.create({
-    data: { nome: 'Ricardo Menezes', email: 'ricardo.nf-teste@chokolaten.com.br', role: 'GESTOR', senhaHash },
+    data: { nome: 'Ricardo Menezes', usuario: 'ricardo.nf-teste', role: 'GESTOR', senhaHash },
   });
   const rep = await prisma.user.create({
-    data: { nome: 'Eduarda Fischer', email: 'eduarda.nf-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    data: { nome: 'Eduarda Fischer', usuario: 'eduarda.nf-teste', role: 'REPRESENTANTE', senhaHash },
   });
   representanteId = rep.id;
-  tokenGestor = await logar('ricardo.nf-teste@chokolaten.com.br');
-  tokenRep = await logar('eduarda.nf-teste@chokolaten.com.br');
+  tokenGestor = await logar('ricardo.nf-teste');
+  tokenRep = await logar('eduarda.nf-teste');
   clienteId = await criarCliente(CNPJ_NF, 'Don Giacomo');
 });
 

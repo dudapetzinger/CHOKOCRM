@@ -28,7 +28,7 @@
  * - Padaria Vale Europeu → `12168` e Confeitaria Rota das Cachoeiras →
  *   `12187` (`mesesSemCompra` 0; `valorBase` 1856 e 1740): todo cliente
  *   ativo da demonstração tem `erpId` (a tela "Sem histórico de compras"
- *   vale para cliente criado à mão sem `erpId`). Códigos
+ *   vale para cliente sem `erpId`). Códigos
  *   livres entre os dos âncoras (até 12159) e os dos gerados (de 12201).
  * - Café Beira-Rio → `12106` (`mesesSemCompra` 2): o cliente inativo, fechado
  *   para reforma há mais de um mês, também parou de comprar no ERP; já é

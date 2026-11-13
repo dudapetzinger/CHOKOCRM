@@ -23,7 +23,7 @@ import { produtosRouter } from './routes/produtos.routes';
 import { recurrenceRouter } from './routes/recurrence.routes';
 import { clientLembretesRouter, lembretesRouter } from './routes/reminder.routes';
 import { sistemaRouter } from './routes/sistema.routes';
-import { clientStockMessageRouter, stockMessagesRouter } from './routes/stock-message.routes';
+import { clientStockMessageRouter } from './routes/stock-message.routes';
 import { usersRouter } from './routes/user.routes';
 import { clientVisitsRouter, visitRouter } from './routes/visit.routes';
 
@@ -63,7 +63,6 @@ app.use('/erp/importacoes', express.raw({ type: 'application/pdf', limit: '10mb'
 app.use('/erp', importacaoRouter);
 app.use('/goals', goalsRouter);
 app.use('/clients/:id/stock-message', clientStockMessageRouter);
-app.use('/stock-messages', stockMessagesRouter);
 app.use('/clients/:id/insights', clientInsightsRouter);
 app.use('/insights', insightsRouter);
 app.use('/clients/:id/lembretes', clientLembretesRouter);

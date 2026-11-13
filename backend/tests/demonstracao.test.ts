@@ -14,14 +14,14 @@ import { truncateAllTables } from './helpers/db';
  * `reiniciarDemonstracao` na data nova, uma recriação por vez.
  */
 const SENHA = 'senha-do-escritorio';
-const EMAIL_GESTOR = 'gestao.demonstracao-teste@chokolaten.com.br';
-const EMAIL_REP = 'eduarda.demonstracao-teste@chokolaten.com.br';
+const USUARIO_GESTOR = 'gestao.demonstracao-teste';
+const USUARIO_REP = 'eduarda.demonstracao-teste';
 // A recriação de verdade (cerca de 80 clientes, visitas, pedidos, bcrypt das contas) passa de 15 s sob carga.
 const PRAZO_DA_RECRIACAO_MS = 90_000;
 
 let gestorId: string;
 
-function postDemonstracao(corpo: { data: string | null; email: string; senha: string }) {
+function postDemonstracao(corpo: { data: string | null; usuario: string; senha: string }) {
   return request(app).post('/sistema/demonstracao').send(corpo);
 }
 
@@ -43,10 +43,10 @@ beforeEach(async () => {
   await truncateAllTables();
   const senhaHash = await bcrypt.hash(SENHA, 4);
   const gestor = await prisma.user.create({
-    data: { nome: 'Gestão de teste', email: EMAIL_GESTOR, role: 'GESTOR', senhaHash },
+    data: { nome: 'Gestão de teste', usuario: USUARIO_GESTOR, role: 'GESTOR', senhaHash },
   });
   gestorId = gestor.id;
-  await prisma.user.create({ data: { nome: 'Eduarda Fischer', email: EMAIL_REP, role: 'REPRESENTANTE', senhaHash } });
+  await prisma.user.create({ data: { nome: 'Eduarda Fischer', usuario: USUARIO_REP, role: 'REPRESENTANTE', senhaHash } });
 });
 
 afterEach(() => {
@@ -59,30 +59,30 @@ afterAll(async () => {
 });
 
 describe('POST /sistema/demonstracao: autenticação', () => {
-  it('e-mail desconhecido responde 401 e não muda nada', async () => {
+  it('usuário desconhecido responde 401 e não muda nada', async () => {
     const espiao = jest.spyOn(seedDemonstracao, 'reiniciarDemonstracao');
 
-    const res = await postDemonstracao({ data: DATA_SIMULADA, email: 'ninguem@chokolaten.com.br', senha: SENHA });
+    const res = await postDemonstracao({ data: DATA_SIMULADA, usuario: 'ninguem', senha: SENHA });
 
     expect(res.status).toBe(401);
-    expect(res.body.error.message).toBe('E-mail ou senha inválidos');
+    expect(res.body.error.message).toBe('Usuário ou senha inválidos');
     expect(espiao).not.toHaveBeenCalled();
     expect(await linhaDaConfiguracao()).toBeNull();
     expect((await relogioPublico()).simulado).toBe(false);
   });
 
   it('senha errada responde 401', async () => {
-    const res = await postDemonstracao({ data: DATA_SIMULADA, email: EMAIL_GESTOR, senha: 'errada' });
+    const res = await postDemonstracao({ data: DATA_SIMULADA, usuario: USUARIO_GESTOR, senha: 'errada' });
 
     expect(res.status).toBe(401);
-    expect(res.body.error.message).toBe('E-mail ou senha inválidos');
+    expect(res.body.error.message).toBe('Usuário ou senha inválidos');
     expect(await linhaDaConfiguracao()).toBeNull();
   });
 
   it('representante responde 403', async () => {
     const espiao = jest.spyOn(seedDemonstracao, 'reiniciarDemonstracao');
 
-    const res = await postDemonstracao({ data: DATA_SIMULADA, email: EMAIL_REP, senha: SENHA });
+    const res = await postDemonstracao({ data: DATA_SIMULADA, usuario: USUARIO_REP, senha: SENHA });
 
     expect(res.status).toBe(403);
     expect(res.body.error.message).toBe('Só a conta Gestão pode fazer isso.');
@@ -93,18 +93,18 @@ describe('POST /sistema/demonstracao: autenticação', () => {
   it('conta Gestão inativa responde 403', async () => {
     await prisma.user.update({ where: { id: gestorId }, data: { ativo: false } });
 
-    const res = await postDemonstracao({ data: DATA_SIMULADA, email: EMAIL_GESTOR, senha: SENHA });
+    const res = await postDemonstracao({ data: DATA_SIMULADA, usuario: USUARIO_GESTOR, senha: SENHA });
 
     expect(res.status).toBe(403);
     expect(res.body.error.message).toBe('Só a conta Gestão pode fazer isso.');
   });
 
   it.each([
-    { data: '2027-02-30', email: EMAIL_GESTOR, senha: SENHA },
-    { data: '15/03/2027', email: EMAIL_GESTOR, senha: SENHA },
-    { email: EMAIL_GESTOR, senha: SENHA },
-    { data: DATA_SIMULADA, email: 'nao-e-email', senha: SENHA },
-    { data: DATA_SIMULADA, email: EMAIL_GESTOR, senha: '' },
+    { data: '2027-02-30', usuario: USUARIO_GESTOR, senha: SENHA },
+    { data: '15/03/2027', usuario: USUARIO_GESTOR, senha: SENHA },
+    { usuario: USUARIO_GESTOR, senha: SENHA },
+    { data: DATA_SIMULADA, usuario: '', senha: SENHA },
+    { data: DATA_SIMULADA, usuario: USUARIO_GESTOR, senha: '' },
   ])('corpo inválido %j responde 400', async (corpo) => {
     const res = await request(app).post('/sistema/demonstracao').send(corpo);
 
@@ -117,7 +117,7 @@ describe('POST /sistema/demonstracao: recriação', () => {
   it(
     'gestão + data: grava a configuração, recria a demonstração na data e responde { relogio }',
     async () => {
-      const res = await postDemonstracao({ data: DATA_SIMULADA, email: EMAIL_GESTOR, senha: SENHA });
+      const res = await postDemonstracao({ data: DATA_SIMULADA, usuario: USUARIO_GESTOR, senha: SENHA });
 
       expect(res.status).toBe(200);
       const hojeReal = dataCalendario(new Date());
@@ -157,7 +157,7 @@ describe('POST /sistema/demonstracao: recriação', () => {
     async () => {
       await ativarDataDeDemonstracao();
 
-      const res = await postDemonstracao({ data: null, email: EMAIL_GESTOR, senha: SENHA });
+      const res = await postDemonstracao({ data: null, usuario: USUARIO_GESTOR, senha: SENHA });
 
       expect(res.status).toBe(200);
       expect(res.body.relogio).toMatchObject({
@@ -187,12 +187,12 @@ describe('POST /sistema/demonstracao: recriação', () => {
     });
     const espiao = jest.spyOn(seedDemonstracao, 'reiniciarDemonstracao').mockReturnValue(recriacaoPendente);
 
-    const primeira = postDemonstracao({ data: DATA_SIMULADA, email: EMAIL_GESTOR, senha: SENHA }).then((r) => r);
+    const primeira = postDemonstracao({ data: DATA_SIMULADA, usuario: USUARIO_GESTOR, senha: SENHA }).then((r) => r);
     while (espiao.mock.calls.length === 0) {
       await new Promise((resolve) => setImmediate(resolve));
     }
 
-    const segunda = await postDemonstracao({ data: '2027-04-01', email: EMAIL_GESTOR, senha: SENHA });
+    const segunda = await postDemonstracao({ data: '2027-04-01', usuario: USUARIO_GESTOR, senha: SENHA });
 
     expect(segunda.status).toBe(409);
     expect(segunda.body.error.message).toBe('Já existe uma recriação em andamento.');
@@ -208,7 +208,7 @@ describe('POST /sistema/demonstracao: recriação', () => {
       .mockRejectedValueOnce(new Error('falha simulada no seed'))
       .mockResolvedValue(undefined);
 
-    const falhou = await postDemonstracao({ data: DATA_SIMULADA, email: EMAIL_GESTOR, senha: SENHA });
+    const falhou = await postDemonstracao({ data: DATA_SIMULADA, usuario: USUARIO_GESTOR, senha: SENHA });
 
     expect(falhou.status).toBe(500);
     expect(await relogioPublico()).toMatchObject({
@@ -220,7 +220,7 @@ describe('POST /sistema/demonstracao: recriação', () => {
     // Não havia linha: a restauração a apaga
     expect(await linhaDaConfiguracao()).toBeNull();
 
-    const depois = await postDemonstracao({ data: DATA_SIMULADA, email: EMAIL_GESTOR, senha: SENHA });
+    const depois = await postDemonstracao({ data: DATA_SIMULADA, usuario: USUARIO_GESTOR, senha: SENHA });
     expect(depois.status).toBe(200);
     expect(await relogioPublico()).toMatchObject({ simulado: true, dataDeDemonstracao: DATA_SIMULADA });
     expect(espiao).toHaveBeenCalledTimes(2);
@@ -235,7 +235,7 @@ describe('POST /sistema/demonstracao: recriação', () => {
       .mockRejectedValueOnce(new Error('falha simulada no seed'))
       .mockResolvedValue(undefined);
 
-    const falhou = await postDemonstracao({ data: '2027-06-01', email: EMAIL_GESTOR, senha: SENHA });
+    const falhou = await postDemonstracao({ data: '2027-06-01', usuario: USUARIO_GESTOR, senha: SENHA });
 
     expect(falhou.status).toBe(500);
     const depoisDaFalha = await relogioPublico();
@@ -250,7 +250,7 @@ describe('POST /sistema/demonstracao: recriação', () => {
     expect(linha?.diaDeReferencia?.toISOString().slice(0, 10)).toBe(antes.diaDeReferencia);
     expect(linha?.atualizadoPor).toBe('quem-ligou-antes');
 
-    const depois = await postDemonstracao({ data: null, email: EMAIL_GESTOR, senha: SENHA });
+    const depois = await postDemonstracao({ data: null, usuario: USUARIO_GESTOR, senha: SENHA });
     expect(depois.status).toBe(200);
     expect(await relogioPublico()).toMatchObject({ simulado: false });
   });
@@ -260,7 +260,7 @@ describe('login com o modo demonstração ligado', () => {
   it('o token emitido pelo relógio real vale em GET /auth/me', async () => {
     await ativarDataDeDemonstracao();
 
-    const login = await request(app).post('/auth/login').send({ email: EMAIL_GESTOR, senha: SENHA });
+    const login = await request(app).post('/auth/login').send({ usuario: USUARIO_GESTOR, senha: SENHA });
     expect(login.status).toBe(200);
 
     const me = await request(app).get('/auth/me').set('Authorization', `Bearer ${login.body.token}`);

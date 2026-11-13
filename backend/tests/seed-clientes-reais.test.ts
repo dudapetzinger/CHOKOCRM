@@ -8,7 +8,7 @@ import {
   CLIENTES_ANCORA,
   CLIENTES_GERADOS,
   cnpjsDaDemonstracao,
-  EMAIL_GESTAO,
+  USUARIO_GESTAO,
   reiniciarDemonstracao,
   SENHA_DEMONSTRACAO,
 } from '../src/seed/demonstracao';
@@ -19,7 +19,7 @@ import { truncateAllTables } from './helpers/db';
  * Clientes reais no reset: `reiniciarDemonstracao` apaga e recria só os
  * clientes da demonstração (CNPJ em `CLIENTES`); o cliente real (cadastrado à
  * mão ou criado pela nota fiscal) sobrevive com contatos, visitas (itens),
- * lembretes, mensagens de estoque, mudanças de recorrência e notas vinculadas.
+ * lembretes, mudanças de recorrência e notas vinculadas.
  * Metas e campanhas continuam apagadas para todos: a visita do cliente real
  * que era de uma campanha da demonstração fica sem campanha.
  */
@@ -42,7 +42,7 @@ const HOJE = new Date(`${DATA}T15:00:00.000Z`);
 const PRAZO_MS = 240_000;
 
 async function tokenDaGestao(): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email: EMAIL_GESTAO, senha: SENHA_DEMONSTRACAO });
+  const login = await request(app).post('/auth/login').send({ usuario: USUARIO_GESTAO, senha: SENHA_DEMONSTRACAO });
   return login.body.token as string;
 }
 
@@ -53,7 +53,6 @@ async function totais() {
     visitas: await prisma.visit.count(),
     itens: await prisma.visitItem.count(),
     lembretes: await prisma.reminder.count(),
-    mensagens: await prisma.stockMessage.count(),
     mudancas: await prisma.visitScheduleChange.count(),
     campanhas: await prisma.campaign.count(),
     metas: await prisma.goal.count(),
@@ -61,9 +60,9 @@ async function totais() {
   };
 }
 
-/** Cliente real com contato, visita de venda (2 itens, campanha atual), lembrete aberto, mensagem e mudança de recorrência. */
+/** Cliente real com contato, visita de venda (2 itens, campanha atual), lembrete aberto e mudança de recorrência. */
 async function criarClienteReal() {
-  const representante = await prisma.user.findUniqueOrThrow({ where: { email: 'eduarda@chokolaten.com.br' } });
+  const representante = await prisma.user.findUniqueOrThrow({ where: { usuario: 'eduarda' } });
   const campanha = await prisma.campaign.findFirstOrThrow({
     where: { inicio: { lte: HOJE }, fim: { gte: new Date(`${DATA}T00:00:00.000Z`) } },
   });
@@ -115,9 +114,6 @@ async function criarClienteReal() {
       data: new Date(`${DATA}T00:00:00.000Z`),
     },
   });
-  const mensagem = await prisma.stockMessage.create({
-    data: { clientId: cliente.id, userId: representante.id, textoFinal: 'Olá, Joana!', dataGeracao: HOJE },
-  });
   const mudanca = await prisma.visitScheduleChange.create({
     data: {
       clientId: cliente.id,
@@ -128,7 +124,7 @@ async function criarClienteReal() {
       data: HOJE,
     },
   });
-  return { cliente, contato, visita, lembrete, mensagem, mudanca };
+  return { cliente, contato, visita, lembrete, mudanca };
 }
 
 beforeEach(async () => {
@@ -152,7 +148,7 @@ describe('clientes reais no reset da demonstração', () => {
   });
 
   it(
-    'cliente real cadastrado à mão sobrevive com contato, visita (itens), lembrete, mensagem e mudança de recorrência; a visita perde a campanha',
+    'cliente real cadastrado à mão sobrevive com contato, visita (itens), lembrete e mudança de recorrência; a visita perde a campanha',
     async () => {
       const real = await criarClienteReal();
 
@@ -170,7 +166,6 @@ describe('clientes reais no reset da demonstração', () => {
       const lembrete = await prisma.reminder.findUniqueOrThrow({ where: { id: real.lembrete.id } });
       expect(lembrete.concluidoEm).toBeNull();
       expect(lembrete.visitId).toBe(real.visita.id);
-      expect(await prisma.stockMessage.findUnique({ where: { id: real.mensagem.id } })).not.toBeNull();
       expect(await prisma.visitScheduleChange.findUnique({ where: { id: real.mudanca.id } })).not.toBeNull();
     },
     PRAZO_MS,
@@ -187,7 +182,7 @@ describe('clientes reais no reset da demonstração', () => {
         .set('Content-Type', 'application/pdf')
         .send(Buffer.from('%PDF-1.4 simulado'));
       expect(importada.status).toBe(201);
-      const representante = await prisma.user.findUniqueOrThrow({ where: { email: 'eduarda@chokolaten.com.br' } });
+      const representante = await prisma.user.findUniqueOrThrow({ where: { usuario: 'eduarda' } });
       const criado = await request(app)
         .post(`/erp/sem-cliente/${CNPJ_NF}/cliente`)
         .set('Authorization', `Bearer ${token}`)

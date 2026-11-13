@@ -9,7 +9,7 @@ const ID_INEXISTENTE = '00000000-0000-0000-0000-000000000000';
 
 const REPRESENTANTE = {
   nome: 'Fernanda Rosa',
-  email: 'fernanda.contacts-teste@chokolaten.com.br',
+  usuario: 'fernanda.contacts-teste',
   role: 'REPRESENTANTE' as const,
 };
 
@@ -105,7 +105,7 @@ beforeEach(async () => {
 
   const login = await request(app)
     .post('/auth/login')
-    .send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
+    .send({ usuario: REPRESENTANTE.usuario, senha: SENHA_PADRAO });
   token = login.body.token;
 
   await criarClienteFixture(CLIENTE_DUAS_LINHAS);
@@ -120,10 +120,10 @@ afterAll(async () => {
 /** Cria outro usuário (representante de outra carteira, ou gestor) e devolve o token dele. */
 async function logarOutroUsuario(role: 'REPRESENTANTE' | 'GESTOR'): Promise<string> {
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
-  const email = `${role.toLowerCase()}.outro.contacts-teste@chokolaten.com.br`;
-  await prisma.user.create({ data: { nome: `Outro ${role}`, email, role, senhaHash } });
+  const usuario = `${role.toLowerCase()}.outro.contacts-teste`;
+  await prisma.user.create({ data: { nome: `Outro ${role}`, usuario, role, senhaHash } });
 
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 

@@ -1,6 +1,6 @@
 import type { Client, Contact, Prisma, ResultadoVisita, VisitScheduleChange } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import type { CreateClientInput, UpdateClientInput } from '../schemas/client.schema';
+import type { UpdateClientInput } from '../schemas/client.schema';
 import { dataDaColunaDate, type DataCalendario } from '../services/classificacao.service';
 import { agora } from '../lib/relogio';
 
@@ -148,12 +148,18 @@ export async function list(params: {
   });
 }
 
-/**
- * Dados do cliente novo: os do cadastro do representante (`CreateClientInput`)
- * ou os do cliente criado pela nota fiscal, que nasce sem e-mail (`null`) e
- * sem contatos (`[]`).
- */
-export type NovoClienteData = Omit<CreateClientInput, 'email'> & { email: string | null };
+/** Dados do cliente criado pela nota fiscal, que nasce sem e-mail (`null`) e sem contatos (`[]`). */
+export type NovoClienteData = {
+  razaoSocial: string;
+  nomeFantasia: string;
+  cnpj: string;
+  cidade: string;
+  endereco: string;
+  telefone: string;
+  email: string | null;
+  recorrenciaDias: number;
+  contatos: { nome: string; cargo: string; telefone: string; email: string; principal: boolean }[];
+};
 
 async function criarClienteEContatos(
   tx: Prisma.TransactionClient,
@@ -178,9 +184,8 @@ async function criarClienteEContatos(
  * Cria o cliente e seus contatos numa única transação: o índice único
  * parcial `one_principal_per_client` (client_id) WHERE principal, definido
  * na migration, é a última linha de defesa contra dois contatos principais
- * concorrentes, mas a regra "exatamente um principal" já é garantida antes
- * disso pelo zod (createClientSchema). Com `tx`, roda dentro da transação de
- * quem chama (o cliente pela nota liga as notas na mesma transação).
+ * concorrentes. Com `tx`, roda dentro da transação de quem chama (o cliente
+ * pela nota liga as notas na mesma transação).
  */
 export async function createWithContacts(
   input: NovoClienteData,

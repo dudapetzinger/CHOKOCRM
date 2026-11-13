@@ -1,5 +1,4 @@
 import * as clientRepository from '../repositories/client.repository';
-import * as stockMessageRepository from '../repositories/stock-message.repository';
 import * as userRepository from '../repositories/user.repository';
 import * as visitRepository from '../repositories/visit.repository';
 import { classificacaoDoCliente, fimDoDia, inicioDoDia } from './classificacao.service';
@@ -22,7 +21,7 @@ import {
 import { agora } from '../lib/relogio';
 
 /**
- * Indicadores do painel do gestor: busca visitas, mensagens e clientes
+ * Indicadores do painel do gestor: busca visitas e clientes
  * ativos (e, via `erp.service`, a última compra para a cor composta), entrega
  * às regras puras de `kpis.regras.ts` e projeta o DTO (mesmo papel de
  * `insights.service.ts` sobre `insights.regras.ts`). Indisponibilidade do ERP
@@ -37,7 +36,7 @@ export type KpisDTO = {
   taxaDeRegistro: Proporcao;
   conversaoEmVendas: Proporcao;
   inativos: { total: number; distribuicao: DistribuicaoPorCor };
-  /** Nenhuma visita nem mensagem no período. */
+  /** Nenhuma visita no período. */
   semDados: boolean;
   /** `erpSimulado()`: a cor composta consulta o ERP. */
   simulado: boolean;
@@ -54,7 +53,7 @@ export type KpisPorRepresentanteDTO = {
 
 /**
  * Com `representanteId`, todos os números se restringem à carteira daquele
- * representante: clientes ativos dele e visitas/mensagens a esses clientes
+ * representante: clientes ativos dele e visitas a esses clientes
  * (a carteira do cliente decide, não o autor). Sem ele, a empresa toda.
  */
 export async function obterKpis(
@@ -64,9 +63,8 @@ export async function obterKpis(
 ): Promise<KpisDTO> {
   const { inicio, fim } = janela;
 
-  const [visitas, mensagens, ativos] = await Promise.all([
+  const [visitas, ativos] = await Promise.all([
     visitRepository.listNoPeriodo(inicioDoDia(inicio), fimDoDia(fim), representanteId),
-    stockMessageRepository.listNoPeriodo(inicioDoDia(inicio), fimDoDia(fim), representanteId),
     clientRepository.listAtivosParaAgenda(representanteId),
   ]);
 
@@ -87,12 +85,11 @@ export async function obterKpis(
     visitas: { total, mediaPorCliente: mediaDeVisitasPorCliente(total, ativos.length) },
     taxaDeRegistro: taxaDeRegistro(
       visitas,
-      mensagens,
       ativos.map((cliente) => cliente.id),
     ),
     conversaoEmVendas: conversaoEmVendas(visitas),
     inativos: { total: contarInativos(distribuicao), distribuicao },
-    semDados: visitas.length === 0 && mensagens.length === 0,
+    semDados: visitas.length === 0,
     simulado: erpSimulado(),
   };
 }

@@ -32,8 +32,8 @@ let tokenRep: string;
 let representanteId: string;
 let gestorId: string;
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -145,15 +145,15 @@ beforeEach(async () => {
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
   const gestor = await prisma.user.create({
-    data: { nome: 'Ricardo Menezes', email: 'ricardo.cpn-teste@chokolaten.com.br', role: 'GESTOR', senhaHash },
+    data: { nome: 'Ricardo Menezes', usuario: 'ricardo.cpn-teste', role: 'GESTOR', senhaHash },
   });
   gestorId = gestor.id;
   const rep = await prisma.user.create({
-    data: { nome: 'Eduarda Fischer', email: 'eduarda.cpn-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    data: { nome: 'Eduarda Fischer', usuario: 'eduarda.cpn-teste', role: 'REPRESENTANTE', senhaHash },
   });
   representanteId = rep.id;
-  tokenGestor = await logar('ricardo.cpn-teste@chokolaten.com.br');
-  tokenRep = await logar('eduarda.cpn-teste@chokolaten.com.br');
+  tokenGestor = await logar('ricardo.cpn-teste');
+  tokenRep = await logar('eduarda.cpn-teste');
 });
 
 afterAll(async () => {
@@ -219,50 +219,6 @@ describe('GET /erp/sem-cliente', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.map((item: { cnpj: string }) => item.cnpj)).toEqual([CNPJ_OUTRO]);
-  });
-});
-
-describe('POST /clients (representante) adota as notas sem cliente do CNPJ', () => {
-  it('liga ao cliente novo as notas SEM_CLIENTE do CNPJ, decide o vínculo e o CNPJ sai da lista', async () => {
-    const notaA = await criarNota({ cnpj: CNPJ_NF, nome: 'DON GIACOMO PIZZARIA LTDA', dataEmissao: '2026-10-20' });
-    const notaB = await criarNota({ cnpj: CNPJ_NF, nome: 'DON GIACOMO PIZZARIA LTDA', dataEmissao: '2026-11-03' });
-    const outra = await criarNota({ cnpj: CNPJ_OUTRO, nome: 'MERCADO SOLO LTDA', dataEmissao: '2026-11-04' });
-
-    const res = await request(app)
-      .post('/clients')
-      .set('Authorization', `Bearer ${tokenRep}`)
-      .send({
-        razaoSocial: 'Don Giacomo Pizzaria Ltda',
-        nomeFantasia: 'Don Giacomo',
-        cnpj: CNPJ_NF,
-        cidade: 'Pomerode',
-        endereco: 'Rua Boa Vista, 80 - Centro, Pomerode/SC',
-        telefone: '(47) 3387-5820',
-        email: 'contato@dongiacomo.com.br',
-        contatos: [
-          {
-            nome: 'Giacomo Rossi',
-            cargo: 'Proprietário',
-            telefone: '(47) 99999-5820',
-            email: 'giacomo@dongiacomo.com.br',
-            principal: true,
-          },
-        ],
-      });
-
-    expect(res.status).toBe(201);
-    const notas = await prisma.erpSale.findMany({ where: { id: { in: [notaA, notaB] } } });
-    expect(notas).toHaveLength(2);
-    for (const nota of notas) {
-      expect(nota.clientId).toBe(res.body.id);
-      expect(nota.vinculoStatus).toBe('SEM_VISITA');
-    }
-    const naoMexida = await prisma.erpSale.findUniqueOrThrow({ where: { id: outra } });
-    expect(naoMexida.clientId).toBeNull();
-    expect(naoMexida.vinculoStatus).toBe('SEM_CLIENTE');
-
-    const lista = await listar();
-    expect(lista.body.data.map((item: { cnpj: string }) => item.cnpj)).toEqual([CNPJ_OUTRO]);
   });
 });
 
@@ -344,7 +300,7 @@ describe('POST /erp/sem-cliente/:cnpj/cliente', () => {
     const inativo = await prisma.user.create({
       data: {
         nome: 'Inativo',
-        email: 'inativo.cpn-teste@chokolaten.com.br',
+        usuario: 'inativo.cpn-teste',
         role: 'REPRESENTANTE',
         ativo: false,
         senhaHash: 'x',

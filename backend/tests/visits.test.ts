@@ -11,13 +11,13 @@ const ID_INEXISTENTE = '00000000-0000-0000-0000-000000000000';
 
 const REPRESENTANTE = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.visits-teste@chokolaten.com.br',
+  usuario: 'eduarda.visits-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const GESTOR = {
   nome: 'Ricardo Menezes',
-  email: 'ricardo.visits-teste@chokolaten.com.br',
+  usuario: 'ricardo.visits-teste',
   role: 'GESTOR' as const,
 };
 
@@ -61,8 +61,8 @@ async function criarCliente(cnpj: string, nomeFantasia: string, ativo = true): P
   return cliente.id;
 }
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -72,13 +72,13 @@ async function logarOutroRepresentante(): Promise<string> {
   await prisma.user.create({
     data: {
       nome: 'Outro Representante',
-      email: 'outro.visits-teste@chokolaten.com.br',
+      usuario: 'outro.visits-teste',
       role: 'REPRESENTANTE',
       senhaHash,
     },
   });
 
-  return logar('outro.visits-teste@chokolaten.com.br');
+  return logar('outro.visits-teste');
 }
 
 beforeEach(async () => {
@@ -89,8 +89,8 @@ beforeEach(async () => {
   representanteId = representante.id;
   await prisma.user.create({ data: { ...GESTOR, senhaHash } });
 
-  token = await logar(REPRESENTANTE.email);
-  tokenGestor = await logar(GESTOR.email);
+  token = await logar(REPRESENTANTE.usuario);
+  tokenGestor = await logar(GESTOR.usuario);
 
   clienteId = await criarCliente('11222333000181', 'Emporio Pomerode');
   clienteInativoId = await criarCliente('11222333000343', 'Doceria Jaragua', false);
@@ -938,16 +938,210 @@ describe('PATCH /visits/:id', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('recusa campo diferente de descricao', async () => {
+  it('recusa campo que a edição não aceita', async () => {
     const id = await criarVisitaRetornandoId();
 
     const res = await request(app)
       .patch(`/visits/${id}`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ descricao: 'Tentando mudar o resultado.', resultado: 'VENDA' });
+      .send({ descricao: 'Tentando mudar a data.', dataHora: '2026-09-01T10:00:00.000Z' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('recusa corpo vazio', async () => {
+    const id = await criarVisitaRetornandoId();
+
+    const res = await request(app).patch(`/visits/${id}`).set('Authorization', `Bearer ${token}`).send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('recusa resultado inválido', async () => {
+    const id = await criarVisitaRetornandoId();
+
+    const res = await request(app)
+      .patch(`/visits/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ resultado: 'TALVEZ' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('edita só o resultado e mantém a descrição', async () => {
+    const id = await criarVisitaRetornandoId();
+
+    const res = await request(app)
+      .patch(`/visits/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ resultado: 'SEM_VENDA' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.resultado).toBe('SEM_VENDA');
+    expect(res.body.descricao).toBe('Descrição original da visita.');
+    expect(res.body.editadoEm).not.toBeNull();
+  });
+
+  it('edita a descrição e o resultado juntos', async () => {
+    const id = await criarVisitaRetornandoId();
+
+    const res = await request(app)
+      .patch(`/visits/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ descricao: 'Fechou a venda depois da conversa.', resultado: 'VENDA' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.resultado).toBe('VENDA');
+    expect(res.body.descricao).toBe('Fechou a venda depois da conversa.');
+  });
+
+  describe('sair de Venda com pedido ou nota fiscal', () => {
+    const MENSAGEM = 'Esta visita tem pedido ou nota fiscal vinculada: o resultado continua Venda.';
+
+    async function criarVisitaComPedido(): Promise<string> {
+      const res = await request(app)
+        .post(`/clients/${clienteId}/visits`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ descricao: 'Pedido de bombons.', resultado: 'VENDA', itens: [{ sku: 'BOMB-SORT', quantidade: 10 }] });
+      return res.body.id;
+    }
+
+    async function criarVisitaComNota(): Promise<string> {
+      const res = await request(app)
+        .post(`/clients/${clienteId}/visits`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ descricao: 'Venda com nota fiscal.', resultado: 'VENDA' });
+      const autor = await prisma.user.findUniqueOrThrow({ where: { usuario: 'eduarda.visits-teste' } });
+      const importacao = await prisma.erpImport.create({
+        data: {
+          userId: autor.id,
+          nomeArquivo: 'notas.pdf',
+          notasImportadas: 1,
+          notasIgnoradas: 0,
+          vinculadasAutomaticamente: 1,
+          pendentes: 0,
+          cnpjsSemCliente: [],
+        },
+      });
+      const nota = await prisma.erpSale.create({
+        data: {
+          chaveAcesso: '4226090000000000000000550010000024551000000002',
+          numero: '2456',
+          serie: '1',
+          dataEmissao: new Date('2026-09-18T00:00:00.000Z'),
+          naturezaOperacao: 'VENDA DE MERCADORIA',
+          destinatarioCnpj: '11222333000181',
+          destinatarioNome: 'Empório Teste',
+          clientId: clienteId,
+          valorProdutos: 100,
+          desconto: 0,
+          valorTotal: 100,
+          importId: importacao.id,
+          vinculoStatus: 'VINCULADA',
+        },
+      });
+      await prisma.visit.update({ where: { id: res.body.id }, data: { erpSaleId: nota.id } });
+      return res.body.id;
+    }
+
+    async function visitaNoBanco(id: string) {
+      return prisma.visit.findUniqueOrThrow({
+        where: { id },
+        select: { descricao: true, resultado: true, editadoEm: true },
+      });
+    }
+
+    it.each([
+      ['pedido', criarVisitaComPedido],
+      ['nota fiscal', criarVisitaComNota],
+    ])('recusa mudar a venda com %s para outro resultado e deixa a visita intacta', async (_nome, criar) => {
+      const id = await criar();
+      const antes = await visitaNoBanco(id);
+
+      const res = await request(app)
+        .patch(`/visits/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ descricao: 'Nova descrição que não deve gravar.', resultado: 'SEM_VENDA' });
+
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('CONFLICT');
+      expect(res.body.error.message).toBe(MENSAGEM);
+      expect(await visitaNoBanco(id)).toEqual(antes);
+    });
+
+    it('aceita repetir VENDA numa visita com pedido ou nota (não é mudança)', async () => {
+      const comPedido = await criarVisitaComPedido();
+      const comNota = await criarVisitaComNota();
+
+      for (const id of [comPedido, comNota]) {
+        const res = await request(app)
+          .patch(`/visits/${id}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ resultado: 'VENDA' });
+
+        expect(res.status).toBe(200);
+        expect(res.body.resultado).toBe('VENDA');
+      }
+    });
+
+    it('aceita editar só a descrição da venda com pedido', async () => {
+      const id = await criarVisitaComPedido();
+
+      const res = await request(app)
+        .patch(`/visits/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ descricao: 'Pedido de bombons, entrega na sexta.' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.resultado).toBe('VENDA');
+    });
+
+    it('permite sair de Venda quando a visita não tem pedido nem nota', async () => {
+      const res0 = await request(app)
+        .post(`/clients/${clienteId}/visits`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ descricao: 'Venda sem pedido registrado.', resultado: 'VENDA' });
+
+      const res = await request(app)
+        .patch(`/visits/${res0.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ resultado: 'NEGOCIACAO' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.resultado).toBe('NEGOCIACAO');
+    });
+
+    it('permite mudar de NEGOCIACAO para VENDA e para SEM_VENDA', async () => {
+      const id = await criarVisitaRetornandoId();
+
+      const paraVenda = await request(app)
+        .patch(`/visits/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ resultado: 'VENDA' });
+      expect(paraVenda.status).toBe(200);
+
+      const id2 = await criarVisitaRetornandoId();
+      const paraSemVenda = await request(app)
+        .patch(`/visits/${id2}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ resultado: 'SEM_VENDA' });
+      expect(paraSemVenda.status).toBe(200);
+    });
+
+    it('outro representante não altera o resultado (403)', async () => {
+      const id = await criarVisitaComPedido();
+      const tokenOutro = await logarOutroRepresentante();
+
+      const res = await request(app)
+        .patch(`/visits/${id}`)
+        .set('Authorization', `Bearer ${tokenOutro}`)
+        .send({ resultado: 'SEM_VENDA' });
+
+      expect(res.status).toBe(403);
+    });
   });
 
   it('recusa descrição vazia na edição', async () => {
@@ -978,7 +1172,7 @@ describe('PATCH /visits/:id', () => {
   it('recusa edição pelo autor quando o cliente passou para outra carteira', async () => {
     const id = await criarVisitaRetornandoId();
     await logarOutroRepresentante();
-    const outro = await prisma.user.findUniqueOrThrow({ where: { email: 'outro.visits-teste@chokolaten.com.br' } });
+    const outro = await prisma.user.findUniqueOrThrow({ where: { usuario: 'outro.visits-teste' } });
     await prisma.client.update({ where: { id: clienteId }, data: { representanteId: outro.id } });
 
     const res = await request(app)

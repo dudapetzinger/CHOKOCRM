@@ -20,7 +20,7 @@ import { truncateAllTables } from './helpers/db';
 const SENHA_PADRAO = 'chokocrm123';
 const REPRESENTANTE = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.sistema-teste@chokolaten.com.br',
+  usuario: 'eduarda.sistema-teste',
   role: 'REPRESENTANTE' as const,
 };
 
@@ -30,7 +30,7 @@ beforeAll(async () => {
   await truncateAllTables();
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 4);
   await prisma.user.create({ data: { ...REPRESENTANTE, senhaHash } });
-  const login = await request(app).post('/auth/login').send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
+  const login = await request(app).post('/auth/login').send({ usuario: REPRESENTANTE.usuario, senha: SENHA_PADRAO });
   token = login.body.token;
 });
 

@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 /**
  * Validação da gestão de usuários e das senhas.
- * E-mails saem daqui já sem espaços e em minúsculas: é assim que são
- * gravados e comparados (login, unicidade no cadastro e na edição).
+ * O usuário sai daqui já sem espaços e em minúsculas: é assim que é
+ * gravado e comparado (login, unicidade no cadastro e na edição).
  */
 
 export const MENSAGEM_SENHA_CURTA = 'A senha deve ter pelo menos 6 caracteres.';
@@ -11,7 +11,25 @@ export const MENSAGEM_SENHA_CURTA = 'A senha deve ter pelo menos 6 caracteres.';
 /** Mínimo de 6 caracteres em todo lugar: criar conta, alterar a própria senha e a senha provisória. */
 export const senhaSchema = z.string().min(6, MENSAGEM_SENHA_CURTA);
 
-const emailSchema = z.string().trim().toLowerCase().email('E-mail inválido.');
+export const MENSAGEM_USUARIO_INVALIDO =
+  'Usuário inválido: use de 3 a 30 letras minúsculas, números, ponto, hífen ou sublinhado.';
+
+/** Nome de acesso da conta, no cadastro e na edição. */
+export const usuarioSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9._-]{3,30}$/, MENSAGEM_USUARIO_INVALIDO);
+
+/**
+ * Usuário e senha de quem entra (login e modo demonstração). O usuário só é
+ * aparado e posto em minúsculas, sem a regra de formato do cadastro: o que
+ * não existe cai no 401 genérico.
+ */
+export const credenciaisSchema = z.object({
+  usuario: z.string().trim().toLowerCase().min(1, 'Usuário é obrigatório.'),
+  senha: z.string().min(1, 'Senha é obrigatória.'),
+});
 
 /** Vazio ou `null` = sem telefone (grava `null`). */
 const telefoneSchema = z
@@ -36,7 +54,7 @@ export const listUsersQuerySchema = z.object({
 export const createUserSchema = z
   .object({
     nome: nomeSchema,
-    email: emailSchema,
+    usuario: usuarioSchema,
     telefone: telefoneSchema.optional(),
     role: roleSchema,
     senha: senhaSchema,
@@ -49,7 +67,7 @@ export type CreateUserInput = z.infer<typeof createUserSchema>;
 export const updateUserSchema = z
   .object({
     nome: nomeSchema.optional(),
-    email: emailSchema.optional(),
+    usuario: usuarioSchema.optional(),
     telefone: telefoneSchema.optional(),
     role: roleSchema.optional(),
     ativo: z.boolean().optional(),

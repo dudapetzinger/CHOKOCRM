@@ -8,25 +8,25 @@ const SENHA_PADRAO = 'chokocrm123';
 
 const GESTOR = {
   nome: 'Gestão Chokolaten',
-  email: 'gestao.users-teste@chokolaten.com.br',
+  usuario: 'gestao.users-teste',
   role: 'GESTOR' as const,
 };
 
 const REPRESENTANTE_B = {
   nome: 'Rafael Schmitt',
-  email: 'rafael.users-teste@chokolaten.com.br',
+  usuario: 'rafael.users-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const REPRESENTANTE_A = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.users-teste@chokolaten.com.br',
+  usuario: 'eduarda.users-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const REPRESENTANTE_INATIVO = {
   nome: 'Bruno Alencar',
-  email: 'bruno.users-teste@chokolaten.com.br',
+  usuario: 'bruno.users-teste',
   role: 'REPRESENTANTE' as const,
   ativo: false,
 };
@@ -38,8 +38,8 @@ let representanteAId: string;
 let representanteBId: string;
 let inativoId: string;
 
-async function logar(email: string, senha = SENHA_PADRAO): Promise<request.Response> {
-  return request(app).post('/auth/login').send({ email, senha });
+async function logar(usuario: string, senha = SENHA_PADRAO): Promise<request.Response> {
+  return request(app).post('/auth/login').send({ usuario, senha });
 }
 
 let proximoCnpj = 0;
@@ -76,8 +76,8 @@ beforeEach(async () => {
   representanteAId = (await prisma.user.create({ data: { ...REPRESENTANTE_A, senhaHash } })).id;
   inativoId = (await prisma.user.create({ data: { ...REPRESENTANTE_INATIVO, senhaHash } })).id;
 
-  tokenGestor = (await logar(GESTOR.email)).body.token;
-  tokenRepresentante = (await logar(REPRESENTANTE_A.email)).body.token;
+  tokenGestor = (await logar(GESTOR.usuario)).body.token;
+  tokenRepresentante = (await logar(REPRESENTANTE_A.usuario)).body.token;
 });
 
 afterEach(() => {
@@ -140,7 +140,7 @@ describe('GET /users', () => {
     expect(res.body.data[1]).toEqual({
       id: representanteAId,
       nome: REPRESENTANTE_A.nome,
-      email: REPRESENTANTE_A.email,
+      usuario: REPRESENTANTE_A.usuario,
       telefone: null,
       role: 'REPRESENTANTE',
       ativo: true,
@@ -156,20 +156,20 @@ describe('GET /users', () => {
 describe('POST /users', () => {
   const NOVO = {
     nome: 'Carla Hoffmann',
-    email: 'Carla.Hoffmann@Chokolaten.com.br',
+    usuario: 'Carla.Hoffmann',
     telefone: '(47) 99988-7766',
     role: 'REPRESENTANTE',
     senha: 'segredo1',
   };
 
-  it('cria a conta (201) com e-mail em minúsculas, e ela entra com a senha inicial', async () => {
+  it('cria a conta (201) com usuário em minúsculas, e ela entra com a senha inicial', async () => {
     const res = await autenticado(request(app).post('/users'), tokenGestor).send(NOVO);
 
     expect(res.status).toBe(201);
     expect(res.body).toEqual({
       id: expect.any(String),
       nome: 'Carla Hoffmann',
-      email: 'carla.hoffmann@chokolaten.com.br',
+      usuario: 'carla.hoffmann',
       telefone: '(47) 99988-7766',
       role: 'REPRESENTANTE',
       ativo: true,
@@ -177,7 +177,7 @@ describe('POST /users', () => {
       clientesNaCarteira: 0,
     });
 
-    const login = await logar('carla.hoffmann@chokolaten.com.br', 'segredo1');
+    const login = await logar('carla.hoffmann', 'segredo1');
     expect(login.status).toBe(200);
   });
 
@@ -198,26 +198,26 @@ describe('POST /users', () => {
     expect(res.body.error.details).toEqual([
       { path: 'senha', message: 'A senha deve ter pelo menos 6 caracteres.' },
     ]);
-    expect(await prisma.user.count({ where: { email: 'carla.hoffmann@chokolaten.com.br' } })).toBe(0);
+    expect(await prisma.user.count({ where: { usuario: 'carla.hoffmann' } })).toBe(0);
   });
 
   it('e-mail de um usuário existente, com outra caixa, responde 409', async () => {
     const res = await autenticado(request(app).post('/users'), tokenGestor).send({
       ...NOVO,
-      email: 'Rafael.Users-Teste@Chokolaten.com.br',
+      usuario: 'Rafael.Users-Teste',
     });
 
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('CONFLICT');
-    expect(res.body.error.message).toBe('Já existe um usuário com este e-mail.');
+    expect(res.body.error.message).toBe('Já existe uma conta com este usuário.');
   });
 });
 
 describe('PATCH /users/:id', () => {
-  it('edita nome, e-mail (em minúsculas), telefone e papel', async () => {
+  it('edita nome, usuário (em minúsculas), telefone e papel', async () => {
     const res = await autenticado(request(app).patch(`/users/${representanteBId}`), tokenGestor).send({
       nome: 'Rafael S. Schmitt',
-      email: 'Rafael.Novo@Chokolaten.com.br',
+      usuario: 'Rafael.Novo',
       telefone: '(47) 99911-0000',
       role: 'GESTOR',
     });
@@ -226,7 +226,7 @@ describe('PATCH /users/:id', () => {
     expect(res.body).toMatchObject({
       id: representanteBId,
       nome: 'Rafael S. Schmitt',
-      email: 'rafael.novo@chokolaten.com.br',
+      usuario: 'rafael.novo',
       telefone: '(47) 99911-0000',
       role: 'GESTOR',
       ativo: true,
@@ -247,22 +247,22 @@ describe('PATCH /users/:id', () => {
 
   it('e-mail de outro usuário, com outra caixa, responde 409 e nada muda', async () => {
     const res = await autenticado(request(app).patch(`/users/${representanteBId}`), tokenGestor).send({
-      email: 'EDUARDA.users-teste@chokolaten.com.br',
+      usuario: 'EDUARDA.users-teste',
     });
 
     expect(res.status).toBe(409);
-    expect(res.body.error.message).toBe('Já existe um usuário com este e-mail.');
+    expect(res.body.error.message).toBe('Já existe uma conta com este usuário.');
     const salvo = await prisma.user.findUniqueOrThrow({ where: { id: representanteBId } });
-    expect(salvo.email).toBe(REPRESENTANTE_B.email);
+    expect(salvo.usuario).toBe(REPRESENTANTE_B.usuario);
   });
 
-  it('manter o próprio e-mail (com outra caixa) não é conflito', async () => {
+  it('manter o próprio usuário (com outra caixa) não é conflito', async () => {
     const res = await autenticado(request(app).patch(`/users/${representanteBId}`), tokenGestor).send({
-      email: 'RAFAEL.users-teste@chokolaten.com.br',
+      usuario: 'RAFAEL.users-teste',
     });
 
     expect(res.status).toBe(200);
-    expect(res.body.email).toBe(REPRESENTANTE_B.email);
+    expect(res.body.usuario).toBe(REPRESENTANTE_B.usuario);
   });
 
   it('inativa e reativa outro usuário', async () => {
@@ -438,8 +438,8 @@ describe('PUT /users/:id/senha', () => {
 
     expect(res.status).toBe(204);
     expect(res.body).toEqual({});
-    expect((await logar(REPRESENTANTE_B.email, 'provisoria1')).status).toBe(200);
-    expect((await logar(REPRESENTANTE_B.email)).status).toBe(401);
+    expect((await logar(REPRESENTANTE_B.usuario, 'provisoria1')).status).toBe(200);
+    expect((await logar(REPRESENTANTE_B.usuario)).status).toBe(401);
     const salvo = await prisma.user.findUniqueOrThrow({ where: { id: representanteBId } });
     expect(salvo.senhaHash).not.toBe('provisoria1');
     expect(await bcrypt.compare('provisoria1', salvo.senhaHash)).toBe(true);
@@ -454,13 +454,13 @@ describe('PUT /users/:id/senha', () => {
 
     expect(me.status).toBe(200);
     expect(me.body.id).toBe(representanteAId);
-    expect((await logar(REPRESENTANTE_A.email)).status).toBe(401);
-    expect((await logar(REPRESENTANTE_A.email, 'provisoria1')).status).toBe(200);
+    expect((await logar(REPRESENTANTE_A.usuario)).status).toBe(401);
+    expect((await logar(REPRESENTANTE_A.usuario, 'provisoria1')).status).toBe(200);
   });
 
   it('o gestor pode definir a da própria conta e a de uma conta inativa', async () => {
     expect((await definirSenha(gestorId, 'minha-nova')).status).toBe(204);
-    expect((await logar(GESTOR.email, 'minha-nova')).status).toBe(200);
+    expect((await logar(GESTOR.usuario, 'minha-nova')).status).toBe(200);
 
     expect((await definirSenha(inativoId, 'provisoria1')).status).toBe(204);
     const inativo = await prisma.user.findUniqueOrThrow({ where: { id: inativoId } });
@@ -477,7 +477,7 @@ describe('PUT /users/:id/senha', () => {
       { path: 'senha', message: 'A senha deve ter pelo menos 6 caracteres.' },
     ]);
     expect((await definirSenha(representanteBId, undefined)).status).toBe(400);
-    expect((await logar(REPRESENTANTE_B.email)).status).toBe(200);
+    expect((await logar(REPRESENTANTE_B.usuario)).status).toBe(200);
   });
 
   it('usuário inexistente responde 404', async () => {
@@ -491,7 +491,7 @@ describe('PUT /users/:id/senha', () => {
     const res = await definirSenha(representanteBId, 'provisoria1', tokenRepresentante);
 
     expect(res.status).toBe(403);
-    expect((await logar(REPRESENTANTE_B.email)).status).toBe(200);
+    expect((await logar(REPRESENTANTE_B.usuario)).status).toBe(200);
   });
 
   it('sem token responde 401', async () => {
@@ -515,14 +515,14 @@ describe('sem redefinição de senha por e-mail', () => {
 describe('autor conferido no banco (o JWT guarda o papel do momento do login)', () => {
   const GESTOR_B = {
     nome: 'Lúcia Brandt',
-    email: 'lucia.users-teste@chokolaten.com.br',
+    usuario: 'lucia.users-teste',
     role: 'GESTOR' as const,
   };
 
   async function criarGestorB(): Promise<{ id: string; token: string }> {
     const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
     const { id } = await prisma.user.create({ data: { ...GESTOR_B, senhaHash } });
-    return { id, token: (await logar(GESTOR_B.email)).body.token };
+    return { id, token: (await logar(GESTOR_B.usuario)).body.token };
   }
 
   it('gestor inativado não se reativa com o token de antes (403) e continua inativo', async () => {
@@ -549,14 +549,14 @@ describe('autor conferido no banco (o JWT guarda o papel do momento do login)', 
 
     const res = await autenticado(request(app).post('/users'), gestorB.token).send({
       nome: 'Conta Nova',
-      email: 'conta.nova@chokolaten.com.br',
+      usuario: 'conta.nova',
       role: 'GESTOR',
       senha: 'segredo1',
     });
 
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
-    expect(await prisma.user.count({ where: { email: 'conta.nova@chokolaten.com.br' } })).toBe(0);
+    expect(await prisma.user.count({ where: { usuario: 'conta.nova' } })).toBe(0);
   });
 
   it('gestor ativo segue usando o token normalmente', async () => {
@@ -575,7 +575,7 @@ describe('representante em qualquer rota de /users', () => {
       request(app).get('/users?role=REPRESENTANTE'),
       request(app).post('/users').send({
         nome: 'X',
-        email: 'x@chokolaten.com.br',
+        usuario: 'x',
         role: 'GESTOR',
         senha: 'segredo1',
       }),
@@ -593,6 +593,6 @@ describe('representante em qualquer rota de /users', () => {
     const salvo = await prisma.user.findUniqueOrThrow({ where: { id: representanteAId } });
     expect(salvo.role).toBe('REPRESENTANTE');
     expect(await prisma.user.count()).toBe(4);
-    expect((await logar(REPRESENTANTE_B.email)).status).toBe(200);
+    expect((await logar(REPRESENTANTE_B.usuario)).status).toBe(200);
   });
 });

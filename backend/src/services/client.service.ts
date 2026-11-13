@@ -8,7 +8,7 @@ import type {
   UpdateClientData,
 } from '../repositories/client.repository';
 import * as userRepository from '../repositories/user.repository';
-import type { CreateClientInput, ListClientsQuery, UpdateClientInput } from '../schemas/client.schema';
+import type { ListClientsQuery, UpdateClientInput } from '../schemas/client.schema';
 import {
   exigirClienteDaCarteira,
   exigirClienteVisivel,
@@ -23,19 +23,15 @@ import {
   type Cor,
 } from './classificacao.service';
 import { consultarUltimasVendasPorCliente } from './erp.service';
-import { adotarNotasSemCliente } from './importacao-nf/importacao.service';
-import { prisma } from '../lib/prisma';
 import { agora } from '../lib/relogio';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CNPJ_DUPLICADO = 'Já existe um cliente cadastrado com este CNPJ.';
 const MENSAGEM_CONTATO_PRINCIPAL_UNICO = 'Cadastro exige exatamente um contato marcado como principal.';
-const MENSAGEM_SOMENTE_REPRESENTANTE_CADASTRA = 'Somente representante cadastra cliente em carteira.';
 const MENSAGEM_SOMENTE_GESTOR_TRANSFERE = 'Somente o gestor transfere um cliente de carteira.';
 const MENSAGEM_REPRESENTANTE_INVALIDO = 'Representante informado não existe ou não é representante.';
 const MENSAGEM_REPRESENTANTE_INATIVO = 'Representante inativo.';
-/** O cadastro adota as notas sem cliente do CNPJ; muitas notas passam do padrão de 5 s. */
-const OPCOES_DA_TRANSACAO_DO_CADASTRO = { timeout: 30_000, maxWait: 10_000 };
+const MENSAGEM_SOMENTE_GESTAO_INATIVA = 'Só a gestão pode inativar ou reativar clientes.';
 
 // A regra de carteira vive em `carteira.ts`, que não depende de
 // `erp.service` (este já é dependência daqui; ver o import circular evitado
@@ -184,7 +180,7 @@ function toClienteCompletoDTO(client: ClientComContatos, hoje: Date, ultimaVenda
  * que embrulha o erro original em `meta.driverAdapterError.cause`) para os
  * códigos de negócio da API: CNPJ duplicado -> 409 CONFLICT; segundo
  * contato principal (índice parcial `one_principal_per_client`) -> 400
- * VALIDATION_ERROR, já que é a mesma regra de negócio validada no zod.
+ * VALIDATION_ERROR, já que a regra do contato principal é o próprio índice parcial.
  */
 export function mapPrismaUniqueError(err: unknown): unknown {
   if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2002') {
@@ -238,33 +234,6 @@ export async function getClientById(id: string, usuario: UsuarioAutenticado): Pr
   return toClienteCompletoDTO(cliente, hoje, ultimaVenda);
 }
 
-export async function createClient(
-  input: CreateClientInput,
-  usuario: UsuarioAutenticado,
-): Promise<ClienteCompletoDTO> {
-  if (usuario.role !== 'REPRESENTANTE') {
-    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_SOMENTE_REPRESENTANTE_CADASTRA, 400);
-  }
-
-  const cnpjEmUso = await clientRepository.findByCnpj(input.cnpj);
-  if (cnpjEmUso) {
-    throw new AppError(ErrorCode.CONFLICT, MENSAGEM_CNPJ_DUPLICADO, 409);
-  }
-
-  try {
-    // Na mesma transação, as notas importadas sem cliente deste CNPJ passam a
-    // ser do cliente novo e saem de "CNPJs sem cliente no CRM".
-    const id = await prisma.$transaction(async (tx) => {
-      const novo = await clientRepository.createWithContacts(input, usuario.id, tx);
-      await adotarNotasSemCliente(tx, input.cnpj, novo);
-      return novo;
-    }, OPCOES_DA_TRANSACAO_DO_CADASTRO);
-    return await getClientById(id, usuario);
-  } catch (err) {
-    throw mapPrismaUniqueError(err);
-  }
-}
-
 export async function updateClient(
   id: string,
   input: UpdateClientInput,
@@ -276,6 +245,11 @@ export async function updateClient(
   }
 
   exigirClienteDaCarteira(existente, usuario);
+
+  // Inativar e reativar é da gestão; reenviar o valor atual não muda nada e passa.
+  if (input.ativo !== undefined && input.ativo !== existente.ativo && usuario.role !== 'GESTOR') {
+    throw new AppError(ErrorCode.FORBIDDEN, MENSAGEM_SOMENTE_GESTAO_INATIVA, 403);
+  }
 
   if (input.representanteId) {
     if (usuario.role !== 'GESTOR') {

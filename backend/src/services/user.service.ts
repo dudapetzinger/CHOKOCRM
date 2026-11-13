@@ -16,7 +16,7 @@ import type { UsuarioAutenticado } from './carteira';
  */
 
 const MENSAGEM_USUARIO_NAO_ENCONTRADO = 'Usuário não encontrado.';
-const MENSAGEM_EMAIL_DUPLICADO = 'Já existe um usuário com este e-mail.';
+const MENSAGEM_USUARIO_DUPLICADO = 'Já existe uma conta com este usuário.';
 const MENSAGEM_INATIVAR_A_SI_MESMO = 'Você não pode inativar a própria conta.';
 const MENSAGEM_MUDAR_O_PROPRIO_PAPEL = 'Você não pode mudar o próprio papel.';
 const MENSAGEM_TRANSFIRA_ANTES = 'Transfira a carteira antes de mudar o papel.';
@@ -27,7 +27,7 @@ const MENSAGEM_DESTINO_IGUAL_A_ORIGEM = 'Escolha outro representante para recebe
 export type UsuarioDTO = {
   id: string;
   nome: string;
-  email: string;
+  usuario: string;
   telefone: string | null;
   role: Role;
   ativo: boolean;
@@ -40,7 +40,7 @@ function toUsuarioDTO(usuario: UsuarioComCarteira): UsuarioDTO {
   return {
     id: usuario.id,
     nome: usuario.nome,
-    email: usuario.email,
+    usuario: usuario.usuario,
     telefone: usuario.telefone,
     role: usuario.role,
     ativo: usuario.ativo,
@@ -49,27 +49,27 @@ function toUsuarioDTO(usuario: UsuarioComCarteira): UsuarioDTO {
   };
 }
 
-function erroEmailDuplicado(): AppError {
-  return new AppError(ErrorCode.CONFLICT, MENSAGEM_EMAIL_DUPLICADO, 409);
+function erroUsuarioDuplicado(): AppError {
+  return new AppError(ErrorCode.CONFLICT, MENSAGEM_USUARIO_DUPLICADO, 409);
 }
 
 /**
- * A checagem prévia (`exigirEmailLivre`) dá a mensagem certa no caso comum;
- * esta tradução cobre a corrida em que dois cadastros com o mesmo e-mail
+ * A checagem prévia (`exigirUsuarioLivre`) dá a mensagem certa no caso comum;
+ * esta tradução cobre a corrida em que dois cadastros com o mesmo usuário
  * chegam juntos e o índice único do banco recusa o segundo.
  */
-function traduzirEmailDuplicado(err: unknown): unknown {
+function traduzirUsuarioDuplicado(err: unknown): unknown {
   if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-    return erroEmailDuplicado();
+    return erroUsuarioDuplicado();
   }
   return err;
 }
 
-/** E-mail (já em minúsculas) livre, ou do próprio usuário que está sendo editado. */
-async function exigirEmailLivre(email: string, idDoProprio?: string): Promise<void> {
-  const dono = await userRepository.findByEmail(email);
+/** Usuário (já em minúsculas) livre, ou da própria conta que está sendo editada. */
+async function exigirUsuarioLivre(usuario: string, idDoProprio?: string): Promise<void> {
+  const dono = await userRepository.findByUsuario(usuario);
   if (dono && dono.id !== idDoProprio) {
-    throw erroEmailDuplicado();
+    throw erroUsuarioDuplicado();
   }
 }
 
@@ -101,19 +101,19 @@ export async function listarRepresentantesAtivos(): Promise<{ id: string; nome: 
 }
 
 export async function criarUsuario(input: CreateUserInput): Promise<UsuarioDTO> {
-  await exigirEmailLivre(input.email);
+  await exigirUsuarioLivre(input.usuario);
 
   try {
     const criado = await userRepository.create({
       nome: input.nome,
-      email: input.email,
+      usuario: input.usuario,
       telefone: input.telefone ?? null,
       role: input.role,
       senhaHash: await hashDaSenha(input.senha),
     });
     return await obterUsuario(criado.id);
   } catch (err) {
-    throw traduzirEmailDuplicado(err);
+    throw traduzirUsuarioDuplicado(err);
   }
 }
 
@@ -147,14 +147,14 @@ export async function atualizarUsuario(
     throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_TRANSFIRA_ANTES, 400);
   }
 
-  if (input.email !== undefined) {
-    await exigirEmailLivre(input.email, alvo.id);
+  if (input.usuario !== undefined) {
+    await exigirUsuarioLivre(input.usuario, alvo.id);
   }
 
   try {
     await userRepository.update(id, input);
   } catch (err) {
-    throw traduzirEmailDuplicado(err);
+    throw traduzirUsuarioDuplicado(err);
   }
 
   return obterUsuario(id);

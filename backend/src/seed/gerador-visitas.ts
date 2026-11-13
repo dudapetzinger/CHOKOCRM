@@ -76,7 +76,7 @@ export type ContatoDoGerador = {
 export type ClienteDoGerador = {
   cnpj: string;
   nomeFantasia: string;
-  representanteEmail: string;
+  representanteUsuario: string;
   cidade: string;
   recorrenciaDias: number;
   /** `null`: o cliente não está na rota (nunca visitado). */
@@ -89,7 +89,7 @@ export type ItemGerado = { sku: string; quantidade: number };
 
 export type VisitaGerada = {
   cnpj: string;
-  representanteEmail: string;
+  representanteUsuario: string;
   data: DataCalendario;
   dataHora: Date;
   resultado: ResultadoVisita;
@@ -273,12 +273,12 @@ type Prevista = {
 
 /** Visitas previstas do representante no dia, em ordem de rota, com os horários. */
 function previstasDoDia(
-  representanteEmail: string,
+  representanteUsuario: string,
   clientes: readonly ClienteDoGerador[],
   data: DataCalendario,
 ): Prevista[] {
   const dia = diaDaSemana(data) as DiaUtil;
-  const cidades = ROTAS[representanteEmail]?.[dia] ?? [];
+  const cidades = ROTAS[representanteUsuario]?.[dia] ?? [];
   const doDia = clientes
     .filter((cliente) => cliente.agenda && visitaPrevista(data, cliente.agenda, cliente.recorrenciaDias))
     .map((cliente) => ({
@@ -286,7 +286,7 @@ function previstasDoDia(
       chave: sorteioDe(`${cliente.cnpj}|${data}|ordem`)(),
     }))
     .sort((a, b) => cidades.indexOf(a.cliente.cidade) - cidades.indexOf(b.cliente.cidade) || a.chave - b.chave);
-  const sorteio = sorteioDe(`${representanteEmail}|${data}|horarios`);
+  const sorteio = sorteioDe(`${representanteUsuario}|${data}|horarios`);
   const meiaNoite = inicioDoDia(data).getTime();
   let minutos = INICIO_DO_EXPEDIENTE_MIN + Math.floor(sorteio() * 25);
   return doDia.map(({ cliente }, indice) => {
@@ -309,14 +309,14 @@ function contatoDaVisita(cliente: ClienteDoGerador, sorteio: () => number): Cont
 /** Visitas das 13 semanas até `hoje`, em ordem de `dataHora`. */
 export function gerarVisitas(hoje: Date, clientes: readonly ClienteDoGerador[]): VisitaGerada[] {
   const hojeDia = dataCalendario(hoje);
-  const representantes = [...new Set(clientes.map((cliente) => cliente.representanteEmail))];
+  const representantes = [...new Set(clientes.map((cliente) => cliente.representanteUsuario))];
   const realizadas = new Map<string, Prevista[]>();
 
   for (let data = inicioDaJanela(hoje); data <= hojeDia; data = somarDias(data, 1)) {
     if (diaDaSemana(data) > 5) continue;
-    for (const representanteEmail of representantes) {
-      const daCarteira = clientes.filter((cliente) => cliente.representanteEmail === representanteEmail);
-      for (const prevista of previstasDoDia(representanteEmail, daCarteira, data)) {
+    for (const representanteUsuario of representantes) {
+      const daCarteira = clientes.filter((cliente) => cliente.representanteUsuario === representanteUsuario);
+      for (const prevista of previstasDoDia(representanteUsuario, daCarteira, data)) {
         if (prevista.dataHora > hoje || !aconteceu(prevista.cliente, data, hojeDia)) continue;
         const lista = realizadas.get(prevista.cliente.cnpj) ?? [];
         lista.push(prevista);
@@ -351,7 +351,7 @@ export function gerarVisitas(hoje: Date, clientes: readonly ClienteDoGerador[]):
       });
       visitas.push({
         cnpj: cliente.cnpj,
-        representanteEmail: cliente.representanteEmail,
+        representanteUsuario: cliente.representanteUsuario,
         data,
         dataHora,
         resultado,
@@ -377,11 +377,11 @@ export function valorDoPedido(itens: readonly ItemGerado[]): number {
  * Média mensal de vendas do representante nas visitas geradas: o total
  * vendido nos dias da janela até `hoje`, proporcional a 30 dias.
  */
-export function mediaMensalDeVendas(visitas: readonly VisitaGerada[], representanteEmail: string, hoje: Date): number {
+export function mediaMensalDeVendas(visitas: readonly VisitaGerada[], representanteUsuario: string, hoje: Date): number {
   const inicio = inicioDaJanela(hoje);
   const dias = diasEntre(inicio, dataCalendario(hoje)) + 1;
   const total = visitas
-    .filter((visita) => visita.representanteEmail === representanteEmail && visita.resultado === 'VENDA')
+    .filter((visita) => visita.representanteUsuario === representanteUsuario && visita.resultado === 'VENDA')
     .reduce((soma, visita) => soma + valorDoPedido(visita.itens), 0);
   return (total / dias) * 30;
 }

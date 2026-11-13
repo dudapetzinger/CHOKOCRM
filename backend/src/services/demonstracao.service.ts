@@ -14,7 +14,7 @@ import { conferirCredenciais } from './auth.service';
 
 /**
  * Modo demonstração acionado da tela de login (`POST /sistema/demonstracao`,
- * público): confere e-mail e senha (`conferirCredenciais`, a mesma checagem
+ * público): confere usuário e senha (`conferirCredenciais`, a mesma checagem
  * do login, sem emitir token), exige a conta Gestão ativa, grava a data (ou a
  * limpa, com `null`) e recria a demonstração nessa data com
  * `reiniciarDemonstracao` (apaga só os clientes da demonstração, com visitas,
@@ -34,11 +34,11 @@ let recriando = false;
 
 export async function recriarDemonstracao(
   data: DataCalendario | null,
-  email: string,
+  usuario: string,
   senha: string,
 ): Promise<RelogioEstado> {
-  const usuario = await conferirCredenciais(email, senha);
-  if (usuario.role !== 'GESTOR' || !usuario.ativo) {
+  const conta = await conferirCredenciais(usuario, senha);
+  if (conta.role !== 'GESTOR' || !conta.ativo) {
     throw new AppError(ErrorCode.FORBIDDEN, MENSAGEM_SO_GESTAO, 403);
   }
   if (recriando) {
@@ -48,7 +48,7 @@ export async function recriarDemonstracao(
   recriando = true;
   try {
     const anterior = await lerLinhaDemonstracao();
-    await definirDemonstracao(data, usuario.id);
+    await definirDemonstracao(data, conta.id);
     try {
       await reiniciarDemonstracao(prisma, agora());
     } catch (err) {

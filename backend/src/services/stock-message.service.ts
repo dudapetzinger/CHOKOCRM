@@ -1,23 +1,13 @@
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import * as clientRepository from '../repositories/client.repository';
-import * as stockMessageRepository from '../repositories/stock-message.repository';
 import * as userRepository from '../repositories/user.repository';
-import type { GerarMensagemInput } from '../schemas/stock-message.schema';
-import { exigirClienteDaCarteira, representanteEfetivo, type UsuarioAutenticado } from './carteira';
+import { exigirClienteDaCarteira, type UsuarioAutenticado } from './carteira';
 import { eventoVigente } from './seasonal-event.service';
-import {
-  montarLinkWhatsapp,
-  montarMensagemDeEstoque,
-  nomeDoEventoNoTemplate,
-  normalizarTelefone,
-} from './stock-message.template';
+import { montarMensagemDeEstoque, nomeDoEventoNoTemplate } from './stock-message.template';
 import { agora } from '../lib/relogio';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
-const MENSAGEM_CLIENTE_INATIVO = 'Cliente inativo não recebe mensagem de estoque.';
-const MENSAGEM_CONTATO_NAO_PERTENCE = 'Contato informado não pertence a este cliente.';
-const MENSAGEM_TELEFONE_INVALIDO = 'Telefone inválido para gerar o link do WhatsApp.';
 
 export type PropostaDTO = {
   evento: { id: string; nome: string; produtosSugeridos: string[] } | null;
@@ -27,25 +17,10 @@ export type PropostaDTO = {
   textosSugeridos: { contactId: string | null; texto: string }[];
 };
 
-export type StockMessageDTO = {
-  id: string;
-  dataGeracao: string;
-  textoFinal: string;
-  autor: { id: string; nome: string };
-  evento: { id: string; nome: string } | null;
-  cliente: { id: string; nomeFantasia: string };
-};
-
-export type GeracaoDTO = StockMessageDTO & {
-  contato: { id: string; nome: string } | null;
-  telefone: string;
-  link: string;
-};
-
 /**
- * Proposta de mensagem de estoque (antes de gravar): não escreve
- * nada, apenas monta o texto sugerido a partir do cliente, do evento
- * sazonal vigente (se houver) e do nome do usuário logado.
+ * Proposta de mensagem de estoque: não escreve nada, apenas monta o texto
+ * sugerido a partir do cliente, do evento sazonal vigente (se houver) e do
+ * nome do usuário logado.
  */
 export async function propor(
   clientId: string,
@@ -108,91 +83,4 @@ export async function propor(
     textoSugerido,
     textosSugeridos,
   };
-}
-
-function paraStockMessageDTO(registro: stockMessageRepository.StockMessageComRelacoes): StockMessageDTO {
-  return {
-    id: registro.id,
-    dataGeracao: registro.dataGeracao.toISOString(),
-    textoFinal: registro.textoFinal,
-    autor: registro.user,
-    evento: registro.eventoSazonal,
-    cliente: registro.client,
-  };
-}
-
-/**
- * Gera e grava a mensagem de estoque: nada é gravado se qualquer
- * checagem falhar. Ordem das checagens: cliente existe (404) -> da
- * carteira do representante (403) -> ativo (409) -> contato pertence ao
- * cliente (400) -> telefone normalizável (400) -> evento vigente -> grava
- * -> monta o link do WhatsApp.
- */
-export async function gerar(
-  clientId: string,
-  usuario: UsuarioAutenticado,
-  input: GerarMensagemInput,
-  hoje: Date = agora(),
-): Promise<GeracaoDTO> {
-  const cliente = await clientRepository.findById(clientId);
-  if (!cliente) {
-    throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_CLIENTE_NAO_ENCONTRADO, 404);
-  }
-
-  exigirClienteDaCarteira(cliente, usuario);
-
-  if (!cliente.ativo) {
-    throw new AppError(ErrorCode.CONFLICT, MENSAGEM_CLIENTE_INATIVO, 409);
-  }
-
-  let contato: { id: string; nome: string; telefone: string } | null = null;
-  let telefone = cliente.telefone;
-
-  if (input.contactId) {
-    const contatoEncontrado = cliente.contacts.find((c) => c.id === input.contactId) ?? null;
-    if (!contatoEncontrado) {
-      throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_CONTATO_NAO_PERTENCE, 400);
-    }
-
-    contato = { id: contatoEncontrado.id, nome: contatoEncontrado.nome, telefone: contatoEncontrado.telefone };
-    telefone = contatoEncontrado.telefone;
-  }
-
-  try {
-    normalizarTelefone(telefone);
-  } catch {
-    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_TELEFONE_INVALIDO, 400);
-  }
-
-  const evento = await eventoVigente(hoje);
-
-  const registro = await stockMessageRepository.create({
-    clientId,
-    userId: usuario.id,
-    eventoSazonalId: evento?.id ?? null,
-    textoFinal: input.texto,
-    dataGeracao: agora(),
-  });
-
-  const link = montarLinkWhatsapp(telefone, input.texto);
-
-  return {
-    ...paraStockMessageDTO(registro),
-    contato: contato ? { id: contato.id, nome: contato.nome } : null,
-    telefone,
-    link,
-  };
-}
-
-/**
- * Histórico de mensagens geradas, mais recente primeiro. O
- * representante vê só as de clientes da própria carteira (mesmo com
- * `clientId` de outra carteira, que devolve lista vazia); o gestor, todas.
- */
-export async function listar(filtro: { clientId?: string }, usuario: UsuarioAutenticado): Promise<StockMessageDTO[]> {
-  const registros = await stockMessageRepository.list({
-    clientId: filtro.clientId,
-    representanteId: representanteEfetivo(usuario),
-  });
-  return registros.map(paraStockMessageDTO);
 }

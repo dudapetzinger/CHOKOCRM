@@ -26,6 +26,8 @@ const MENSAGEM_PEDIDO_SEM_VENDA = 'Pedido só pode ser registrado em visita com 
 const MENSAGEM_PRODUTO_DESCONHECIDO = 'Produto não encontrado no catálogo.';
 const MENSAGEM_VISITA_NAO_ENCONTRADA = 'Visita não encontrada.';
 const MENSAGEM_APENAS_AUTOR = 'Apenas o autor do check-in pode alterá-lo.';
+const MENSAGEM_VENDA_COM_PEDIDO_OU_NOTA =
+  'Esta visita tem pedido ou nota fiscal vinculada: o resultado continua Venda.';
 const MENSAGEM_FOTO_JA_EXISTE = 'Esta visita já tem foto de comprovação.';
 const MENSAGEM_FOTO_REMOVIDA = 'A foto desta visita foi removida após 90 dias.';
 const MENSAGEM_FOTO_INVALIDA = 'O arquivo enviado não é uma imagem JPEG, PNG ou WebP.';
@@ -242,14 +244,24 @@ async function exigirVisitaDoAutor(visitId: string, usuario: UsuarioAutenticado)
   return visita;
 }
 
-export async function updateDescricao(
+/**
+ * Edita a descrição e/ou o resultado. Sair de VENDA numa visita com pedido ou
+ * com nota fiscal vinculada é recusado (409) antes de gravar qualquer campo:
+ * o resultado dela vem do pedido ou da nota. Repetir o resultado atual não é mudança.
+ */
+export async function atualizarVisita(
   visitId: string,
   usuario: UsuarioAutenticado,
   input: UpdateVisitInput,
 ): Promise<VisitaDTO> {
-  await exigirVisitaDoAutor(visitId, usuario);
+  const atual = await exigirVisitaDoAutor(visitId, usuario);
 
-  const visita = await visitRepository.updateDescricao(visitId, input.descricao);
+  const saiDeVenda = atual.resultado === 'VENDA' && input.resultado !== undefined && input.resultado !== 'VENDA';
+  if (saiDeVenda && (atual.itens.length > 0 || atual.erpSaleId !== null)) {
+    throw new AppError(ErrorCode.CONFLICT, MENSAGEM_VENDA_COM_PEDIDO_OU_NOTA, 409);
+  }
+
+  const visita = await visitRepository.atualizar(visitId, input);
   return toVisitaDTO(visita);
 }
 

@@ -63,14 +63,10 @@ export function mediaDeVisitasPorCliente(totalVisitas: number, clientesAtivos: n
   return Math.round((totalVisitas / clientesAtivos) * 10) / 10;
 }
 
-/** Clientes ativos com ≥ 1 visita OU ≥ 1 mensagem no período (cada cliente conta uma vez); percentual inteiro arredondado; null se denominador = 0. */
-export function taxaDeRegistro(
-  visitas: VisitaDoPeriodo[],
-  mensagens: { clientId: string }[],
-  clientesAtivosIds: string[],
-): Proporcao {
-  const comRegistro = new Set([...visitas.map((v) => v.clientId), ...mensagens.map((m) => m.clientId)]);
-  const registrados = clientesAtivosIds.filter((id) => comRegistro.has(id));
+/** Clientes ativos com ≥ 1 visita no período (cada cliente conta uma vez); percentual inteiro arredondado; null se denominador = 0. */
+export function taxaDeRegistro(visitas: VisitaDoPeriodo[], clientesAtivosIds: string[]): Proporcao {
+  const comVisita = new Set(visitas.map((v) => v.clientId));
+  const registrados = clientesAtivosIds.filter((id) => comVisita.has(id));
 
   return proporcao(new Set(registrados).size, clientesAtivosIds.length);
 }

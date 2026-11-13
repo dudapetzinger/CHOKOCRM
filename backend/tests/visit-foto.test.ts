@@ -21,8 +21,8 @@ let tokenOutro: string;
 let clienteId: string;
 let visitaId: string;
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -33,7 +33,7 @@ beforeEach(async () => {
   await prisma.user.create({
     data: {
       nome: 'Eduarda Fischer',
-      email: 'eduarda.foto-teste@chokolaten.com.br',
+      usuario: 'eduarda.foto-teste',
       role: 'REPRESENTANTE',
       senhaHash,
     },
@@ -41,17 +41,17 @@ beforeEach(async () => {
   await prisma.user.create({
     data: {
       nome: 'Outro Representante',
-      email: 'outro.foto-teste@chokolaten.com.br',
+      usuario: 'outro.foto-teste',
       role: 'REPRESENTANTE',
       senhaHash,
     },
   });
 
-  token = await logar('eduarda.foto-teste@chokolaten.com.br');
-  tokenOutro = await logar('outro.foto-teste@chokolaten.com.br');
+  token = await logar('eduarda.foto-teste');
+  tokenOutro = await logar('outro.foto-teste');
 
   const representante = await prisma.user.findUniqueOrThrow({
-    where: { email: 'eduarda.foto-teste@chokolaten.com.br' },
+    where: { usuario: 'eduarda.foto-teste' },
   });
 
   const cliente = await prisma.client.create({
@@ -173,7 +173,7 @@ describe('PUT /visits/:id/foto', () => {
   });
 
   it('recusa anexo pelo autor quando o cliente passou para outra carteira', async () => {
-    const outro = await prisma.user.findUniqueOrThrow({ where: { email: 'outro.foto-teste@chokolaten.com.br' } });
+    const outro = await prisma.user.findUniqueOrThrow({ where: { usuario: 'outro.foto-teste' } });
     await prisma.client.update({ where: { id: clienteId }, data: { representanteId: outro.id } });
 
     const res = await anexarFoto(visitaId, token, JPEG_VALIDO);

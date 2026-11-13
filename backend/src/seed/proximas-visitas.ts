@@ -131,15 +131,15 @@ export function escolherVisitasMarcadas(
   );
   // Sem data natural no horizonte conta como a mais longe de todas.
   const natural = (cliente: ClienteDoGerador): DataCalendario => naturais.get(cliente.cnpj) ?? '9999-12-31';
-  const representantes = [...new Set(candidatos.map((cliente) => cliente.representanteEmail))].sort((a, b) =>
+  const representantes = [...new Set(candidatos.map((cliente) => cliente.representanteUsuario))].sort((a, b) =>
     a.localeCompare(b, 'pt-BR'),
   );
   const marcadas = new Map<string, DataCalendario>();
 
-  for (const representanteEmail of representantes) {
-    const daCarteira = candidatos.filter((cliente) => cliente.representanteEmail === representanteEmail).sort(porNome);
+  for (const representanteUsuario of representantes) {
+    const daCarteira = candidatos.filter((cliente) => cliente.representanteUsuario === representanteUsuario).sort(porNome);
     const marcadasAntes = clientes.filter(
-      (cliente) => cliente.representanteEmail === representanteEmail && jaMarcadas.has(cliente.cnpj),
+      (cliente) => cliente.representanteUsuario === representanteUsuario && jaMarcadas.has(cliente.cnpj),
     );
 
     diasUteis.forEach((dia, indiceDoDia) => {

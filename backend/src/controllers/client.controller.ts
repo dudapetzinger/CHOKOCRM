@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
-import { createClientSchema, listClientsQuerySchema, updateClientSchema } from '../schemas/client.schema';
+import { listClientsQuerySchema, updateClientSchema } from '../schemas/client.schema';
 import * as clientService from '../services/client.service';
 import { usuarioAutenticado } from './usuarioAutenticado';
 
@@ -11,16 +11,6 @@ export async function getClients(req: Request, res: Response, next: NextFunction
     const query = listClientsQuerySchema.parse(req.query);
     const data = await clientService.listClients(query, usuarioAutenticado(req));
     res.status(200).json({ data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function postClient(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const input = createClientSchema.parse(req.body);
-    const cliente = await clientService.createClient(input, usuarioAutenticado(req));
-    res.status(201).json(cliente);
   } catch (err) {
     next(err);
   }

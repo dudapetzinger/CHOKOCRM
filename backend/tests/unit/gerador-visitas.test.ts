@@ -32,8 +32,8 @@ const HOJES = [
   new Date('2027-07-07T18:00:00.000Z'),
 ];
 
-const EDUARDA = 'eduarda@chokolaten.com.br';
-const RAFAEL = 'rafael@chokolaten.com.br';
+const EDUARDA = 'eduarda';
+const RAFAEL = 'rafael';
 const CLIENTES = clientesDaDemonstracao();
 const cnpjDe = (nome: string): string => {
   const cliente = CLIENTES.find((candidato) => candidato.nomeFantasia === nome);
@@ -79,7 +79,7 @@ describe.each(HOJES.map((hoje) => [hoje.toISOString(), hoje] as const))(
       for (let data = inicioDaJanela(hoje); data < hojeDia; data = somarDias(data, 1)) {
         if (diaDaSemana(data) > 5) continue;
         for (const representante of [EDUARDA, RAFAEL]) {
-          const doDia = visitas.filter((visita) => visita.data === data && visita.representanteEmail === representante);
+          const doDia = visitas.filter((visita) => visita.data === data && visita.representanteUsuario === representante);
           expect({
             data,
             representante,
@@ -197,10 +197,10 @@ describe('gerarVisitas nos limites do expediente e da semana', () => {
   });
 
   it('carteiras de 40 ± 2 clientes por representante, com os 26 âncoras', () => {
-    expect(CLIENTES.filter((cliente) => cliente.representanteEmail === EDUARDA).length).toBeGreaterThanOrEqual(38);
-    expect(CLIENTES.filter((cliente) => cliente.representanteEmail === EDUARDA).length).toBeLessThanOrEqual(42);
-    expect(CLIENTES.filter((cliente) => cliente.representanteEmail === RAFAEL).length).toBeGreaterThanOrEqual(38);
-    expect(CLIENTES.filter((cliente) => cliente.representanteEmail === RAFAEL).length).toBeLessThanOrEqual(42);
+    expect(CLIENTES.filter((cliente) => cliente.representanteUsuario === EDUARDA).length).toBeGreaterThanOrEqual(38);
+    expect(CLIENTES.filter((cliente) => cliente.representanteUsuario === EDUARDA).length).toBeLessThanOrEqual(42);
+    expect(CLIENTES.filter((cliente) => cliente.representanteUsuario === RAFAEL).length).toBeGreaterThanOrEqual(38);
+    expect(CLIENTES.filter((cliente) => cliente.representanteUsuario === RAFAEL).length).toBeLessThanOrEqual(42);
     expect(new Set(CLIENTES.map((cliente) => cliente.cnpj)).size).toBe(CLIENTES.length);
   });
 });

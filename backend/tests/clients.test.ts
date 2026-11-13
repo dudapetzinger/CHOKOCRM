@@ -15,13 +15,13 @@ const ID_INEXISTENTE = '00000000-0000-0000-0000-000000000000';
 
 const REPRESENTANTE = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.clients-teste@chokolaten.com.br',
+  usuario: 'eduarda.clients-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const GESTOR = {
   nome: 'Ricardo Menezes',
-  email: 'ricardo.clients-teste@chokolaten.com.br',
+  usuario: 'ricardo.clients-teste',
   role: 'GESTOR' as const,
 };
 
@@ -117,7 +117,7 @@ const CLIENTE_INATIVO: ClienteFixture = {
 /** Dono da "outra carteira" nos testes da regra de carteira. */
 const OUTRO_REPRESENTANTE = {
   nome: 'Marcos Hoffmann',
-  email: 'marcos.clients-teste@chokolaten.com.br',
+  usuario: 'marcos.clients-teste',
   role: 'REPRESENTANTE' as const,
 };
 
@@ -182,8 +182,8 @@ async function criarClienteFixture(fixture: ClienteFixture, donoId: string): Pro
   return client.id;
 }
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -209,7 +209,7 @@ async function criarOutraCarteira(): Promise<{ tokenOutro: string; clienteOutroI
   const outro = await prisma.user.create({ data: { ...OUTRO_REPRESENTANTE, senhaHash } });
   const clienteOutroId = await criarClienteFixture(CLIENTE_GASPAR, outro.id);
 
-  return { tokenOutro: await logar(OUTRO_REPRESENTANTE.email), clienteOutroId, outroId: outro.id };
+  return { tokenOutro: await logar(OUTRO_REPRESENTANTE.usuario), clienteOutroId, outroId: outro.id };
 }
 
 function idsDaLista(body: { data: { id: string }[] }): string[] {
@@ -225,8 +225,8 @@ beforeEach(async () => {
   const gestor = await prisma.user.create({ data: { ...GESTOR, senhaHash } });
   gestorId = gestor.id;
 
-  token = await logar(REPRESENTANTE.email);
-  tokenGestor = await logar(GESTOR.email);
+  token = await logar(REPRESENTANTE.usuario);
+  tokenGestor = await logar(GESTOR.usuario);
 
   await criarClienteFixture(CLIENTE_POMERODE, representanteId);
   await criarClienteFixture(CLIENTE_BLUMENAU, representanteId);
@@ -241,28 +241,6 @@ afterAll(async () => {
   await truncateAllTables();
   await prisma.$disconnect();
 });
-
-function payloadClienteNovo(overrides: Partial<Record<string, unknown>> = {}) {
-  return {
-    razaoSocial: 'Mercado Central Joinville Comércio de Alimentos Ltda',
-    nomeFantasia: 'Mercado Central Joinville',
-    cnpj: '11222333000424',
-    cidade: 'Joinville',
-    endereco: 'Rua do Príncipe, 800 - Centro, Joinville/SC',
-    telefone: '(47) 3433-3030',
-    email: 'contato@mercadocentraljoinville.com.br',
-    contatos: [
-      {
-        nome: 'Roberto Alves',
-        cargo: 'Gerente de Compras',
-        telefone: '(47) 99955-3030',
-        email: 'roberto.alves@mercadocentraljoinville.com.br',
-        principal: true,
-      },
-    ],
-    ...overrides,
-  };
-}
 
 describe('GET /clients', () => {
   it('sem token responde 401', async () => {
@@ -548,158 +526,13 @@ describe('GET /clients com representanteId', () => {
 });
 
 describe('POST /clients', () => {
-  it('sem token responde 401', async () => {
-    const res = await request(app).post('/clients').send(payloadClienteNovo());
-
-    expect(res.status).toBe(401);
-    expect(res.body.error.code).toBe('UNAUTHORIZED');
-  });
-
-  it('cria cliente com contato principal e responde 201 com o cliente completo', async () => {
+  it('a rota de cadastro não existe: responde 404', async () => {
     const res = await request(app)
       .post('/clients')
       .set('Authorization', `Bearer ${token}`)
-      .send(payloadClienteNovo());
+      .send({ cnpj: '11222333000424' });
 
-    expect(res.status).toBe(201);
-    expect(res.body).toEqual({
-      id: expect.any(String),
-      razaoSocial: 'Mercado Central Joinville Comércio de Alimentos Ltda',
-      nomeFantasia: 'Mercado Central Joinville',
-      cnpj: '11222333000424',
-      cidade: 'Joinville',
-      endereco: 'Rua do Príncipe, 800 - Centro, Joinville/SC',
-      telefone: '(47) 3433-3030',
-      email: 'contato@mercadocentraljoinville.com.br',
-      erpId: null,
-      recorrenciaDias: 15,
-      ativo: true,
-      criadoEm: expect.any(String),
-      contatos: [
-        {
-          id: expect.any(String),
-          nome: 'Roberto Alves',
-          cargo: 'Gerente de Compras',
-          telefone: '(47) 99955-3030',
-          email: 'roberto.alves@mercadocentraljoinville.com.br',
-          principal: true,
-        },
-      ],
-      cor: 'VERMELHO',
-      diasSemVisita: null,
-      rebaixadoPorVenda: false,
-      diasSemCompra: null,
-      representante: { id: representanteId, nome: REPRESENTANTE.nome },
-      recorrenciaChanges: [],
-      proximaVisita: null,
-      proximaCampanha: null,
-    });
-
-    const persistido = await prisma.client.findUnique({ where: { id: res.body.id } });
-    expect(persistido).not.toBeNull();
-  });
-
-  it('grava o representante logado como dono da carteira', async () => {
-    const res = await request(app)
-      .post('/clients')
-      .set('Authorization', `Bearer ${token}`)
-      .send(payloadClienteNovo());
-
-    expect(res.status).toBe(201);
-
-    const salvo = await prisma.client.findUniqueOrThrow({ where: { id: res.body.id } });
-    expect(salvo.representanteId).toBe(representanteId);
-  });
-
-  it('por gestor responde 400', async () => {
-    const res = await request(app)
-      .post('/clients')
-      .set('Authorization', `Bearer ${tokenGestor}`)
-      .send(payloadClienteNovo());
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('sem nenhum contato marcado como principal responde 400 VALIDATION_ERROR', async () => {
-    const res = await request(app)
-      .post('/clients')
-      .set('Authorization', `Bearer ${token}`)
-      .send(
-        payloadClienteNovo({
-          contatos: [
-            {
-              nome: 'Roberto Alves',
-              cargo: 'Gerente de Compras',
-              telefone: '(47) 99955-3030',
-              email: 'roberto.alves@mercadocentraljoinville.com.br',
-              principal: false,
-            },
-          ],
-        }),
-      );
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('com dois contatos marcados como principal responde 400 VALIDATION_ERROR', async () => {
-    const res = await request(app)
-      .post('/clients')
-      .set('Authorization', `Bearer ${token}`)
-      .send(
-        payloadClienteNovo({
-          contatos: [
-            {
-              nome: 'Roberto Alves',
-              cargo: 'Gerente de Compras',
-              telefone: '(47) 99955-3030',
-              email: 'roberto.alves@mercadocentraljoinville.com.br',
-              principal: true,
-            },
-            {
-              nome: 'Ana Paula',
-              cargo: 'Compradora',
-              telefone: '(47) 99900-1111',
-              email: 'ana.paula@mercadocentraljoinville.com.br',
-              principal: true,
-            },
-          ],
-        }),
-      );
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('sem nenhum contato informado responde 400 VALIDATION_ERROR', async () => {
-    const res = await request(app)
-      .post('/clients')
-      .set('Authorization', `Bearer ${token}`)
-      .send(payloadClienteNovo({ contatos: [] }));
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('cnpj repetido responde 409 CONFLICT', async () => {
-    const res = await request(app)
-      .post('/clients')
-      .set('Authorization', `Bearer ${token}`)
-      .send(payloadClienteNovo({ cnpj: CLIENTE_POMERODE.cnpj }));
-
-    expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('CONFLICT');
-  });
-
-  it('recorrenciaDias fora do intervalo 1-365 responde 400 VALIDATION_ERROR', async () => {
-    const res = await request(app)
-      .post('/clients')
-      .set('Authorization', `Bearer ${token}`)
-      .send(payloadClienteNovo({ recorrenciaDias: 400 }));
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.status).toBe(404);
   });
 });
 
@@ -889,12 +722,12 @@ describe('PUT /clients/:id', () => {
     expect(res.status).toBe(400);
   });
 
-  it('ativo: false inativa o cliente (some da listagem default, aparece em ativo=todos)', async () => {
+  it('gestor com ativo: false inativa o cliente (some da listagem default, aparece em ativo=todos)', async () => {
     const id = await idDoClientePorNomeFantasia('Café Blumenau');
 
     const put = await request(app)
       .put(`/clients/${id}`)
-      .set('Authorization', `Bearer ${token}`)
+      .set('Authorization', `Bearer ${tokenGestor}`)
       .send({ ativo: false });
 
     expect(put.status).toBe(200);
@@ -908,6 +741,61 @@ describe('PUT /clients/:id', () => {
       .query({ ativo: 'todos' })
       .set('Authorization', `Bearer ${token}`);
     expect(listaTodos.body.data.some((c: { id: string }) => c.id === id)).toBe(true);
+  });
+
+  it('gestor reativa um cliente inativo', async () => {
+    const id = await idDoClientePorNomeFantasia('Doceria Jaraguá');
+
+    const put = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .send({ ativo: true });
+
+    expect(put.status).toBe(200);
+    expect(put.body.ativo).toBe(true);
+    expect((await prisma.client.findUniqueOrThrow({ where: { id } })).ativo).toBe(true);
+  });
+
+  it('representante com ativo: false responde 403 FORBIDDEN e o cliente continua ativo', async () => {
+    const id = await idDoClientePorNomeFantasia('Café Blumenau');
+
+    const res = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ativo: false, telefone: '(47) 9999-8888' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.body.error.message).toBe('Só a gestão pode inativar ou reativar clientes.');
+    const salvo = await prisma.client.findUniqueOrThrow({ where: { id } });
+    expect(salvo.ativo).toBe(true);
+    expect(salvo.telefone).toBe(CLIENTE_BLUMENAU.telefone);
+  });
+
+  it('representante com ativo: true em cliente inativo responde 403 e o cliente continua inativo', async () => {
+    const id = await idDoClientePorNomeFantasia('Doceria Jaraguá');
+
+    const res = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ativo: true });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect((await prisma.client.findUniqueOrThrow({ where: { id } })).ativo).toBe(false);
+  });
+
+  it('representante reenviando ativo: true de cliente ativo junto com outro campo passa', async () => {
+    const id = await idDoClientePorNomeFantasia('Café Blumenau');
+
+    const res = await request(app)
+      .put(`/clients/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ativo: true, telefone: '(47) 9999-8888' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ativo).toBe(true);
+    expect(res.body.telefone).toBe('(47) 9999-8888');
   });
 
   it('com recorrenciaDias responde 400', async () => {
@@ -956,7 +844,7 @@ describe('PUT /clients/:id', () => {
     const outroRepresentante = await prisma.user.create({
       data: {
         nome: 'Outro Representante',
-        email: 'outro.clients-teste@chokolaten.com.br',
+        usuario: 'outro.clients-teste',
         role: 'REPRESENTANTE',
         senhaHash,
       },
@@ -980,7 +868,7 @@ describe('PUT /clients/:id', () => {
     const inativo = await prisma.user.create({
       data: {
         nome: 'Representante Inativo',
-        email: 'inativo.clients-teste@chokolaten.com.br',
+        usuario: 'inativo.clients-teste',
         role: 'REPRESENTANTE',
         ativo: false,
         senhaHash,

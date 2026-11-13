@@ -42,7 +42,7 @@ export async function patchVisit(req: Request, res: Response, next: NextFunction
     const input = updateVisitSchema.parse(req.body);
     const usuario = usuarioAutenticado(req);
 
-    const visita = await visitService.updateDescricao(visitId, usuario, input);
+    const visita = await visitService.atualizarVisita(visitId, usuario, input);
     res.status(200).json(visita);
   } catch (err) {
     next(err);

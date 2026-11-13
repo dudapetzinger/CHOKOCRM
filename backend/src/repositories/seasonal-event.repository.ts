@@ -1,4 +1,4 @@
-import type { Prisma, SeasonalEvent } from '@prisma/client';
+import type { SeasonalEvent } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import type { EventoSazonalSeed } from '../config/eventosSazonaisSeed';
 import type { DataCalendario } from '../services/classificacao.service';
@@ -18,16 +18,12 @@ function inicioUtcDoDia(dia: DataCalendario): Date {
 
 /**
  * Eventos vigentes em `dia`: `dataInicio <= dia AND dataFim >= dia`, ambos
- * inclusivos. `banco`: o cliente global ou o de uma transação (o seed grava
- * as mensagens de estoque dentro da transação do reinício).
+ * inclusivos.
  */
-export async function findVigentes(
-  dia: DataCalendario,
-  banco: Prisma.TransactionClient = prisma,
-): Promise<SeasonalEvent[]> {
+export async function findVigentes(dia: DataCalendario): Promise<SeasonalEvent[]> {
   const instante = inicioUtcDoDia(dia);
 
-  return banco.seasonalEvent.findMany({
+  return prisma.seasonalEvent.findMany({
     where: { dataInicio: { lte: instante }, dataFim: { gte: instante } },
   });
 }

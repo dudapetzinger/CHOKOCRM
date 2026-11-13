@@ -2,9 +2,8 @@ import request from 'supertest';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
 import { agora } from '../src/lib/relogio';
-import { EMAIL_GESTAO, reiniciarDemonstracao, SENHA_DEMONSTRACAO } from '../src/seed/demonstracao';
+import { USUARIO_GESTAO, reiniciarDemonstracao, SENHA_DEMONSTRACAO } from '../src/seed/demonstracao';
 import { dataCalendario, inicioDoDia, somarDias } from '../src/services/classificacao.service';
-import { montarMensagemDeEstoque, nomeDoEventoNoTemplate } from '../src/services/stock-message.template';
 import { ativarDataDeDemonstracao, desativarDataDeDemonstracao } from './helpers/data-de-demonstracao';
 import { truncateAllTables } from './helpers/db';
 import { fixarRelogio, liberarRelogio } from './helpers/relogio';
@@ -14,21 +13,14 @@ import { fixarRelogio, liberarRelogio } from './helpers/relogio';
  * `reiniciarDemonstracao` com a data de demonstração numa quarta-feira
  * (2026-11-11), sob o ERP `mock` dos testes. Cada propriedade do "CRM
  * completo" vira um `it`: clientes com cadastro, contatos e
- * `erpId`; visitas com anotação e pedido; lembretes, mensagens de estoque e
+ * `erpId`; visitas com anotação e pedido; lembretes e
  * metas por representante; campanhas com produtos; usuários com telefone;
  * alertas de produção e KPIs do painel com dados.
  */
 
 const DATA = '2026-11-11';
-const REPRESENTANTES = ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br'];
+const REPRESENTANTES = ['eduarda', 'rafael'];
 const MILISSEGUNDOS_POR_HORA = 3_600_000;
-
-const horaEmSaoPaulo = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'America/Sao_Paulo',
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-});
 
 /** Dia da semana da data de calendário: 0 = domingo … 6 = sábado. */
 function diaDaSemana(data: string): number {
@@ -43,7 +35,7 @@ function dia(valor: Date): string {
 let hoje: Date;
 
 async function tokenDoGestor(): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email: EMAIL_GESTAO, senha: SENHA_DEMONSTRACAO });
+  const login = await request(app).post('/auth/login').send({ usuario: USUARIO_GESTAO, senha: SENHA_DEMONSTRACAO });
   return login.body.token as string;
 }
 
@@ -112,73 +104,25 @@ describe('seed: CRM completo', () => {
   });
 
   it('cada representante tem ao menos 3 lembretes abertos (um vencido) e 1 concluído, todos em dia útil', async () => {
-    for (const email of REPRESENTANTES) {
-      const lembretes = await prisma.reminder.findMany({ where: { client: { representante: { email } } } });
+    for (const usuario of REPRESENTANTES) {
+      const lembretes = await prisma.reminder.findMany({ where: { client: { representante: { usuario } } } });
       const abertos = lembretes.filter((lembrete) => lembrete.concluidoEm === null);
       const vencidos = abertos.filter((lembrete) => dia(lembrete.data) < DATA);
       const concluidos = lembretes.filter((lembrete) => lembrete.concluidoEm !== null);
 
-      expect({ email, abertos: abertos.length >= 3, vencidos: vencidos.length >= 1, concluidos: concluidos.length >= 1 })
-        .toEqual({ email, abertos: true, vencidos: true, concluidos: true });
+      expect({ usuario, abertos: abertos.length >= 3, vencidos: vencidos.length >= 1, concluidos: concluidos.length >= 1 })
+        .toEqual({ usuario, abertos: true, vencidos: true, concluidos: true });
       expect(lembretes.every((lembrete) => lembrete.texto.trim().length > 0)).toBe(true);
       // Nenhum lembrete no fim de semana
       expect(lembretes.filter((lembrete) => [0, 6].includes(diaDaSemana(dia(lembrete.data))))).toEqual([]);
     }
   });
 
-  it('cada representante tem 3 mensagens de estoque nas últimas 4 semanas, pelo template, em dia útil das 8h às 17h', async () => {
-    for (const email of REPRESENTANTES) {
-      const mensagens = await prisma.stockMessage.findMany({
-        where: { user: { email } },
-        include: { client: { include: { contacts: true, representante: true } }, user: true, eventoSazonal: true },
-      });
-      expect({ email, quantidade: mensagens.length }).toEqual({ email, quantidade: 3 });
-
-      for (const mensagem of mensagens) {
-        const data = dataCalendario(mensagem.dataGeracao);
-        expect(data >= somarDias(DATA, -28) && data <= DATA).toBe(true);
-        expect(mensagem.dataGeracao.getTime()).toBeLessThanOrEqual(hoje.getTime());
-        expect([0, 6]).not.toContain(diaDaSemana(data));
-        const horario = horaEmSaoPaulo.format(mensagem.dataGeracao);
-        expect(horario >= '08:00' && horario <= '17:00').toBe(true);
-
-        // Mensagem para cliente da carteira, ativo e com erpId, com o texto da regra real
-        expect(mensagem.client.representante.email).toBe(email);
-        expect(mensagem.client.ativo).toBe(true);
-        expect(mensagem.client.erpId).not.toBeNull();
-        expect(mensagem.textoFinal.trim().length).toBeGreaterThan(0);
-        const principal = mensagem.client.contacts.find((contato) => contato.principal) ?? null;
-        expect(mensagem.textoFinal).toBe(
-          montarMensagemDeEstoque({
-            nomeContato: principal?.nome ?? null,
-            nomeFantasia: mensagem.client.nomeFantasia,
-            nomeRepresentante: mensagem.user.nome,
-            evento: mensagem.eventoSazonal
-              ? {
-                  nome: nomeDoEventoNoTemplate(mensagem.eventoSazonal.nome),
-                  produtosSugeridos: mensagem.eventoSazonal.produtosSugeridos,
-                }
-              : null,
-          }),
-        );
-        // O evento gravado é o vigente na data da geração
-        const vigentes = await prisma.seasonalEvent.findMany({
-          where: {
-            dataInicio: { lte: new Date(`${data}T00:00:00Z`) },
-            dataFim: { gte: new Date(`${data}T00:00:00Z`) },
-          },
-        });
-        if (vigentes.length === 0) expect(mensagem.eventoSazonalId).toBeNull();
-        else expect(vigentes.map((evento) => evento.id)).toContain(mensagem.eventoSazonalId);
-      }
-    }
-  });
-
   it('cada representante tem meta mensal do mês de hoje e do mês seguinte', async () => {
-    for (const email of REPRESENTANTES) {
-      const metas = await prisma.goal.findMany({ where: { periodo: 'MENSAL', representante: { email } } });
+    for (const usuario of REPRESENTANTES) {
+      const metas = await prisma.goal.findMany({ where: { periodo: 'MENSAL', representante: { usuario } } });
       const periodos = metas.map((meta) => `${dia(meta.inicio)}..${dia(meta.fim)}`).sort();
-      expect({ email, periodos }).toEqual({ email, periodos: ['2026-11-01..2026-11-30', '2026-12-01..2026-12-31'] });
+      expect({ usuario, periodos }).toEqual({ usuario, periodos: ['2026-11-01..2026-11-30', '2026-12-01..2026-12-31'] });
       expect(metas.every((meta) => meta.metaVisitas > 0 && meta.metaVendas.toNumber() > 0)).toBe(true);
     }
   });

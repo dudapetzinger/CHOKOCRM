@@ -15,13 +15,13 @@ const SENHA_PADRAO = 'chokocrm123';
 
 const REPRESENTANTE_A = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.agenda-job-teste@chokolaten.com.br',
+  usuario: 'eduarda.agenda-job-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const REPRESENTANTE_B = {
   nome: 'Bruno Alencar',
-  email: 'bruno.agenda-job-teste@chokolaten.com.br',
+  usuario: 'bruno.agenda-job-teste',
   role: 'REPRESENTANTE' as const,
 };
 

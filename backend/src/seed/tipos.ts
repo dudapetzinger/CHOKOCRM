@@ -6,6 +6,9 @@ import type { AgendaDaRota } from './rotas';
  * (`clientes-gerados.ts`).
  */
 
+/** O mesmo telefone em todos os clientes e contatos da demonstração. */
+export const TELEFONE_DA_DEMONSTRACAO = '(47) 99783-2223';
+
 export type ContatoSeed = {
   nome: string;
   cargo: string;
@@ -28,8 +31,8 @@ export type ClienteSeed = {
    * (`config/erpIdsDemonstracao.ts`); nos gerados vem já calibrado.
    */
   erpId?: string | null;
-  /** Dono da carteira (e-mail do representante). */
-  representanteEmail: string;
+  /** Dono da carteira (usuário do representante). */
+  representanteUsuario: string;
   /** Intervalo entre visitas, em dias: 7, 14, 21, 28 ou 42 (a rota cai sempre no mesmo dia da semana). */
   recorrenciaDias?: number;
   /** `false` só no cliente fechado para reforma: guarda o histórico, sem próxima visita nem lembrete. */

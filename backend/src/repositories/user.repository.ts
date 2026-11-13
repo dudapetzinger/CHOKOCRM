@@ -1,9 +1,9 @@
 import type { Prisma, Role, User } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
-/** E-mail já em minúsculas: é assim que ele é gravado (ver `schemas/user.schema.ts`). */
-export async function findByEmail(email: string): Promise<User | null> {
-  return prisma.user.findUnique({ where: { email } });
+/** Usuário já em minúsculas: é assim que ele é gravado (ver `schemas/user.schema.ts`). */
+export async function findByUsuario(usuario: string): Promise<User | null> {
+  return prisma.user.findUnique({ where: { usuario } });
 }
 
 export async function findById(id: string): Promise<User | null> {
@@ -44,7 +44,7 @@ export async function findByIdComCarteira(id: string): Promise<UsuarioComCarteir
 
 export async function create(data: {
   nome: string;
-  email: string;
+  usuario: string;
   telefone: string | null;
   role: Role;
   senhaHash: string;
@@ -55,7 +55,7 @@ export async function create(data: {
 /** Edição pelo gestor (a senha não muda por aqui). */
 export async function update(
   id: string,
-  data: Partial<Pick<User, 'nome' | 'email' | 'telefone' | 'role' | 'ativo'>>,
+  data: Partial<Pick<User, 'nome' | 'usuario' | 'telefone' | 'role' | 'ativo'>>,
 ): Promise<User> {
   return prisma.user.update({ where: { id }, data });
 }

@@ -8,12 +8,13 @@ import { perfilDoErpId } from '../src/providers/erp/mock/gerador';
 import {
   CLIENTES_ANCORA,
   CLIENTES_GERADOS,
-  EMAIL_GESTAO,
+  USUARIO_GESTAO,
   reiniciarDemonstracao,
   semear,
   visitasMarcadasDaDemonstracao,
 } from '../src/seed/demonstracao';
 import { proximoDiaUtil } from '../src/seed/proximas-visitas';
+import { TELEFONE_DA_DEMONSTRACAO } from '../src/seed/tipos';
 import { dataCalendario, diasEntre, inicioDoDia, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 import { fixarRelogio, liberarRelogio } from './helpers/relogio';
@@ -51,9 +52,9 @@ const NOMES_DAS_ANCORAS = [
   'Mercearia Alto Vale',
 ] as const;
 /** Contas de demonstração que voltam à senha de demonstração no reset (a conta Gestão não: é uma conta real). */
-const EMAILS_DEMONSTRACAO = ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br'];
+const USUARIOS_DEMONSTRACAO = ['eduarda', 'rafael'];
 /** Conta pessoal do gestor, que o seed não cria: quando ela existe no banco, o seed a inativa. */
-const EMAIL_GESTOR_ANTIGO = 'gestor@chokolaten.com.br';
+const USUARIO_GESTOR_ANTIGO = 'gestor';
 
 const horaEmSaoPaulo = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'America/Sao_Paulo',
@@ -96,7 +97,6 @@ async function totais() {
       where: { concluidoEm: { not: null } },
     }),
     eventosSazonais: await prisma.seasonalEvent.count(),
-    mensagensDeEstoque: await prisma.stockMessage.count(),
   };
 }
 
@@ -106,7 +106,7 @@ async function criarDadosDoApp(): Promise<{ id: string; senhaHash: string }> {
   const usuario = await prisma.user.create({
     data: {
       nome: 'Joana Representante',
-      email: 'joana@empresa.com.br',
+      usuario: 'joana',
       senhaHash,
       role: 'REPRESENTANTE',
       telefone: '(47) 98888-0000',
@@ -172,7 +172,7 @@ describe('seed de demonstração', () => {
     await truncateAllTables();
   });
 
-  it('reiniciarDemonstracao recria clientes, visitas com pedido, campanhas, metas, próximas visitas, lembretes e mensagens de estoque', async () => {
+  it('reiniciarDemonstracao recria clientes, visitas com pedido, campanhas, metas, próximas visitas e lembretes', async () => {
     await reiniciarDemonstracao(prisma, HOJE);
 
     const t = await totais();
@@ -188,7 +188,6 @@ describe('seed de demonstração', () => {
       lembretesAbertos: 6,
       lembretesConcluidos: 2,
       eventosSazonais: 10,
-      mensagensDeEstoque: 6,
     });
     // ~25 visitas por semana por representante, 13 semanas (a corrente pela metade)
     expect(t.visitas).toBeGreaterThan(500);
@@ -224,11 +223,11 @@ describe('seed de demonstração', () => {
       include: { representante: true },
     });
     const mensais = metas.filter((meta) => meta.periodo === 'MENSAL');
-    expect(mensais.map((meta) => `${meta.representante.email} ${dia(meta.inicio)}..${dia(meta.fim)}`).sort()).toEqual([
-      'eduarda@chokolaten.com.br 2026-10-01..2026-10-31',
-      'eduarda@chokolaten.com.br 2026-11-01..2026-11-30',
-      'rafael@chokolaten.com.br 2026-10-01..2026-10-31',
-      'rafael@chokolaten.com.br 2026-11-01..2026-11-30',
+    expect(mensais.map((meta) => `${meta.representante.usuario} ${dia(meta.inicio)}..${dia(meta.fim)}`).sort((a, b) => a.localeCompare(b))).toEqual([
+      'eduarda 2026-10-01..2026-10-31',
+      'eduarda 2026-11-01..2026-11-30',
+      'rafael 2026-10-01..2026-10-31',
+      'rafael 2026-11-01..2026-11-30',
     ]);
     // 22 dias úteis em outubro de 2026 e 21 em novembro, 5 visitas por dia
     for (const meta of mensais) {
@@ -287,7 +286,7 @@ describe('seed de demonstração', () => {
 
     const mantido = await prisma.user.findUnique({ where: { id: joana.id } });
     expect(mantido?.senhaHash).toBe(joana.senhaHash);
-    expect(mantido?.email).toBe('joana@empresa.com.br');
+    expect(mantido?.usuario).toBe('joana');
     // Cliente real (CNPJ fora do seed): sobrevive ao reset com a visita e o lembrete.
     expect(await prisma.client.count({ where: { cnpj: '99888777000155' } })).toBe(1);
     expect(await prisma.visit.count({ where: { client: { cnpj: '99888777000155' } } })).toBe(1);
@@ -308,7 +307,7 @@ describe('seed de demonstração', () => {
   it('devolve as contas de demonstração à senha de demonstração e as reativa', async () => {
     await reiniciarDemonstracao(prisma, HOJE);
     await prisma.user.update({
-      where: { email: 'eduarda@chokolaten.com.br' },
+      where: { usuario: 'eduarda' },
       data: {
         senhaHash: await bcrypt.hash('outra-senha', 4),
         nome: 'Outro nome',
@@ -318,13 +317,13 @@ describe('seed de demonstração', () => {
 
     await reiniciarDemonstracao(prisma, HOJE);
 
-    for (const email of EMAILS_DEMONSTRACAO) {
-      const usuario = await prisma.user.findUniqueOrThrow({ where: { email } });
-      expect(await bcrypt.compare(SENHA_DEMONSTRACAO, usuario.senhaHash)).toBe(true);
-      expect(usuario.ativo).toBe(true);
+    for (const usuario of USUARIOS_DEMONSTRACAO) {
+      const conta = await prisma.user.findUniqueOrThrow({ where: { usuario } });
+      expect(await bcrypt.compare(SENHA_DEMONSTRACAO, conta.senhaHash)).toBe(true);
+      expect(conta.ativo).toBe(true);
     }
     const eduarda = await prisma.user.findUniqueOrThrow({
-      where: { email: 'eduarda@chokolaten.com.br' },
+      where: { usuario: 'eduarda' },
     });
     expect(eduarda.nome).toBe('Eduarda Fischer');
   });
@@ -381,9 +380,9 @@ describe('seed de demonstração', () => {
   it('cria a conta compartilhada Gestão Chokolaten (GESTOR, ativa) e não cria a conta pessoal do gestor', async () => {
     await reiniciarDemonstracao(prisma, HOJE);
 
-    expect(EMAIL_GESTAO).toBe('gestao@chokolaten.com.br');
+    expect(USUARIO_GESTAO).toBe('gestao');
     const gestao = await prisma.user.findUniqueOrThrow({
-      where: { email: EMAIL_GESTAO },
+      where: { usuario: USUARIO_GESTAO },
     });
     expect(gestao).toMatchObject({
       nome: 'Gestão Chokolaten',
@@ -393,14 +392,14 @@ describe('seed de demonstração', () => {
     });
     // Banco novo: a conta nasce com a senha de demonstração
     expect(await bcrypt.compare(SENHA_DEMONSTRACAO, gestao.senhaHash)).toBe(true);
-    expect(await prisma.user.count({ where: { email: EMAIL_GESTOR_ANTIGO } })).toBe(0);
+    expect(await prisma.user.count({ where: { usuario: USUARIO_GESTOR_ANTIGO } })).toBe(0);
   });
 
   it('inativa a conta pessoal do gestor quando ela existe, sem apagá-la', async () => {
     await prisma.user.create({
       data: {
         nome: 'Gestor de demonstração',
-        email: EMAIL_GESTOR_ANTIGO,
+        usuario: USUARIO_GESTOR_ANTIGO,
         senhaHash: await bcrypt.hash(SENHA_DEMONSTRACAO, 4),
         role: 'GESTOR',
       },
@@ -409,14 +408,14 @@ describe('seed de demonstração', () => {
     await reiniciarDemonstracao(prisma, HOJE);
 
     const antiga = await prisma.user.findUniqueOrThrow({
-      where: { email: EMAIL_GESTOR_ANTIGO },
+      where: { usuario: USUARIO_GESTOR_ANTIGO },
     });
     expect(antiga.ativo).toBe(false);
     // Eduarda, Rafael, Gestão e a conta pessoal do gestor (inativa): o seed não apaga usuários
     expect(await prisma.user.count()).toBe(4);
     const login = await request(app)
       .post('/auth/login')
-      .send({ email: EMAIL_GESTOR_ANTIGO, senha: SENHA_DEMONSTRACAO });
+      .send({ usuario: USUARIO_GESTOR_ANTIGO, senha: SENHA_DEMONSTRACAO });
     expect(login.status).not.toBe(200);
   });
 
@@ -425,7 +424,7 @@ describe('seed de demonstração', () => {
     await prisma.user.create({
       data: {
         nome: 'Gestão',
-        email: EMAIL_GESTAO,
+        usuario: USUARIO_GESTAO,
         senhaHash,
         role: 'GESTOR',
         ativo: false,
@@ -435,7 +434,7 @@ describe('seed de demonstração', () => {
     await reiniciarDemonstracao(prisma, HOJE);
 
     const depoisDoReset = await prisma.user.findUniqueOrThrow({
-      where: { email: EMAIL_GESTAO },
+      where: { usuario: USUARIO_GESTAO },
     });
     expect(depoisDoReset.senhaHash).toBe(senhaHash);
     expect(depoisDoReset).toMatchObject({
@@ -447,7 +446,7 @@ describe('seed de demonstração', () => {
     await semear(prisma, HOJE);
 
     const depoisDoSemear = await prisma.user.findUniqueOrThrow({
-      where: { email: EMAIL_GESTAO },
+      where: { usuario: USUARIO_GESTAO },
     });
     expect(depoisDoSemear.senhaHash).toBe(senhaHash);
     expect(await prisma.user.count()).toBe(3);
@@ -500,8 +499,8 @@ describe('cadastro realista', () => {
     expect(clientes.length).toBeGreaterThanOrEqual(26);
     expect(clientes).toHaveLength(CLIENTES_DA_DEMONSTRACAO);
 
-    const daEduarda = clientes.filter((cliente) => cliente.representante.email === 'eduarda@chokolaten.com.br');
-    const doRafael = clientes.filter((cliente) => cliente.representante.email === 'rafael@chokolaten.com.br');
+    const daEduarda = clientes.filter((cliente) => cliente.representante.usuario === 'eduarda');
+    const doRafael = clientes.filter((cliente) => cliente.representante.usuario === 'rafael');
     for (const carteira of [daEduarda, doRafael]) {
       expect(carteira.length).toBeGreaterThanOrEqual(38);
       expect(carteira.length).toBeLessThanOrEqual(42);
@@ -522,7 +521,7 @@ describe('cadastro realista', () => {
         email: ancora.email,
         ativo: ancora.ativo ?? true,
       });
-      expect(salvo?.representante.email).toBe(ancora.representanteEmail);
+      expect(salvo?.representante.usuario).toBe(ancora.representanteUsuario);
       expect(salvo?.contacts.map((contato) => contato.email).sort()).toEqual(
         ancora.contatos.map((contato) => contato.email).sort(),
       );
@@ -531,7 +530,7 @@ describe('cadastro realista', () => {
     expect(indaial?.cnpj).toBe('20952813000199');
   });
 
-  it('todo cliente tem CNPJ válido e único, razão social diferente do nome fantasia, telefone de SC e e-mail único', async () => {
+  it('todo cliente tem CNPJ válido e único, razão social diferente do nome fantasia, telefone da demonstração e e-mail único', async () => {
     const clientes = await clientesDoSeed();
 
     for (const cliente of clientes) {
@@ -544,13 +543,23 @@ describe('cadastro realista', () => {
       });
       expect(cliente.cnpj).not.toBe(CNPJ_DA_PARCEIRA);
       expect(cliente.razaoSocial).not.toBe(cliente.nomeFantasia);
-      expect(cliente.telefone).toMatch(/^\(47\) (3\d{3}|9\d{4})-\d{4}$/);
+      expect(cliente.telefone).toBe(TELEFONE_DA_DEMONSTRACAO);
       expect(cliente.endereco).toContain(', ');
       expect(cliente.endereco).toContain('/SC');
     }
     expect(new Set(clientes.map((cliente) => cliente.cnpj)).size).toBe(clientes.length);
     expect(new Set(clientes.map((cliente) => cliente.email)).size).toBe(clientes.length);
-    expect(new Set(clientes.map((cliente) => cliente.telefone)).size).toBe(clientes.length);
+  });
+
+  it('todo contato e todo cliente da demonstração têm o telefone da constante, âncoras e gerados', async () => {
+    const clientes = await clientesDoSeed();
+
+    expect(clientes.length).toBe(CLIENTES_DA_DEMONSTRACAO);
+    expect(TELEFONE_DA_DEMONSTRACAO).toBe('(47) 99783-2223');
+    expect(clientes.filter((cliente) => cliente.telefone !== TELEFONE_DA_DEMONSTRACAO)).toEqual([]);
+    const contatos = clientes.flatMap((cliente) => cliente.contacts);
+    expect(contatos.length).toBeGreaterThanOrEqual(CLIENTES_DA_DEMONSTRACAO);
+    expect(contatos.filter((contato) => contato.telefone !== TELEFONE_DA_DEMONSTRACAO)).toEqual([]);
   });
 
   it('todo cliente tem 1 ou 2 contatos com cargo e exatamente um principal, sem nome de contato repetido', async () => {
@@ -661,7 +670,7 @@ describe('histórico realista', () => {
   });
 
   async function tokenDoGestor(): Promise<string> {
-    const login = await request(app).post('/auth/login').send({ email: EMAIL_GESTAO, senha: SENHA_DEMONSTRACAO });
+    const login = await request(app).post('/auth/login').send({ usuario: USUARIO_GESTAO, senha: SENHA_DEMONSTRACAO });
     return login.body.token;
   }
 
@@ -672,7 +681,7 @@ describe('histórico realista', () => {
     for (const visita of visitas) {
       const data = dataCalendario(visita.dataHora);
       expect([0, 6]).not.toContain(diaDaSemanaDe(data));
-      const chave = `${visita.user.email}|${data}`;
+      const chave = `${visita.user.usuario}|${data}`;
       contagem.set(chave, (contagem.get(chave) ?? 0) + 1);
     }
     const datas = [...new Set(visitas.map((visita) => dataCalendario(visita.dataHora)))].sort();
@@ -681,9 +690,9 @@ describe('histórico realista', () => {
     expect(diasEntre(primeira, hoje)).toBeLessThan(91);
     for (let data = primeira; data < hoje; data = somarDias(data, 1)) {
       if ([0, 6].includes(diaDaSemanaDe(data))) continue;
-      for (const email of ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br']) {
-        const quantidade = contagem.get(`${email}|${data}`) ?? 0;
-        expect({ data, email, ok: quantidade >= 4 && quantidade <= 6 }).toEqual({ data, email, ok: true });
+      for (const usuario of ['eduarda', 'rafael']) {
+        const quantidade = contagem.get(`${usuario}|${data}`) ?? 0;
+        expect({ data, usuario, ok: quantidade >= 4 && quantidade <= 6 }).toEqual({ data, usuario, ok: true });
       }
     }
   });
@@ -870,11 +879,11 @@ describe('histórico realista', () => {
     const esperadas = visitasMarcadasDaDemonstracao(hoje, visitadosHoje);
     expect(new Map(comProxima.map((cliente) => [cliente.cnpj, dia(cliente.proximaVisita as Date)]))).toEqual(esperadas);
     const fimDaJanela = somarDias(hoje, 23);
-    for (const representante of ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br']) {
+    for (const representante of ['eduarda', 'rafael']) {
       for (let data = hoje; data <= fimDaJanela; data = somarDias(data, 1)) {
         if ([0, 6].includes(diaDaSemanaDe(data))) continue;
         const doDia = comProxima.filter(
-          (cliente) => cliente.representante.email === representante && dia(cliente.proximaVisita as Date) === data,
+          (cliente) => cliente.representante.usuario === representante && dia(cliente.proximaVisita as Date) === data,
         );
         expect(doDia.length).toBeGreaterThanOrEqual(2);
       }
@@ -899,8 +908,8 @@ describe('histórico realista', () => {
       include: { client: { include: { representante: true } } },
     });
     expect(lembretes).toHaveLength(8);
-    for (const representante of ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br']) {
-      const doRepresentante = lembretes.filter((lembrete) => lembrete.client.representante.email === representante);
+    for (const representante of ['eduarda', 'rafael']) {
+      const doRepresentante = lembretes.filter((lembrete) => lembrete.client.representante.usuario === representante);
       expect(doRepresentante.filter((lembrete) => lembrete.concluidoEm !== null)).toHaveLength(1);
       const abertos = doRepresentante.filter((lembrete) => lembrete.concluidoEm === null);
       expect(abertos).toHaveLength(3);

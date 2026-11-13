@@ -15,13 +15,13 @@ const LIMITE_ESTOQUE_BAIXO = 10;
 
 const REPRESENTANTE = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.insights-teste@chokolaten.com.br',
+  usuario: 'eduarda.insights-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const GESTOR = {
   nome: 'Ricardo Menezes',
-  email: 'ricardo.insights-teste@chokolaten.com.br',
+  usuario: 'ricardo.insights-teste',
   role: 'GESTOR' as const,
 };
 
@@ -35,8 +35,8 @@ function apelido(nomeFantasia: string): string {
   return nomeFantasia.toLowerCase().replace(/\s/g, '');
 }
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -91,8 +91,8 @@ beforeEach(async () => {
   representanteId = representante.id;
   await prisma.user.create({ data: { ...GESTOR, senhaHash } });
 
-  token = await logar(REPRESENTANTE.email);
-  tokenGestor = await logar(GESTOR.email);
+  token = await logar(REPRESENTANTE.usuario);
+  tokenGestor = await logar(GESTOR.usuario);
 
   clienteComErpId = await criarCliente('11222333000181', 'Emporio Pomerode', { erpId: 'ERP-1001', ativo: true });
   clienteSemErpId = await criarCliente('11222333000262', 'Padaria Vale Europeu', { erpId: null, ativo: true });
@@ -274,7 +274,7 @@ describe('GET /insights/manager-alerts', () => {
 async function criarCarteiraB(): Promise<{ representanteBId: string; clienteDeBId: string; tokenB: string }> {
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
   const representanteB = await prisma.user.create({
-    data: { nome: 'Bruno Alencar', email: 'bruno.insights-teste@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    data: { nome: 'Bruno Alencar', usuario: 'bruno.insights-teste', role: 'REPRESENTANTE', senhaHash },
   });
   const clienteDeB = await prisma.client.create({
     data: {
@@ -294,7 +294,7 @@ async function criarCarteiraB(): Promise<{ representanteBId: string; clienteDeBI
   return {
     representanteBId: representanteB.id,
     clienteDeBId: clienteDeB.id,
-    tokenB: await logar('bruno.insights-teste@chokolaten.com.br'),
+    tokenB: await logar('bruno.insights-teste'),
   };
 }
 

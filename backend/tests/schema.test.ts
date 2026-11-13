@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { prisma } from '../src/lib/prisma';
 import { truncateAllTables } from './helpers/db';
 
@@ -15,7 +17,7 @@ describe('Schema Prisma (smoke)', () => {
     const user = await prisma.user.create({
       data: {
         nome: 'Eduarda Representante',
-        email: 'smoke.user@chokolaten.com.br',
+        usuario: 'smoke.user',
         senhaHash: 'hash-fake',
         role: 'REPRESENTANTE',
       },
@@ -56,7 +58,7 @@ describe('Schema Prisma (smoke)', () => {
     const representante = await prisma.user.create({
       data: {
         nome: 'Eduarda Representante Dois',
-        email: 'smoke.user-dois@chokolaten.com.br',
+        usuario: 'smoke.user-dois',
         senhaHash: 'hash-fake',
         role: 'REPRESENTANTE',
       },
@@ -98,7 +100,7 @@ describe('Schema Prisma (smoke)', () => {
     const user = await prisma.user.create({
       data: {
         nome: 'Eduarda Visita',
-        email: 'smoke.visita@chokolaten.com.br',
+        usuario: 'smoke.visita',
         senhaHash: 'hash-fake',
         role: 'REPRESENTANTE',
       },
@@ -137,7 +139,7 @@ describe('Schema Prisma (smoke)', () => {
     const user = await prisma.user.create({
       data: {
         nome: 'Eduarda Lembrete',
-        email: 'smoke.lembrete@chokolaten.com.br',
+        usuario: 'smoke.lembrete',
         senhaHash: 'hash-fake',
         role: 'REPRESENTANTE',
       },
@@ -188,5 +190,86 @@ describe('Schema Prisma (smoke)', () => {
 
     await prisma.client.delete({ where: { id: client.id } });
     expect(await prisma.reminder.count()).toBe(0);
+  });
+});
+
+/**
+ * A migration não roda dentro do teste. O bloco que converte os e-mails em
+ * usuários é lido do arquivo e executado sobre contas gravadas com o e-mail
+ * antigo na coluna `usuario`, que é o estado logo depois de renomear a coluna.
+ */
+describe('Migration usuario_no_lugar_do_email (conversão dos e-mails)', () => {
+  const ARQUIVO = join(
+    __dirname,
+    '..',
+    'prisma',
+    'migrations',
+    '20261113120000_usuario_no_lugar_do_email',
+    'migration.sql',
+  );
+
+  function blocoDeConversao(): string {
+    const bloco = /DO \$\$[\s\S]*END \$\$;/.exec(readFileSync(ARQUIVO, 'utf8'));
+    if (!bloco) throw new Error('Bloco de conversão não encontrado na migration.');
+    return bloco[0];
+  }
+
+  async function converter(emails: readonly string[]): Promise<string[]> {
+    for (const [ordem, email] of emails.entries()) {
+      await prisma.user.create({
+        data: {
+          nome: `Conta ${ordem + 1}`,
+          usuario: email,
+          senhaHash: 'hash-fake',
+          role: 'REPRESENTANTE',
+          criadoEm: new Date(Date.UTC(2026, 0, 1 + ordem)),
+        },
+      });
+    }
+    await prisma.$executeRawUnsafe(blocoDeConversao());
+    const contas = await prisma.user.findMany({ orderBy: { criadoEm: 'asc' } });
+    return contas.map((conta) => conta.usuario);
+  }
+
+  it('usa a parte antes do @ em minúsculas, numera o repetido e completa o prefixo curto', async () => {
+    expect(await converter(['ana.silva@x.com', 'ANA.SILVA@y.com', 'a@x.com'])).toEqual([
+      'ana.silva',
+      'ana.silva2',
+      'ausuario',
+    ]);
+  });
+
+  it('todo usuário gerado é único e válido, mesmo com sufixo já ocupado, caractere fora do padrão e prefixo longo', async () => {
+    const usuarios = await converter([
+      'ana.silva@x.com',
+      'ana.silva@y.com',
+      'ana.silva2@z.com',
+      'José+Vendas@x.com',
+      '+@x.com',
+      'um.nome.muito.comprido.de.representante@x.com',
+      'um.nome.muito.comprido.de.representante@y.com',
+    ]);
+
+    expect(usuarios).toEqual([
+      'ana.silva',
+      'ana.silva2',
+      'ana.silva22',
+      'josvendas',
+      'usuario',
+      'um.nome.muito.comprido.de.repr',
+      'um.nome.muito.comprido.de.rep2',
+    ]);
+    expect(new Set(usuarios).size).toBe(usuarios.length);
+    for (const usuario of usuarios) {
+      expect(usuario).toMatch(/^[a-z0-9._-]{3,30}$/);
+    }
+  });
+
+  it('rodar de novo não muda quem já tem usuário', async () => {
+    const primeira = await converter(['ana.silva@x.com', 'ana.silva@y.com']);
+    await prisma.$executeRawUnsafe(blocoDeConversao());
+    const contas = await prisma.user.findMany({ orderBy: { criadoEm: 'asc' } });
+
+    expect(contas.map((conta) => conta.usuario)).toEqual(primeira);
   });
 });

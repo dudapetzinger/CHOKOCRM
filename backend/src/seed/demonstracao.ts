@@ -13,13 +13,10 @@ import { CATALOGO } from '../providers/erp/mock/catalogo';
 import {
   colunaDateDaData,
   dataCalendario,
-  inicioDoDia,
   somarDias,
   type DataCalendario,
 } from '../services/classificacao.service';
 import { periodoDaMeta } from '../services/goal.regras';
-import { eventoVigente } from '../services/seasonal-event.service';
-import { montarMensagemDeEstoque, nomeDoEventoNoTemplate } from '../services/stock-message.template';
 import { textoDoLembrete } from './anotacoes';
 import { gerarClientes } from './clientes-gerados';
 import {
@@ -32,15 +29,15 @@ import {
 } from './gerador-visitas';
 import { diaUtilAnterior, escolherVisitasMarcadas, JANELA_DAS_VISITAS_MARCADAS, proximoDiaUtil } from './proximas-visitas';
 import { AGENDA_DAS_ANCORAS, diaDaSemana } from './rotas';
-import type { ClienteSeed, ContatoSeed } from './tipos';
+import { TELEFONE_DA_DEMONSTRACAO, type ClienteSeed, type ContatoSeed } from './tipos';
 
 /**
  * Dados de demonstração do ChokoCRM, usados por `prisma/seed.ts` e pelo
  * "Modo demonstração" da tela de login (`POST /sistema/demonstracao`):
  * `semear` só acrescenta (`npm run db:seed`) e `reiniciarDemonstracao` apaga
  * e recria (`npm run db:seed:reset`) só os clientes da demonstração (CNPJ em
- * `CLIENTES`), com metas e campanhas; os clientes reais (cadastrados à mão ou
- * pela nota fiscal) ficam com tudo que é deles. Fica em `src/` (não em `prisma/`)
+ * `CLIENTES`), com metas e campanhas; os clientes reais (criados pela nota
+ * fiscal) ficam com tudo que é deles. Fica em `src/` (não em `prisma/`)
  * porque `tsconfig.json` só inclui `src` e `tests`. Tudo é relativo ao `hoje`
  * recebido (`agora()`, a data do modo demonstração quando ligado), nunca ao
  * relógio da máquina: a demonstração nasce como se o sistema rodasse há 3
@@ -49,9 +46,10 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  * - Clientes: os 26 âncoras escritos à mão (`CLIENTES_ANCORA`, com todos os
  *   casos de propósito) e os gerados (`clientes-gerados.ts`), cerca de 40 por
  *   representante, cada um com cadastro de sistema de verdade (CNPJ válido,
- *   razão social, endereço, telefone, e-mail no domínio do cliente, 1 a 2
- *   contatos, `erpId` calibrado no ERP simulado em todos; só o Armazém São
- *   Bento é rebaixado pela venda).
+ *   razão social, endereço, telefone `TELEFONE_DA_DEMONSTRACAO` (o mesmo em
+ *   todos), e-mail no domínio do cliente, 1 a 2 contatos, `erpId` calibrado
+ *   no ERP simulado em todos; só o Armazém São Bento é rebaixado pela
+ *   venda).
  * - Visitas: geradas (`gerador-visitas.ts`) pelas rotas de cada
  *   representante (`rotas.ts`: dia da semana → cidades, recorrências de 7 a
  *   42 dias, múltiplos de 7): 13 semanas, só de segunda a sexta, 4 a 6 por dia
@@ -74,17 +72,14 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  * - Lembretes: por representante, três abertos (um vencido) e um concluído,
  *   com texto coerente com a última visita, sempre em dia útil (o vencido
  *   recua, o futuro avança).
- * - Mensagens de estoque: 3 por representante nas últimas 4 semanas, nos
- *   clientes com venda mais recente, com o texto da regra real
- *   (`montarMensagemDeEstoque`) e o evento sazonal vigente na data.
  *
  * Os pedidos usam o catálogo de demonstração direto (`CATALOGO`), seja qual
  * for o `ERP_PROVIDER`; o mesmo catálogo vai para `ErpProduct`. Os usuários
  * são os dois representantes de demonstração (Eduarda e Rafael, que voltam à
  * senha de demonstração no reset) e a conta compartilhada "Gestão Chokolaten"
- * (`EMAIL_GESTAO`), conta real: o seed só a cria (com a senha de
+ * (`USUARIO_GESTAO`), conta real: o seed só a cria (com a senha de
  * demonstração) em banco novo e nunca sobrescreve a senha dela; a conta
- * pessoal do gestor (`gestor@chokolaten.com.br`), que o seed não cria, fica
+ * pessoal do gestor (`gestor`), que o seed não cria, fica
  * inativa se existir no banco.
  */
 
@@ -110,7 +105,7 @@ export type ModoDoSeed = 'semear' | 'reiniciar' | 'recusar';
 /** Aviso de `--reset` em produção ou com banco remoto sem `--confirmar` (o processo sai com código 1). */
 export const AVISO_RESET_SEM_CONFIRMACAO = [
   'Reinício da demonstração recusado: o ambiente é de produção ou o banco é remoto (não é localhost).',
-  'O --reset apaga os clientes da demonstração (com contatos, visitas, pedidos, lembretes e mensagens de estoque),',
+  'O --reset apaga os clientes da demonstração (com contatos, visitas, pedidos, lembretes),',
   'as campanhas e as metas, inclusive o que os representantes registraram nesses clientes.',
   'Os clientes reais e as contas ficam.',
   'Para confirmar, rode de novo com --confirmar:  npm run db:seed:reset -- --confirmar',
@@ -142,12 +137,12 @@ export function modoDoSeed(argumentos: readonly string[], ambiente: string, data
   return 'reiniciar';
 }
 
-const EMAIL_EDUARDA = 'eduarda@chokolaten.com.br';
-const EMAIL_RAFAEL = 'rafael@chokolaten.com.br';
+const USUARIO_EDUARDA = 'eduarda';
+const USUARIO_RAFAEL = 'rafael';
 /** Conta compartilhada da gestão (dono e escritório), já criada em produção pelo app. */
-export const EMAIL_GESTAO = 'gestao@chokolaten.com.br';
+export const USUARIO_GESTAO = 'gestao';
 /** Conta pessoal do gestor, que o seed não cria: se existir no banco, fica inativa (não é apagada). */
-const EMAIL_GESTOR_ANTIGO = 'gestor@chokolaten.com.br';
+const USUARIO_GESTOR_ANTIGO = 'gestor';
 
 /**
  * Os 26 clientes âncora, escritos à mão (carteiras da Eduarda, 16, e do
@@ -163,22 +158,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '15327045000142',
     cidade: 'Joinville',
     endereco: 'Rua do Príncipe, 800 - Centro, Joinville/SC',
-    telefone: '(47) 3433-1867',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@mercadocentraljoinville.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 7,
     contatos: [
       {
         nome: 'Roberto Alves',
         cargo: 'Gerente de Compras',
-        telefone: '(47) 99137-4528',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'roberto.alves@mercadocentraljoinville.com.br',
         principal: true,
       },
       {
         nome: 'Sílvia Alves',
         cargo: 'Proprietária',
-        telefone: '(47) 98846-1709',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'silvia.alves@mercadocentraljoinville.com.br',
         principal: false,
       },
@@ -190,15 +185,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '39007747000107',
     cidade: 'Joinville',
     endereco: 'Rua Dona Francisca, 11.800 - Pirabeiraba, Joinville/SC',
-    telefone: '(47) 3455-2194',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@cafeteriaestradabonita.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 28,
     contatos: [
       {
         nome: 'Fernanda Souza',
         cargo: 'Gerente',
-        telefone: '(47) 99652-3184',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'fernanda.souza@cafeteriaestradabonita.com.br',
         principal: true,
       },
@@ -210,22 +205,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '34331603000198',
     cidade: 'Joinville',
     endereco: 'Rua Otto Boehm, 415 - América, Joinville/SC',
-    telefone: '(47) 3422-6181',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@confeitariadonafrida.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Ingrid Lange',
         cargo: 'Proprietária',
-        telefone: '(47) 99127-4035',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'ingrid.lange@confeitariadonafrida.com.br',
         principal: true,
       },
       {
         nome: 'Paulo Lange',
         cargo: 'Comprador',
-        telefone: '(47) 98803-5917',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'paulo.lange@confeitariadonafrida.com.br',
         principal: false,
       },
@@ -237,15 +232,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '26301847000108',
     cidade: 'Joinville',
     endereco: 'Rua das Palmeiras, 37 - Centro, Joinville/SC',
-    telefone: '(47) 3027-4410',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@caferuadaspalmeiras.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 28,
     contatos: [
       {
         nome: 'Renata Kohler',
         cargo: 'Gerente',
-        telefone: '(47) 98834-2761',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'renata.kohler@caferuadaspalmeiras.com.br',
         principal: true,
       },
@@ -257,22 +252,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '46594713000121',
     cidade: 'Joinville',
     endereco: 'Rua Copacabana, 1.022 - Bom Retiro, Joinville/SC',
-    telefone: '(47) 3436-2290',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@merceariabomretiro.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 42,
     contatos: [
       {
         nome: 'José Schulz',
         cargo: 'Proprietário',
-        telefone: '(47) 99604-8352',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'jose.schulz@merceariabomretiro.com.br',
         principal: true,
       },
       {
         nome: 'Ana Paula Schulz',
         cargo: 'Compradora',
-        telefone: '(47) 99171-6430',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'anapaula.schulz@merceariabomretiro.com.br',
         principal: false,
       },
@@ -284,15 +279,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '44168350000137',
     cidade: 'Jaraguá do Sul',
     endereco: 'Rua Reinoldo Rau, 220 - Centro, Jaraguá do Sul/SC',
-    telefone: '(47) 3275-1468',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@doceriajaragua.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Cristiane Bauer',
         cargo: 'Proprietária',
-        telefone: '(47) 99914-7286',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'cristiane.bauer@doceriajaragua.com.br',
         principal: true,
       },
@@ -304,15 +299,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '28952634000163',
     cidade: 'Jaraguá do Sul',
     endereco: 'Rua José Theodoro Ribeiro, 1.480 - Vila Lenzi, Jaraguá do Sul/SC',
-    telefone: '(47) 3370-4815',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@panificadoravilalenzi.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 7,
     contatos: [
       {
         nome: 'Giovana Moretti',
         cargo: 'Proprietária',
-        telefone: '(47) 99188-2069',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'giovana.moretti@panificadoravilalenzi.com.br',
         principal: true,
       },
@@ -324,22 +319,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '38272408000195',
     cidade: 'Jaraguá do Sul',
     endereco: 'Rua Bernardo Dornbusch, 2.210 - Baependi, Jaraguá do Sul/SC',
-    telefone: '(47) 3371-5520',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@recantoalemao.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 28,
     contatos: [
       {
         nome: 'Elfrida Stein',
         cargo: 'Proprietária',
-        telefone: '(47) 99230-1847',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'elfrida.stein@recantoalemao.com.br',
         principal: true,
       },
       {
         nome: 'Marcos Stein',
         cargo: 'Sócio',
-        telefone: '(47) 98417-6302',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'marcos.stein@recantoalemao.com.br',
         principal: false,
       },
@@ -351,15 +346,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '16945161000198',
     cidade: 'Corupá',
     endereco: 'Rua Getúlio Vargas, 450 - Centro, Corupá/SC',
-    telefone: '(47) 3375-6293',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@rotadascachoeiras.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 42,
     contatos: [
       {
         nome: 'Marcelo Piske',
         cargo: 'Proprietário',
-        telefone: '(47) 99743-5376',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'marcelo.piske@rotadascachoeiras.com.br',
         principal: true,
       },
@@ -371,22 +366,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '46949783000155',
     cidade: 'Corupá',
     endereco: 'Rua Rio Novo, 3.900 - Rio Novo, Corupá/SC',
-    telefone: '(47) 3375-1840',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'reservas@hotelfazendarionovo.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 42,
     contatos: [
       {
         nome: 'Cláudio Hruschka',
         cargo: 'Gerente',
-        telefone: '(47) 99145-6721',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'claudio@hotelfazendarionovo.com.br',
         principal: true,
       },
       {
         nome: 'Vera Hruschka',
         cargo: 'Sócia',
-        telefone: '(47) 98872-0394',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'vera@hotelfazendarionovo.com.br',
         principal: false,
       },
@@ -398,15 +393,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '49610663000117',
     cidade: 'São Bento do Sul',
     endereco: 'Rua XV de Novembro, 900 - Centro, São Bento do Sul/SC',
-    telefone: '(47) 3633-4172',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@armazemsaobento.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Luciane Wolf',
         cargo: 'Gerente',
-        telefone: '(47) 99628-1957',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'luciane.wolf@armazemsaobento.com.br',
         principal: true,
       },
@@ -418,15 +413,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '25804541000101',
     cidade: 'São Bento do Sul',
     endereco: 'Rua Jorge Lacerda, 1.350 - Serra Alta, São Bento do Sul/SC',
-    telefone: '(47) 3635-2730',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@cafecolonialserraalta.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 28,
     contatos: [
       {
         nome: 'Lúcia Treml',
         cargo: 'Proprietária',
-        telefone: '(47) 99174-8615',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'lucia.treml@cafecolonialserraalta.com.br',
         principal: true,
       },
@@ -438,22 +433,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '37629266000108',
     cidade: 'São Bento do Sul',
     endereco: 'Rua Antônio Kaesemodel, 512 - Centenário, São Bento do Sul/SC',
-    telefone: '(47) 3626-3158',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@padariarainhadaserra.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 28,
     contatos: [
       {
         nome: 'Edson Grosskopf',
         cargo: 'Proprietário',
-        telefone: '(47) 99203-7148',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'edson.grosskopf@padariarainhadaserra.com.br',
         principal: true,
       },
       {
         nome: 'Mariane Grosskopf',
         cargo: 'Compradora',
-        telefone: '(47) 98466-2593',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'mariane.grosskopf@padariarainhadaserra.com.br',
         principal: false,
       },
@@ -465,22 +460,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '11017166000137',
     cidade: 'Pomerode',
     endereco: 'Rua Hermann Weege, 620 - Centro, Pomerode/SC',
-    telefone: '(47) 3395-1764',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@emporiopomerode.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Marta Weber',
         cargo: 'Compradora',
-        telefone: '(47) 99316-8742',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'marta.weber@emporiopomerode.com.br',
         principal: true,
       },
       {
         nome: 'João Siewert',
         cargo: 'Proprietário',
-        telefone: '(47) 98705-1263',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'joao.siewert@emporiopomerode.com.br',
         principal: false,
       },
@@ -492,15 +487,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '42293000000177',
     cidade: 'Pomerode',
     endereco: 'Rua XV de Novembro, 1.050 - Centro, Pomerode/SC',
-    telefone: '(47) 3387-5931',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@emporiodochocolate.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Patrícia Hoffmann',
         cargo: 'Compradora',
-        telefone: '(47) 99958-3417',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'patricia.hoffmann@emporiodochocolate.com.br',
         principal: true,
       },
@@ -512,22 +507,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '42451115000142',
     cidade: 'Pomerode',
     endereco: 'Rua Ribeirão Herdt, 215 - Ribeirão Herdt, Pomerode/SC',
-    telefone: '(47) 3387-4026',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@doceriaenxaimel.com.br',
-    representanteEmail: EMAIL_EDUARDA,
+    representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 28,
     contatos: [
       {
         nome: 'Heloísa Krause',
         cargo: 'Proprietária',
-        telefone: '(47) 99161-7302',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'heloisa.krause@doceriaenxaimel.com.br',
         principal: true,
       },
       {
         nome: 'Bruno Krause',
         cargo: 'Sócio',
-        telefone: '(47) 98912-4586',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'bruno.krause@doceriaenxaimel.com.br',
         principal: false,
       },
@@ -540,15 +535,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '10344962000111',
     cidade: 'Blumenau',
     endereco: 'Rua XV de Novembro, 500 - Centro, Blumenau/SC',
-    telefone: '(47) 3322-6045',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@cafeblumenau.com.br',
-    representanteEmail: EMAIL_RAFAEL,
+    representanteUsuario: USUARIO_RAFAEL,
     recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Helena Krüger',
         cargo: 'Gerente',
-        telefone: '(47) 99933-5871',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'helena.kruger@cafeblumenau.com.br',
         principal: true,
       },
@@ -560,22 +555,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '37946439000111',
     cidade: 'Blumenau',
     endereco: 'Rua Alberto Stein, 199 - Velha, Blumenau/SC',
-    telefone: '(47) 3326-1955',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@confeitariavilagermanica.com.br',
-    representanteEmail: EMAIL_RAFAEL,
+    representanteUsuario: USUARIO_RAFAEL,
     recorrenciaDias: 28,
     contatos: [
       {
         nome: 'Rita Haertel',
         cargo: 'Proprietária',
-        telefone: '(47) 99112-6083',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'rita.haertel@confeitariavilagermanica.com.br',
         principal: true,
       },
       {
         nome: 'Felipe Haertel',
         cargo: 'Comprador',
-        telefone: '(47) 98827-3145',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'felipe.haertel@confeitariavilagermanica.com.br',
         principal: false,
       },
@@ -587,15 +582,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '30223526000100',
     cidade: 'Blumenau',
     endereco: 'Rua Dr. Pedro Zimmermann, 6.410 - Itoupava Central, Blumenau/SC',
-    telefone: '(47) 3337-2201',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@emporioitoupava.com.br',
-    representanteEmail: EMAIL_RAFAEL,
+    representanteUsuario: USUARIO_RAFAEL,
     recorrenciaDias: 28,
     contatos: [
       {
         nome: 'Rodrigo Gaulke',
         cargo: 'Proprietário',
-        telefone: '(47) 99281-4796',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'rodrigo.gaulke@emporioitoupava.com.br',
         principal: true,
       },
@@ -607,15 +602,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '20952813000199',
     cidade: 'Indaial',
     endereco: 'Rua Presidente Castelo Branco, 280 - Centro, Indaial/SC',
-    telefone: '(47) 3333-2716',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@padariaconfeitariaindaial.com.br',
-    representanteEmail: EMAIL_RAFAEL,
+    representanteUsuario: USUARIO_RAFAEL,
     recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Tiago Dalfovo',
         cargo: 'Proprietário',
-        telefone: '(47) 99855-1238',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'tiago.dalfovo@padariaconfeitariaindaial.com.br',
         principal: true,
       },
@@ -627,15 +622,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '16674624000124',
     cidade: 'Timbó',
     endereco: 'Rua 7 de Setembro, 150 - Centro, Timbó/SC',
-    telefone: '(47) 3382-1539',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@padariavaleeuropeu.com.br',
-    representanteEmail: EMAIL_RAFAEL,
+    representanteUsuario: USUARIO_RAFAEL,
     recorrenciaDias: 28,
     contatos: [
       {
         nome: 'Sandra Zimmermann',
         cargo: 'Proprietária',
-        telefone: '(47) 99726-9014',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'sandra.zimmermann@padariavaleeuropeu.com.br',
         principal: true,
       },
@@ -647,22 +642,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '11802149000100',
     cidade: 'Timbó',
     endereco: 'Rua Mulde Alta, 4.200 - Mulde, Timbó/SC',
-    telefone: '(47) 3399-5310',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@hotelfazendamulde.com.br',
-    representanteEmail: EMAIL_RAFAEL,
+    representanteUsuario: USUARIO_RAFAEL,
     recorrenciaDias: 42,
     contatos: [
       {
         nome: 'André Pasold',
         cargo: 'Gerente',
-        telefone: '(47) 99196-2847',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'andre.pasold@hotelfazendamulde.com.br',
         principal: true,
       },
       {
         nome: 'Cristina Pasold',
         cargo: 'Sócia',
-        telefone: '(47) 98538-7126',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'cristina.pasold@hotelfazendamulde.com.br',
         principal: false,
       },
@@ -674,15 +669,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '27993094000101',
     cidade: 'Brusque',
     endereco: 'Rua Dr. Maruri, 410 - Centro, Brusque/SC',
-    telefone: '(47) 3351-8627',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@emporiodovalebrusque.com.br',
-    representanteEmail: EMAIL_RAFAEL,
+    representanteUsuario: USUARIO_RAFAEL,
     recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Aline Becker',
         cargo: 'Compradora',
-        telefone: '(47) 99811-4693',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'aline.becker@emporiodovalebrusque.com.br',
         principal: true,
       },
@@ -694,22 +689,22 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '48518477000190',
     cidade: 'Itajaí',
     endereco: 'Rua Hercílio Luz, 735 - Centro, Itajaí/SC',
-    telefone: '(47) 3344-7058',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@casadechasitajai.com.br',
-    representanteEmail: EMAIL_RAFAEL,
+    representanteUsuario: USUARIO_RAFAEL,
     recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Gustavo Pereira',
         cargo: 'Proprietário',
-        telefone: '(47) 99822-6150',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'gustavo.pereira@casadechasitajai.com.br',
         principal: true,
       },
       {
         nome: 'Camila Rocha',
         cargo: 'Gerente',
-        telefone: '(47) 98674-3928',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'camila.rocha@casadechasitajai.com.br',
         principal: false,
       },
@@ -721,16 +716,16 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '42792026000160',
     cidade: 'Itajaí',
     endereco: 'Rua Pedro Ferreira, 160 - Centro, Itajaí/SC',
-    telefone: '(47) 3348-7720',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@cafebeirario.com.br',
-    representanteEmail: EMAIL_RAFAEL,
+    representanteUsuario: USUARIO_RAFAEL,
     recorrenciaDias: 28,
     ativo: false,
     contatos: [
       {
         nome: 'Juliana Maes',
         cargo: 'Proprietária',
-        telefone: '(47) 98822-3561',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'juliana.maes@cafebeirario.com.br',
         principal: true,
       },
@@ -742,15 +737,15 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     cnpj: '32406429000170',
     cidade: 'Rio do Sul',
     endereco: 'Rua Quinze de Novembro, 1.150 - Centro, Rio do Sul/SC',
-    telefone: '(47) 3521-2087',
+    telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@merceariaaltovale.com.br',
-    representanteEmail: EMAIL_RAFAEL,
+    representanteUsuario: USUARIO_RAFAEL,
     recorrenciaDias: 28,
     contatos: [
       {
         nome: 'Débora Lenzi',
         cargo: 'Gerente de Compras',
-        telefone: '(47) 99844-7205',
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: 'debora.lenzi@merceariaaltovale.com.br',
         principal: true,
       },
@@ -762,13 +757,13 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
 const USUARIOS_DEMO = [
   {
     nome: 'Eduarda Fischer',
-    email: EMAIL_EDUARDA,
+    usuario: USUARIO_EDUARDA,
     role: 'REPRESENTANTE' as const,
     telefone: '(47) 99101-2030',
   },
   {
     nome: 'Rafael Schmitt',
-    email: EMAIL_RAFAEL,
+    usuario: USUARIO_RAFAEL,
     role: 'REPRESENTANTE' as const,
     telefone: '(47) 99202-3040',
   },
@@ -777,7 +772,7 @@ const USUARIOS_DEMO = [
 /** Conta compartilhada da gestão: o seed nunca grava a senha dela no `update`. */
 const CONTA_GESTAO = {
   nome: 'Gestão Chokolaten',
-  email: EMAIL_GESTAO,
+  usuario: USUARIO_GESTAO,
   role: 'GESTOR' as const,
   telefone: '(47) 3387-0000',
 };
@@ -792,8 +787,8 @@ const CLIENTES: readonly ClienteSeed[] = [...CLIENTES_ANCORA, ...CLIENTES_GERADO
 
 /**
  * CNPJs dos clientes da demonstração: o que `reiniciarDemonstracao` apaga e
- * recria. Todo cliente com outro CNPJ é real (cadastrado à mão ou pela nota)
- * e sobrevive ao reset.
+ * recria. Todo cliente com outro CNPJ é real (criado pela nota fiscal) e
+ * sobrevive ao reset.
  */
 export function cnpjsDaDemonstracao(): Set<string> {
   return new Set(CLIENTES.map((cliente) => cliente.cnpj));
@@ -834,7 +829,7 @@ export function clientesDaDemonstracao(): ClienteDoGerador[] {
     return {
       cnpj: cliente.cnpj,
       nomeFantasia: cliente.nomeFantasia,
-      representanteEmail: cliente.representanteEmail,
+      representanteUsuario: cliente.representanteUsuario,
       cidade: cliente.cidade,
       recorrenciaDias: cliente.recorrenciaDias ?? 14,
       agenda:
@@ -1075,26 +1070,26 @@ function arredondarParaCentena(valor: number): number {
 async function seedUsuarios(prisma: Banco): Promise<void> {
   const senhaHash = await bcrypt.hash(SENHA_DEMONSTRACAO, CUSTO_HASH);
 
-  for (const { nome, email, role, telefone } of USUARIOS_DEMO) {
+  for (const { nome, usuario, role, telefone } of USUARIOS_DEMO) {
     await prisma.user.upsert({
-      where: { email },
+      where: { usuario },
       update: { nome, senhaHash, role, telefone, ativo: true },
-      create: { nome, email, senhaHash, role, telefone },
+      create: { nome, usuario, senhaHash, role, telefone },
     });
   }
 
   // Conta real (dono e escritório): a senha de demonstração só no `create`, em
   // banco novo; no `update`, a senha que o escritório definiu fica intacta.
-  const { nome, email, role, telefone } = CONTA_GESTAO;
+  const { nome, usuario, role, telefone } = CONTA_GESTAO;
   await prisma.user.upsert({
-    where: { email },
+    where: { usuario },
     update: { nome, role, ativo: true },
-    create: { nome, email, senhaHash, role, telefone },
+    create: { nome, usuario, senhaHash, role, telefone },
   });
 
   // Conta pessoal do gestor: inativada, não apagada.
   await prisma.user.updateMany({
-    where: { email: EMAIL_GESTOR_ANTIGO },
+    where: { usuario: USUARIO_GESTOR_ANTIGO },
     data: { ativo: false },
   });
 }
@@ -1126,15 +1121,15 @@ async function seedCliente(
   // `agenda` é só da rota (não vai para o banco).
   const {
     contatos,
-    representanteEmail,
+    representanteUsuario,
     recorrenciaDias = 14,
     ativo = true,
     agenda: _agenda,
     erpId: erpIdDoGerado,
     ...cadastro
   } = cliente;
-  const representanteId = representantes.get(representanteEmail);
-  if (!representanteId) throw new Error(`Representante ${representanteEmail} não existe.`);
+  const representanteId = representantes.get(representanteUsuario);
+  if (!representanteId) throw new Error(`Representante ${representanteUsuario} não existe.`);
   const erpId = erpIdDoCliente({ erpId: erpIdDoGerado, nomeFantasia: cliente.nomeFantasia });
   const dadosCliente = {
     ...cadastro,
@@ -1396,102 +1391,8 @@ async function seedLembretes(
   }
 }
 
-/** Mensagens de estoque do seed por representante. */
-const MENSAGENS_DE_ESTOQUE_POR_REPRESENTANTE = 3;
-/** Dias úteis antes de `hoje` de cada mensagem (a mais recente primeiro); o 2º representante, um dia útil a mais. */
-const DIAS_UTEIS_ATRAS_DAS_MENSAGENS = [2, 8, 15] as const;
-const MILISSEGUNDOS_POR_MINUTO = 60_000;
-
-/** O dia útil `quantos` dias úteis antes de `dia`. */
-function diasUteisAntes(dia: DataCalendario, quantos: number): DataCalendario {
-  let data = dia;
-  for (let contados = 0; contados < quantos; ) {
-    data = somarDias(data, -1);
-    if (diaDaSemana(data) <= 5) contados += 1;
-  }
-  return data;
-}
-
-/**
- * Instante da `indice`-ésima mensagem do representante de posição
- * `posicaoDoRepresentante`: num dia útil das últimas 4 semanas (de 2 a 16
- * dias úteis antes de `hoje`), entre 9h e 15h de São Paulo; determinístico
- * por `hoje`.
- */
-function dataDaMensagem(hoje: DataCalendario, posicaoDoRepresentante: number, indice: number): Date {
-  const dia = diasUteisAntes(hoje, (DIAS_UTEIS_ATRAS_DAS_MENSAGENS[indice] as number) + posicaoDoRepresentante);
-  const minutos = 9 * 60 + ((indice * 137 + posicaoDoRepresentante * 71) % (6 * 60));
-  return new Date(inicioDoDia(dia).getTime() + minutos * MILISSEGUNDOS_POR_MINUTO);
-}
-
-/**
- * Mensagens de estoque para a aba "Mensagens geradas" e a taxa de
- * registro do painel: para cada representante, uma para cada um dos 3
- * clientes ativos com `erpId` de venda mais recente nas visitas geradas, em
- * dias úteis das últimas 4 semanas (`dataDaMensagem`). O texto é o da regra
- * real (`montarMensagemDeEstoque`), para o contato principal, com o nome do
- * representante e o evento sazonal vigente na data (`eventoVigente`, pela
- * transação), que também vai em `eventoSazonalId`. Não consulta o ERP: o
- * template não usa estoque. Idempotente: pula a mensagem que já existe para o
- * cliente na mesma `dataGeracao`.
- */
-async function seedMensagensDeEstoque(
-  prisma: Banco,
-  hoje: DataCalendario,
-  visitas: readonly VisitaGerada[],
-  gravados: Map<string, ClienteGravado>,
-  usuarios: readonly { id: string; nome: string; email: string }[],
-): Promise<void> {
-  const elegiveis = new Map(
-    CLIENTES.filter((cliente) => cliente.ativo !== false && erpIdDoCliente(cliente) !== null).map((cliente) => [
-      cliente.cnpj,
-      cliente,
-    ]),
-  );
-  const vendasRecentes = visitas
-    .filter((visita) => visita.resultado === 'VENDA' && elegiveis.has(visita.cnpj))
-    .sort((a, b) => b.dataHora.getTime() - a.dataHora.getTime());
-
-  for (const [posicao, email] of [EMAIL_EDUARDA, EMAIL_RAFAEL].entries()) {
-    const representante = usuarios.find((usuario) => usuario.email === email);
-    if (!representante) continue;
-    const cnpjs = [
-      ...new Set(vendasRecentes.filter((visita) => visita.representanteEmail === email).map((visita) => visita.cnpj)),
-    ].slice(0, MENSAGENS_DE_ESTOQUE_POR_REPRESENTANTE);
-
-    for (const [indice, cnpj] of cnpjs.entries()) {
-      const cliente = elegiveis.get(cnpj) as ClienteSeed;
-      const gravado = gravados.get(cnpj);
-      if (!gravado) continue;
-      const dataGeracao = dataDaMensagem(hoje, posicao, indice);
-      const existente = await prisma.stockMessage.findFirst({ where: { clientId: gravado.id, dataGeracao } });
-      if (existente) continue;
-
-      const evento = await eventoVigente(dataGeracao, prisma);
-      const principal = cliente.contatos.find((contato) => contato.principal) ?? cliente.contatos[0] ?? null;
-      const textoFinal = montarMensagemDeEstoque({
-        nomeContato: principal?.nome ?? null,
-        nomeFantasia: cliente.nomeFantasia,
-        nomeRepresentante: representante.nome,
-        evento: evento
-          ? { nome: nomeDoEventoNoTemplate(evento.nome), produtosSugeridos: evento.produtosSugeridos }
-          : null,
-      });
-      await prisma.stockMessage.create({
-        data: {
-          clientId: gravado.id,
-          userId: representante.id,
-          eventoSazonalId: evento?.id ?? null,
-          textoFinal,
-          dataGeracao,
-        },
-      });
-    }
-  }
-}
-
 type MetaSeed = {
-  representanteEmail: string;
+  representanteUsuario: string;
   metaVisitas: number;
   metaVendas: number;
   /** Período da meta: o mês (mensal) ou o da campanha. */
@@ -1514,21 +1415,21 @@ function metasDemo(
 ): MetaSeed[] {
   const doMes = periodoDaMeta('MENSAL', dataCalendario(hoje));
   const doSeguinte = periodoDaMeta('MENSAL', somarDias(doMes.fim, 1));
-  const media = (email: string): number => mediaMensalDeVendas(visitas, email, hoje);
+  const media = (usuario: string): number => mediaMensalDeVendas(visitas, usuario, hoje);
   const metas: MetaSeed[] = [doMes, doSeguinte].flatMap(({ inicio, fim }) =>
-    [EMAIL_EDUARDA, EMAIL_RAFAEL].map((representanteEmail) => ({
-      representanteEmail,
+    [USUARIO_EDUARDA, USUARIO_RAFAEL].map((representanteUsuario) => ({
+      representanteUsuario,
       metaVisitas: diasUteisEntre(inicio, fim) * VISITAS_POR_DIA_UTIL,
-      metaVendas: arredondarParaCentena(media(representanteEmail) * FATOR_DA_META_DE_VENDAS),
+      metaVendas: arredondarParaCentena(media(representanteUsuario) * FATOR_DA_META_DE_VENDAS),
       inicio,
       fim,
     })),
   );
   if (campanhaAtual) {
     metas.push({
-      representanteEmail: EMAIL_EDUARDA,
+      representanteUsuario: USUARIO_EDUARDA,
       metaVisitas: diasUteisEntre(campanhaAtual.inicio, campanhaAtual.fim) * 2,
-      metaVendas: arredondarParaCentena(media(EMAIL_EDUARDA) * 0.35),
+      metaVendas: arredondarParaCentena(media(USUARIO_EDUARDA) * 0.35),
       inicio: campanhaAtual.inicio,
       fim: campanhaAtual.fim,
       campanha: campanhaAtual,
@@ -1539,8 +1440,8 @@ function metasDemo(
 
 /** Só cria a meta que ainda não existe (mesmo representante, período, início, fim e campanha). */
 async function seedMetas(prisma: Banco, metas: readonly MetaSeed[], representantes: Map<string, string>): Promise<void> {
-  for (const { representanteEmail, metaVisitas, metaVendas, inicio, fim, campanha } of metas) {
-    const representanteId = representantes.get(representanteEmail) as string;
+  for (const { representanteUsuario, metaVisitas, metaVendas, inicio, fim, campanha } of metas) {
+    const representanteId = representantes.get(representanteUsuario) as string;
     const dados = {
       representanteId,
       periodo: campanha ? ('CAMPANHA' as const) : ('MENSAL' as const),
@@ -1564,8 +1465,7 @@ async function seedMetas(prisma: Banco, metas: readonly MetaSeed[], representant
  * gestor, inativa) e cria o que falta: eventos sazonais, produtos de
  * demonstração no catálogo importado (`ErpProduct`, upsert pelo código),
  * campanhas pelo nome, visitas geradas em cliente ainda sem visita, próxima
- * visita em cliente sem uma, lembretes, mensagens de estoque e metas que não
- * existem. Não apaga nada.
+ * visita em cliente sem uma, lembretes e metas que não existem. Não apaga nada.
  */
 export async function semear(prisma: Banco, hoje: Date): Promise<void> {
   const dia = dataCalendario(hoje);
@@ -1573,9 +1473,9 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
 
   await seedUsuarios(prisma);
   const usuarios = await prisma.user.findMany({
-    where: { email: { in: [EMAIL_EDUARDA, EMAIL_RAFAEL] } },
+    where: { usuario: { in: [USUARIO_EDUARDA, USUARIO_RAFAEL] } },
   });
-  const representantes = new Map(usuarios.map((usuario) => [usuario.email, usuario.id]));
+  const representantes = new Map(usuarios.map((usuario) => [usuario.usuario, usuario.id]));
   for (const cliente of CLIENTES) {
     await seedCliente(prisma, cliente, representantes, hoje);
   }
@@ -1587,7 +1487,6 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
   await seedVisitas(prisma, visitas, gravados, campanhaAtual);
   await seedProximasVisitas(prisma, dia, campanhas, visitas);
   await seedLembretes(prisma, hoje, visitas, gravados, campanhaAtual);
-  await seedMensagensDeEstoque(prisma, dia, visitas, gravados, usuarios);
   await seedMetas(prisma, metasDemo(hoje, visitas, campanhaAtual), representantes);
 }
 
@@ -1625,11 +1524,11 @@ async function religarNotasOrfas(tx: Banco): Promise<void> {
  * tela de login), numa transação só: se algo falhar no meio (inclusive no
  * `semear`), nada é apagado. Só os clientes da demonstração (CNPJ em
  * `cnpjsDaDemonstracao()`) são apagados e recriados, com o que é deles,
- * inclusive o que o app gravou neles; o cliente real (outro CNPJ, cadastrado
- * à mão ou pela nota fiscal) fica com contatos, visitas e itens, lembretes,
- * mensagens de estoque, mudanças de recorrência e notas vinculadas. Apaga,
+ * inclusive o que o app gravou neles; o cliente real (outro CNPJ, criado
+ * pela nota fiscal) fica com contatos, visitas e itens, lembretes,
+ * mudanças de recorrência e notas vinculadas. Apaga,
  * nesta ordem (quem depende antes de quem é referenciado): metas (todas),
- * lembretes, itens de pedido, visitas, mensagens de estoque, mudanças de
+ * lembretes, itens de pedido, visitas, mudanças de
  * recorrência e contatos dos clientes da demonstração, esses clientes e as
  * campanhas (todas: a visita e a próxima visita do cliente real só perdem a
  * campanha, pelo `SetNull`). Recria tudo com `semear`, com datas relativas a
@@ -1672,7 +1571,6 @@ export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): P
       });
       await tx.visitItem.deleteMany({ where: { visit: doCliente } });
       await tx.visit.deleteMany({ where: doCliente });
-      await tx.stockMessage.deleteMany({ where: doCliente });
       await tx.visitScheduleChange.deleteMany({ where: doCliente });
       await tx.contact.deleteMany({ where: doCliente });
       await tx.client.deleteMany({ where: { id: { in: idsDemo } } });

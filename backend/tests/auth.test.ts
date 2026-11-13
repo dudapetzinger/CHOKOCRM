@@ -14,14 +14,14 @@ const SENHA_PADRAO = 'chokocrm123';
 
 const REPRESENTANTE = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.teste@chokolaten.com.br',
+  usuario: 'eduarda.teste',
   telefone: '(47) 99911-2233',
   role: 'REPRESENTANTE' as const,
 };
 
 const GESTOR = {
   nome: 'Ricardo Menezes',
-  email: 'gestor.teste@chokolaten.com.br',
+  usuario: 'gestor.teste',
   role: 'GESTOR' as const,
 };
 
@@ -60,13 +60,13 @@ describe('POST /auth/login', () => {
   it('login com credenciais corretas devolve token decodificável e usuário sem senhaHash', async () => {
     const res = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
+      .send({ usuario: REPRESENTANTE.usuario, senha: SENHA_PADRAO });
 
     expect(res.status).toBe(200);
     expect(res.body.user).toEqual({
       id: expect.any(String),
       nome: REPRESENTANTE.nome,
-      email: REPRESENTANTE.email,
+      usuario: REPRESENTANTE.usuario,
       telefone: '(47) 99911-2233',
       role: REPRESENTANTE.role,
       ativo: true,
@@ -80,38 +80,38 @@ describe('POST /auth/login', () => {
   it('senha errada responde 401 com mensagem genérica', async () => {
     const res = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: 'senha-errada' });
+      .send({ usuario: REPRESENTANTE.usuario, senha: 'senha-errada' });
 
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('UNAUTHORIZED');
-    expect(res.body.error.message).toBe('E-mail ou senha inválidos');
+    expect(res.body.error.message).toBe('Usuário ou senha inválidos');
   });
 
-  it('e-mail inexistente responde 401 com a mesma mensagem genérica', async () => {
+  it('usuário inexistente responde 401 com a mesma mensagem genérica', async () => {
     const res = await request(app)
       .post('/auth/login')
-      .send({ email: 'ninguem@chokolaten.com.br', senha: SENHA_PADRAO });
+      .send({ usuario: 'ninguem', senha: SENHA_PADRAO });
 
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('UNAUTHORIZED');
-    expect(res.body.error.message).toBe('E-mail ou senha inválidos');
+    expect(res.body.error.message).toBe('Usuário ou senha inválidos');
   });
 
-  it('e-mail com maiúsculas entra (e-mails são comparados em minúsculas)', async () => {
+  it('usuário com maiúsculas entra (o usuário é comparado em minúsculas)', async () => {
     const res = await request(app)
       .post('/auth/login')
-      .send({ email: 'Eduarda.Teste@Chokolaten.com.br', senha: SENHA_PADRAO });
+      .send({ usuario: 'Eduarda.Teste', senha: SENHA_PADRAO });
 
     expect(res.status).toBe(200);
-    expect(res.body.user.email).toBe(REPRESENTANTE.email);
+    expect(res.body.user.usuario).toBe(REPRESENTANTE.usuario);
   });
 
   it('conta inativa com a senha certa responde 403 "Conta inativa. Fale com o gestor."', async () => {
-    await prisma.user.update({ where: { email: REPRESENTANTE.email }, data: { ativo: false } });
+    await prisma.user.update({ where: { usuario: REPRESENTANTE.usuario }, data: { ativo: false } });
 
     const res = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
+      .send({ usuario: REPRESENTANTE.usuario, senha: SENHA_PADRAO });
 
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
@@ -120,17 +120,17 @@ describe('POST /auth/login', () => {
   });
 
   it('conta inativa com a senha errada responde o 401 genérico (não revela a inativação)', async () => {
-    await prisma.user.update({ where: { email: REPRESENTANTE.email }, data: { ativo: false } });
+    await prisma.user.update({ where: { usuario: REPRESENTANTE.usuario }, data: { ativo: false } });
 
     const res = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: 'senha-errada' });
+      .send({ usuario: REPRESENTANTE.usuario, senha: 'senha-errada' });
 
     expect(res.status).toBe(401);
-    expect(res.body.error.message).toBe('E-mail ou senha inválidos');
+    expect(res.body.error.message).toBe('Usuário ou senha inválidos');
   });
 
-  it('body sem email responde 400 VALIDATION_ERROR', async () => {
+  it('body sem usuario responde 400 VALIDATION_ERROR', async () => {
     const res = await request(app).post('/auth/login').send({ senha: SENHA_PADRAO });
 
     expect(res.status).toBe(400);
@@ -156,7 +156,7 @@ describe('GET /auth/me (exemplo de rota protegida por authJwt)', () => {
   it('com token válido responde 200 com o usuário lido do banco (com ativo e telefone)', async () => {
     const login = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
+      .send({ usuario: REPRESENTANTE.usuario, senha: SENHA_PADRAO });
 
     const res = await request(app).get('/auth/me').set('Authorization', `Bearer ${login.body.token}`);
 
@@ -164,7 +164,7 @@ describe('GET /auth/me (exemplo de rota protegida por authJwt)', () => {
     expect(res.body).toEqual({
       id: login.body.user.id,
       nome: REPRESENTANTE.nome,
-      email: REPRESENTANTE.email,
+      usuario: REPRESENTANTE.usuario,
       telefone: REPRESENTANTE.telefone,
       role: REPRESENTANTE.role,
       ativo: true,
@@ -174,7 +174,7 @@ describe('GET /auth/me (exemplo de rota protegida por authJwt)', () => {
   it('reflete o que mudou no banco depois do login', async () => {
     const login = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
+      .send({ usuario: REPRESENTANTE.usuario, senha: SENHA_PADRAO });
     await prisma.user.update({ where: { id: login.body.user.id }, data: { nome: 'Eduarda F.', telefone: null } });
 
     const res = await request(app).get('/auth/me').set('Authorization', `Bearer ${login.body.token}`);
@@ -188,7 +188,7 @@ describe("requireRole('GESTOR') em rota protegida de teste", () => {
   it('usuário com papel diferente do exigido responde 403', async () => {
     const login = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
+      .send({ usuario: REPRESENTANTE.usuario, senha: SENHA_PADRAO });
 
     const testApp = buildRotaDeTesteComRole();
     const res = await request(testApp)
@@ -200,7 +200,7 @@ describe("requireRole('GESTOR') em rota protegida de teste", () => {
   });
 
   it('usuário com o papel exigido responde 200', async () => {
-    const login = await request(app).post('/auth/login').send({ email: GESTOR.email, senha: SENHA_PADRAO });
+    const login = await request(app).post('/auth/login').send({ usuario: GESTOR.usuario, senha: SENHA_PADRAO });
 
     const testApp = buildRotaDeTesteComRole();
     const res = await request(testApp)
@@ -216,7 +216,7 @@ describe('PUT /auth/password', () => {
   async function tokenDaRepresentante(): Promise<string> {
     const login = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
+      .send({ usuario: REPRESENTANTE.usuario, senha: SENHA_PADRAO });
     return login.body.token;
   }
 
@@ -242,7 +242,7 @@ describe('PUT /auth/password', () => {
 
     const login = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
+      .send({ usuario: REPRESENTANTE.usuario, senha: SENHA_PADRAO });
     expect(login.status).toBe(200);
   });
 
@@ -268,12 +268,12 @@ describe('PUT /auth/password', () => {
 
     const comNova = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: 'nova-senha' });
+      .send({ usuario: REPRESENTANTE.usuario, senha: 'nova-senha' });
     expect(comNova.status).toBe(200);
 
     const comAntiga = await request(app)
       .post('/auth/login')
-      .send({ email: REPRESENTANTE.email, senha: SENHA_PADRAO });
+      .send({ usuario: REPRESENTANTE.usuario, senha: SENHA_PADRAO });
     expect(comAntiga.status).toBe(401);
   });
 });

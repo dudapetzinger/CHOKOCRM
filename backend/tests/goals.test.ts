@@ -7,20 +7,20 @@ import { truncateAllTables } from './helpers/db';
 const SENHA_PADRAO = 'chokocrm123';
 const ID_INEXISTENTE = '00000000-0000-0000-0000-000000000000';
 
-const GESTOR = { nome: 'Gestão Chokolaten', email: 'gestao.goals-teste@chokolaten.com.br', role: 'GESTOR' as const };
+const GESTOR = { nome: 'Gestão Chokolaten', usuario: 'gestao.goals-teste', role: 'GESTOR' as const };
 const EDUARDA = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.goals-teste@chokolaten.com.br',
+  usuario: 'eduarda.goals-teste',
   role: 'REPRESENTANTE' as const,
 };
 const RAFAEL = {
   nome: 'Rafael Schmitt',
-  email: 'rafael.goals-teste@chokolaten.com.br',
+  usuario: 'rafael.goals-teste',
   role: 'REPRESENTANTE' as const,
 };
 const ANA_INATIVA = {
   nome: 'Ana Souza',
-  email: 'ana.goals-teste@chokolaten.com.br',
+  usuario: 'ana.goals-teste',
   role: 'REPRESENTANTE' as const,
   ativo: false,
 };
@@ -34,8 +34,8 @@ let anaId: string;
 let clienteDaEduardaId: string;
 let clienteDoRafaelId: string;
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -153,8 +153,8 @@ beforeEach(async () => {
   rafaelId = (await prisma.user.create({ data: { ...RAFAEL, senhaHash } })).id;
   anaId = (await prisma.user.create({ data: { ...ANA_INATIVA, senhaHash } })).id;
 
-  tokenGestor = await logar(GESTOR.email);
-  tokenEduarda = await logar(EDUARDA.email);
+  tokenGestor = await logar(GESTOR.usuario);
+  tokenEduarda = await logar(EDUARDA.usuario);
 
   clienteDaEduardaId = await criarCliente(eduardaId, 'Emporio Pomerode');
   clienteDoRafaelId = await criarCliente(rafaelId, 'Cafe Blumenau');

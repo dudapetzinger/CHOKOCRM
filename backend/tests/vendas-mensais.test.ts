@@ -17,19 +17,19 @@ let representanteAId: string;
 let representanteBId: string;
 let representanteSemErpId: string;
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
 async function criarUsuario(
   nome: string,
-  email: string,
+  usuario: string,
   role: 'REPRESENTANTE' | 'GESTOR',
   senhaHash: string,
 ): Promise<string> {
-  const usuario = await prisma.user.create({ data: { nome, email, role, senhaHash } });
-  return usuario.id;
+  const criado = await prisma.user.create({ data: { nome, usuario, role, senhaHash } });
+  return criado.id;
 }
 
 async function criarCliente(
@@ -73,10 +73,10 @@ beforeEach(async () => {
   await truncateAllTables();
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
-  representanteAId = await criarUsuario('Eduarda Fischer', 'eduarda.vendas@chokolaten.com.br', 'REPRESENTANTE', senhaHash);
-  representanteBId = await criarUsuario('Bruno Alencar', 'bruno.vendas@chokolaten.com.br', 'REPRESENTANTE', senhaHash);
-  representanteSemErpId = await criarUsuario('Carla Dias', 'carla.vendas@chokolaten.com.br', 'REPRESENTANTE', senhaHash);
-  await criarUsuario('Ricardo Menezes', 'ricardo.vendas@chokolaten.com.br', 'GESTOR', senhaHash);
+  representanteAId = await criarUsuario('Eduarda Fischer', 'eduarda.vendas', 'REPRESENTANTE', senhaHash);
+  representanteBId = await criarUsuario('Bruno Alencar', 'bruno.vendas', 'REPRESENTANTE', senhaHash);
+  representanteSemErpId = await criarUsuario('Carla Dias', 'carla.vendas', 'REPRESENTANTE', senhaHash);
+  await criarUsuario('Ricardo Menezes', 'ricardo.vendas', 'GESTOR', senhaHash);
 
   // Carteira A: dois ativos com erpId e um inativo (fora da consulta); B: um ativo; Carla: só cliente sem erpId.
   await criarCliente('11222333000181', representanteAId, 'ERP-1001');
@@ -85,8 +85,8 @@ beforeEach(async () => {
   await criarCliente('11222333000424', representanteBId, 'ERP-1003');
   await criarCliente('11222333000505', representanteSemErpId, null);
 
-  tokenRepresentante = await logar('eduarda.vendas@chokolaten.com.br');
-  tokenGestor = await logar('ricardo.vendas@chokolaten.com.br');
+  tokenRepresentante = await logar('eduarda.vendas');
+  tokenGestor = await logar('ricardo.vendas');
 });
 
 afterEach(() => {

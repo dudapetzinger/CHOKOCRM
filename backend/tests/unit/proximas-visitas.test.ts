@@ -20,7 +20,7 @@ import { somarDias, type DataCalendario } from '../../src/services/classificacao
  */
 
 const CLIENTES = clientesDaDemonstracao();
-const REPRESENTANTES = [...new Set(CLIENTES.map((cliente) => cliente.representanteEmail))];
+const REPRESENTANTES = [...new Set(CLIENTES.map((cliente) => cliente.representanteUsuario))];
 const POR_CNPJ = new Map(CLIENTES.map((cliente) => [cliente.cnpj, cliente]));
 const POR_NOME = new Map(CLIENTES.map((cliente) => [cliente.nomeFantasia, cliente]));
 /** Casos de propósito (`PROPOSITOS` em `demonstracao.ts`) que o seed nunca marca na janela. */
@@ -76,7 +76,7 @@ describe.each([
     for (const representante of REPRESENTANTES) {
       for (const dia of dias) {
         const doDia = [...marcadas].filter(
-          ([cnpj, data]) => data === dia && POR_CNPJ.get(cnpj)?.representanteEmail === representante,
+          ([cnpj, data]) => data === dia && POR_CNPJ.get(cnpj)?.representanteUsuario === representante,
         );
         expect(doDia.length).toBeGreaterThanOrEqual(2);
       }
@@ -122,7 +122,7 @@ describe.each([
     for (const representante of REPRESENTANTES) {
       const adiadosDeAmanha = daJanela.filter(([cnpj, data]) => {
         const cliente = POR_CNPJ.get(cnpj) as ClienteDoGerador;
-        return cliente.representanteEmail === representante && natural(cliente) === amanha && data !== amanha;
+        return cliente.representanteUsuario === representante && natural(cliente) === amanha && data !== amanha;
       });
       expect(adiadosDeAmanha.length).toBeLessThanOrEqual(3);
     }
@@ -144,7 +144,7 @@ describe.each(['2026-11-12', '2026-11-14', '2027-03-15'])('visitas marcadas com 
     for (const representante of REPRESENTANTES) {
       for (const dia of diasUteisDaJanela(hoje)) {
         const doDia = [...marcadas].filter(
-          ([cnpj, data]) => data === dia && POR_CNPJ.get(cnpj)?.representanteEmail === representante,
+          ([cnpj, data]) => data === dia && POR_CNPJ.get(cnpj)?.representanteUsuario === representante,
         );
         expect(doDia.length).toBeGreaterThanOrEqual(2);
       }
@@ -160,7 +160,7 @@ describe('carteiras curtas: as regras de completar', () => {
   const cliente = (nomeFantasia: string, agenda: ClienteDoGerador['agenda'], recorrenciaDias: number) => ({
     cnpj: `cnpj-${nomeFantasia}`,
     nomeFantasia,
-    representanteEmail: 'rep@exemplo.com.br',
+    representanteUsuario: 'rep@exemplo.com.br',
     cidade: 'Cidade',
     recorrenciaDias,
     agenda,

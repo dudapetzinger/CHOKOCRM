@@ -8,26 +8,26 @@ import { truncateAllTables } from './helpers/db';
 const SENHA_PADRAO = 'chokocrm123';
 const ID_INEXISTENTE = '00000000-0000-0000-0000-000000000000';
 
-const GESTOR = { nome: 'Gestão Chokolaten', email: 'gestao.campaigns-teste@chokolaten.com.br', role: 'GESTOR' as const };
+const GESTOR = { nome: 'Gestão Chokolaten', usuario: 'gestao.campaigns-teste', role: 'GESTOR' as const };
 const EDUARDA = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.campaigns-teste@chokolaten.com.br',
+  usuario: 'eduarda.campaigns-teste',
   role: 'REPRESENTANTE' as const,
 };
 const RAFAEL = {
   nome: 'Rafael Schmitt',
-  email: 'rafael.campaigns-teste@chokolaten.com.br',
+  usuario: 'rafael.campaigns-teste',
   role: 'REPRESENTANTE' as const,
 };
 const ANA_INATIVA = {
   nome: 'Ana Souza',
-  email: 'ana.campaigns-teste@chokolaten.com.br',
+  usuario: 'ana.campaigns-teste',
   role: 'REPRESENTANTE' as const,
   ativo: false,
 };
 const BRUNO_INATIVO = {
   nome: 'Bruno Alencar',
-  email: 'bruno.campaigns-teste@chokolaten.com.br',
+  usuario: 'bruno.campaigns-teste',
   role: 'REPRESENTANTE' as const,
   ativo: false,
 };
@@ -45,8 +45,8 @@ function daquiA(dias: number): string {
   return somarDias(dataCalendario(new Date()), dias);
 }
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -137,8 +137,8 @@ beforeEach(async () => {
   anaId = (await prisma.user.create({ data: { ...ANA_INATIVA, senhaHash } })).id;
   await prisma.user.create({ data: { ...BRUNO_INATIVO, senhaHash } });
 
-  tokenGestor = await logar(GESTOR.email);
-  tokenEduarda = await logar(EDUARDA.email);
+  tokenGestor = await logar(GESTOR.usuario);
+  tokenEduarda = await logar(EDUARDA.usuario);
 
   clienteDaEduardaId = await criarCliente(eduardaId, 'Emporio Pomerode');
   clienteDoRafaelId = await criarCliente(rafaelId, 'Cafe Blumenau', 'Blumenau');

@@ -8,7 +8,7 @@ import { prisma } from '../src/lib/prisma';
 import { erpProvider } from '../src/providers/erp';
 import { HibridoErpProvider } from '../src/providers/erp/HibridoErpProvider';
 import { extrairTextoDoPdf } from '../src/services/importacao-nf/pdf-texto';
-import { CLIENTES_ANCORA, EMAIL_GESTAO, reiniciarDemonstracao, SENHA_DEMONSTRACAO } from '../src/seed/demonstracao';
+import { CLIENTES_ANCORA, USUARIO_GESTAO, reiniciarDemonstracao, SENHA_DEMONSTRACAO } from '../src/seed/demonstracao';
 import { truncateAllTables } from './helpers/db';
 
 /**
@@ -46,7 +46,7 @@ describe('seed de demonstração com o provedor híbrido', () => {
 
   it('cliente do seed sem nota responde OK com estoque (fonte simulada)', async () => {
     await reiniciarDemonstracao(prisma, HOJE);
-    const login = await request(app).post('/auth/login').send({ email: EMAIL_GESTAO, senha: SENHA_DEMONSTRACAO });
+    const login = await request(app).post('/auth/login').send({ usuario: USUARIO_GESTAO, senha: SENHA_DEMONSTRACAO });
     const token = login.body.token as string;
     const cliente = await prisma.client.findFirstOrThrow({ where: { erpId: { not: null } } });
 
@@ -60,7 +60,7 @@ describe('seed de demonstração com o provedor híbrido', () => {
 
   it('GET /erp/produtos lista o catálogo gravado em ErpProduct', async () => {
     await reiniciarDemonstracao(prisma, HOJE);
-    const login = await request(app).post('/auth/login').send({ email: EMAIL_GESTAO, senha: SENHA_DEMONSTRACAO });
+    const login = await request(app).post('/auth/login').send({ usuario: USUARIO_GESTAO, senha: SENHA_DEMONSTRACAO });
     const token = login.body.token as string;
 
     const gravados = await prisma.erpProduct.count();
@@ -73,7 +73,7 @@ describe('seed de demonstração com o provedor híbrido', () => {
 
   describe('notas importadas depois de recriar a demonstração', () => {
     async function tokenDaGestao(): Promise<string> {
-      const login = await request(app).post('/auth/login').send({ email: EMAIL_GESTAO, senha: SENHA_DEMONSTRACAO });
+      const login = await request(app).post('/auth/login').send({ usuario: USUARIO_GESTAO, senha: SENHA_DEMONSTRACAO });
       return login.body.token as string;
     }
 
@@ -107,7 +107,7 @@ describe('seed de demonstração com o provedor híbrido', () => {
       const cliente = await prisma.client.findUniqueOrThrow({ where: { cnpj: ancora.cnpj } });
       const importacao = await prisma.erpImport.create({
         data: {
-          userId: (await prisma.user.findFirstOrThrow({ where: { email: EMAIL_GESTAO } })).id,
+          userId: (await prisma.user.findFirstOrThrow({ where: { usuario: USUARIO_GESTAO } })).id,
           nomeArquivo: 'notas.pdf',
           notasImportadas: 1,
           notasIgnoradas: 0,

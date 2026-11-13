@@ -45,8 +45,8 @@ const ITENS_PADRAO: ItemDeTeste[] = [
   { codigo: '2002', nome: 'Barra 70% cacau', quantidade: 6, preco: 9 },
 ];
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -155,11 +155,11 @@ beforeEach(async () => {
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
   const gestor = await prisma.user.create({
-    data: { nome: 'Ricardo Menezes', email: 'ricardo.importado@chokolaten.com.br', role: 'GESTOR', senhaHash },
+    data: { nome: 'Ricardo Menezes', usuario: 'ricardo.importado', role: 'GESTOR', senhaHash },
   });
   gestorId = gestor.id;
   const representante = await prisma.user.create({
-    data: { nome: 'Eduarda Fischer', email: 'eduarda.importado@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    data: { nome: 'Eduarda Fischer', usuario: 'eduarda.importado', role: 'REPRESENTANTE', senhaHash },
   });
   representanteId = representante.id;
 
@@ -176,8 +176,8 @@ beforeEach(async () => {
   });
   importId = importacao.id;
 
-  tokenGestor = await logar('ricardo.importado@chokolaten.com.br');
-  tokenRep = await logar('eduarda.importado@chokolaten.com.br');
+  tokenGestor = await logar('ricardo.importado');
+  tokenRep = await logar('eduarda.importado');
 });
 
 afterAll(async () => {

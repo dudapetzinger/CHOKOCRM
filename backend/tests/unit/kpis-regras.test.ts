@@ -71,21 +71,17 @@ describe('contarVisitas / mediaDeVisitasPorCliente', () => {
 });
 
 describe('taxaDeRegistro', () => {
-  it('cliente com visita, cliente só com mensagem e cliente com os dois (conta uma vez): 3 de 4 → 75', () => {
-    const resultado = taxaDeRegistro(
-      [...visitas('VENDA', 1, 'c1'), ...visitas('SEM_VENDA', 2, 'c3')],
-      [{ clientId: 'c2' }, { clientId: 'c3' }],
-      ids(4),
-    );
+  it('cliente com visita conta, cliente sem visita não conta, e vários registros do mesmo cliente contam uma vez: 2 de 4 → 50', () => {
+    const resultado = taxaDeRegistro([...visitas('VENDA', 2, 'c1'), ...visitas('SEM_VENDA', 1, 'c3')], ids(4));
 
-    expect(resultado).toEqual({ numerador: 3, denominador: 4, percentual: 75 });
+    expect(resultado).toEqual({ numerador: 2, denominador: 4, percentual: 50 });
   });
 
-  it('visita/mensagem de clientId fora da lista de ativos não entra; lista vazia → { 0, 0, null }', () => {
-    const resultado = taxaDeRegistro(visitas('VENDA', 1, 'fora'), [{ clientId: 'fora2' }], ['c1', 'c2']);
+  it('visita de clientId fora da lista de ativos não entra; lista vazia → { 0, 0, null }', () => {
+    const resultado = taxaDeRegistro(visitas('VENDA', 1, 'fora'), ['c1', 'c2']);
 
     expect(resultado).toEqual({ numerador: 0, denominador: 2, percentual: 0 });
-    expect(taxaDeRegistro(visitas('VENDA', 2, 'c1'), [{ clientId: 'c1' }], [])).toEqual({
+    expect(taxaDeRegistro(visitas('VENDA', 2, 'c1'), [])).toEqual({
       numerador: 0,
       denominador: 0,
       percentual: null,
@@ -94,10 +90,10 @@ describe('taxaDeRegistro', () => {
 
   it('7 de 9 → 78; 1 de 8 → 13 (arredonda .5 para cima)', () => {
     const lista9 = ids(9);
-    const com7 = lista9.slice(0, 7).map((clientId) => ({ clientId }));
+    const com7 = lista9.slice(0, 7).flatMap((clientId) => visitas('VENDA', 1, clientId));
 
-    expect(taxaDeRegistro([], com7, lista9).percentual).toBe(78);
-    expect(taxaDeRegistro([], [{ clientId: 'c1' }], ids(8)).percentual).toBe(13);
+    expect(taxaDeRegistro(com7, lista9).percentual).toBe(78);
+    expect(taxaDeRegistro(visitas('VENDA', 1, 'c1'), ids(8)).percentual).toBe(13);
   });
 });
 

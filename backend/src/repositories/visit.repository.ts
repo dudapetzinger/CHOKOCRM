@@ -104,10 +104,14 @@ export async function findById(id: string): Promise<VisitComCarteira | null> {
   });
 }
 
-export async function updateDescricao(id: string, descricao: string): Promise<VisitComRelacoes> {
+/** Grava só os campos informados e marca a edição. */
+export async function atualizar(
+  id: string,
+  campos: { descricao?: string; resultado?: ResultadoVisita },
+): Promise<VisitComRelacoes> {
   return prisma.visit.update({
     where: { id },
-    data: { descricao, editadoEm: agora() },
+    data: { ...campos, editadoEm: agora() },
     include: INCLUDE_RELACOES,
   });
 }

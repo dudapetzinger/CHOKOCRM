@@ -43,8 +43,8 @@ enum EventoSazonal {
 model User {
   id               String                @id @default(uuid())
   nome             String
-  /// Sempre em minúsculas (gravado e comparado assim).
-  email            String                @unique
+  /// Nome de acesso da conta, de 3 a 30 caracteres: letras minúsculas, números, ponto, hífen e sublinhado.
+  usuario          String                @unique
   senhaHash        String                @map("senha_hash")
   role             Role
   ativo            Boolean               @default(true)
@@ -52,7 +52,6 @@ model User {
   criadoEm         DateTime              @default(now()) @map("criado_em")
   visits           Visit[]
   scheduleChanges  VisitScheduleChange[]
-  stockMessages    StockMessage[]
   clients          Client[]
   metas            Goal[]
   lembretesCriados Reminder[]
@@ -88,7 +87,6 @@ model Client {
   contacts          Contact[]
   visits            Visit[]
   scheduleChanges   VisitScheduleChange[]
-  stockMessages     StockMessage[]
   lembretes         Reminder[]
   erpSales          ErpSale[]
 
@@ -194,20 +192,6 @@ model VisitScheduleChange {
   @@map("visit_schedule_changes")
 }
 
-model StockMessage {
-  id              String         @id @default(uuid())
-  clientId        String         @map("client_id")
-  client          Client         @relation(fields: [clientId], references: [id])
-  userId          String         @map("user_id")
-  user            User           @relation(fields: [userId], references: [id])
-  eventoSazonalId String?        @map("evento_sazonal")
-  eventoSazonal   SeasonalEvent? @relation(fields: [eventoSazonalId], references: [id])
-  textoFinal      String         @map("texto_final")
-  dataGeracao     DateTime       @map("data_geracao")
-
-  @@map("stock_messages")
-}
-
 model SeasonalEvent {
   id                String         @id @default(uuid())
   nome              String         @unique
@@ -215,7 +199,6 @@ model SeasonalEvent {
   dataInicio        DateTime       @map("data_inicio") @db.Date
   dataFim           DateTime       @map("data_fim") @db.Date
   produtosSugeridos String[]       @map("produtos_sugeridos")
-  stockMessages     StockMessage[]
 
   @@map("seasonal_events")
 }

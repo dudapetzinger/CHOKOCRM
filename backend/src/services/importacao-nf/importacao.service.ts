@@ -5,9 +5,8 @@
  * (`vinculo.regras.ts`) e grava tudo numa transação por arquivo. Também cuida
  * das pendências e do vínculo/desvínculo manual feitos pelo gestor, e decide o
  * vínculo das notas ligadas ao cliente criado pela nota fiscal
- * (`decidirVinculoDaNotaLigada`, usado por `cliente-pela-nota.service.ts`) ou
- * cadastrado pelo representante (`adotarNotasSemCliente`, usado por
- * `client.service.ts`). A leitura (`lerPdf`) só mostra o que o PDF traz, sem
+ * (`decidirVinculoDaNotaLigada` e `adotarNotasSemCliente`, usados por
+ * `cliente-pela-nota.service.ts`). A leitura (`lerPdf`) só mostra o que o PDF traz, sem
  * gravar nada, para o gestor conferir antes de importar.
  */
 import type { Prisma, ResultadoVisita, VinculoNota } from '@prisma/client';

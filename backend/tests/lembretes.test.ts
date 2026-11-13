@@ -16,15 +16,15 @@ import { truncateAllTables } from './helpers/db';
 const SENHA_PADRAO = 'chokocrm123';
 const ID_INEXISTENTE = '00000000-0000-0000-0000-000000000000';
 
-const GESTOR = { nome: 'Gestão Chokolaten', email: 'gestao.lembretes-teste@chokolaten.com.br', role: 'GESTOR' as const };
+const GESTOR = { nome: 'Gestão Chokolaten', usuario: 'gestao.lembretes-teste', role: 'GESTOR' as const };
 const EDUARDA = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.lembretes-teste@chokolaten.com.br',
+  usuario: 'eduarda.lembretes-teste',
   role: 'REPRESENTANTE' as const,
 };
 const RAFAEL = {
   nome: 'Rafael Schmitt',
-  email: 'rafael.lembretes-teste@chokolaten.com.br',
+  usuario: 'rafael.lembretes-teste',
   role: 'REPRESENTANTE' as const,
 };
 
@@ -36,8 +36,8 @@ let rafaelId: string;
 let clienteId: string;
 let clienteDoRafaelId: string;
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -111,9 +111,9 @@ beforeEach(async () => {
   eduardaId = (await prisma.user.create({ data: { ...EDUARDA, senhaHash } })).id;
   rafaelId = (await prisma.user.create({ data: { ...RAFAEL, senhaHash } })).id;
 
-  tokenGestor = await logar(GESTOR.email);
-  tokenEduarda = await logar(EDUARDA.email);
-  tokenRafael = await logar(RAFAEL.email);
+  tokenGestor = await logar(GESTOR.usuario);
+  tokenEduarda = await logar(EDUARDA.usuario);
+  tokenRafael = await logar(RAFAEL.usuario);
 
   clienteId = await criarCliente(eduardaId, 'Emporio Pomerode');
   clienteDoRafaelId = await criarCliente(rafaelId, 'Cafe Blumenau');

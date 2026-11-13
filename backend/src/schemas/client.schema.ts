@@ -3,15 +3,11 @@ import { CORES } from '../services/classificacao.service';
 import { proximaVisitaSchema } from './visit.schema';
 
 /**
- * Validação de clientes e contatos. O schema Prisma
- * (`prisma/schema.prisma`) exige endereco do Client e cargo/telefone/email do
- * Contact como NOT NULL, e este zod reflete essa obrigatoriedade, conforme o
- * dicionário de dados (docs/modelo-de-dados.md). O e-mail do Client é
- * opcional no banco (o cliente criado pela nota fiscal nasce sem ele), mas o
- * cadastro do representante continua exigindo; na atualização, `null` apaga.
+ * Validação da atualização e da listagem de clientes. O e-mail do Client é
+ * opcional no banco (o cliente criado pela nota fiscal nasce sem ele); na
+ * atualização, `null` apaga. Clientes só nascem pela nota fiscal
+ * (`cliente-pela-nota.schema.ts`).
  */
-
-const MENSAGEM_CONTATO_PRINCIPAL_UNICO = 'Cadastro exige exatamente um contato marcado como principal.';
 
 const cnpjSchema = z.string().regex(/^\d{14}$/, 'CNPJ deve conter 14 dígitos numéricos.');
 
@@ -21,44 +17,11 @@ export const recorrenciaDiasSchema = z
   .min(1, 'Recorrência de visitas deve ser entre 1 e 365 dias.')
   .max(365, 'Recorrência de visitas deve ser entre 1 e 365 dias.');
 
-const contatoSchema = z.object({
-  nome: z.string().min(1, 'Nome do contato é obrigatório.'),
-  cargo: z.string().min(1, 'Cargo do contato é obrigatório.'),
-  telefone: z.string().min(1, 'Telefone do contato é obrigatório.'),
-  email: z.string().email('E-mail do contato inválido.'),
-  principal: z.boolean(),
-});
-
-export const createClientSchema = z
-  .object({
-    razaoSocial: z.string().min(1, 'Razão social é obrigatória.'),
-    nomeFantasia: z.string().min(1, 'Nome fantasia é obrigatório.'),
-    cnpj: cnpjSchema,
-    cidade: z.string().min(1, 'Cidade é obrigatória.'),
-    endereco: z.string().min(1, 'Endereço é obrigatório.'),
-    telefone: z.string().min(1, 'Telefone é obrigatório.'),
-    email: z.string().email('E-mail inválido.'),
-    erpId: z.string().min(1, 'Identificador de ERP não pode ser vazio.').optional(),
-    recorrenciaDias: recorrenciaDiasSchema.default(15),
-    contatos: z.array(contatoSchema).min(1, 'Cadastro exige ao menos um contato.'),
-  })
-  .superRefine((data, ctx) => {
-    const principais = data.contatos.filter((contato) => contato.principal);
-    if (principais.length !== 1) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['contatos'],
-        message: MENSAGEM_CONTATO_PRINCIPAL_UNICO,
-      });
-    }
-  });
-
-export type CreateClientInput = z.infer<typeof createClientSchema>;
-
 /**
  * Atualização parcial: nunca inclui `contatos` (gerenciados pelas rotas
  * de contato). Campos ausentes do body permanecem
- * inalterados; `ativo: false` aciona a inativação lógica do cliente.
+ * inalterados; `ativo` (inativar ou reativar o cliente) só pode ser enviado por um
+ * GESTOR.
  * Não inclui `recorrenciaDias`: sua alteração tem rota dedicada,
  * com justificativa obrigatória.
  * `representanteId`, quando presente, só pode ser enviado por um GESTOR

@@ -1,6 +1,6 @@
 import { perfilDoErpId } from '../providers/erp/mock/gerador';
 import { ROTAS, type DiaUtil } from './rotas';
-import type { ClienteSeed, ContatoSeed } from './tipos';
+import { TELEFONE_DA_DEMONSTRACAO, type ClienteSeed, type ContatoSeed } from './tipos';
 
 /**
  * Clientes gerados da demonstração: completam as carteiras para cerca de 40
@@ -16,7 +16,7 @@ import type { ClienteSeed, ContatoSeed } from './tipos';
  * pousadas, lojas de presentes, casas de chá). Cadastro de sistema de
  * verdade: nome fantasia de bairro ou de família, razão social diferente
  * (Ltda/ME/EPP), CNPJ com dígitos verificadores válidos, endereço em rua da
- * cidade, telefone fixo `(47) 3xxx-xxxx` único, e-mail no domínio do
+ * cidade, telefone `TELEFONE_DA_DEMONSTRACAO`, e-mail no domínio do
  * cliente, de 1 a 2 contatos com cargo e um principal (nome completo que
  * não se repete em nenhum outro cliente), e `erpId` de 5
  * dígitos escolhido varrendo os códigos com `perfilDoErpId` para que o ERP
@@ -28,12 +28,12 @@ export type TipoDeCliente =
 
 type Vaga = readonly [dia: DiaUtil, recorrenciaDias: number, fase: number];
 
-const EMAIL_EDUARDA = 'eduarda@chokolaten.com.br';
-const EMAIL_RAFAEL = 'rafael@chokolaten.com.br';
+const USUARIO_EDUARDA = 'eduarda';
+const USUARIO_RAFAEL = 'rafael';
 
 /** Vagas da grade de cada carteira (dia, recorrência, fase), balanceadas com os âncoras. */
 const GRADE: Record<string, readonly Vaga[]> = {
-  [EMAIL_EDUARDA]: [
+  [USUARIO_EDUARDA]: [
     [1, 7, 0],
     [1, 7, 0],
     [1, 14, 0],
@@ -59,7 +59,7 @@ const GRADE: Record<string, readonly Vaga[]> = {
     [5, 7, 0],
     [5, 28, 1],
   ],
-  [EMAIL_RAFAEL]: [
+  [USUARIO_RAFAEL]: [
     [1, 7, 0],
     [1, 7, 0],
     [1, 7, 0],
@@ -129,10 +129,9 @@ const SUFIXOS = ['Ltda', 'ME', 'Ltda', 'EPP'] as const;
 type Cidade = {
   bairros: readonly string[];
   ruas: readonly string[];
-  prefixosFone: readonly string[];
 };
 
-/** Bairros, ruas e prefixos de telefone fixo de cada cidade das rotas. */
+/** Bairros e ruas de cada cidade das rotas. */
 const CIDADES: Record<string, Cidade> = {
   Joinville: {
     bairros: ['Glória', 'Floresta', 'Costa e Silva', 'Saguaçu', 'Iririú', 'Atiradores', 'Bucarein', 'Anita Garibaldi'],
@@ -144,7 +143,6 @@ const CIDADES: Record<string, Cidade> = {
       'Rua Visconde de Taunay',
       'Rua Inácio Bastos',
     ],
-    prefixosFone: ['3422', '3433', '3026', '3435'],
   },
   'Jaraguá do Sul': {
     bairros: ['Czerniewicz', 'Amizade', 'Ilha da Figueira', 'Nova Brasília', 'Barra do Rio Cerro', 'Jaraguá Esquerdo'],
@@ -155,17 +153,14 @@ const CIDADES: Record<string, Cidade> = {
       'Rua Expedicionário Gumercindo da Silva',
       'Rua Presidente Epitácio Pessoa',
     ],
-    prefixosFone: ['3275', '3371', '3372'],
   },
   Pomerode: {
     bairros: ['Testo Central', 'Ribeirão Herdt', 'Pomerode Fundos', 'Rega'],
     ruas: ['Rua Hermann Weege', 'Rua Luiz Abry', 'Rua Dr. Wunderwald', 'Rua Pastor Ziegler'],
-    prefixosFone: ['3387', '3395'],
   },
   Corupá: {
     bairros: ['Ano Bom', 'Seminário', 'Itapocu'],
     ruas: ['Rua Nereu Ramos', 'Avenida Getúlio Vargas', 'Rua Roberto Seidel'],
-    prefixosFone: ['3375'],
   },
   'São Bento do Sul': {
     bairros: ['Mato Preto', 'Oxford', 'Centenário', 'Boehmerwald', 'Lençol'],
@@ -176,7 +171,6 @@ const CIDADES: Record<string, Cidade> = {
       'Rua Capitão Ernesto Nunes',
       'Rua Antônio Kaesemodel',
     ],
-    prefixosFone: ['3633', '3635', '3626'],
   },
   Blumenau: {
     bairros: [
@@ -197,32 +191,26 @@ const CIDADES: Record<string, Cidade> = {
       'Rua Bahia',
       'Rua 7 de Setembro',
     ],
-    prefixosFone: ['3322', '3035', '3326', '3340'],
   },
   Indaial: {
     bairros: ['Estradinha', 'Warnow', 'Encano', 'Tapajós'],
     ruas: ['Rua Marechal Floriano Peixoto', 'Avenida Getúlio Vargas', 'Rua Tiradentes'],
-    prefixosFone: ['3333', '3394'],
   },
   Timbó: {
     bairros: ['Quintino', 'Dona Clara', 'Imigrantes', 'Padre Martinho Stein'],
     ruas: ['Avenida Getúlio Vargas', 'Rua Sete de Setembro', 'Rua Duque de Caxias'],
-    prefixosFone: ['3382', '3399'],
   },
   Brusque: {
     bairros: ['Azambuja', 'Santa Terezinha', 'Águas Claras', 'Jardim Maluche', 'Steffen', 'São Luiz'],
     ruas: ['Avenida Cônsul Carlos Renaux', 'Rua Hercílio Luz', 'Rua Azambuja', 'Avenida Primeiro de Maio'],
-    prefixosFone: ['3351', '3355', '3396'],
   },
   Itajaí: {
     bairros: ['Fazenda', 'Cabeçudas', 'São Vicente', 'Cordeiros', 'Praia Brava', 'Dom Bosco', 'Vila Operária'],
     ruas: ['Avenida Joca Brandão', 'Rua Brusque', 'Avenida Sete de Setembro', 'Rua Lauro Müller', 'Rua Uruguai'],
-    prefixosFone: ['3348', '3344', '3249'],
   },
   'Rio do Sul': {
     bairros: ['Canta Galo', 'Budag', 'Jardim América', 'Laranjeiras', 'Navegantes', 'Santana'],
     ruas: ['Avenida Oscar Barcelos', 'Rua Dom Bosco', 'Avenida Aristiliano Ramos', 'Rua XV de Novembro'],
-    prefixosFone: ['3521', '3525', '3531'],
   },
 };
 
@@ -399,12 +387,11 @@ function erpIdsCalibrados(quantidade: number): string[] {
  * também é único.
  */
 export function gerarClientes(nomesDeContatoReservados: ReadonlySet<string> = new Set()): ClienteSeed[] {
-  const vagas = Object.entries(GRADE).flatMap(([representanteEmail, lista]) =>
-    lista.map((vaga) => ({ representanteEmail, vaga })),
+  const vagas = Object.entries(GRADE).flatMap(([representanteUsuario, lista]) =>
+    lista.map((vaga) => ({ representanteUsuario, vaga })),
   );
   const erpIds = erpIdsCalibrados(vagas.length);
   const nomesUsados = new Set<string>();
-  const fonesUsados = new Set<string>();
   const contatosUsados = new Set<string>(nomesDeContatoReservados);
   /** Primeira pessoa da lista, a partir de `inicio`, cujo nome completo com o sobrenome ainda não foi usado. */
   const pessoaSemRepetir = (inicio: number, sobrenomeDaPessoa: string): Pessoa => {
@@ -422,22 +409,22 @@ export function gerarClientes(nomesDeContatoReservados: ReadonlySet<string> = ne
   const porRecorrencia = new Map<string, number>();
   const porCidade = new Map<string, number>();
 
-  return vagas.map(({ representanteEmail, vaga: [dia, recorrenciaDias, fase] }, indice) => {
-    const chaveDoDia = `${representanteEmail}|${dia}`;
+  return vagas.map(({ representanteUsuario, vaga: [dia, recorrenciaDias, fase] }, indice) => {
+    const chaveDoDia = `${representanteUsuario}|${dia}`;
     const ordemNoDia = porDia.get(chaveDoDia) ?? 0;
     porDia.set(chaveDoDia, ordemNoDia + 1);
-    const cidadesDoDia = (ROTAS[representanteEmail] as Record<DiaUtil, readonly string[]>)[dia];
+    const cidadesDoDia = (ROTAS[representanteUsuario] as Record<DiaUtil, readonly string[]>)[dia];
     const cidade = escolher(cidadesDoDia, ordemNoDia);
     const dadosDaCidade = CIDADES[cidade] as Cidade;
     const ordemNaCidade = porCidade.get(cidade) ?? 0;
     porCidade.set(cidade, ordemNaCidade + 1);
 
-    const chaveDaRecorrencia = `${representanteEmail}|${recorrenciaDias}`;
+    const chaveDaRecorrencia = `${representanteUsuario}|${recorrenciaDias}`;
     const ordemNaRecorrencia = porRecorrencia.get(chaveDaRecorrencia) ?? 0;
     porRecorrencia.set(chaveDaRecorrencia, ordemNaRecorrencia + 1);
     const tipo = escolher(
       TIPOS_POR_RECORRENCIA[recorrenciaDias] as readonly TipoDeCliente[],
-      ordemNaRecorrencia + (representanteEmail === EMAIL_RAFAEL ? 1 : 0),
+      ordemNaRecorrencia + (representanteUsuario === USUARIO_RAFAEL ? 1 : 0),
     );
 
     const sobrenome = escolher(SOBRENOMES, indice * 7 + 3);
@@ -459,21 +446,13 @@ export function gerarClientes(nomesDeContatoReservados: ReadonlySet<string> = ne
         ? `${sobrenome} & ${socio} ${ATIVIDADE[tipo]} ${sufixo}`
         : `${escolher(PRENOMES, indice).nome.charAt(0)}. ${sobrenome} ${ATIVIDADE[tipo]} ${sufixo}`;
 
-    let telefone = '';
-    for (let tentativa = 0; telefone === '' || fonesUsados.has(telefone); tentativa++) {
-      const prefixoFone = escolher(dadosDaCidade.prefixosFone, indice + tentativa);
-      const final = 1000 + ((indice * 3571 + tentativa * 613 + 2087) % 9000);
-      telefone = `(47) ${prefixoFone}-${final}`;
-    }
-    fonesUsados.add(telefone);
-
     const contatos: ContatoSeed[] = [];
     const [cargoPrincipal, cargoSegundo] = CARGOS[tipo];
     const pessoaPrincipal = pessoaSemRepetir(indice * 5 + 2, sobrenome);
     contatos.push({
       nome: `${pessoaPrincipal.nome} ${sobrenome}`,
       cargo: pessoaPrincipal.feminino ? cargoPrincipal[1] : cargoPrincipal[0],
-      telefone: `(47) 9${9 - (indice % 2)}${String(100 + ((indice * 457) % 900))}-${String(1000 + ((indice * 7919) % 9000))}`,
+      telefone: TELEFONE_DA_DEMONSTRACAO,
       email: `${semAcento(pessoaPrincipal.nome)}.${semAcento(sobrenome)}@${dominio}`,
       principal: true,
     });
@@ -483,7 +462,7 @@ export function gerarClientes(nomesDeContatoReservados: ReadonlySet<string> = ne
       contatos.push({
         nome: `${pessoa.nome} ${sobrenomeDoSegundo}`,
         cargo: pessoa.feminino ? cargoSegundo[1] : cargoSegundo[0],
-        telefone: `(47) 9${8 + (indice % 2)}${String(100 + ((indice * 613) % 900))}-${String(1000 + ((indice * 4721) % 9000))}`,
+        telefone: TELEFONE_DA_DEMONSTRACAO,
         email: `${semAcento(pessoa.nome)}.${semAcento(sobrenomeDoSegundo)}@${dominio}`,
         principal: false,
       });
@@ -498,11 +477,11 @@ export function gerarClientes(nomesDeContatoReservados: ReadonlySet<string> = ne
       cnpj: cnpjComDigitos(String(raizDoCnpj)),
       cidade,
       endereco: `${escolher(dadosDaCidade.ruas, indice)}, ${numeroDoEndereco(indice)} - ${bairro}, ${cidade}/SC`,
-      telefone,
+      telefone: TELEFONE_DA_DEMONSTRACAO,
       email: `contato@${dominio}`,
       contatos,
       erpId: erpIds[indice] as string,
-      representanteEmail,
+      representanteUsuario,
       recorrenciaDias,
       ativo: true,
       agenda: { dia, fase },

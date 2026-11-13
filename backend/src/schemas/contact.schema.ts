@@ -1,10 +1,9 @@
 import { z } from 'zod';
 
 /**
- * Validação de contatos. Espelha o `contatoSchema` interno de
- * `client.schema.ts`: nome/cargo/telefone/email obrigatórios e `principal`
- * como boolean explícito, refletindo a obrigatoriedade "Sim" do dicionário
- * de dados para todos os campos de `Contact`.
+ * Validação de contatos: nome/cargo/telefone/email obrigatórios e
+ * `principal` como boolean explícito, refletindo a obrigatoriedade "Sim"
+ * do dicionário de dados para todos os campos de `Contact`.
  */
 
 export const createContactSchema = z.object({

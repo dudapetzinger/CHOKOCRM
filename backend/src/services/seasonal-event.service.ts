@@ -1,4 +1,4 @@
-import type { Prisma, SeasonalEvent } from '@prisma/client';
+import type { SeasonalEvent } from '@prisma/client';
 import * as seasonalEventRepository from '../repositories/seasonal-event.repository';
 import { dataCalendario } from './classificacao.service';
 
@@ -36,9 +36,9 @@ export function escolherVigente(candidatos: SeasonalEvent[]): EventoVigente | nu
 
 /**
  * Evento sazonal vigente em `hoje` (data de calendário no FUSO_HORARIO), ou
- * `null`. `banco` (opcional): o cliente de uma transação, como no seed.
+ * `null`.
  */
-export async function eventoVigente(hoje: Date, banco?: Prisma.TransactionClient): Promise<EventoVigente | null> {
-  const candidatos = await seasonalEventRepository.findVigentes(dataCalendario(hoje), banco);
+export async function eventoVigente(hoje: Date): Promise<EventoVigente | null> {
+  const candidatos = await seasonalEventRepository.findVigentes(dataCalendario(hoje));
   return escolherVigente(candidatos);
 }

@@ -2,7 +2,6 @@ import { Prisma } from '@prisma/client';
 import { LIMIAR_SEM_COMPRA_DIAS } from '../src/config/classificacao';
 import * as clientRepository from '../src/repositories/client.repository';
 import type { ClienteParaAgenda } from '../src/repositories/client.repository';
-import * as stockMessageRepository from '../src/repositories/stock-message.repository';
 import * as userRepository from '../src/repositories/user.repository';
 import * as visitRepository from '../src/repositories/visit.repository';
 import { fimDoDia, inicioDoDia } from '../src/services/classificacao.service';
@@ -66,7 +65,6 @@ function visitaComPedido(
 
 let listaVisitas: jest.SpiedFunction<typeof visitRepository.listNoPeriodo>;
 let listaVisitasComPedido: jest.SpiedFunction<typeof visitRepository.listNoPeriodoComPedido>;
-let listaMensagens: jest.SpiedFunction<typeof stockMessageRepository.listNoPeriodo>;
 let listAtivosParaAgenda: jest.SpiedFunction<typeof clientRepository.listAtivosParaAgenda>;
 let consultarUltimasVendas: jest.SpiedFunction<typeof erpService.consultarUltimasVendas>;
 let listaRepresentantes: jest.SpiedFunction<typeof userRepository.listByRole>;
@@ -79,9 +77,6 @@ beforeEach(() => {
   listaVisitasComPedido = jest
     .spyOn(visitRepository, 'listNoPeriodoComPedido')
     .mockRejectedValue(naoStubado('visit.listNoPeriodoComPedido'));
-  listaMensagens = jest
-    .spyOn(stockMessageRepository, 'listNoPeriodo')
-    .mockRejectedValue(naoStubado('stockMessage.listNoPeriodo'));
   listAtivosParaAgenda = jest
     .spyOn(clientRepository, 'listAtivosParaAgenda')
     .mockRejectedValue(naoStubado('listAtivosParaAgenda'));
@@ -97,22 +92,19 @@ afterEach(() => {
 });
 
 describe('obterKpis', () => {
-  it('com representanteId restringe visitas, mensagens e ativos à carteira daquele representante', async () => {
+  it('com representanteId restringe visitas e ativos à carteira daquele representante', async () => {
     listaVisitas.mockResolvedValue([]);
-    listaMensagens.mockResolvedValue([]);
     listAtivosParaAgenda.mockResolvedValue([]);
     consultarUltimasVendas.mockResolvedValue(new Map());
 
     await obterKpis(JANELA_30_DIAS, HOJE, 'rep-b');
 
     expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), 'rep-b');
-    expect(listaMensagens).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), 'rep-b');
     expect(listAtivosParaAgenda).toHaveBeenCalledWith('rep-b');
   });
 
-  it('consulta visitas e mensagens com inicioDoDia("2026-09-08") e fimDoDia("2026-10-07") para 30 dias, e sem representanteId não filtra carteira', async () => {
+  it('consulta visitas com inicioDoDia("2026-09-08") e fimDoDia("2026-10-07") para 30 dias, e sem representanteId não filtra carteira', async () => {
     listaVisitas.mockResolvedValue([]);
-    listaMensagens.mockResolvedValue([]);
     listAtivosParaAgenda.mockResolvedValue([clienteAtivo('a', 'ERP-A', null)]);
     consultarUltimasVendas.mockResolvedValue(new Map());
 
@@ -122,8 +114,6 @@ describe('obterKpis', () => {
     expect(listaVisitas).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), undefined);
     // Os indicadores não somam vendas: a variante com o pedido fica para o comparativo
     expect(listaVisitasComPedido).not.toHaveBeenCalled();
-    expect(listaMensagens).toHaveBeenCalledTimes(1);
-    expect(listaMensagens).toHaveBeenCalledWith(inicioDoDia('2026-09-08'), fimDoDia('2026-10-07'), undefined);
     expect(listAtivosParaAgenda).toHaveBeenCalledTimes(1);
     expect(listAtivosParaAgenda).toHaveBeenCalledWith(undefined);
     expect(consultarUltimasVendas).toHaveBeenCalledWith(['ERP-A']);
@@ -137,18 +127,17 @@ describe('obterKpis', () => {
       clienteAtivo('c', 'ERP-C', null),
     ]);
     consultarUltimasVendas.mockResolvedValue(new Map());
-    // Visitas de a (VENDA) e b (SEM_VENDA); mensagem só do cliente c.
+    // Visitas de a (VENDA) e b (SEM_VENDA); c não tem visita.
     listaVisitas.mockResolvedValue([
       visitaDoPeriodo('a', 'VENDA', diasAtras(2)),
       visitaDoPeriodo('b', 'SEM_VENDA', diasAtras(20)),
     ]);
-    listaMensagens.mockResolvedValue([{ clientId: 'c' }]);
 
     await expect(obterKpis(JANELA_30_DIAS, HOJE)).resolves.toEqual({
       periodo: { dias: 30, inicio: '2026-09-08', fim: '2026-10-07' },
       clientesAtivos: 3,
       visitas: { total: 2, mediaPorCliente: 0.7 }, // 2 / 3 = 0,666… → 0,7
-      taxaDeRegistro: { numerador: 3, denominador: 3, percentual: 100 },
+      taxaDeRegistro: { numerador: 2, denominador: 3, percentual: 67 },
       conversaoEmVendas: { numerador: 1, denominador: 2, percentual: 50 },
       inativos: { total: 2, distribuicao: { VERDE: 1, AMARELO: 0, LARANJA: 1, VERMELHO: 1 } },
       semDados: false,
@@ -164,7 +153,6 @@ describe('obterKpis', () => {
     ]);
     consultarUltimasVendas.mockResolvedValue(new Map([['ERP-A', diasAtras(70)]]));
     listaVisitas.mockResolvedValue([visitaDoPeriodo('a', 'VENDA', diasAtras(3))]);
-    listaMensagens.mockResolvedValue([]);
 
     const kpis = await obterKpis(JANELA_30_DIAS, HOJE);
 
@@ -178,7 +166,6 @@ describe('obterKpis', () => {
     ]);
     consultarUltimasVendas.mockResolvedValue(new Map([['ERP-A', null]]));
     listaVisitas.mockResolvedValue([visitaDoPeriodo('a', 'VENDA', diasAtras(3))]);
-    listaMensagens.mockResolvedValue([]);
 
     erpSimulado.mockReturnValue(false);
     const real = await obterKpis(JANELA_30_DIAS, HOJE);
@@ -201,7 +188,6 @@ describe('obterKpis', () => {
       visitaDoPeriodo('a', 'SEM_VENDA', diasAtras(5)),
       visitaDoPeriodo('inativado', 'VENDA', diasAtras(6)),
     ]);
-    listaMensagens.mockResolvedValue([]);
 
     const kpis = await obterKpis(JANELA_30_DIAS, HOJE);
 
@@ -210,7 +196,7 @@ describe('obterKpis', () => {
     expect(kpis.taxaDeRegistro).toEqual({ numerador: 1, denominador: 2, percentual: 50 }); // só 'a' é ativo
   });
 
-  it('sem visitas nem mensagens → semDados true, percentuais null, inativos pela cor atual', async () => {
+  it('sem visitas → semDados true, percentuais null, inativos pela cor atual', async () => {
     // Sem nenhuma visita registrada, a cor atual de cada ativo é VERMELHO.
     listAtivosParaAgenda.mockResolvedValue([
       clienteAtivo('a', 'ERP-A', null),
@@ -218,7 +204,6 @@ describe('obterKpis', () => {
     ]);
     consultarUltimasVendas.mockResolvedValue(new Map());
     listaVisitas.mockResolvedValue([]);
-    listaMensagens.mockResolvedValue([]);
 
     const comAtivos = await obterKpis(JANELA_30_DIAS, HOJE);
 

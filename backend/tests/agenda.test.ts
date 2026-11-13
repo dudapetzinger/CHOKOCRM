@@ -26,25 +26,25 @@ const SENHA_PADRAO = 'chokocrm123';
 
 const REPRESENTANTE_A = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.agenda-teste@chokolaten.com.br',
+  usuario: 'eduarda.agenda-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const REPRESENTANTE_B = {
   nome: 'Bruno Alencar',
-  email: 'bruno.agenda-teste@chokolaten.com.br',
+  usuario: 'bruno.agenda-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const REPRESENTANTE_C = {
   nome: 'Carla Nunes',
-  email: 'carla.agenda-teste@chokolaten.com.br',
+  usuario: 'carla.agenda-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const GESTOR = {
   nome: 'Ricardo Menezes',
-  email: 'ricardo.agenda-teste@chokolaten.com.br',
+  usuario: 'ricardo.agenda-teste',
   role: 'GESTOR' as const,
 };
 
@@ -118,8 +118,8 @@ async function criarLembrete(
   return lembrete.id;
 }
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -134,9 +134,9 @@ beforeEach(async () => {
   representanteAId = representanteA.id;
   representanteBId = representanteB.id;
 
-  tokenA = await logar(REPRESENTANTE_A.email);
-  tokenC = await logar(REPRESENTANTE_C.email);
-  tokenGestor = await logar(GESTOR.email);
+  tokenA = await logar(REPRESENTANTE_A.usuario);
+  tokenC = await logar(REPRESENTANTE_C.usuario);
+  tokenGestor = await logar(GESTOR.usuario);
 
   clienteAtrasadoId = await criarCliente('11222333000181', 'Emporio Pomerode', representanteAId);
   clienteHojeId = await criarCliente('11222333000262', 'Cafe Blumenau', representanteAId);

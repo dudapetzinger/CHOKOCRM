@@ -41,8 +41,8 @@ const extrairMock = jest.mocked(extrairTextoDoPdf);
 const LINHAS_NF_2455 = readFileSync(join(__dirname, 'fixtures', 'danfe-2455.txt'), 'utf8').split(/\r?\n/);
 
 const SENHA = 'chokocrm123';
-const EMAIL_REP = 'eduarda.relogio-teste@chokolaten.com.br';
-const EMAIL_GESTOR = 'ricardo.relogio-teste@chokolaten.com.br';
+const USUARIO_REP = 'eduarda.relogio-teste';
+const USUARIO_GESTOR = 'ricardo.relogio-teste';
 const MILISSEGUNDOS_POR_DIA = 86_400_000;
 const MILISSEGUNDOS_POR_MINUTO = 60_000;
 
@@ -58,8 +58,8 @@ const MEIO_DIA = 12 * 60;
 
 let representanteId: string;
 
-async function logar(email: string): Promise<string> {
-  const res = await request(app).post('/auth/login').send({ email, senha: SENHA });
+async function logar(usuario: string): Promise<string> {
+  const res = await request(app).post('/auth/login').send({ usuario, senha: SENHA });
   return res.body.token;
 }
 
@@ -91,11 +91,11 @@ beforeEach(async () => {
 
   const senhaHash = await bcrypt.hash(SENHA, 4);
   const rep = await prisma.user.create({
-    data: { nome: 'Eduarda Fischer', email: EMAIL_REP, role: 'REPRESENTANTE', senhaHash },
+    data: { nome: 'Eduarda Fischer', usuario: USUARIO_REP, role: 'REPRESENTANTE', senhaHash },
   });
   representanteId = rep.id;
   await prisma.user.create({
-    data: { nome: 'Ricardo Menezes', email: EMAIL_GESTOR, role: 'GESTOR', senhaHash },
+    data: { nome: 'Ricardo Menezes', usuario: USUARIO_GESTOR, role: 'GESTOR', senhaHash },
   });
 });
 
@@ -152,8 +152,8 @@ describe('modo demonstração ligado (2027-03-15)', () => {
     }
     expect(diasUteis).toHaveLength(18);
 
-    for (const email of ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br']) {
-      const token = await logar(email);
+    for (const usuario of ['eduarda', 'rafael']) {
+      const token = await logar(usuario);
       const agenda = await request(app).get('/agenda/today').set('Authorization', `Bearer ${token}`);
       expect(agenda.status).toBe(200);
       const marcadasHoje = (agenda.body.data.hoje as { proximaVisita: string; marcadaNoCheckIn: boolean }[]).filter(
@@ -179,7 +179,7 @@ describe('modo demonstração ligado (2027-03-15)', () => {
     await reiniciarDemonstracao(prisma, agora());
     const amanha = new Date(agora().getTime() + MILISSEGUNDOS_POR_DIA);
     const representantes = await prisma.user.findMany({
-      where: { email: { in: ['eduarda@chokolaten.com.br', 'rafael@chokolaten.com.br'] } },
+      where: { usuario: { in: ['eduarda', 'rafael'] } },
     });
     const nomesDoDia = async (usuario: { id: string }, instante: Date): Promise<string[]> =>
       (await agendaService.getAgendaDoDia({ id: usuario.id, role: 'REPRESENTANTE' }, instante)).hoje
@@ -220,33 +220,24 @@ describe('modo demonstração ligado (2027-03-15)', () => {
     expect(fonte).not.toMatch(/new Date\(|Date\.now\(/);
   });
 
-  it('cliente criado pelo app nasce com criadoEm na data simulada', async () => {
-    const token = await logar(EMAIL_REP);
+  it('cliente criado pela nota fiscal nasce com criadoEm na data simulada', async () => {
+    const tokenGestor = await logar(USUARIO_GESTOR);
+    const importacao = await request(app)
+      .post('/erp/importacoes?nome=notas.pdf')
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .set('Content-Type', 'application/pdf')
+      .send(Buffer.from('%PDF-1.4 simulado'));
+    expect(importacao.status).toBe(201);
+
     const res = await request(app)
-      .post('/clients')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        razaoSocial: 'Mercado Central Joinville Comércio de Alimentos Ltda',
-        nomeFantasia: 'Mercado Central Joinville',
-        cnpj: '11222333000424',
-        cidade: 'Joinville',
-        endereco: 'Rua do Príncipe, 800 - Centro, Joinville/SC',
-        telefone: '(47) 3433-3030',
-        email: 'contato@mercadocentraljoinville.com.br',
-        contatos: [
-          {
-            nome: 'Roberto Alves',
-            cargo: 'Gerente de Compras',
-            telefone: '(47) 99955-3030',
-            email: 'roberto.alves@mercadocentraljoinville.com.br',
-            principal: true,
-          },
-        ],
-      });
+      .post('/erp/sem-cliente/25382906000149/cliente')
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .send({ representanteId });
 
     expect(res.status).toBe(201);
     expect(dataCalendario(new Date(res.body.criadoEm))).toBe(DATA_SIMULADA);
 
+    const token = await logar(USUARIO_REP);
     const agenda = await request(app).get('/agenda/today').set('Authorization', `Bearer ${token}`);
     expect(agenda.status).toBe(200);
     const ids = (lista: { id: string }[]) => lista.map((item) => item.id);
@@ -265,7 +256,7 @@ describe('modo demonstração ligado (2027-03-15)', () => {
         resultado: 'NEGOCIACAO',
       },
     });
-    const token = await logar(EMAIL_REP);
+    const token = await logar(USUARIO_REP);
 
     // Recorrência semanal e última visita há 7 dias simulados: é a agenda de hoje.
     const antes = await request(app).get('/agenda/today').set('Authorization', `Bearer ${token}`);
@@ -292,7 +283,7 @@ describe('modo demonstração ligado (2027-03-15)', () => {
 
     fixarRelogio(noDiaReal(23 * 60 + 50));
     expect(dataCalendario(agora())).toBe(DATA_SIMULADA);
-    const token = await logar(EMAIL_REP);
+    const token = await logar(USUARIO_REP);
     const checkIn = await request(app)
       .post(`/clients/${clienteId}/visits`)
       .set('Authorization', `Bearer ${token}`)
@@ -305,13 +296,13 @@ describe('modo demonstração ligado (2027-03-15)', () => {
     // 00h10 do dia seguinte: o "hoje" é o dia simulado seguinte, e a visita é de ontem.
     fixarRelogio(noDiaReal(24 * 60 + 10));
     expect(dataCalendario(agora())).toBe(somarDias(DATA_SIMULADA, 1));
-    const tokenDepois = await logar(EMAIL_REP);
+    const tokenDepois = await logar(USUARIO_REP);
     const depois = await request(app).get(`/clients/${clienteId}`).set('Authorization', `Bearer ${tokenDepois}`);
     expect(depois.body).toMatchObject({ cor: 'VERDE', diasSemVisita: 1 });
   });
 
   it('importação grava criadoEm na data simulada', async () => {
-    const token = await logar(EMAIL_GESTOR);
+    const token = await logar(USUARIO_GESTOR);
     const res = await request(app)
       .post('/erp/importacoes?nome=notas.pdf')
       .set('Authorization', `Bearer ${token}`)
@@ -364,7 +355,7 @@ describe('modo demonstração ligado (2027-03-15)', () => {
   });
 
   it('campanha vigente na data simulada aparece como em andamento', async () => {
-    const token = await logar(EMAIL_GESTOR);
+    const token = await logar(USUARIO_GESTOR);
     const criada = await request(app)
       .post('/campaigns')
       .set('Authorization', `Bearer ${token}`)

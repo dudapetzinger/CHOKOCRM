@@ -29,8 +29,8 @@ let representanteAId: string;
 let representanteBId: string;
 let cnpjSequencial = 0;
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -108,13 +108,13 @@ beforeEach(async () => {
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
   const eduarda = await prisma.user.create({
-    data: { nome: 'Eduarda Fischer', email: 'eduarda.relatorio@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    data: { nome: 'Eduarda Fischer', usuario: 'eduarda.relatorio', role: 'REPRESENTANTE', senhaHash },
   });
   const bruno = await prisma.user.create({
-    data: { nome: 'Bruno Alencar', email: 'bruno.relatorio@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    data: { nome: 'Bruno Alencar', usuario: 'bruno.relatorio', role: 'REPRESENTANTE', senhaHash },
   });
   await prisma.user.create({
-    data: { nome: 'Ricardo Menezes', email: 'ricardo.relatorio@chokolaten.com.br', role: 'GESTOR', senhaHash },
+    data: { nome: 'Ricardo Menezes', usuario: 'ricardo.relatorio', role: 'GESTOR', senhaHash },
   });
   representanteAId = eduarda.id;
   representanteBId = bruno.id;
@@ -148,8 +148,8 @@ beforeEach(async () => {
   const doBruno = await criarCliente('Chocolates Gaspar', 'Gaspar', representanteBId);
   await criarVisita(doBruno, representanteBId, 3, 'VENDA', [{ quantidade: 4, precoUnitario: '12.50' }]);
 
-  tokenRepresentante = await logar('eduarda.relatorio@chokolaten.com.br');
-  tokenGestor = await logar('ricardo.relatorio@chokolaten.com.br');
+  tokenRepresentante = await logar('eduarda.relatorio');
+  tokenGestor = await logar('ricardo.relatorio');
 });
 
 afterAll(async () => {

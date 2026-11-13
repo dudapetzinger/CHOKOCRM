@@ -6,7 +6,7 @@ import { agora } from '../lib/relogio';
  * Validação do check-in de visita, com o pedido opcional da visita
  * com venda, a próxima visita prevista, o lembrete (com data própria) e as
  * campanhas da visita e da próxima visita, e da edição
- * posterior da descrição, que não mexe em nenhum deles. O schema
+ * posterior da descrição e do resultado, que não mexe em nenhum deles. O schema
  * Prisma (`prisma/schema.prisma`) exige
  * `descricao` e `resultado` como NOT NULL, e este zod reflete a mesma
  * obrigatoriedade, conforme o dicionário de dados
@@ -24,8 +24,8 @@ const descricaoSchema = z.string().trim().min(3, MENSAGEM_DESCRICAO);
  * (`-03:00`, que é o que o celular envia). Coerção solta (`z.coerce.date`)
  * não serve aqui: ela delega para `new Date(valor)`, que engole `null`,
  * `true`, `0` e `"05/09/2026"`: todos viram uma visita gravada em 1970 ou
- * na data errada. Como só a descrição é editável e não há exclusão
- * de visita, esse registro ficaria errado para sempre e ainda distorceria
+ * na data errada. Como só a descrição e o resultado são editáveis e não há
+ * exclusão de visita, esse registro ficaria errado para sempre e ainda distorceria
  * a classificação por cor do cliente.
  *
  * O limite superior usa `refine`, e não `max`, porque é "agora, no momento
@@ -157,7 +157,20 @@ export const createVisitSchema = z
 
 export type CreateVisitInput = z.infer<typeof createVisitSchema>;
 
-/** Edição posterior altera apenas a descrição. */
-export const updateVisitSchema = z.object({ descricao: descricaoSchema }).strict();
+const MENSAGEM_EDICAO_VAZIA = 'Informe a descrição ou o resultado da visita.';
+
+/**
+ * Edição posterior altera só a descrição e o resultado, ao menos um dos dois;
+ * o pedido, a data e o contato não mudam depois do check-in.
+ */
+export const updateVisitSchema = z
+  .object({
+    descricao: descricaoSchema.optional(),
+    resultado: createVisitSchema.shape.resultado.optional(),
+  })
+  .strict()
+  .refine((corpo) => corpo.descricao !== undefined || corpo.resultado !== undefined, {
+    message: MENSAGEM_EDICAO_VAZIA,
+  });
 
 export type UpdateVisitInput = z.infer<typeof updateVisitSchema>;

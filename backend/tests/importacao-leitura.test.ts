@@ -20,8 +20,8 @@ let tokenGestor: string;
 let tokenRep: string;
 let clienteId: string;
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -60,13 +60,13 @@ beforeEach(async () => {
 
   const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
   await prisma.user.create({
-    data: { nome: 'Ricardo Menezes', email: 'ricardo.leitura@chokolaten.com.br', role: 'GESTOR', senhaHash },
+    data: { nome: 'Ricardo Menezes', usuario: 'ricardo.leitura', role: 'GESTOR', senhaHash },
   });
   const rep = await prisma.user.create({
-    data: { nome: 'Eduarda Fischer', email: 'eduarda.leitura@chokolaten.com.br', role: 'REPRESENTANTE', senhaHash },
+    data: { nome: 'Eduarda Fischer', usuario: 'eduarda.leitura', role: 'REPRESENTANTE', senhaHash },
   });
-  tokenGestor = await logar('ricardo.leitura@chokolaten.com.br');
-  tokenRep = await logar('eduarda.leitura@chokolaten.com.br');
+  tokenGestor = await logar('ricardo.leitura');
+  tokenRep = await logar('eduarda.leitura');
   const cliente = await prisma.client.create({
     data: {
       razaoSocial: 'Don Giacomo Ltda',

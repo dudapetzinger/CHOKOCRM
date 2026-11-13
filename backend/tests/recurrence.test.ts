@@ -9,13 +9,13 @@ const ID_INEXISTENTE = '00000000-0000-0000-0000-000000000000';
 
 const REPRESENTANTE = {
   nome: 'Eduarda Fischer',
-  email: 'eduarda.recurrence-teste@chokolaten.com.br',
+  usuario: 'eduarda.recurrence-teste',
   role: 'REPRESENTANTE' as const,
 };
 
 const GESTOR = {
   nome: 'Ricardo Menezes',
-  email: 'ricardo.recurrence-teste@chokolaten.com.br',
+  usuario: 'ricardo.recurrence-teste',
   role: 'GESTOR' as const,
 };
 
@@ -56,8 +56,8 @@ async function criarCliente(cnpj: string, nomeFantasia: string): Promise<string>
   return cliente.id;
 }
 
-async function logar(email: string): Promise<string> {
-  const login = await request(app).post('/auth/login').send({ email, senha: SENHA_PADRAO });
+async function logar(usuario: string): Promise<string> {
+  const login = await request(app).post('/auth/login').send({ usuario, senha: SENHA_PADRAO });
   return login.body.token;
 }
 
@@ -69,8 +69,8 @@ beforeEach(async () => {
   representanteId = representante.id;
   await prisma.user.create({ data: { ...GESTOR, senhaHash } });
 
-  token = await logar(REPRESENTANTE.email);
-  tokenGestor = await logar(GESTOR.email);
+  token = await logar(REPRESENTANTE.usuario);
+  tokenGestor = await logar(GESTOR.usuario);
 
   clienteId = await criarCliente('11222333000181', 'Emporio Pomerode');
 });
@@ -151,12 +151,12 @@ describe('PUT /clients/:id/recurrence', () => {
     await prisma.user.create({
       data: {
         nome: 'Outro Representante',
-        email: 'outro.recurrence-teste@chokolaten.com.br',
+        usuario: 'outro.recurrence-teste',
         role: 'REPRESENTANTE',
         senhaHash,
       },
     });
-    const tokenOutro = await logar('outro.recurrence-teste@chokolaten.com.br');
+    const tokenOutro = await logar('outro.recurrence-teste');
 
     const res = await request(app)
       .put(`/clients/${clienteId}/recurrence`)
