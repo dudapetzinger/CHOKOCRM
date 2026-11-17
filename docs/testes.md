@@ -169,12 +169,16 @@ Alguns testes não conferem uma funcionalidade, e sim uma regra que o código in
 
 O modo demonstração só funciona se nenhuma regra ler a data diretamente do computador. Por isso, existe um teste no servidor e outro na interface que varrem todos os arquivos de código e falham se encontrarem uma leitura direta do relógio fora do módulo responsável. As poucas exceções legítimas, como a validade do token de login, precisam estar marcadas com um comentário explicando o motivo.
 
+### Sem travessão no código e na documentação
+
+Um teste da interface (`frontend/src/arquitetura-relogio.test.ts`) falha se encontrar travessão ou meia-risca em `frontend/src`, `backend/src`, `backend/tests`, `backend/prisma/schema.prisma`, `frontend/scripts`, `scripts` (na raiz), `docs` e `README.md`. As migrations em `backend/prisma/migrations` ficam de fora de propósito: uma migration aplicada não pode mudar, porque o checksum dela quebraria. Valor que falta aparece como "Não informado" (dados de cadastro) ou "Sem dados" (números), nunca como traço.
+
 ### Dados de demonstração
 
 O gerador dos dados de demonstração é testado por propriedades, e não por valores fixos. Para vários dias diferentes, os testes conferem, entre outras coisas, que:
 
 - as visitas caem apenas em dias úteis, entre 8h e 17h, e nunca no futuro;
-- cada representante tem de 4 a 6 visitas por dia útil;
+- cada representante tem de 4 a 5 visitas por dia útil;
 - o intervalo entre as visitas de um cliente respeita o intervalo cadastrado;
 - rodar o gerador duas vezes para o mesmo dia produz exatamente os mesmos dados;
 - há pelo menos duas visitas marcadas por representante em cada dia útil das semanas seguintes;

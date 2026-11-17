@@ -86,7 +86,7 @@ A conta Gestão é tratada como conta real. O carregamento dos dados só define 
 
 ## 4. Dados de demonstração
 
-Os dados de demonstração simulam três meses de uso do sistema: cerca de 40 clientes por representante, distribuídos em rotas por dia da semana, com visitas, vendas, lembretes, campanhas, metas e visitas marcadas para as próximas semanas. Todos os contatos e clientes de demonstração usam o mesmo telefone, o da autora do projeto. Eles são gerados a partir do dia em que o comando roda, então a agenda e as cores dos clientes fazem sentido na data de hoje.
+Os dados de demonstração simulam três meses de uso do sistema: 40 clientes ativos e 1 inativo por representante, distribuídos em rotas por dia da semana e visitados a cada 7 ou 14 dias, com 4 a 5 visitas por dia útil, vendas, lembretes, campanhas, metas e visitas marcadas para as próximas semanas. Na lista de clientes, cerca de 31 ficam em dia, 5 em Atenção e 4 em Prioridade (um atrasado, um vencendo, um nunca visitado e um rebaixado pela última compra). Todos os clientes e contatos já cadastrados, inclusive os reais, usam o mesmo telefone, o da autora do projeto. Eles são gerados a partir do dia em que o comando roda, então a agenda e as cores dos clientes fazem sentido na data de hoje.
 
 Com o passar dos dias, as visitas geradas ficam antigas e os clientes mudam de cor, como aconteceria de verdade. Para renovar os dados há dois caminhos.
 
@@ -166,7 +166,7 @@ A variável `ERP_PROVIDER` aceita três valores:
 | Variável | Valor padrão | Para quê |
 |----------|--------------|----------|
 | `VITE_API_URL` | `http://localhost:3000` | Endereço do servidor que a interface consulta |
-| `VITE_TELEFONE_DE_TESTE` | vazio (desligado) | Telefone de teste. Definido, os botões Ligar e WhatsApp de qualquer cliente, real ou de demonstração, vão para esse número, e os telefones cadastrados continuam como estão. Serve para os testes com pessoas de fora não chegarem aos clientes de verdade |
+| `VITE_TELEFONE_DE_TESTE` | vazio (desligado) | Telefone de teste. Definido, os botões Ligar e WhatsApp de qualquer cliente vão para esse número, sem aviso na tela. Vale para os cadastros criados depois, como um cliente criado a partir de uma nota fiscal, para os testes com pessoas de fora não chegarem aos clientes de verdade |
 
 ## 7. Testando o aplicativo instalável
 

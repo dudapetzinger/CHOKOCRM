@@ -66,14 +66,14 @@ O acesso é feito com usuário e senha. A senha de todas as contas é `chokocrm1
 | Representante | Rafael Schmitt | `rafael` |
 | Gestor | Gestão Chokolaten | `gestao` |
 
-Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular diferentes períodos de uso. Todos os contatos usam o telefone da autora do projeto, e os botões Ligar e WhatsApp dos clientes reais também vão para esse número, então as mensagens de teste chegam a um número conhecido.
+Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular diferentes períodos de uso. Todos os clientes e contatos já cadastrados usam o telefone da autora do projeto, então as ligações e as mensagens de teste pelo WhatsApp chegam a um número conhecido. A carteira é um modelo: cada representante tem 40 clientes ativos e 1 inativo, com a maioria em dia e alguns em Atenção e em Prioridade, e de 4 a 5 visitas por dia útil.
 
 ### Roteiro sugerido
 
 Como representante (conta da Eduarda ou do Rafael):
 
 1. Entre no sistema. A primeira tela é a Agenda, com as visitas atrasadas e as de hoje.
-2. Abra Clientes e observe as cores e as abas Prioridade, Atenção e Em dia.
+2. Abra Clientes e observe as cores e as abas Prioridade, Atenção e Em dia. Em Prioridade ficam um cliente atrasado, um vencendo, um nunca visitado e um rebaixado pela última compra.
 3. Toque em um cliente para abrir a ficha. Veja as compras, as sugestões da época e o histórico de visitas.
 4. Toque em WhatsApp, no alto da ficha, e, se o cliente tiver dois contatos, escolha com quem falar. A conversa abre com a mensagem pronta.
 5. Toque em Check-in, escolha um cliente e registre uma visita. A foto é obrigatória e pode ser qualquer imagem.

@@ -49,7 +49,7 @@ banner() {
   printf '%s  %s stages%s\n\n' "$DIM" "$TOTAL_STAGES" "$RESET"
   printf '%s  You drive the browser; this wizard tells you exactly what to do and\n' "$DIM"
   printf '  captures the values you copy back. Stop any time with Ctrl-C and re-run\n'
-  printf '  later — it remembers values already saved.%s\n' "$RESET"
+  printf '  later; it remembers values already saved.%s\n' "$RESET"
   pause "Ready to start?"
 }
 
@@ -77,8 +77,8 @@ open_url() {
     elif command -v explorer.exe >/dev/null 2>&1; then explorer.exe "$url"
     elif command -v xdg-open    >/dev/null 2>&1; then xdg-open "$url"
     elif command -v open        >/dev/null 2>&1; then open "$url"
-    else warn "couldn't open a browser — visit it manually: $url"; fi
-  } >/dev/null 2>&1 || warn "couldn't open a browser — visit it manually: $url"
+    else warn "couldn't open a browser, visit it manually: $url"; fi
+  } >/dev/null 2>&1 || warn "couldn't open a browser, visit it manually: $url"
 }
 
 # pause "msg": wait for the human to confirm they've done the manual part.
@@ -157,7 +157,7 @@ set_secret() {
     fi
   fi
   SKIPPED+=("GitHub secret $name (set it manually: gh secret set $name)")
-  warn "skipped GitHub secret $name — gh not ready; set it later"
+  warn "skipped GitHub secret $name: gh not ready; set it later"
 }
 
 # set_var NAME VALUE: set a GitHub Actions repo variable (non-secret).
@@ -170,7 +170,7 @@ set_var() {
     fi
   fi
   SKIPPED+=("GitHub variable $name")
-  warn "skipped GitHub variable $name — gh not ready; set it later"
+  warn "skipped GitHub variable $name: gh not ready; set it later"
 }
 
 # finish: clear, then a closing summary of everything configured.
@@ -242,15 +242,15 @@ else
     local url="$1"
     printf '  %s↗ abrindo%s %s\n' "$GREEN" "$RESET" "$url"
     if   command -v wslview      >/dev/null 2>&1; then
-      wslview "$url" >/dev/null 2>&1 </dev/null || warn "não consegui abrir o navegador — abra manualmente: $url"
+      wslview "$url" >/dev/null 2>&1 </dev/null || warn "não consegui abrir o navegador, abra manualmente: $url"
     elif command -v explorer.exe >/dev/null 2>&1; then
       explorer.exe "$url" >/dev/null 2>&1 </dev/null || true
     elif command -v xdg-open     >/dev/null 2>&1; then
-      xdg-open "$url" >/dev/null 2>&1 </dev/null || warn "não consegui abrir o navegador — abra manualmente: $url"
+      xdg-open "$url" >/dev/null 2>&1 </dev/null || warn "não consegui abrir o navegador, abra manualmente: $url"
     elif command -v open         >/dev/null 2>&1; then
-      open "$url" >/dev/null 2>&1 </dev/null || warn "não consegui abrir o navegador — abra manualmente: $url"
+      open "$url" >/dev/null 2>&1 </dev/null || warn "não consegui abrir o navegador, abra manualmente: $url"
     else
-      warn "não consegui abrir o navegador — abra manualmente: $url"
+      warn "não consegui abrir o navegador, abra manualmente: $url"
     fi
   }
 fi
@@ -302,7 +302,7 @@ _pedir_url() {
       continue
     fi
     if [[ "$valor" != *".$dominio" ]]; then
-      warn "O endereço não termina em .$dominio — confira se copiou o certo."
+      warn "O endereço não termina em .$dominio, confira se copiou o certo."
     fi
     if _url_responde "$valor"; then
       printf -v "$chave" '%s' "$valor"
@@ -328,7 +328,7 @@ _pedir_segredo() {
       printf -v "$chave" '%s' "$valor"
       return 0
     fi
-    warn "Formato inválido ($dica). Tente de novo — o valor digitado não é mostrado."
+    warn "Formato inválido ($dica). Tente de novo: o valor digitado não é mostrado."
   done
   _desistir "Não recebi um valor válido para $chave em $MAX_TENTATIVAS tentativas."
 }
@@ -388,7 +388,7 @@ _copiar() {
   fi
   pause "Enter copia $nome para a área de transferência"
   if printf '%s' "$valor" | _para_area_de_transferencia; then
-    say "${GREEN}✓${RESET} $nome copiado — cole no campo Valor e salve a linha."
+    say "${GREEN}✓${RESET} $nome copiado, cole no campo Valor e salve a linha."
   else
     warn "Não consegui copiar $nome: cole-o a partir da sua anotação."
   fi
@@ -435,10 +435,10 @@ _pedir_publish_profile() {
 # MODO=resumo nunca mostra segredos.
 _configuracoes_app() {
   local modo="$1" jwt
-  if [[ "$modo" == tela ]]; then jwt="$JWT_SECRET"; else jwt="(segredo — só no portal)"; fi
+  if [[ "$modo" == tela ]]; then jwt="$JWT_SECRET"; else jwt="(segredo, só no portal)"; fi
   printf '%s\n' \
     "NODE_ENV = production" \
-    "DATABASE_URL = (segredo — a do passo 2)" \
+    "DATABASE_URL = (segredo, a do passo 2)" \
     "JWT_SECRET = $jwt" \
     "JWT_EXPIRES_IN = 8h" \
     "FRONTEND_URL = $VITE_API_URL" \
@@ -447,7 +447,7 @@ _configuracoes_app() {
     "AGENDA_JOB_CRON = 0 6 * * *" \
     "ERP_PROVIDER = hibrido" \
     "ERP_MOCK_FALHAR = false" \
-    "APPLICATIONINSIGHTS_CONNECTION_STRING = (segredo — a do passo 3)" \
+    "APPLICATIONINSIGHTS_CONNECTION_STRING = (segredo, a do passo 3)" \
     "SCM_DO_BUILD_DURING_DEPLOYMENT = false" \
     "WEBSITE_RUN_FROM_PACKAGE = 0" \
     "WEB_DIR = /home/site/wwwroot/web"
@@ -456,9 +456,9 @@ _configuracoes_app() {
 _checklist_desligar() {
   printf '%s\n' \
     "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Desabilitar (Disable), para não receber alertas com a produção desligada (o nome pode variar)." \
-    "- [ ] App Service: escalar o plano $PLAN para F1 (Gratuito) — mantém o app, as configurações e o endereço; desligue o Always On antes, se o portal exigir. Parar só o app não zera o custo: quem cobra é o plano." \
-    "- [ ] Alternativa: deletar o plano $PLAN. O portal pode exigir apagar o $APP junto — o que apaga também /home/uploads e as fotos de check-in; nesse caso, religar = refazer o passo 4 e atualizar VITE_API_URL e o publish profile no GitHub." \
-    "- [ ] PostgreSQL: $PG → Visão geral → Parar. Atenção: o Azure religa sozinho um servidor parado após 7 dias — se a pausa for maior, pare de novo." \
+    "- [ ] App Service: escalar o plano $PLAN para F1 (Gratuito): mantém o app, as configurações e o endereço; desligue o Always On antes, se o portal exigir. Parar só o app não zera o custo: quem cobra é o plano." \
+    "- [ ] Alternativa: deletar o plano $PLAN. O portal pode exigir apagar o $APP junto, o que apaga também /home/uploads e as fotos de check-in; nesse caso, religar = refazer o passo 4 e atualizar VITE_API_URL e o publish profile no GitHub." \
+    "- [ ] PostgreSQL: $PG → Visão geral → Parar. Atenção: o Azure religa sozinho um servidor parado após 7 dias; se a pausa for maior, pare de novo." \
     "- [ ] Conferir o gasto em Gerenciamento de Custos (alertas de 40 % e 70 % do orçamento de US\$ 100)."
 }
 
@@ -471,7 +471,7 @@ _checklist_religar() {
     "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Habilitar (Enable) (o nome pode variar)." \
     "- [ ] Conferir o job smoke verde em $URL_GITHUB/actions e o teste de disponibilidade verde no $AI." \
     "- [ ] Provedor de ERP: conferir ERP_PROVIDER=hibrido nas configurações do App Service (notas importadas na ficha dos clientes que as têm; dados simulados nos demais). Se o App Service ainda tiver DATA_DE_DEMONSTRACAO ou variáveis de e-mail de versões antigas, remova-as." \
-    "- [ ] Modo demonstração: a data fica no banco e sobrevive a desligar e religar (a faixa \"Modo demonstração · dd/mm/aaaa\" confirma). Antes da validação com os representantes e de novo 1 ou 2 dias antes da apresentação (depois de religar o B1), renovar a demonstração pela tela de login: \"Modo demonstração\" → data → senha da conta Gestão → Aplicar (substitui o seed reset por SSH; o comando cd /home/site/wwwroot && npm run db:seed:reset -- --confirmar continua valendo como plano B). Conferir no Painel as cores, a agenda, as campanhas, as metas, o seletor \"Todos · Eduarda · Rafael\" e os alertas de produção. A recriação apaga e recria clientes, visitas, pedidos, campanhas e metas com a data escolhida; as contas ficam, com a senha delas (a da Gestão inclusive), mas os dados que os representantes registraram durante a validação (clientes, visitas e pedidos) são apagados — antes da apresentação, só recriar se eles não precisarem ficar."
+    "- [ ] Modo demonstração: a data fica no banco e sobrevive a desligar e religar (a faixa \"Modo demonstração · dd/mm/aaaa\" confirma). Antes da validação com os representantes e de novo 1 ou 2 dias antes da apresentação (depois de religar o B1), renovar a demonstração pela tela de login: \"Modo demonstração\" → data → senha da conta Gestão → Aplicar (substitui o seed reset por SSH; o comando cd /home/site/wwwroot && npm run db:seed:reset -- --confirmar continua valendo como plano B). Conferir no Painel as cores, a agenda, as campanhas, as metas, o seletor \"Todos · Eduarda · Rafael\" e os alertas de produção. A recriação apaga e recria clientes, visitas, pedidos, campanhas e metas com a data escolhida; as contas ficam, com a senha delas (a da Gestão inclusive), mas os dados que os representantes registraram durante a validação (clientes, visitas e pedidos) são apagados; antes da apresentação, só recriar se eles não precisarem ficar."
 }
 
 _status_secret() {
@@ -495,7 +495,7 @@ _status_var() {
 
 _gravar_resumo() {
   {
-    printf '# Deploy no Azure — resumo do wizard\n\n'
+    printf '# Deploy no Azure: resumo do wizard\n\n'
     printf -- '- Gerado em: %s\n' "$(date '+%Y-%m-%d %H:%M')"
     if (( DRY_RUN )); then printf -- '- Modo: dry-run (nada foi criado nem definido)\n'; fi
     printf -- '- Região: %s\n' "$REGIAO"
@@ -515,11 +515,11 @@ _gravar_resumo() {
     printf -- '- SSH do App Service: %s\n' "$SCM_URL"
     printf -- '- GitHub Actions: %s/actions\n\n' "$URL_GITHUB"
 
-    printf '## GitHub — variables\n\n| Nome | Valor | Situação |\n|---|---|---|\n'
+    printf '## GitHub: variables\n\n| Nome | Valor | Situação |\n|---|---|---|\n'
     printf '| AZURE_WEBAPP_NAME | %s | %s |\n' "$AZURE_WEBAPP_NAME" "$(_status_var AZURE_WEBAPP_NAME)"
     printf '| VITE_API_URL | %s | %s |\n\n' "$VITE_API_URL" "$(_status_var VITE_API_URL)"
 
-    printf '## GitHub — secrets (só os nomes)\n\n| Nome | Situação |\n|---|---|\n'
+    printf '## GitHub: secrets (só os nomes)\n\n| Nome | Situação |\n|---|---|\n'
     printf '| AZURE_WEBAPP_PUBLISH_PROFILE | %s |\n' "$(_status_secret AZURE_WEBAPP_PUBLISH_PROFILE)"
     printf '| SONAR_TOKEN | %s |\n\n' "$(_status_secret SONAR_TOKEN)"
 
@@ -543,9 +543,9 @@ _gravar_resumo() {
 # ──────────────────────────────────────────────────────────────────────────
 
 if (( DRY_RUN )); then
-  banner "ChokoCRM — deploy no Azure (dry-run: nada é criado nem enviado)"
+  banner "ChokoCRM: deploy no Azure (dry-run: nada é criado nem enviado)"
 else
-  banner "ChokoCRM — deploy no Azure (passos manuais)"
+  banner "ChokoCRM: deploy no Azure (passos manuais)"
 fi
 
 # ── 1. Grupo de recursos ──────────────────────────────────────────────────
@@ -612,7 +612,7 @@ _pedir_segredo DATABASE_URL "Cole a DATABASE_URL (entrada oculta):" \
   '^postgresql://[^:/@]+:[^@]+@[^/:]+:5432/chokocrm\?sslmode=require$' \
   "postgresql://usuario:senha@host:5432/chokocrm?sslmode=require"
 if [[ "$DATABASE_URL" != *"@${PG}.postgres.database.azure.com:5432/"* ]]; then
-  warn "O host não é ${PG}.postgres.database.azure.com — confira se é o servidor certo."
+  warn "O host não é ${PG}.postgres.database.azure.com, confira se é o servidor certo."
 fi
 say "${GREEN}✓${RESET} DATABASE_URL no formato esperado."
 note "Guarde-a num gerenciador de senhas: vai para o App Service (passo 4) e pode ser útil no seed (passo 10)."
@@ -626,7 +626,7 @@ step "Grupo $RG · nome $AI · região $REGIAO · modo baseado em workspace (ace
 step "do Log Analytics sugerido ou crie um no mesmo grupo)."
 note "(o nome do campo pode variar)"
 step "Revisar + criar → Criar → Ir para o recurso."
-step "Na Visão geral, copie a Cadeia de Conexão (Connection String) — começa com InstrumentationKey=."
+step "Na Visão geral, copie a Cadeia de Conexão (Connection String), começa com InstrumentationKey=."
 _pedir_segredo APPLICATIONINSIGHTS_CONNECTION_STRING "Cole a connection string (entrada oculta):" \
   '^InstrumentationKey=[^;]+;.*IngestionEndpoint=https://' \
   "InstrumentationKey=...;IngestionEndpoint=https://..."
@@ -648,7 +648,7 @@ step "Na Visão geral, copie o Domínio padrão (Default domain) e cole com http
 note "É o endereço da API e também do frontend: o App Service serve os dois."
 _pedir_url VITE_API_URL "URL da API (https://<domínio padrão>):" "azurewebsites.net"
 if [[ "$VITE_API_URL" != "https://$APP"* ]]; then
-  warn "O domínio não começa com $APP — confira se é o App Service certo."
+  warn "O domínio não começa com $APP, confira se é o App Service certo."
 fi
 write_env VITE_API_URL "$VITE_API_URL"
 pause "Enter para ver as configurações do aplicativo"
@@ -752,7 +752,7 @@ if [[ "$SONAR_ORGANIZATION" != "$SONAR_ORG_ATUAL" || "$SONAR_PROJECT_KEY" != "$S
       -e "s/^sonar\.organization=.*/sonar.organization=${SONAR_ORGANIZATION}/" \
       -e "s/^sonar\.projectKey=.*/sonar.projectKey=${SONAR_PROJECT_KEY}/" \
       "$SONAR_PROPS"
-    SONAR_SITUACAO="atualizado — commitar antes do push"
+    SONAR_SITUACAO="atualizado, commitar antes do push"
     warn "$SONAR_PROPS foi atualizado: commite-o antes do push do passo 9."
   fi
 else

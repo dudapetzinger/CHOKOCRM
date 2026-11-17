@@ -109,9 +109,9 @@ Só a gestão inativa e reativa um cliente. O cliente inativo:
 
 A ficha reúne tudo sobre o cliente em três abas.
 
-A aba ERP e sugestões mostra a última compra, o volume comprado, o histórico de compras, o estoque informado e as sugestões do que oferecer na época do ano. Para o representante, com o cliente ativo, ela traz também o cartão Mensagem de estoque: um texto sugerido que pode ser editado, a escolha do contato e o botão Abrir no WhatsApp. Nada do que é escrito ali fica guardado.
+A aba ERP e sugestões mostra a última compra, o volume comprado, o histórico de compras (cada compra indica a origem: "NF" com o número da nota ou "Venda registrada na visita"), o estoque informado e as sugestões do que oferecer na época do ano. Para o representante, com o cliente ativo, ela traz também o cartão Mensagem de estoque: um texto sugerido que pode ser editado, a escolha do contato e o botão Abrir no WhatsApp. Nada do que é escrito ali fica guardado.
 
-A aba Visitas mostra a última visita em destaque e as anteriores, com o resultado, a descrição e a foto de cada uma. Quando a visita tem produtos, vindos de uma nota fiscal vinculada ou dos dados de demonstração, aparecem também os produtos e o total, e o número da nota quando há nota.
+A aba Visitas mostra a última visita em destaque e as anteriores, com o resultado, a descrição e a foto de cada uma. Quando a visita tem produtos, vindos de uma nota fiscal vinculada ou dos dados de demonstração, aparecem também os produtos e o total ("Produtos · total"), com o botão "Ver produtos", e, quando há nota, o título "Produtos da NF" com o número dela.
 
 A aba Cadastro mostra os dados do cliente e os contatos. Um dos contatos é o principal.
 
@@ -197,7 +197,7 @@ O calendário do mês mostra o que foi marcado. Caixas de seleção acima dele p
 | Datas comemorativas | Páscoa, Dia das Mães e as outras datas do ano | Representante e gestor |
 | Campanhas | Período de cada campanha | Gestor |
 
-Todas vêm marcadas. Desmarcar uma delas tira aquele tipo do calendário, para a pessoa ver, por exemplo, só os lembretes.
+Na legenda e no detalhe de cada dia, as datas aparecem como "Data comemorativa" e as campanhas como "Campanha". Todas as caixas vêm marcadas. Desmarcar uma delas tira aquele tipo do calendário, para a pessoa ver, por exemplo, só os lembretes.
 
 ### Roteiro
 
@@ -253,7 +253,7 @@ O painel tem duas abas.
 | Visitas no período | Total de visitas e média por cliente ativo |
 | Taxa de registro | Parte dos clientes ativos que recebeu ao menos uma visita no período |
 | Conversão em vendas | Parte das visitas que terminou em venda |
-| Clientes inativos | Clientes em laranja ou vermelho, com a distribuição da carteira pelas quatro cores |
+| Clientes esfriando | Clientes em laranja ou vermelho, com a distribuição da carteira pelas quatro cores |
 
 Abaixo dos indicadores ficam as metas com o realizado, o resultado das visitas por representante, o ritmo de visitas ao longo do período (por semana em períodos de até 91 dias, por mês nos maiores) e, para o gestor, o ranking dos representantes em visitas, conversão e receita.
 
@@ -300,6 +300,8 @@ O processo tem três momentos:
 1. A gestão escolhe um ou mais arquivos PDF, de até 10 MB cada. Um arquivo pode conter várias notas.
 2. O sistema lê os arquivos e mostra as notas encontradas para conferência, sem gravar nada.
 3. Ao confirmar, as notas são gravadas e o resultado aparece: quantas entraram, quantas foram ignoradas e quais dependem de alguma decisão.
+
+O que depende de decisão fica em um bloco só, "Pendências (N)", com duas partes: "Criar cliente" (notas cujo comprador ainda não é cliente) e "Ligar à visita" (notas de um dia diferente do da última visita do cliente). Cada parte tem um "?" que explica por que a nota está pendente.
 
 O PDF precisa ter texto selecionável. Foto ou digitalização de nota não é lida.
 
@@ -351,6 +353,8 @@ O modo demonstração permite apresentar o sistema como se fosse outro dia do an
 
 Ao escolher uma data, duas coisas acontecem. O sistema passa a tratar aquela data como o dia de hoje em tudo: cores, agenda, campanhas, metas e sugestões. E os dados de demonstração são recriados em volta dela, simulando três meses de uso até aquele dia.
 
+A carteira recriada é um modelo. Cada representante tem 40 clientes ativos, em rotas por dia da semana com visitas a cada 7 ou 14 dias, e 1 inativo. Na lista de clientes, cerca de 31 estão em dia, 5 em Atenção e 4 em Prioridade: um atrasado, um vencendo, um nunca visitado e um rebaixado pela última compra. São 4 a 5 visitas por dia útil para cada representante.
+
 Uma faixa com a data aparece em todas as telas enquanto a simulação está ativa. A data simulada avança um dia a cada dia real. A opção Voltar ao real encerra a simulação.
 
 A recriação apaga os clientes de demonstração, com as visitas e os lembretes deles, e também as campanhas e as metas. Ela preserva:
@@ -361,7 +365,7 @@ A recriação apaga os clientes de demonstração, com as visitas e os lembretes
 
 As visitas de venda da demonstração já trazem produtos e valores, como se a nota fiscal tivesse sido importada.
 
-Todos os contatos dos clientes de demonstração usam o mesmo telefone, o da autora do projeto, para que as mensagens de teste pelo WhatsApp cheguem a um número conhecido. No ambiente publicado, o telefone de teste (`VITE_TELEFONE_DE_TESTE`) faz o mesmo com os clientes reais: os botões Ligar e WhatsApp de qualquer cliente vão para esse número, a ficha mostra um aviso disso e os telefones cadastrados continuam como estão.
+Todos os contatos dos clientes de demonstração usam o mesmo telefone, o da autora do projeto, para que as mensagens de teste pelo WhatsApp cheguem a um número conhecido. Os clientes e contatos já cadastrados no banco usam esse mesmo número. Para os cadastros criados depois, como um cliente criado a partir de uma nota fiscal, o telefone de teste (`VITE_TELEFONE_DE_TESTE`) leva os botões Ligar e WhatsApp de qualquer cliente para esse número, sem aviso na tela.
 
 ## 14. Uso como aplicativo
 
