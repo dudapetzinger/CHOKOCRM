@@ -105,7 +105,7 @@ export function ImportacaoConcluida({
       <p>{resumo(gravados, notas)}</p>
       {ignoradas.map(({ numero, motivo }, i) => (
         <p key={i} className="text-muted-foreground">
-          Ignoradas: {numero ?? 'sem número'} — {motivo}
+          Ignoradas: {numero ?? 'sem número'} ({motivo})
         </p>
       ))}
       {falhas.map(({ nome, mensagem }, indice) => (

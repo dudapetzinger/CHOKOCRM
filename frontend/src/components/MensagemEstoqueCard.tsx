@@ -1,6 +1,6 @@
 /**
  * Card "Mensagem de estoque" na ficha do cliente: o representante busca a
- * mensagem de consulta de estoque proposta pelo sistema (evento sazonal
+ * mensagem de consulta de estoque proposta pelo sistema (data comemorativa
  * vigente, se houver), escolhe o contato, revisa o texto e abre no WhatsApp
  * via link `wa.me` montado no próprio toque de "Abrir no WhatsApp". Nada é
  * gravado: não há histórico nem chamada de registro. Com telefone que não
@@ -69,11 +69,8 @@ export function MensagemEstoqueCard({ clienteId }: Props) {
     setContactId(novoContactId);
     setErroTelefone(false);
 
-    const novaSugestao = proposta?.textosSugeridos.find(
-      (item) => item.contactId === (novoContactId || null),
-    )?.texto;
-
-    if (novaSugestao !== undefined && texto === ultimoTextoSugerido) {
+    if (proposta && texto === ultimoTextoSugerido) {
+      const novaSugestao = textoSugeridoDoDestino(proposta, novoContactId || null);
       setTexto(novaSugestao);
       setUltimoTextoSugerido(novaSugestao);
     }
@@ -128,7 +125,7 @@ export function MensagemEstoqueCard({ clienteId }: Props) {
             >
               {contatos.map((contato) => (
                 <option key={contato.id} value={contato.id}>
-                  {contato.nome} — {contato.telefone}
+                  {contato.nome}, {contato.telefone}
                 </option>
               ))}
               <option value={CONTATO_TELEFONE_CLIENTE}>Telefone do cliente ({proposta.telefoneCliente})</option>
@@ -137,8 +134,8 @@ export function MensagemEstoqueCard({ clienteId }: Props) {
 
           <p className="text-sm text-muted-foreground">
             {proposta.evento
-              ? `Evento vigente: ${proposta.evento.nome} — produtos sugeridos: ${proposta.evento.produtosSugeridos.join(', ')}.`
-              : 'Sem evento sazonal vigente — mensagem genérica.'}
+              ? `Data comemorativa vigente: ${proposta.evento.nome}. Produtos sugeridos: ${proposta.evento.produtosSugeridos.join(', ')}.`
+              : 'Nenhuma data comemorativa vigente. A mensagem é genérica.'}
           </p>
 
           <Campo

@@ -60,12 +60,12 @@ describe('linkWhatsapp', () => {
     expect(linkWhatsapp('0300 313 1234')).toBe('');
   });
 
-  it('sem DDD (8–9 dígitos), vazio', () => {
+  it('sem DDD (8 a 9 dígitos), vazio', () => {
     expect(linkWhatsapp('3333-4444')).toBe('');
     expect(linkWhatsapp('99900-8080')).toBe('');
   });
 
-  it('tamanho fora de 10–13 dígitos, ou 12–13 sem o 55, vazio', () => {
+  it('tamanho fora de 10 a 13 dígitos, ou 12 a 13 sem o 55, vazio', () => {
     expect(linkWhatsapp('+55 47 99900-80801')).toBe('');
     expect(linkWhatsapp('11 4733334444')).toBe('');
   });

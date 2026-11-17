@@ -1,6 +1,6 @@
 /**
- * Filtro "rótulo + controle segmentado": base dos filtros de horizonte dos
- * eventos sazonais (`FiltroHorizonte`) e de período dos indicadores
+ * Filtro "rótulo + controle segmentado": base dos filtros de horizonte das
+ * datas comemorativas (`FiltroHorizonte`) e de período dos indicadores
  * (`FiltroPeriodo`). Apesar do nome, o visual é o do controle segmentado, não
  * o de pílulas. Controlado: quem usa guarda o valor. Cada opção
  * traz o próprio rótulo (ex.: `{ valor: 30, rotulo: '30 dias' }`) e, se o

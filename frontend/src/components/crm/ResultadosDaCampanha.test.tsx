@@ -88,7 +88,7 @@ describe('ResultadosDaCampanha', () => {
     expect(eduarda).toEqual(['Eduarda Fischer', '5', '3', expect.stringMatching(/^R\$ 1\.503,70$/), '40 %']);
   });
 
-  it('conversão sem visitas (percentual nulo) aparece como "—"', () => {
+  it('conversão sem visitas (percentual nulo) aparece como "Sem dados"', () => {
     renderizar(CAMPANHA);
 
     const linha = screen.getByRole('row', { name: /Rafael Schmitt/ });
@@ -96,7 +96,7 @@ describe('ResultadosDaCampanha', () => {
     expect(celulas[1]).toHaveTextContent('0');
     expect(celulas[2]).toHaveTextContent('0');
     expect(celulas[3]).toHaveTextContent(/R\$\s0,00/);
-    expect(celulas[4]).toHaveTextContent('—');
+    expect(celulas[4]).toHaveTextContent('Sem dados');
   });
 
   it('o representante vê "Meus resultados"', () => {
@@ -114,8 +114,8 @@ describe('ResultadosDaCampanha', () => {
     const lista = screen.getByRole('list', { name: 'Produtos mais vendidos na campanha' });
     const itens = within(lista).getAllByRole('listitem');
     expect(itens).toHaveLength(2);
-    expect(itens[0]).toHaveTextContent(/^Caixa presente sortida — 12 un\. · R\$\s576,00$/);
-    expect(itens[1]).toHaveTextContent(/^Bombons sortidos — 1 un\. · R\$\s42,00$/);
+    expect(itens[0]).toHaveTextContent(/^Caixa presente sortida: 12 un\. · R\$\s576,00$/);
+    expect(itens[1]).toHaveTextContent(/^Bombons sortidos: 1 un\. · R\$\s42,00$/);
   });
 
   it('sem produtos vendidos, diz que nenhum pedido foi vinculado ainda', () => {

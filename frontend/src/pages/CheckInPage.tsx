@@ -440,7 +440,7 @@ export function CheckInPage() {
                     <option value="">Não informar</option>
                     {contatos.map((contato) => (
                       <option key={contato.id} value={contato.id}>
-                        {contato.nome} — {contato.cargo}
+                        {contato.nome} ({contato.cargo})
                       </option>
                     ))}
                     <option value={NOVO_CONTATO}>+ Novo contato…</option>

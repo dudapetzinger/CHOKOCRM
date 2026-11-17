@@ -75,3 +75,40 @@ describe('arquitetura do relógio (front)', () => {
     ]);
   });
 });
+
+/**
+ * Nenhum travessão (U+2014) nem meia-risca (U+2013) em código, textos de tela,
+ * comentários, nomes de teste, schema, scripts, documentação e README. Os
+ * caracteres entram por código aqui para este arquivo não se acusar.
+ */
+const TRAVESSAO_OU_MEIA_RISCA = new RegExp(`[${String.fromCharCode(0x2014)}${String.fromCharCode(0x2013)}]`);
+
+// `backend/prisma/migrations` fica de fora de propósito: uma migration aplicada não pode mudar (o checksum quebraria).
+// (o `import.meta.glob` exige as opções como objeto literal em cada chamada.)
+const GRUPOS: Record<string, Record<string, string>> = {
+  'frontend/src': import.meta.glob('./**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }),
+  'backend/src': import.meta.glob('../../backend/src/**/*.ts', { query: '?raw', import: 'default', eager: true }),
+  'backend/tests': import.meta.glob('../../backend/tests/**/*.ts', { query: '?raw', import: 'default', eager: true }),
+  'backend/prisma/schema.prisma': import.meta.glob('../../backend/prisma/schema.prisma', { query: '?raw', import: 'default', eager: true }),
+  'frontend/scripts': import.meta.glob('../scripts/*.mjs', { query: '?raw', import: 'default', eager: true }),
+  'scripts (raiz)': import.meta.glob('../../scripts/*', { query: '?raw', import: 'default', eager: true }),
+  'docs': import.meta.glob('../../docs/*.md', { query: '?raw', import: 'default', eager: true }),
+  'README.md': import.meta.glob('../../README.md', { query: '?raw', import: 'default', eager: true }),
+};
+
+describe('sem travessão nem meia-risca (código, scripts e documentação)', () => {
+  it('cada grupo achou arquivos', () => {
+    for (const [grupo, arquivos] of Object.entries(GRUPOS)) {
+      expect(Object.keys(arquivos).length, grupo).toBeGreaterThan(0);
+    }
+  });
+
+  it('nenhum arquivo dos grupos tem travessão ou meia-risca', () => {
+    const comTravessao = Object.values(GRUPOS)
+      .flatMap((arquivos) => Object.entries(arquivos))
+      .filter(([, codigo]) => TRAVESSAO_OU_MEIA_RISCA.test(codigo))
+      .map(([caminho]) => caminho)
+      .sort((a, b) => a.localeCompare(b));
+    expect(comTravessao).toEqual([]);
+  });
+});

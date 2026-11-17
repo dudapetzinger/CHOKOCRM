@@ -39,7 +39,7 @@ describe('InsightsCard', () => {
 
     renderizar();
 
-    expect(await screen.findByText(/Nenhum evento sazonal nos próximos 90 dias/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nenhuma data comemorativa nos próximos 90 dias/)).toBeInTheDocument();
     expect(screen.queryByText(/Dados simulados/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Nenhuma nota/)).not.toBeInTheDocument();
   });

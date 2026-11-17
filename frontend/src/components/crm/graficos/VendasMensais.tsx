@@ -3,8 +3,8 @@
  * inteiros que ele cobre, no mínimo três), no formato do gráfico de
  * sazonalidade do protótipo, com os dados de
  * `/dashboard/vendas-mensais`: linha com área, cada mês numa faixa do eixo X
- * com o ponto no meio dela. Uma linha tracejada marca o dia de cada evento
- * sazonal que cai na série (`eventos` da API, das `SeasonalEvent`), com o
+ * com o ponto no meio dela. Uma linha tracejada marca o dia de cada data
+ * comemorativa que cai na série (`eventos` da API, das `SeasonalEvent`), com o
  * nome na horizontal, no topo, à direita da linha; quando um nome invadiria
  * o seguinte, o seguinte desce para uma segunda linha (`distribuirRotulos`).
  * Perto da borda direita, o nome passa para a esquerda da linha. No celular

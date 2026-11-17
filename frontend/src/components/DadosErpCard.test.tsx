@@ -75,7 +75,7 @@ describe('DadosErpCard', () => {
     expect(notas[4]).toHaveTextContent('1× CACAU EM PÓ 500 G');
   });
 
-  it('mostra a origem de cada venda: NF <número> ou Pedido do check-in; sem origem, nada a mais', async () => {
+  it('mostra a origem de cada venda: NF <número> ou Venda registrada na visita; sem origem, nada a mais', async () => {
     vi.mocked(buscarDadosErp).mockResolvedValue(
       dadosOk({
         ultimasVendas: [
@@ -93,9 +93,9 @@ describe('DadosErpCard', () => {
       .getAllByRole('listitem')
       .filter((item) => item.parentElement === lista);
     expect(vendas[0]).toHaveTextContent('NF 2455');
-    expect(vendas[1]).toHaveTextContent('Pedido do check-in');
+    expect(vendas[1]).toHaveTextContent('Venda registrada na visita');
     expect(vendas[2]).not.toHaveTextContent('NF');
-    expect(vendas[2]).not.toHaveTextContent('Pedido do check-in');
+    expect(vendas[2]).not.toHaveTextContent('Venda registrada na visita');
   });
 
   it('estoque indisponível: não existe a coluna Estoque nem a frase antiga', async () => {

@@ -117,7 +117,7 @@ function NotasDoArquivo({ leitura }: { leitura: Leitura }) {
       )}
       {leitura.ignoradas.map(({ numero, motivo }, i) => (
         <p key={i} className="text-muted-foreground">
-          Ignoradas: {numero ?? 'sem número'} — {motivo}
+          Ignoradas: {numero ?? 'sem número'} ({motivo})
         </p>
       ))}
     </>

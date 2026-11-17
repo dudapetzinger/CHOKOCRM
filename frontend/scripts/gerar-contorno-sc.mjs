@@ -15,7 +15,7 @@
  *     (código → nome). Respostas esperadas: estado, 1 `Polygon` de 164
  *     pontos; municípios, 295 `Polygon` de 6 a 67 pontos cada; nomes, 295.
  *
- * Simplificação: Douglas–Peucker por anel, em graus, com tolerância inicial
+ * Simplificação: Douglas-Peucker por anel, em graus, com tolerância inicial
  * de 0,004° (uns 400 m), dobrada até o arquivo gerado caber em
  * `TAMANHO_MAXIMO` (150 KB). Só os anéis
  * externos entram (buracos são ignorados; um `MultiPolygon` vira vários
@@ -65,7 +65,7 @@ async function baixarJson(url) {
   return resposta.json();
 }
 
-/** Distância do ponto `p` ao segmento `a`–`b` (em graus; se `a` = `b`, ao ponto). */
+/** Distância do ponto `p` ao segmento `a` a `b` (em graus; se `a` = `b`, ao ponto). */
 function distanciaAoSegmento(p, a, b) {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
@@ -75,7 +75,7 @@ function distanciaAoSegmento(p, a, b) {
   return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
 }
 
-/** Douglas–Peucker: mantém as pontas e, recursivamente, o ponto mais afastado da reta entre elas. */
+/** Douglas-Peucker: mantém as pontas e, recursivamente, o ponto mais afastado da reta entre elas. */
 function douglasPeucker(pontos, tolerancia) {
   if (pontos.length <= 2) return pontos;
   let maior = 0;
@@ -105,7 +105,7 @@ function arredondar(valor) {
  */
 function simplificarAnel(anel, tolerancia) {
   // O anel do GeoJSON fecha repetindo o primeiro ponto: com as pontas iguais, o
-  // Douglas–Peucker mede a distância ao ponto, guarda o mais afastado e
+  // Douglas-Peucker mede a distância ao ponto, guarda o mais afastado e
   // recorta a partir dele, o que serve para o anel fechado.
   const simplificado = douglasPeucker(anel, tolerancia).map(([lng, lat]) => [arredondar(lng), arredondar(lat)]);
   const pontos = [];
@@ -150,7 +150,7 @@ function gerarConteudo({ estado, municipios, tolerancia, data, tamanho }) {
  * Fonte: API de malhas do IBGE (v3), GeoJSON com \`qualidade=minima\`:
  *   ${URL_ESTADO}
  * (municípios com \`&intrarregiao=municipio\`; nomes pela API de localidades
- * v1). Gerado em ${data}, simplificado com Douglas–Peucker a ${tolerancia}° e
+ * v1). Gerado em ${data}, simplificado com Douglas-Peucker a ${tolerancia}° e
  * arredondado a ${CASAS_DECIMAIS} casas (uns ${Math.round(tamanho / 1024)} KB). Só anéis externos, sem o ponto
  * de fechamento (o \`Z\` do caminho SVG fecha).
  *

@@ -24,7 +24,7 @@
  * é `role="img"` (a fatia, a barra, a coluna: uma figura com nome), menos o
  * `button`, que já tem o papel nativo.
  *
- * Barras finas (8–12 px) como gatilho ficam pequenas demais para o dedo:
+ * Barras finas (8 a 12 px) como gatilho ficam pequenas demais para o dedo:
  * abaixo de `md` todo controle tocável tem ao menos 44 px de altura.
  * `TOQUE_NA_BARRA` faz do gatilho um invólucro transparente dessa altura, com
  * a barra desenhada dentro; `TOQUE_NO_SEGMENTO` estende, por um `::before`,

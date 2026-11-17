@@ -73,7 +73,7 @@ describe('AlertasProducao', () => {
 
     expect(screen.getByRole('heading', { level: 3, name: 'Alertas de produção' })).toBeInTheDocument();
     expect(screen.getByText('Próximos')).toBeInTheDocument();
-    const segmentado = screen.getByRole('radiogroup', { name: 'Horizonte de eventos sazonais' });
+    const segmentado = screen.getByRole('radiogroup', { name: 'Horizonte de datas comemorativas' });
     expect(within(segmentado).getAllByRole('radio').map((opcao) => opcao.textContent)).toEqual([
       '30',
       '60',
@@ -92,8 +92,8 @@ describe('AlertasProducao', () => {
     const regiao = screen.getByRole('alert');
     const itens = within(regiao).getAllByRole('listitem');
     expect(itens).toHaveLength(2);
-    expect(itens[0]).toHaveTextContent('Bombons sortidos — Natal em 72 dias — 2 clientes');
-    expect(itens[1]).toHaveTextContent('Caixa presente — Natal em 72 dias — 1 cliente');
+    expect(itens[0]).toHaveTextContent('Bombons sortidos para Natal em 72 dias, 2 clientes');
+    expect(itens[1]).toHaveTextContent('Caixa presente para Natal em 72 dias, 1 cliente');
     // Os clientes ficam só no balão da barra (e na tabela acessível), sem links.
     expect(screen.queryByText(/Estoque baixo:/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
@@ -105,24 +105,24 @@ describe('AlertasProducao', () => {
   it('focar a barra abre o balão com os clientes de estoque baixo e a quantidade de cada um', () => {
     renderizar();
 
-    const barra = screen.getByRole('img', { name: 'Bombons sortidos — Natal · 2 clientes' });
+    const barra = screen.getByRole('img', { name: 'Bombons sortidos para Natal · 2 clientes' });
     act(() => barra.focus());
 
     const balao = screen.getByRole('tooltip');
-    expect(balao).toHaveTextContent('Bombons sortidos — Natal · 2 clientes');
+    expect(balao).toHaveTextContent('Bombons sortidos para Natal · 2 clientes');
     expect(within(balao).getAllByRole('listitem').map((linha) => linha.textContent)).toEqual([
       'Empório do Vale · (0)',
       'Café Blumenau · (4)',
     ]);
     // O balão não fica dentro do `role="alert"`: abrir não é anunciado como alerta.
     expect(within(screen.getByRole('alert')).queryByRole('tooltip')).not.toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Caixa presente — Natal · 1 cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Caixa presente para Natal · 1 cliente' })).toBeInTheDocument();
   });
 
   it('no celular, a barra tem área de toque de 44 px (sem ocupar mais espaço) e o desenho fica dentro', () => {
     renderizar();
 
-    const gatilho = screen.getByRole('img', { name: 'Bombons sortidos — Natal · 2 clientes' });
+    const gatilho = screen.getByRole('img', { name: 'Bombons sortidos para Natal · 2 clientes' });
     expect(gatilho).toHaveClass('relative', 'max-md:min-h-11', 'max-md:-my-[18px]');
     expect(gatilho).not.toHaveClass('bg-muted');
     expect(within(gatilho).getByTestId('barra-alerta').parentElement).toHaveClass('h-2', 'bg-muted');
@@ -168,7 +168,7 @@ describe('AlertasProducao', () => {
   it('carregando e erro: o segmentado continua na tela para escolher outro horizonte', () => {
     renderizar({ alertas: undefined, carregando: true });
     expect(screen.getByText('Carregando alertas de produção...')).toBeInTheDocument();
-    expect(screen.getByRole('radiogroup', { name: 'Horizonte de eventos sazonais' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Horizonte de datas comemorativas' })).toBeInTheDocument();
   });
 
   it('com erro, o aviso aparece acima do resultado anterior, que continua visível', () => {

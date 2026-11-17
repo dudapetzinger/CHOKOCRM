@@ -11,6 +11,8 @@ export default defineConfig({
       'virtual:pwa-register/react': fileURLToPath(new URL('src/test/pwaRegisterStub.ts', import.meta.url)),
     },
   },
+  // O teste de arquitetura lê também ../backend/src como texto.
+  server: { fs: { allow: ['..'] } },
   test: {
     environment: 'jsdom',
     globals: true,

@@ -160,8 +160,7 @@ export function RecorrenciaCard({ clienteId, recorrenciaDias, historico, podeAlt
         <ul className="space-y-1.5 text-sm">
           {historico.map((mudanca) => (
             <li key={mudanca.id}>
-              {mudanca.autor.nome}, {formatarData(mudanca.data)}: de {mudanca.de} para {mudanca.para} dias —{' '}
-              {mudanca.justificativa}
+              {mudanca.autor.nome}, {formatarData(mudanca.data)}: de {mudanca.de} para {mudanca.para} dias ({mudanca.justificativa})
             </li>
           ))}
         </ul>

@@ -1,6 +1,6 @@
 /**
  * "Criar cliente" de um CNPJ sem cliente no CRM ("cliente pela nota"), na
- * página "Importar notas" do gestor: no bloco "CNPJs sem cliente no CRM" e no
+ * página "Importar notas" do gestor: na parte "Criar cliente" do bloco "Pendências" e no
  * fecho da importação (`ImportacaoConcluida`, dentro do diálogo). O botão
  * abre, no próprio item, um formulário curto: "Representante" (obrigatório, entre os ativos),
  * "Nome fantasia" (vem com a razão social da nota) e "Recorrência (dias)"

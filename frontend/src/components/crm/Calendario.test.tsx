@@ -50,7 +50,7 @@ const SAZONAL: ItemCalendario = {
   data: '2026-10-12',
   tipo: 'DATA_SAZONAL',
   titulo: 'Dia das Crianças',
-  detalhe: 'Data sazonal',
+  detalhe: 'Data comemorativa',
 };
 
 const CAMPANHA: ItemCalendario = {
@@ -229,7 +229,7 @@ describe('Calendario', () => {
     expect(screen.getByText('Ficha do cliente c1')).toBeInTheDocument();
   });
 
-  it('data sazonal aparece no dia, sem link', async () => {
+  it('data comemorativa aparece no dia, sem link', async () => {
     renderizar();
 
     await usuario.click(await screen.findByRole('button', { name: 'segunda-feira, 12 de outubro, 1 item' }));
@@ -269,29 +269,29 @@ describe('Calendario', () => {
     renderizar('REPRESENTANTE');
     const legenda = screen.getByRole('list', { name: 'Legenda' });
     const itens = within(legenda).getAllByRole('listitem').map((item) => item.textContent);
-    expect(itens).toEqual(['Visita marcada', 'Lembrete', 'Data sazonal']);
+    expect(itens).toEqual(['Visita marcada', 'Lembrete', 'Data comemorativa']);
     expect(legenda).not.toHaveTextContent(/prevista|recorrência/i);
   });
 
-  it('o gestor vê a campanha entre o lembrete e a data sazonal na legenda', async () => {
+  it('o gestor vê a campanha entre o lembrete e a data comemorativa na legenda', async () => {
     renderizar('GESTOR');
     const itens = within(screen.getByRole('list', { name: 'Legenda' }))
       .getAllByRole('listitem')
       .map((item) => item.textContent);
-    expect(itens).toEqual(['Visita marcada', 'Lembrete', 'Campanha/evento', 'Data sazonal']);
+    expect(itens).toEqual(['Visita marcada', 'Lembrete', 'Campanha', 'Data comemorativa']);
   });
 
-  it('o representante não vê "Campanha/evento" na legenda', async () => {
+  it('o representante não vê "Campanha" na legenda', async () => {
     renderizar('REPRESENTANTE');
     const legenda = screen.getByRole('list', { name: 'Legenda' });
-    expect(within(legenda).queryByText('Campanha/evento')).not.toBeInTheDocument();
-    expect(within(legenda).getByText('Data sazonal')).toBeInTheDocument();
+    expect(within(legenda).queryByText('Campanha')).not.toBeInTheDocument();
+    expect(within(legenda).getByText('Data comemorativa')).toBeInTheDocument();
   });
 
   it('o gestor vê a campanha no dia e de quem é cada visita', async () => {
     renderizar('GESTOR', [VISITA_MARCADA, CAMPANHA]);
 
-    expect(within(screen.getByRole('list', { name: 'Legenda' })).getByText('Campanha/evento')).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Legenda' })).getByText('Campanha')).toBeInTheDocument();
     await usuario.click(await screen.findByRole('button', { name: 'quinta-feira, 22 de outubro, 2 itens' }));
     const painel = painelDoDia('quinta-feira, 22 de outubro');
     expect(within(painel).getByText('Campanha · 20/10/2026 a 24/12/2026')).toBeInTheDocument();

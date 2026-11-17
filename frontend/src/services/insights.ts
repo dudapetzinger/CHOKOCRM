@@ -1,5 +1,5 @@
 /**
- * Acesso tipado aos insights sazonais do cliente e aos alertas de
+ * Acesso tipado aos insights das datas comemorativas do cliente e aos alertas de
  * produção do gestor. Espelha os shapes de `InsightsDTO`,
  * `SugestaoDTO`, `AlertasDTO` e `AlertaProducaoDTO` de
  * `backend/src/services/insights.service.ts`. Datas de calendário chegam como

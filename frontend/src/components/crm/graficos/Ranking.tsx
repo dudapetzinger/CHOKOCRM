@@ -7,7 +7,7 @@
  * barra na cor primária e valor em negrito). Cada item tem a posição, o primeiro nome, o valor e uma
  * barra (só visual) proporcional ao primeiro colocado. Ordem decrescente,
  * empate pelo nome; na conversão, quem não visitou (sem percentual) vai para
- * o fim com "—". Todo representante aparece, mesmo zerado. Sem balão: os
+ * o fim com "Sem dados". Todo representante aparece, mesmo zerado. Sem balão: os
  * números já estão no texto.
  */
 import { Banknote, CalendarCheck, Target, type LucideIcon } from 'lucide-react';
@@ -61,7 +61,7 @@ function ordenar(representantes: KpiRepresentante[], { valor, formatar }: Lista)
         id: representante.id,
         nome: primeiroNome(representante.nome),
         valor: numero,
-        texto: numero === null ? '—' : formatar(numero),
+        texto: numero === null ? 'Sem dados' : formatar(numero),
       };
     })
     .sort(

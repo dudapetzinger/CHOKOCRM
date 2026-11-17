@@ -111,17 +111,17 @@ export function montarRoteiro(paradas: Parada[], limite = LIMITE_DE_PARADAS): Ro
 }
 
 /**
- * Endereço completo para o Google Maps: "Rua…, número — Cidade/SC". O
+ * Endereço completo para o Google Maps: "Rua…, número, Cidade/SC". O
  * endereço digitado no cadastro muitas vezes já termina com a cidade ("Rua
  * do Príncipe, 800 - Centro, Joinville/SC", como no seed): aí vai como está,
  * sem repetir a cidade. Só conta quando a cidade está no FIM do endereço
  * (como palavra inteira, seguida ou não de "/SC" ou " - SC"): "Rua Blumenau,
- * 50" de um cliente de Gaspar não traz a cidade e ganha "— Gaspar/SC".
+ * 50" de um cliente de Gaspar não traz a cidade e ganha ", Gaspar/SC".
  */
 export function enderecoCompleto(parada: Pick<Parada, 'endereco' | 'cidade'>): string {
   return terminaComACidade(parada.endereco, parada.cidade)
     ? parada.endereco
-    : `${parada.endereco} — ${parada.cidade}/SC`;
+    : `${parada.endereco}, ${parada.cidade}/SC`;
 }
 
 function terminaComACidade(endereco: string, cidade: string): boolean {
@@ -146,7 +146,7 @@ export type Trecho = { inicio: number; fim: number };
 /**
  * Divide `total` paradas em trechos de até `PARADAS_POR_TRECHO`; a origem de
  * cada trecho é o destino do anterior (a vendedora segue de onde parou):
- * 10 paradas → 1–5, 5–9 e 9–10; 6 → 1–5 e 5–6; até 5 → um trecho só.
+ * 10 paradas → 1 a 5, 5 a 9 e 9 a 10; 6 → 1 a 5 e 5 a 6; até 5 → um trecho só.
  * `inicio` e `fim` são índices das paradas (base 0, `fim` inclusivo).
  */
 export function dividirEmTrechos(total: number): Trecho[] {

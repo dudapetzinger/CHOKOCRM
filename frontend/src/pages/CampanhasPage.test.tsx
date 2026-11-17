@@ -322,7 +322,7 @@ describe('CampanhasPage: filtro por campanha', () => {
     expect(within(tabela).getByRole('row', { name: /Eduarda Fischer/ })).toHaveTextContent('50 %');
     // Produtos e metas
     const produtos = within(natal).getByRole('list', { name: 'Produtos mais vendidos na campanha' });
-    expect(within(produtos).getAllByRole('listitem')[0]).toHaveTextContent('Caixa presente sortida — 12 un.');
+    expect(within(produtos).getAllByRole('listitem')[0]).toHaveTextContent('Caixa presente sortida: 12 un.');
     const metas = within(natal).getByRole('region', { name: 'Metas da campanha' });
     expect(await within(metas).findByText('2 de 4 · 50 %')).toBeInTheDocument();
     expect(produtos.compareDocumentPosition(metas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -439,7 +439,7 @@ describe('CampanhasPage: formulário do gestor', () => {
       descricao: 'Só no fim de semana.',
       produtos: ['BOMB-SORT', 'PAO-MEL'],
     });
-    expect(await screen.findByText('Campanha criada — os representantes já podem ver')).toBeInTheDocument();
+    expect(await screen.findByText('Campanha criada. Os representantes já podem ver.')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('form', { name: 'Nova campanha' })).not.toBeInTheDocument());
     expect(listarCampanhas).toHaveBeenCalledTimes(2);
   });
@@ -471,7 +471,7 @@ describe('CampanhasPage: formulário do gestor', () => {
     expect(criarCampanha).not.toHaveBeenCalled();
   });
 
-  it('recusa nome em branco e desconto fora de 0–100', async () => {
+  it('recusa nome em branco e desconto fora de 0 a 100', async () => {
     const formulario = await abrirNova();
 
     preencher(within(formulario).getByLabelText('Nome'), '   ');

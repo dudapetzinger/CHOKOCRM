@@ -1,6 +1,6 @@
 /**
  * Redimensiona e recomprime a foto no próprio navegador antes do envio.
- * Uma foto de celular tem 3–5 MB; depois daqui fica em 200–400 KB, o que
+ * Uma foto de celular tem 3 a 5 MB; depois daqui fica em 200 a 400 KB, o que
  * torna o upload viável em campo e o armazenamento barato.
  */
 

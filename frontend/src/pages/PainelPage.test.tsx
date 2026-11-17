@@ -240,7 +240,7 @@ describe('PainelPage (gestor)', () => {
       ['Visitas no período', '12', 'média de 1,7 por cliente'],
       ['Taxa de registro', '67 %', '2 de 3 clientes com visita no período'],
       ['Conversão em vendas', '42 %', '5 de 12 visitas com venda'],
-      ['Clientes inativos', '1', 'laranja e vermelho, hoje'],
+      ['Clientes esfriando', '1', 'laranja e vermelho, hoje'],
     ]);
   });
 
@@ -493,7 +493,7 @@ describe('PainelPage (gestor)', () => {
     const bloco = screen.getByRole('region', { name: 'O próximo evento está chegando e o estoque acompanha?' });
     expect(within(bloco).getByRole('table', { name: 'Vendas mensais de set/26 a out/26 (R$ mil)' })).toBeInTheDocument();
     expect(within(bloco).getByRole('heading', { level: 3, name: 'Alertas de produção' })).toBeInTheDocument();
-    expect(within(bloco).getByRole('radiogroup', { name: 'Horizonte de eventos sazonais' })).toBeInTheDocument();
+    expect(within(bloco).getByRole('radiogroup', { name: 'Horizonte de datas comemorativas' })).toBeInTheDocument();
     expect(within(bloco).getByText('Nenhum alerta de produção para os próximos 90 dias.')).toBeInTheDocument();
   });
 

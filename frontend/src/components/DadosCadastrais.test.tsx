@@ -145,13 +145,13 @@ describe('DadosCadastrais', () => {
     expect(screen.getByRole('button', { name: 'Editar dados' })).toBeInTheDocument();
   });
 
-  it('cliente sem e-mail, telefone e cidade (criado pela nota) mostra "—" nesses dados', () => {
+  it('cliente sem e-mail, telefone e cidade (criado pela nota) mostra "Não informado" nesses dados', () => {
     renderizar(clienteDaNota);
 
     const valorDe = (rotulo: string) => screen.getByText(rotulo, { selector: 'dt' }).nextElementSibling;
-    expect(valorDe('E-mail')).toHaveTextContent(/^—$/);
-    expect(valorDe('Telefone')).toHaveTextContent(/^—$/);
-    expect(valorDe('Cidade')).toHaveTextContent(/^—$/);
+    expect(valorDe('E-mail')).toHaveTextContent(/^Não informado$/);
+    expect(valorDe('Telefone')).toHaveTextContent(/^Não informado$/);
+    expect(valorDe('Cidade')).toHaveTextContent(/^Não informado$/);
     expect(screen.getByRole('button', { name: 'Adicionar contato' })).toBeInTheDocument();
   });
 

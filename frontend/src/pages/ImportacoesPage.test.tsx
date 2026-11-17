@@ -440,7 +440,7 @@ describe('ImportacoesPage', () => {
 
     await escolherELer('a.pdf');
 
-    expect(arquivoLido('a.pdf')).toHaveTextContent('Ignoradas: 9 — Devolução');
+    expect(arquivoLido('a.pdf')).toHaveTextContent('Ignoradas: 9 (Devolução)');
     expect(screen.getByRole('button', { name: 'Confirmar importação' })).toBeDisabled();
   });
 
@@ -475,7 +475,7 @@ describe('ImportacoesPage', () => {
     await screen.findByRole('heading', { name: 'Importação concluída.' });
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ['erp'] });
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ['client'] });
-    expect(await screen.findByText(/a\.pdf — 1 nota/)).toBeInTheDocument();
+    expect(await screen.findByText(/a\.pdf: 1 nota/)).toBeInTheDocument();
 
     await usuario.click(screen.getByRole('button', { name: 'Nova importação' }));
 
@@ -486,7 +486,7 @@ describe('ImportacoesPage', () => {
     expect(screen.getByRole('button', { name: 'Ler notas' })).toBeDisabled();
     expect(screen.queryByRole('heading', { name: /Notas lidas/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Importação concluída.' })).not.toBeInTheDocument();
-    expect(screen.getByText(/a\.pdf — 1 nota/)).toBeInTheDocument();
+    expect(screen.getByText(/a\.pdf: 1 nota/)).toBeInTheDocument();
   });
 
   it('o "X" do diálogo na conferência fecha sem gravar e devolve o foco à escolha de arquivos', async () => {
@@ -589,7 +589,7 @@ describe('ImportacoesPage', () => {
     const bloco = within(dialogo).getByRole('group', { name: 'Criar cliente para Don Giacomo Ltda · 25.382.906/0001-49' });
     expect(within(bloco).getByLabelText('Representante')).toBeInTheDocument();
     // O bloco de baixo também lista o CNPJ, até o cliente ser criado.
-    expect(await screen.findByRole('heading', { name: 'CNPJs sem cliente no CRM (1)' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Pendências (1)' })).toBeInTheDocument();
 
     await within(bloco).findByRole('option', { name: 'Eduarda Fischer' });
     await usuario.selectOptions(within(bloco).getByLabelText('Representante'), 'Eduarda Fischer');
@@ -604,7 +604,8 @@ describe('ImportacoesPage', () => {
     const ver = await within(dialogo).findByRole('link', { name: 'Ver Don Giacomo' });
     expect(ver).toHaveAttribute('href', '/clientes/c9?aba=erp');
     expect(within(dialogo).queryByLabelText('Representante')).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText(/CNPJs sem cliente no CRM/)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Nenhuma pendência.')).toBeInTheDocument());
+    expect(screen.queryByRole('list', { name: 'CNPJs sem cliente no CRM' })).not.toBeInTheDocument();
   });
 
   it('arquivo que falha ao gravar: os outros concluem e o erro aparece no fecho', async () => {
@@ -636,12 +637,13 @@ describe('ImportacoesPage', () => {
     expect(screen.getByRole('button', { name: 'Confirmar importação' })).toBeEnabled();
   });
 
-  it('bloco persistente "CNPJs sem cliente no CRM (N)": razão social, CNPJ, município, notas e só "Criar cliente"', async () => {
+  it('bloco "Pendências (N)", parte "Criar cliente": razão social, CNPJ, município, notas e só "Criar cliente"', async () => {
     vi.mocked(listarSemCliente).mockResolvedValue([semCliente(), MERCADO]);
     renderizar();
 
     const lista = await screen.findByRole('list', { name: 'CNPJs sem cliente no CRM' });
-    expect(screen.getByRole('heading', { name: 'CNPJs sem cliente no CRM (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pendências (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Criar cliente' })).toBeInTheDocument();
     const [estrela, mercado] = within(lista).getAllByRole('listitem');
     expect(estrela).toHaveTextContent('PADARIA E CONFEITARIA ESTRELA LTDA');
     expect(estrela).toHaveTextContent('99.888.777/0001-66 · SAO BENTO DO SUL/SC · 3 notas');
@@ -652,11 +654,78 @@ describe('ImportacoesPage', () => {
     expect(screen.queryByText(/Copiar CNPJ/)).not.toBeInTheDocument();
   });
 
-  it('sem CNPJs sem cliente, o bloco não aparece', async () => {
+  it('sem CNPJs sem cliente, a parte "Criar cliente" não aparece', async () => {
+    vi.mocked(listarPendencias).mockResolvedValue([PENDENTE]);
     renderizar();
 
-    await waitFor(() => expect(listarSemCliente).toHaveBeenCalled());
-    expect(screen.queryByText(/CNPJs sem cliente no CRM/)).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Pendências (1)' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Criar cliente' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ligar à visita' })).toBeInTheDocument();
+  });
+
+  it('sem notas para ligar, a parte "Ligar à visita" não aparece', async () => {
+    vi.mocked(listarSemCliente).mockResolvedValue([MERCADO]);
+    renderizar();
+
+    expect(await screen.findByRole('heading', { name: 'Pendências (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Criar cliente' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Ligar à visita' })).not.toBeInTheDocument();
+  });
+
+  it('sem nenhuma pendência, um bloco só com "Nenhuma pendência."', async () => {
+    renderizar();
+
+    expect(await screen.findByText('Nenhuma pendência.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pendências (0)' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Criar cliente' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Ligar à visita' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /CNPJs sem cliente/ })).not.toBeInTheDocument();
+  });
+
+  it('um bloco só soma as duas partes, cada uma com o seu título', async () => {
+    vi.mocked(listarSemCliente).mockResolvedValue([semCliente(), MERCADO]);
+    vi.mocked(listarPendencias).mockResolvedValue([PENDENTE]);
+    renderizar();
+
+    expect(await screen.findByRole('heading', { name: 'Pendências (3)' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: /^Pendências/ })).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: 'Criar cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ligar à visita' })).toBeInTheDocument();
+    expect(screen.queryByText('Nenhuma pendência.')).not.toBeInTheDocument();
+  });
+
+  it('o "?" de "Criar cliente" abre a explicação do destinatário que ainda não é cliente', async () => {
+    vi.mocked(listarSemCliente).mockResolvedValue([MERCADO]);
+    renderizar();
+
+    const parte = await screen.findByRole('region', { name: 'Criar cliente' });
+    await usuario.click(within(parte).getByRole('button', { name: 'Por que é uma pendência?' }));
+
+    expect(await screen.findByText(/ainda não é cliente/)).toHaveTextContent(/representante/);
+  });
+
+  it('o "?" de "Ligar à visita" abre a explicação da nota em dia diferente da última visita', async () => {
+    vi.mocked(listarPendencias).mockResolvedValue([PENDENTE]);
+    renderizar();
+
+    const parte = await screen.findByRole('region', { name: 'Ligar à visita' });
+    await usuario.click(within(parte).getByRole('button', { name: 'Por que é uma pendência?' }));
+
+    expect(await screen.findByText(/dia diferente da última visita/)).toHaveTextContent(/conversão/);
+  });
+
+  it('os dois "?" têm o mesmo nome e cada um descreve o título da sua parte', async () => {
+    vi.mocked(listarSemCliente).mockResolvedValue([MERCADO]);
+    vi.mocked(listarPendencias).mockResolvedValue([PENDENTE]);
+    renderizar();
+
+    const criar = await screen.findByRole('region', { name: 'Criar cliente' });
+    const ligar = await screen.findByRole('region', { name: 'Ligar à visita' });
+    const botaoCriar = within(criar).getByRole('button', { name: 'Por que é uma pendência?' });
+    const botaoLigar = within(ligar).getByRole('button', { name: 'Por que é uma pendência?' });
+
+    expect(botaoCriar).toHaveAccessibleDescription('Criar cliente');
+    expect(botaoLigar).toHaveAccessibleDescription('Ligar à visita');
   });
 
   it('"Criar cliente": o item some da lista e o ERP e as fichas são buscados de novo', async () => {
@@ -682,7 +751,7 @@ describe('ImportacoesPage', () => {
     });
     expect(await screen.findByText('Cliente criado na carteira de Eduarda Fischer')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText('PADARIA E CONFEITARIA ESTRELA LTDA')).not.toBeInTheDocument());
-    expect(screen.getByRole('heading', { name: 'CNPJs sem cliente no CRM (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pendências (1)' })).toBeInTheDocument();
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ['erp'] });
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ['client'] });
     invalidar.mockRestore();
@@ -796,7 +865,7 @@ describe('ImportacoesPage', () => {
     renderizar();
 
     const item = await notaDoHistorico('2455');
-    expect(item).toHaveTextContent(/Doceria Central — nota 2455 de 04\/11 · R\$\s1\.000,00 · Vinculada à visita/);
+    expect(item).toHaveTextContent(/Doceria Central: nota 2455 de 04\/11 · R\$\s1\.000,00 · Vinculada à visita/);
     await usuario.click(within(item).getByRole('button', { name: 'Desvincular' }));
 
     expect(desvincularNota).not.toHaveBeenCalled();

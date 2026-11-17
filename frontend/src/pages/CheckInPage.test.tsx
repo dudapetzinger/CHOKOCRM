@@ -336,7 +336,7 @@ describe('CheckInPage: passos', () => {
 
     expect(createContato).toHaveBeenCalledWith('c1', expect.objectContaining({ nome: 'Jonas Kruger' }));
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Novo contato' })).not.toBeInTheDocument());
-    expect(select).toHaveDisplayValue('Jonas Kruger — Gerente');
+    expect(select).toHaveDisplayValue('Jonas Kruger (Gerente)');
     expect(select).toHaveFocus();
 
     await irAoPasso4('Apresentei o catálogo de Natal.');
@@ -349,13 +349,13 @@ describe('CheckInPage: passos', () => {
     renderizar();
     await esperarCliente();
     const select = screen.getByRole('combobox', { name: 'Contato atendido' });
-    await usuario.selectOptions(select, 'Marta Hoffmann — Compradora');
+    await usuario.selectOptions(select, 'Marta Hoffmann (Compradora)');
 
     await usuario.selectOptions(select, '+ Novo contato…');
     await usuario.click(within(screen.getByRole('group', { name: 'Novo contato' })).getByRole('button', { name: 'Cancelar' }));
 
     expect(screen.queryByRole('group', { name: 'Novo contato' })).not.toBeInTheDocument();
-    expect(select).toHaveDisplayValue('Marta Hoffmann — Compradora');
+    expect(select).toHaveDisplayValue('Marta Hoffmann (Compradora)');
     expect(select).toHaveFocus();
     expect(createContato).not.toHaveBeenCalled();
   });
@@ -433,7 +433,7 @@ describe('CheckInPage: passos', () => {
   it('Voltar preserva os campos (descrição digitada continua ao voltar ao 2 e avançar de novo)', async () => {
     renderizar();
     await esperarCliente();
-    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), 'Marta Hoffmann — Compradora');
+    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), 'Marta Hoffmann (Compradora)');
     preencher(screen.getByLabelText('Data e hora'), '2026-10-16T09:00');
     await continuar();
     await usuario.click(screen.getByRole('radio', { name: 'Negociação' }));
@@ -445,7 +445,7 @@ describe('CheckInPage: passos', () => {
     expect(titulo('Resultado')).toHaveFocus();
     expect(screen.getByRole('radio', { name: 'Negociação' })).toHaveAttribute('aria-checked', 'true');
     await voltar();
-    expect(screen.getByRole('combobox', { name: 'Contato atendido' })).toHaveDisplayValue('Marta Hoffmann — Compradora');
+    expect(screen.getByRole('combobox', { name: 'Contato atendido' })).toHaveDisplayValue('Marta Hoffmann (Compradora)');
     expect(screen.getByLabelText('Data e hora')).toHaveValue('2026-10-16T09:00');
 
     await continuar();
@@ -554,7 +554,7 @@ describe('CheckInPage: passos', () => {
 
     // Passo 1
     preencher(screen.getByLabelText('Data e hora'), '2026-10-16T09:00');
-    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), 'Marta Hoffmann — Compradora');
+    await usuario.selectOptions(screen.getByRole('combobox', { name: 'Contato atendido' }), 'Marta Hoffmann (Compradora)');
     await usuario.selectOptions(daVisita, 'Natal Chokolaten');
     await continuar();
 

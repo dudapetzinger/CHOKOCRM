@@ -14,7 +14,7 @@
  *
  * Cliente criado pelo gestor a partir da nota fiscal: nasce sem e-mail e sem
  * contatos, e às vezes sem telefone ou cidade (a nota não trazia). O dado
- * vazio aparece como "—"; em "Editar dados" o e-mail é opcional (vazio vai
+ * vazio aparece como "Não informado"; em "Editar dados" o e-mail é opcional (vazio vai
  * como `null`), e telefone e cidade continuam obrigatórios, então o
  * representante os completa ao salvar.
  */
@@ -266,10 +266,10 @@ export function DadosCadastrais({ cliente, podeInativar }: Props) {
   const dados: [string, string][] = [
     ['Razão social', cliente.razaoSocial],
     ['CNPJ', formatarCnpj(cliente.cnpj)],
-    ['Cidade', cliente.cidade || '—'],
-    ['Endereço', cliente.endereco || '—'],
-    ['Telefone', cliente.telefone || '—'],
-    ['E-mail', cliente.email || '—'],
+    ['Cidade', cliente.cidade || 'Não informado'],
+    ['Endereço', cliente.endereco || 'Não informado'],
+    ['Telefone', cliente.telefone || 'Não informado'],
+    ['E-mail', cliente.email || 'Não informado'],
     ...(cliente.erpId ? ([['Identificador no ERP', cliente.erpId]] as [string, string][]) : []),
     ['Cliente desde', formatarData(cliente.criadoEm)],
   ];

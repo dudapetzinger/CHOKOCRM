@@ -3,7 +3,7 @@
  * (representante), os números de visitas do Painel, nos cartões
  * do protótipo: o título com o período e os clientes
  * ativos e, embaixo, visitas, taxa de registro, conversão em vendas e
- * clientes inativos no período escolhido, cada um num cartão (quatro em linha
+ * clientes esfriando no período escolhido, cada um num cartão (quatro em linha
  * a partir de 1024 px, dois por linha abaixo). O período e o representante
  * vêm da página. Ao trocar o período, o resultado anterior segue na tela,
  * esmaecido, até o novo chegar.
@@ -29,7 +29,7 @@ function descreverPeriodo({ periodo, clientesAtivos }: Kpis): string {
 }
 
 function formatarProporcao(proporcao: Proporcao): string {
-  return proporcao.percentual === null ? '—' : formatarPercentual(proporcao.percentual);
+  return proporcao.percentual === null ? 'Sem dados' : formatarPercentual(proporcao.percentual);
 }
 
 function Indicador({ rotulo, valor, apoio }: { rotulo: string; valor: string; apoio: string }) {
@@ -70,7 +70,7 @@ function Indicadores({ kpis }: { kpis: Kpis }) {
             : `${conversaoEmVendas.numerador} de ${conversaoEmVendas.denominador} visitas com venda`
         }
       />
-      <Indicador rotulo="Clientes inativos" valor={String(inativos.total)} apoio="laranja e vermelho, hoje" />
+      <Indicador rotulo="Clientes esfriando" valor={String(inativos.total)} apoio="laranja e vermelho, hoje" />
     </dl>
   );
 }

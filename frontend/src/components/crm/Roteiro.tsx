@@ -66,7 +66,7 @@ export function Roteiro({ paradas: recebidas }: { paradas: Parada[] }) {
             <Button key={url} size="sm" variant="outline" asChild>
               <a href={url} target="_blank" rel="noreferrer">
                 <Navigation aria-hidden="true" />
-                Abrir no Google Maps{rotulo && ` — ${rotulo}`}
+                Abrir no Google Maps{rotulo && `: ${rotulo}`}
                 <span className="sr-only"> (abre em nova aba)</span>
               </a>
             </Button>

@@ -97,6 +97,38 @@ describe('MensagemEstoqueCard', () => {
     );
   });
 
+  it('ao trocar do contato para "Telefone do cliente", o texto sugerido passa a ser o do telefone do cliente', async () => {
+    vi.mocked(buscarProposta).mockResolvedValue(
+      proposta({
+        textoSugerido: 'Olá! Aqui é Eduarda.',
+        textosSugeridos: [{ contactId: 'ct1', texto: 'Olá, Marta! Aqui é Eduarda.' }],
+      }),
+    );
+    await abrirFormulario();
+    expect(screen.getByRole('textbox')).toHaveValue('Olá, Marta! Aqui é Eduarda.');
+
+    await usuario.selectOptions(screen.getByLabelText('Enviar para'), '');
+
+    expect(screen.getByRole('textbox')).toHaveValue('Olá! Aqui é Eduarda.');
+  });
+
+  it('ao trocar de contato, o texto que a pessoa já editou é mantido', async () => {
+    vi.mocked(buscarProposta).mockResolvedValue(
+      proposta({
+        textoSugerido: 'Olá! Aqui é Eduarda.',
+        textosSugeridos: [{ contactId: 'ct1', texto: 'Olá, Marta! Aqui é Eduarda.' }],
+      }),
+    );
+    await abrirFormulario();
+    const texto = screen.getByRole('textbox');
+    await usuario.clear(texto);
+    await usuario.type(texto, 'Texto escrito à mão');
+
+    await usuario.selectOptions(screen.getByLabelText('Enviar para'), '');
+
+    expect(screen.getByRole('textbox')).toHaveValue('Texto escrito à mão');
+  });
+
   it('telefone que não serve para o WhatsApp (0800): não abre e avisa', async () => {
     vi.mocked(buscarProposta).mockResolvedValue(
       proposta({
@@ -127,9 +159,9 @@ describe('MensagemEstoqueCard', () => {
 
     const select = screen.getByLabelText('Enviar para');
     expect(within(select).getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
-      'Marta Hoffmann — (47) 99900-8080',
-      'Ana — (47) 98888-1111',
-      'Zeca — (47) 97777-0000',
+      'Marta Hoffmann, (47) 99900-8080',
+      'Ana, (47) 98888-1111',
+      'Zeca, (47) 97777-0000',
       'Telefone do cliente ((47) 3633-1234)',
     ]);
     expect(select).toHaveValue('c1');

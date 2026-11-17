@@ -110,9 +110,9 @@ describe('linkGoogleMaps', () => {
     const enc = encodeURIComponent;
     expect(link).toBe(
       'https://www.google.com/maps/dir/?api=1' +
-        `&origin=${enc('Rua A, 10 / Sala 2 & Fundos — Blumenau/SC')}` +
-        `&destination=${enc('Rua D, 40 — Jaraguá do Sul/SC')}` +
-        `&waypoints=${enc('Rua B, 20 — Gaspar/SC')}%7C${enc('Rua C, 30 — Pomerode/SC')}` +
+        `&origin=${enc('Rua A, 10 / Sala 2 & Fundos, Blumenau/SC')}` +
+        `&destination=${enc('Rua D, 40, Jaraguá do Sul/SC')}` +
+        `&waypoints=${enc('Rua B, 20, Gaspar/SC')}%7C${enc('Rua C, 30, Pomerode/SC')}` +
         '&travelmode=driving',
     );
     expect(link).toContain('origin=Rua%20A%2C%2010%20%2F%20Sala%202%20%26%20Fundos');
@@ -125,23 +125,23 @@ describe('linkGoogleMaps', () => {
     ]);
 
     expect(link).toContain(`origin=${encodeURIComponent('Rua do Príncipe, 800 - Centro, Joinville/SC')}&`);
-    expect(link).toContain(`destination=${encodeURIComponent('Rua XV de Novembro, 900 — São Bento do Sul/SC')}&`);
+    expect(link).toContain(`destination=${encodeURIComponent('Rua XV de Novembro, 900, São Bento do Sul/SC')}&`);
   });
 
   it('a cidade só conta no fim do endereço: "Rua Blumenau, 50" de Gaspar ganha a cidade', () => {
-    expect(enderecoCompleto({ endereco: 'Rua Blumenau, 50', cidade: 'Gaspar' })).toBe('Rua Blumenau, 50 — Gaspar/SC');
+    expect(enderecoCompleto({ endereco: 'Rua Blumenau, 50', cidade: 'Gaspar' })).toBe('Rua Blumenau, 50, Gaspar/SC');
     expect(enderecoCompleto({ endereco: 'Rua Blumenau, 50', cidade: 'Blumenau' })).toBe(
-      'Rua Blumenau, 50 — Blumenau/SC',
+      'Rua Blumenau, 50, Blumenau/SC',
     );
     expect(enderecoCompleto({ endereco: 'Rua das Flores, 9 - Itaitá', cidade: 'Itá' })).toBe(
-      'Rua das Flores, 9 - Itaitá — Itá/SC',
+      'Rua das Flores, 9 - Itaitá, Itá/SC',
     );
   });
 
   it('endereço que termina com a cidade, com ou sem "/SC" ou " - SC", não repete a cidade', () => {
     for (const endereco of [
-      'Rua do Príncipe, 120 — Joinville/SC',
-      'Rua do Príncipe, 120 — Joinville',
+      'Rua do Príncipe, 120, Joinville/SC',
+      'Rua do Príncipe, 120, Joinville',
       'Rua do Príncipe, 120 - Centro, JOINVILLE - SC',
       'Rua do Príncipe, 120 - Centro, Joinville / SC.',
     ]) {
@@ -155,7 +155,7 @@ describe('linkGoogleMaps', () => {
     const link = linkGoogleMaps([parada('a', 'Blumenau', 'Rua A, 10')]);
 
     expect(link).toBe(
-      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('Rua A, 10 — Blumenau/SC')}&travelmode=driving`,
+      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('Rua A, 10, Blumenau/SC')}&travelmode=driving`,
     );
     expect(link).not.toContain('waypoints');
   });
@@ -163,7 +163,7 @@ describe('linkGoogleMaps', () => {
 
 describe('linksGoogleMaps (trechos de até 5 paradas)', () => {
   const dez = Array.from({ length: 10 }, (_, i) => parada(`p${i + 1}`, 'Blumenau', `Rua ${i + 1}, 10`));
-  const enderecoDe = (n: number) => encodeURIComponent(`Rua ${n}, 10 — Blumenau/SC`);
+  const enderecoDe = (n: number) => encodeURIComponent(`Rua ${n}, 10, Blumenau/SC`);
   const waypointsDe = (url: string) => new URL(url).searchParams.get('waypoints')?.split('|') ?? [];
 
   it('divide em trechos em que a origem é o destino do anterior, com no máximo 3 waypoints (celular)', () => {
@@ -185,15 +185,15 @@ describe('linksGoogleMaps (trechos de até 5 paradas)', () => {
 
     expect(links.map((link) => link.rotulo)).toEqual(['Trecho 1 de 3', 'Trecho 2 de 3', 'Trecho 3 de 3']);
     const [primeiro, segundo, terceiro] = links.map((link) => new URL(link.url).searchParams);
-    expect(primeiro!.get('origin')).toBe('Rua 1, 10 — Blumenau/SC');
+    expect(primeiro!.get('origin')).toBe('Rua 1, 10, Blumenau/SC');
     expect(primeiro!.get('waypoints')!.split('|')).toHaveLength(3);
-    expect(primeiro!.get('destination')).toBe('Rua 5, 10 — Blumenau/SC');
-    expect(segundo!.get('origin')).toBe('Rua 5, 10 — Blumenau/SC');
+    expect(primeiro!.get('destination')).toBe('Rua 5, 10, Blumenau/SC');
+    expect(segundo!.get('origin')).toBe('Rua 5, 10, Blumenau/SC');
     expect(segundo!.get('waypoints')!.split('|')).toHaveLength(3);
-    expect(segundo!.get('destination')).toBe('Rua 9, 10 — Blumenau/SC');
-    expect(terceiro!.get('origin')).toBe('Rua 9, 10 — Blumenau/SC');
+    expect(segundo!.get('destination')).toBe('Rua 9, 10, Blumenau/SC');
+    expect(terceiro!.get('origin')).toBe('Rua 9, 10, Blumenau/SC');
     expect(terceiro!.get('waypoints')).toBeNull();
-    expect(terceiro!.get('destination')).toBe('Rua 10, 10 — Blumenau/SC');
+    expect(terceiro!.get('destination')).toBe('Rua 10, 10, Blumenau/SC');
   });
 
   it('nenhuma parada fica de fora: juntos, os trechos cobrem as 10, e nenhum passa de 3 waypoints', () => {

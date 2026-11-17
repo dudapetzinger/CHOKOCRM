@@ -1,5 +1,5 @@
 /**
- * Estado de servidor dos insights sazonais do cliente e dos alertas de
+ * Estado de servidor dos insights das datas comemorativas do cliente e dos alertas de
  * produção do gestor, como manda a arquitetura do projeto: as páginas e os
  * componentes não chamam a API diretamente (ver
  * docs/arquitetura.md). O horizonte faz parte da chave: cada horizonte tem seu

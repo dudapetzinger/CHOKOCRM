@@ -101,8 +101,8 @@ describe('ConferenciaDeNotas', () => {
       }),
     ]);
 
-    expect(arquivo('a.pdf')).toHaveTextContent('Ignoradas: 9 — Devolução');
-    expect(arquivo('a.pdf')).toHaveTextContent('Ignoradas: sem número — sem chave de acesso');
+    expect(arquivo('a.pdf')).toHaveTextContent('Ignoradas: 9 (Devolução)');
+    expect(arquivo('a.pdf')).toHaveTextContent('Ignoradas: sem número (sem chave de acesso)');
   });
 
   it('"Importando…" na linha do arquivo que está sendo gravado', () => {

@@ -136,7 +136,7 @@ function FormularioCampanha({ campanha, aoFechar }: { campanha: Campanha | null;
       void queryClient.invalidateQueries({ queryKey: ['campanhas'] });
       // O período da campanha pode ter mudado (e com ele o realizado das metas)
       if (campanha) void queryClient.invalidateQueries({ queryKey: ['metas'] });
-      toast.success(campanha ? 'Campanha atualizada' : 'Campanha criada — os representantes já podem ver');
+      toast.success(campanha ? 'Campanha atualizada' : 'Campanha criada. Os representantes já podem ver.');
       aoFechar();
     },
   });

@@ -6,7 +6,7 @@
  * Fonte: API de malhas do IBGE (v3), GeoJSON com `qualidade=minima`:
  *   https://servicodados.ibge.gov.br/api/v3/malhas/estados/42?formato=application/vnd.geo+json&qualidade=minima
  * (municípios com `&intrarregiao=municipio`; nomes pela API de localidades
- * v1). Gerado em 26/10/2026, simplificado com Douglas–Peucker a 0.004° e
+ * v1). Gerado em 26/10/2026, simplificado com Douglas-Peucker a 0.004° e
  * arredondado a 3 casas (uns 83 KB). Só anéis externos, sem o ponto
  * de fechamento (o `Z` do caminho SVG fecha).
  *

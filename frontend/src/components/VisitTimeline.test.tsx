@@ -67,26 +67,26 @@ describe('VisitTimeline', () => {
     { sku: 'PAO-MEL', produtoNome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
   ];
 
-  it('mostra o pedido recolhido: só o total e o botão "Ver itens"', () => {
+  it('mostra o pedido recolhido: só o total e o botão "Ver produtos"', () => {
     renderizar([visita({ itens: ITENS_DO_PEDIDO, totalPedido: 503.7 })]);
 
-    expect(screen.getByText(/^Pedido · R\$\s503,70$/)).toBeInTheDocument();
-    const botao = screen.getByRole('button', { name: 'Ver itens' });
+    expect(screen.getByText(/^Produtos · R\$\s503,70$/)).toBeInTheDocument();
+    const botao = screen.getByRole('button', { name: 'Ver produtos' });
     expect(botao).toHaveAttribute('aria-expanded', 'false');
     expect(botao).toHaveAttribute('aria-controls');
-    expect(screen.queryByRole('list', { name: /^Pedido/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: /^Produtos/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Bombons sortidos/)).not.toBeInTheDocument();
   });
 
-  it('"Ver itens" mostra uma linha por item e o botão vira "Ocultar itens"', async () => {
+  it('"Ver produtos" mostra uma linha por item e o botão vira "Ocultar produtos"', async () => {
     const usuario = userEvent.setup();
     renderizar([visita({ itens: ITENS_DO_PEDIDO, totalPedido: 503.7 })]);
 
-    await usuario.click(screen.getByRole('button', { name: 'Ver itens' }));
+    await usuario.click(screen.getByRole('button', { name: 'Ver produtos' }));
 
-    const botao = screen.getByRole('button', { name: 'Ocultar itens' });
+    const botao = screen.getByRole('button', { name: 'Ocultar produtos' });
     expect(botao).toHaveAttribute('aria-expanded', 'true');
-    const pedido = screen.getByRole('list', { name: /^Pedido · R\$\s503,70$/ });
+    const pedido = screen.getByRole('list', { name: /^Produtos · R\$\s503,70$/ });
     expect(botao.getAttribute('aria-controls')).toBe(pedido.id);
     const linhas = within(pedido).getAllByRole('listitem');
     expect(linhas).toHaveLength(2);
@@ -96,28 +96,28 @@ describe('VisitTimeline', () => {
     expect(linhas[1]).toHaveTextContent('R$ 83,70');
 
     await usuario.click(botao);
-    expect(screen.queryByRole('list', { name: /^Pedido/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ver itens' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('list', { name: /^Produtos/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver produtos' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   const ITENS_DA_NOTA: Visita['itens'] = [
     { sku: '1001', produtoNome: 'BARRA AO LEITE 35% 500 G', quantidade: 16, precoUnitario: 102.125 },
   ];
 
-  it('visita com nota fiscal: "Pedido conforme NF" e o total da nota quando difere do pedido', () => {
+  it('visita com nota fiscal: "Produtos da NF" e o total da nota quando difere do pedido', () => {
     renderizar([
       visita({ itens: ITENS_DA_NOTA, totalPedido: 1634, notaFiscal: { numero: '2455', valorTotal: 1529.98 } }),
     ]);
 
-    expect(screen.getByText(/^Pedido conforme NF 2455 · R\$\s1\.634,00$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Produtos da NF 2455 · R\$\s1\.634,00$/)).toBeInTheDocument();
     expect(screen.getByText(/^Total da nota R\$\s1\.529,98$/)).toBeInTheDocument();
-    expect(screen.queryByText(/^Pedido · /)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Produtos · /)).not.toBeInTheDocument();
   });
 
   it('visita com nota fiscal de mesmo valor do pedido não repete o total da nota', () => {
     renderizar([visita({ itens: ITENS_DA_NOTA, totalPedido: 1634, notaFiscal: { numero: '2455', valorTotal: 1634 } })]);
 
-    expect(screen.getByText(/^Pedido conforme NF 2455 · R\$\s1\.634,00$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Produtos da NF 2455 · R\$\s1\.634,00$/)).toBeInTheDocument();
     expect(screen.queryByText(/Total da nota/)).not.toBeInTheDocument();
   });
 
@@ -128,12 +128,12 @@ describe('VisitTimeline', () => {
       visita({ id: 'v2', descricao: 'Outra.', itens: ITENS_DO_PEDIDO, totalPedido: 503.7 }),
     ]);
 
-    const [primeiro] = screen.getAllByRole('button', { name: 'Ver itens' });
+    const [primeiro] = screen.getAllByRole('button', { name: 'Ver produtos' });
     await usuario.click(primeiro);
 
-    expect(screen.getAllByRole('list', { name: /^Pedido/ })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: 'Ver itens' })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: 'Ocultar itens' })).toHaveLength(1);
+    expect(screen.getAllByRole('list', { name: /^Produtos/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Ver produtos' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Ocultar produtos' })).toHaveLength(1);
   });
 
   it('mostra a etiqueta da campanha da visita ao lado do resultado', () => {
@@ -171,7 +171,7 @@ describe('VisitTimeline', () => {
     renderizar([visita({ resultado: 'NEGOCIACAO' })]);
 
     expect(screen.getByText('Reposição do mostruário.')).toBeInTheDocument();
-    expect(screen.queryByText(/^Pedido/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Produtos/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /itens/ })).not.toBeInTheDocument();
   });
 

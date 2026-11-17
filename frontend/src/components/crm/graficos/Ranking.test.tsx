@@ -73,15 +73,15 @@ describe('Ranking', () => {
     expect(itensDa('Ranking de visitas')).toEqual(['1ºEduarda1 visita']);
   });
 
-  it('conversão em ordem decrescente; quem não visitou vai para o fim com "—"', () => {
+  it('conversão em ordem decrescente; quem não visitou vai para o fim com "Sem dados"', () => {
     render(<Ranking representantes={[...DADOS, representante('u5', 'Alice Prado', 0, null, 0)]} />);
 
     expect(itensDa('Ranking de conversão')).toEqual([
       '1ºAna42 %',
       '2ºEduarda42 %',
       '3ºRafael20 %',
-      '4ºAlice—',
-      '5ºBruno—',
+      '4ºAliceSem dados',
+      '5ºBrunoSem dados',
     ]);
   });
 

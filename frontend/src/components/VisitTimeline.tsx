@@ -13,10 +13,10 @@
  * Visual do protótipo: linha do tempo com um ponto por visita, a
  * data e o resultado numa etiqueta só de contorno (venda verde,
  * negociação azul, sem venda vermelho claro), a etiqueta azul preenchida da
- * campanha vinculada, o pedido da visita com venda ("Pedido ·
- * total" e, ao abrir "Ver itens", uma linha por item, com o preço da nota; o
- * pedido vem recolhido; com a nota fiscal importada vinculada, "Pedido
- * conforme NF 2455 · total do pedido" e, só quando o valor da nota difere,
+ * campanha vinculada, os produtos da visita com venda ("Produtos ·
+ * total" e, ao abrir "Ver produtos", uma linha por item, com o preço da nota; os
+ * produtos vêm recolhidos; com a nota fiscal importada vinculada, "Produtos
+ * da NF 2455 · total do pedido" e, só quando o valor da nota difere,
  * "Total da nota R$ ...") e a foto em
  * miniatura ou, depois da limpeza dos 90 dias, o aviso "Foto removida após
  * 90 dias." no lugar da foto e do botão de anexar.
@@ -167,7 +167,7 @@ function ItemDaVisita({
           <p id={`pedido-${visita.id}`} className="mb-1 flex items-center gap-1.5 font-medium">
             {/* Marca sem texto: o laranja vivo vale aqui */}
             <ShoppingBag aria-hidden="true" className="size-4 shrink-0 text-primary-vivo" />
-            {visita.notaFiscal ? `Pedido conforme NF ${visita.notaFiscal.numero}` : 'Pedido'} ·{' '}
+            {visita.notaFiscal ? `Produtos da NF ${visita.notaFiscal.numero}` : 'Produtos'} ·{' '}
             {formatarMoeda(visita.totalPedido)}
           </p>
           {visita.notaFiscal && visita.notaFiscal.valorTotal !== visita.totalPedido && (
@@ -183,7 +183,7 @@ function ItemDaVisita({
             onClick={onAlternarItens}
           >
             {itensAbertos ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
-            {itensAbertos ? 'Ocultar itens' : 'Ver itens'}
+            {itensAbertos ? 'Ocultar produtos' : 'Ver produtos'}
           </Button>
           {itensAbertos && (
             <ul id={`itens-${visita.id}`} aria-labelledby={`pedido-${visita.id}`} className="mt-1 space-y-0.5">

@@ -74,7 +74,7 @@ describe('RecorrenciaCard', () => {
     await usuario.type(screen.getByLabelText('Recorrência de visitas em dias'), '400');
     await usuario.type(screen.getByLabelText('Justificativa'), 'Pedido do cliente');
 
-    // 400 está fora de 1–365: não é "fora da faixa sugerida", o botão segue como "Salvar recorrência".
+    // 400 está fora de 1 a 365: não é "fora da faixa sugerida", o botão segue como "Salvar recorrência".
     await usuario.click(screen.getByRole('button', { name: 'Salvar recorrência' }));
 
     expect(screen.getByText('Recorrência de visitas deve ser um número inteiro entre 1 e 365.')).toBeInTheDocument();

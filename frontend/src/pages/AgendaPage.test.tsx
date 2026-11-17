@@ -494,8 +494,8 @@ describe('AgendaPage: roteiro do dia', () => {
     expect(link).toHaveAttribute(
       'href',
       'https://www.google.com/maps/dir/?api=1' +
-        `&origin=${encodeURIComponent('Rua XV de Novembro, 100 — Blumenau/SC')}` +
-        `&destination=${encodeURIComponent('Rua das Palmeiras, 50 — Joinville/SC')}&travelmode=driving`,
+        `&origin=${encodeURIComponent('Rua XV de Novembro, 100, Blumenau/SC')}` +
+        `&destination=${encodeURIComponent('Rua das Palmeiras, 50, Joinville/SC')}&travelmode=driving`,
     );
   });
 
@@ -531,9 +531,9 @@ describe('AgendaPage: roteiro do dia', () => {
     const roteiro = within(await screen.findByRole('region', { name: 'Roteiro do dia' }));
     const links = roteiro.getAllByRole('link', { name: /Abrir no Google Maps/ });
     expect(links.map((link) => link.textContent)).toEqual([
-      'Abrir no Google Maps — Trecho 1 de 3 (abre em nova aba)',
-      'Abrir no Google Maps — Trecho 2 de 3 (abre em nova aba)',
-      'Abrir no Google Maps — Trecho 3 de 3 (abre em nova aba)',
+      'Abrir no Google Maps: Trecho 1 de 3 (abre em nova aba)',
+      'Abrir no Google Maps: Trecho 2 de 3 (abre em nova aba)',
+      'Abrir no Google Maps: Trecho 3 de 3 (abre em nova aba)',
     ]);
     links.forEach((link) => expect(link).toHaveAttribute('target', '_blank'));
     const paradas = roteiro.getAllByRole('listitem');
@@ -576,7 +576,7 @@ describe('AgendaPage: calendário', () => {
     renderizarComo('REPRESENTANTE', {});
     await usuario.click(await screen.findByRole('radio', { name: 'Calendário' }));
     expect(
-      screen.getByText('As visitas marcadas e os lembretes, no dia de cada um, com as datas sazonais.'),
+      screen.getByText('As visitas marcadas e os lembretes, no dia de cada um, com as datas comemorativas.'),
     ).toBeInTheDocument();
   });
 
@@ -586,7 +586,7 @@ describe('AgendaPage: calendário', () => {
     await usuario.click(await screen.findByRole('radio', { name: 'Calendário' }));
     expect(
       screen.getByText(
-        'As visitas marcadas e os lembretes, no dia de cada um, com as datas sazonais, as campanhas e os eventos.',
+        'As visitas marcadas e os lembretes, no dia de cada um, com as datas comemorativas, as campanhas e os eventos.',
       ),
     ).toBeInTheDocument();
   });

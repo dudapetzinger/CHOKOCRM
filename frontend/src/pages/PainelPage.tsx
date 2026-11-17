@@ -294,7 +294,7 @@ function CartaoEpocaDoAno({ alertas }: { alertas: Alertas }) {
   return (
     <Cartao titulo="Época do ano">
       {alertas.eventos.length === 0 ? (
-        <EstadoVazio icone="calendar">Nenhum evento sazonal nos próximos {alertas.horizonteDias} dias.</EstadoVazio>
+        <EstadoVazio icone="calendar">Nenhuma data comemorativa nos próximos {alertas.horizonteDias} dias.</EstadoVazio>
       ) : (
         <ul className="-my-2 divide-y text-sm">
           {alertas.eventos.map((evento) => (

@@ -6,7 +6,7 @@
  * itens e total; as 10 mais recentes, com "Mostrar todas"; o gestor vê também
  * o representante). Tudo vem calculado do backend; o representante recebe só
  * a própria linha, só os produtos e só as vendas dele ("Meus resultados").
- * Conversão sem visitas (`percentual` nulo) aparece como "—". No celular a
+ * Conversão sem visitas (`percentual` nulo) aparece como "Sem dados". No celular a
  * tabela rola na horizontal dentro do cartão, sem rolagem da página.
  */
 import { useId, useState } from 'react';
@@ -78,8 +78,8 @@ function ResultadosDeUmaCampanha({ campanha, gestor }: { campanha: Campanha; ges
                     <td className="px-2 py-2 text-right font-semibold tabular-nums whitespace-nowrap">
                       {formatarMoeda(linha.vendas)}
                     </td>
-                    <td className="px-2 py-2 text-right tabular-nums">
-                      {linha.conversao.percentual === null ? '—' : formatarPercentual(linha.conversao.percentual)}
+                    <td className="px-2 py-2 text-right tabular-nums whitespace-nowrap">
+                      {linha.conversao.percentual === null ? 'Sem dados' : formatarPercentual(linha.conversao.percentual)}
                     </td>
                   </tr>
                 ))}
@@ -99,7 +99,7 @@ function ResultadosDeUmaCampanha({ campanha, gestor }: { campanha: Campanha; ges
           <ol aria-labelledby={idProdutos} className="list-decimal divide-y pl-5">
             {campanha.produtosMaisVendidos.map((produto) => (
               <li key={produto.sku} className="py-2 pl-1 text-sm break-words">
-                {produto.nome} — {produto.quantidade} un. · {formatarMoeda(produto.total)}
+                {produto.nome}: {produto.quantidade} un. · {formatarMoeda(produto.total)}
               </li>
             ))}
           </ol>

@@ -64,7 +64,7 @@ function UltimasVendas({ vendas }: { vendas: VendaErp[] }) {
             </p>
             {venda.origem && (
               <p className="text-xs text-muted-foreground">
-                {venda.origem.tipo === 'nota' ? `NF ${venda.origem.numero}` : 'Pedido do check-in'}
+                {venda.origem.tipo === 'nota' ? `NF ${venda.origem.numero}` : 'Venda registrada na visita'}
               </p>
             )}
             <ul aria-label="Itens da venda" className="mt-0.5 space-y-0.5 text-muted-foreground">
@@ -109,7 +109,7 @@ function renderizarConteudo(dadosErp: DadosErp): ReactElement {
               <ul className="space-y-1.5 text-sm">
                 <li>
                   {dadosErp.ultimaVenda
-                    ? `Última venda: ${formatarData(dadosErp.ultimaVenda.data)} — ${formatarMoeda(dadosErp.ultimaVenda.valor)}`
+                    ? `Última venda: ${formatarData(dadosErp.ultimaVenda.data)} (${formatarMoeda(dadosErp.ultimaVenda.valor)})`
                     : 'Nenhuma compra registrada.'}
                 </li>
                 <li>

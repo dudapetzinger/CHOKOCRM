@@ -26,7 +26,7 @@ export function usePendencias() {
   });
 }
 
-/** CNPJs das notas sem cliente no CRM, à espera de o gestor criar o cliente. */
+/** CNPJs das notas sem cliente no CRM, para a parte "Criar cliente" do bloco "Pendências", à espera de o gestor criar o cliente. */
 export function useSemCliente() {
   const { user } = useAuth();
   return useQuery({

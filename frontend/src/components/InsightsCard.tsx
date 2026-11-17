@@ -1,6 +1,6 @@
 /**
  * Card "Insights e sugestões" na ficha do cliente: para cada
- * evento sazonal dentro do horizonte escolhido, compara as compras do cliente
+ * data comemorativa dentro do horizonte escolhido, compara as compras do cliente
  * na janela do mesmo evento no ano anterior com a média dele e sugere uma ação
  * (aumentar oferta, criar promoção ou ofertar desconto), com os números que
  * sustentam a sugestão em "Como calculamos". Visível para todos os papéis
@@ -86,7 +86,7 @@ function renderizarConteudo(insights: Insights): ReactElement {
 
           {insights.eventosSemHistorico.map((evento) => (
             <p key={evento.id} className="text-sm text-muted-foreground">
-              {evento.nome} {descreverPrazo(evento.diasAteEvento)} — sem histórico de compras no mesmo período
+              {evento.nome} {descreverPrazo(evento.diasAteEvento)}: sem histórico de compras no mesmo período
               do ano passado.
             </p>
           ))}
@@ -95,7 +95,7 @@ function renderizarConteudo(insights: Insights): ReactElement {
               dado anterior continua na tela e a mensagem precisa falar do horizonte desse dado. */}
           {insights.sugestoes.length === 0 && insights.eventosSemHistorico.length === 0 && (
             <EstadoVazio icone="calendar">
-              Nenhum evento sazonal nos próximos {insights.horizonteDias} dias.
+              Nenhuma data comemorativa nos próximos {insights.horizonteDias} dias.
             </EstadoVazio>
           )}
         </div>

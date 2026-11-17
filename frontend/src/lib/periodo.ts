@@ -1,6 +1,6 @@
 /**
  * Período de análise do Painel: ou uma janela em dias que termina
- * hoje (30, 90 ou 365) ou uma faixa personalizada `inicio`–`fim`
+ * hoje (30, 90 ou 365) ou uma faixa personalizada `inicio` a `fim`
  * ('AAAA-MM-DD', as duas pontas inclusas). É o formato que o filtro, os
  * serviços e os hooks trocam entre si; `queryDoPeriodo` o traduz para o
  * contrato da API (`periodoDias` ou `inicio` e `fim`, nunca os dois) e

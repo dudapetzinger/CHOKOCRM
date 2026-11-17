@@ -26,16 +26,21 @@
  * no fundo) volta a "Escolher" limpo, com o foco na escolha de arquivos.
  * Enquanto lê ou grava (`ocupado`), Esc, "Fechar" e o fundo não fecham.
  * Os blocos de baixo ficam sempre na tela:
- *   - "CNPJs sem cliente no CRM (N)": bloco persistente (`GET /erp/sem-cliente`,
- *     lido como as pendências), um item por CNPJ das notas cujo destinatário
- *     ainda não é cliente (razão social, CNPJ formatado, município, quantas notas). O
- *     gestor cria o cliente pela nota ali mesmo ("Criar cliente",
- *     `CriarClientePelaNota`): escolhe o representante, e o cadastro vem da
- *     DANFE; as notas do CNPJ passam ao cliente novo e o item some. Serve às
- *     notas de importações anteriores (as de agora ganham o cliente no fecho);
- *   - "Pendências": notas com uma visita sugerida, à espera de o gestor
- *     vincular ou deixar só no ERP; a linha avisa que os produtos e o total
- *     da nota passam a aparecer na visita e, se a visita não é Venda, que ela passa a ser;
+ *   - "Pendências (N)": um bloco só, N a soma das duas partes (`Pendencias`);
+ *     sem nenhuma, "Nenhuma pendência."; parte vazia não aparece. Cada parte
+ *     tem um título, um "?" ("Por que é uma pendência?", `AjudaDaPendencia`)
+ *     que abre uma explicação curta e a lista dos itens:
+ *       - "Criar cliente" (`GET /erp/sem-cliente`, lido como as pendências):
+ *         um item por CNPJ das notas cujo destinatário ainda não é cliente
+ *         (razão social, CNPJ formatado, município, quantas notas). O gestor
+ *         cria o cliente pela nota ali mesmo ("Criar cliente",
+ *         `CriarClientePelaNota`): escolhe o representante, e o cadastro vem da
+ *         DANFE; as notas do CNPJ passam ao cliente novo e o item some. Serve às
+ *         notas de importações anteriores (as de agora ganham o cliente no fecho);
+ *       - "Ligar à visita": notas com uma visita sugerida, à espera de o gestor
+ *         vincular ou deixar só no ERP; a linha avisa que os produtos e o total
+ *         da nota passam a aparecer na visita e, se a visita não é Venda, que
+ *         ela passa a ser;
  *   - "Importações anteriores": as últimas 20, cada uma com as suas notas e o
  *     estado do vínculo hoje ("Vinculada à visita", "Pendente" ou "Só no
  *     ERP"); a nota vinculada tem "Desvincular", a mesma ação do
@@ -45,11 +50,12 @@
  * O dia de emissão da nota é data de calendário ('AAAA-MM-DD') e é formatado
  * por texto (`formatarDiaMes`); a data da visita é um instante ISO.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileUp } from 'lucide-react';
+import { FileUp, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { contar } from '@/lib/contar';
 import { useAuth } from '../auth/useAuth';
 import { AvisoExclusivoDoGestor } from '../components/AvisoExclusivoDoGestor';
@@ -236,45 +242,8 @@ function Importacoes() {
         )}
       </Dialogo>
 
-      <SemCliente />
       <Pendencias />
       <ImportacoesAnteriores />
-    </div>
-  );
-}
-
-/**
- * CNPJs das notas sem cliente no CRM, com "Criar cliente".
- * Sem nenhum, o bloco não aparece; criado o cliente, a lista é buscada de
- * novo (`['erp']`) e o item some.
- */
-function SemCliente() {
-  const { data: itens, isError, error } = useSemCliente();
-
-  if (isError) {
-    return (
-      <Cartao titulo="CNPJs sem cliente no CRM">
-        <Aviso tom="erro" role="alert">
-          {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
-        </Aviso>
-      </Cartao>
-    );
-  }
-  if (!itens || itens.length === 0) return null;
-
-  return (
-    <div>
-      <Cartao titulo={`CNPJs sem cliente no CRM (${itens.length})`}>
-        <ul aria-label="CNPJs sem cliente no CRM" className="divide-y">
-          {itens.map((item) => (
-            <ItemSemCliente key={item.cnpj} item={item} />
-          ))}
-        </ul>
-        <p className="mt-3 text-sm text-muted-foreground">
-          "Criar cliente" cadastra o cliente com os dados da nota, na carteira do representante escolhido, e as notas
-          deste CNPJ passam a ser dele; o representante completa e-mail e contatos na ficha.
-        </p>
-      </Cartao>
     </div>
   );
 }
@@ -296,25 +265,93 @@ function ItemSemCliente({ item }: { item: CnpjSemCliente }) {
   );
 }
 
+/**
+ * Botão "?" de cada parte do bloco, com o padrão da legenda das situações: abre um balão com a explicação.
+ * O nome é o mesmo nas duas partes; `aria-describedby` aponta para o título da parte a que o botão pertence.
+ */
+function AjudaDaPendencia({ idTitulo, children }: { idTitulo: string; children: ReactNode }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="icon" className="shrink-0 bg-card" aria-label="Por que é uma pendência?" aria-describedby={idTitulo}>
+          <HelpCircle aria-hidden="true" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[min(20rem,calc(100vw-2rem))] text-sm">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Uma parte do bloco: título, "?" com a explicação e os itens. */
+function ParteDasPendencias({ titulo, ajuda, children }: { titulo: string; ajuda: ReactNode; children: ReactNode }) {
+  const idTitulo = useId();
+  return (
+    <section aria-labelledby={idTitulo} className="space-y-1">
+      <div className="flex items-center gap-2">
+        <h3 id={idTitulo} className="text-sm font-semibold">
+          {titulo}
+        </h3>
+        <AjudaDaPendencia idTitulo={idTitulo}>{ajuda}</AjudaDaPendencia>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * O que espera a gestão: CNPJs das notas sem cliente no CRM ("Criar cliente")
+ * e notas com visita sugerida ("Ligar à visita"). O título soma as duas
+ * partes; a parte vazia não aparece. Criado o cliente, vinculada ou deixada
+ * só no ERP, a lista é buscada de novo (`['erp']`) e o item some.
+ */
 function Pendencias() {
-  const { data: pendencias, isLoading, isError, error } = usePendencias();
+  const semCliente = useSemCliente();
+  const pendencias = usePendencias();
+  const carregando = semCliente.isLoading || pendencias.isLoading;
+  const total = semCliente.data && pendencias.data ? semCliente.data.length + pendencias.data.length : null;
 
   return (
-    <Cartao titulo={pendencias ? `Pendências (${pendencias.length})` : 'Pendências'}>
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando pendências...</p>}
-      {isError && (
-        <Aviso tom="erro" role="alert">
-          {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
-        </Aviso>
-      )}
-      {pendencias?.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma pendência.</p>}
-      {pendencias && pendencias.length > 0 && (
-        <ul aria-label="Notas pendentes" className="divide-y">
-          {pendencias.map((nota) => (
-            <LinhaPendente key={nota.id} nota={nota} />
-          ))}
-        </ul>
-      )}
+    <Cartao titulo={total === null ? 'Pendências' : `Pendências (${total})`}>
+      <div className="space-y-4">
+        {carregando && <p className="text-sm text-muted-foreground">Carregando pendências...</p>}
+        {semCliente.isError && (
+          <Aviso tom="erro" role="alert">
+            {mensagemErroApi(semCliente.error, MENSAGEM_ERRO_CARREGAR)}
+          </Aviso>
+        )}
+        {pendencias.isError && (
+          <Aviso tom="erro" role="alert">
+            {mensagemErroApi(pendencias.error, MENSAGEM_ERRO_CARREGAR)}
+          </Aviso>
+        )}
+        {total === 0 && <p className="text-sm text-muted-foreground">Nenhuma pendência.</p>}
+        {semCliente.data && semCliente.data.length > 0 && (
+          <ParteDasPendencias
+            titulo="Criar cliente"
+            ajuda="O destinatário da nota ainda não é cliente. A gestão escolhe o representante e cria o cliente com os dados da nota; as notas deste CNPJ passam a ser dele, e o representante completa e-mail e contatos na ficha."
+          >
+            <ul aria-label="CNPJs sem cliente no CRM" className="divide-y">
+              {semCliente.data.map((item) => (
+                <ItemSemCliente key={item.cnpj} item={item} />
+              ))}
+            </ul>
+          </ParteDasPendencias>
+        )}
+        {pendencias.data && pendencias.data.length > 0 && (
+          <ParteDasPendencias
+            titulo="Ligar à visita"
+            ajuda="A nota caiu em um dia diferente da última visita do cliente. A gestão decide se a venda conta para essa visita, o que pesa na conversão e nas campanhas do representante, ou se fica só como compra."
+          >
+            <ul aria-label="Notas pendentes" className="divide-y">
+              {pendencias.data.map((nota) => (
+                <LinhaPendente key={nota.id} nota={nota} />
+              ))}
+            </ul>
+          </ParteDasPendencias>
+        )}
+      </div>
     </Cartao>
   );
 }
@@ -348,11 +385,11 @@ function useAcoesDaNota(nota: Nota) {
   return { vincular, desvincular, ocupada: vincular.isPending || desvincular.isPending };
 }
 
-/** "Doceria Central — nota 2455 de 04/11 · R$ 1.000,00", comum à pendência e ao histórico. */
+/** "Doceria Central: nota 2455 de 04/11 · R$ 1.000,00", comum à pendência e ao histórico. */
 function DescricaoDaNota({ nota }: { nota: Nota }) {
   return (
     <>
-      <b className="font-medium">{nota.cliente?.nomeFantasia ?? nota.destinatarioNome}</b> — nota {nota.numero} de{' '}
+      <b className="font-medium">{nota.cliente?.nomeFantasia ?? nota.destinatarioNome}</b>: nota {nota.numero} de{' '}
       {formatarDiaMes(nota.dataEmissao)} · {formatarMoeda(nota.valorTotal)}
     </>
   );
@@ -405,7 +442,7 @@ function ImportacoesAnteriores() {
         <ul aria-label="Importações anteriores" className="divide-y">
           {importacoes.map((importacao) => (
             <li key={importacao.id} className="py-2 text-sm">
-              {importacao.nomeArquivo} — {contar(importacao.notas.length, 'nota')} · {formatarData(importacao.criadoEm)} ·{' '}
+              {importacao.nomeArquivo}: {contar(importacao.notas.length, 'nota')} · {formatarData(importacao.criadoEm)} ·{' '}
               {importacao.autor.nome}
               {importacao.notas.length > 0 && (
                 <ul aria-label="Notas da importação" className="mt-1.5 space-y-1.5 pl-3 text-muted-foreground">

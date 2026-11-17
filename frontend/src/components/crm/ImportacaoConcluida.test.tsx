@@ -195,7 +195,7 @@ describe('ImportacaoConcluida', () => {
     expect(screen.queryByText(/Criar o cliente no bloco/)).not.toBeInTheDocument();
     expect(document.querySelector('a[href="#cnpjs-sem-cliente"]')).toBeNull();
     expect(screen.queryByRole('link', { name: /^Ver / })).not.toBeInTheDocument();
-    expect(screen.getByText('Ignoradas: 9 — Devolução')).toBeInTheDocument();
+    expect(screen.getByText('Ignoradas: 9 (Devolução)')).toBeInTheDocument();
   });
 
   it('duas notas do mesmo CNPJ sem cliente: um só formulário; dois CNPJs, dois', () => {

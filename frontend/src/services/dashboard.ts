@@ -79,7 +79,7 @@ export type EventoNoGrafico = {
 export type VendasMensais = {
   /** Os meses inteiros do período (no mínimo três), do mais antigo ao mais recente. */
   meses: VendaDoMes[];
-  /** Eventos sazonais que caem na janela dos meses da série. */
+  /** Datas comemorativas que caem na janela dos meses da série. */
   eventos: EventoNoGrafico[];
   simulado: boolean;
   periodo: Kpis['periodo'];

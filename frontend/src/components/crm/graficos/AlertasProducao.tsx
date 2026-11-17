@@ -4,7 +4,7 @@
  * cada produto sugerido de um evento próximo, quantos clientes estão com
  * estoque baixo, em texto e numa barra (comprimento = clientes ÷ o maior
  * alerta). Os clientes ficam só no balão da barra
- * ("Bombons sortidos — Natal · 5 clientes" e cada cliente com a quantidade em
+ * ("Bombons sortidos para Natal · 5 clientes" e cada cliente com a quantidade em
  * estoque).
  * No celular, o gatilho é um invólucro com 44 px de toque (`TOQUE_NA_BARRA`).
  * A tabela escondida lista evento, produto e clientes para leitores de tela.
@@ -39,7 +39,7 @@ type Props = {
 
 function balaoDoAlerta({ evento, produto, clientes }: AlertaProducao): ConteudoDoBalao {
   return {
-    titulo: `${produto.nome} — ${evento.nome} · ${contar(clientes.length, 'cliente')}`,
+    titulo: `${produto.nome} para ${evento.nome} · ${contar(clientes.length, 'cliente')}`,
     linhas: clientes.map((cliente) => ({ nome: cliente.nomeFantasia, detalhe: `(${cliente.quantidade})` })),
   };
 }
@@ -55,7 +55,7 @@ function ListaDeAlertas({ alertas }: { alertas: Alertas }) {
 
   if (alertas.alertas.length === 0 && todosIndisponiveis) {
     return (
-      <Aviso>Dados do ERP indisponíveis no momento — não foi possível verificar o estoque dos clientes.</Aviso>
+      <Aviso>Dados do ERP indisponíveis no momento. Não foi possível verificar o estoque dos clientes.</Aviso>
     );
   }
 
@@ -79,8 +79,8 @@ function ListaDeAlertas({ alertas }: { alertas: Alertas }) {
             return (
               <li key={`${evento.id}-${produto.sku}`}>
                 <p className="mb-1 text-sm">
-                  <b className="font-medium">{produto.nome}</b> — {evento.nome} {descreverPrazo(evento.diasAteEvento)}{' '}
-                  — {contar(clientes.length, 'cliente')}
+                  <b className="font-medium">{produto.nome}</b> para {evento.nome} {descreverPrazo(evento.diasAteEvento)}{', '}
+                  {contar(clientes.length, 'cliente')}
                 </p>
                 <GatilhoDoBalao conteudo={balao} aria-label={balao.titulo} className={TOQUE_NA_BARRA}>
                   <div className="h-2 w-full rounded-full bg-muted">

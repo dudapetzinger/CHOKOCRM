@@ -24,7 +24,7 @@ export function somenteDigitos(telefone: string): string {
 
 /**
  * Número internacional (55 + DDD + número) só com dígitos, ou vazio se não
- * houver dígitos; um único zero inicial (tronco, "047 …") é descartado. Um número nacional tem 10–11 dígitos; com 12–13 dígitos e
+ * houver dígitos; um único zero inicial (tronco, "047 …") é descartado. Um número nacional tem 10 a 11 dígitos; com 12 a 13 dígitos e
  * começando por 55, já vem com o código do país e não ganha outro (assim o
  * DDD 55, do RS, sem código do país continua recebendo o prefixo).
  */
@@ -43,8 +43,8 @@ const REGEX_PREFIXO_NAO_GEOGRAFICO = /^0[3589]00/;
 
 /**
  * Número para o `wa.me`: só dígitos; rejeita prefixo não geográfico (nos dígitos brutos,
- * antes de tirar o zero de tronco); remove zeros iniciais; 10–11 dígitos
- * ganham o 55 e 12–13 dígitos precisam começar com 55. Qualquer outro caso
+ * antes de tirar o zero de tronco); remove zeros iniciais; 10 a 11 dígitos
+ * ganham o 55 e 12 a 13 dígitos precisam começar com 55. Qualquer outro caso
  * (sem DDD, tamanho estranho) devolve vazio.
  */
 function numeroParaWhatsapp(telefone: string): string {

@@ -50,7 +50,7 @@ export function buscarAgendaDoDia(representanteId?: string): Promise<Agenda> {
  * Um item num dia do calendário, como `ItemCalendario` de
  * `backend/src/services/agenda.calendario.ts`: a visita marcada no check-in ou pela ficha
  * para um cliente (no dia marcado, mesmo vencida), um lembrete aberto (no dia
- * dele), um dia de campanha (só para o gestor) ou uma data sazonal.
+ * dele), um dia de campanha (só para o gestor) ou uma data comemorativa.
  */
 export type ItemCalendario = {
   /** `AAAA-MM-DD`. */
@@ -66,14 +66,14 @@ export type ItemCalendario = {
   representante?: { id: string; nome: string };
   /** Na visita, a campanha da próxima visita; na campanha, ela mesma. */
   campanha?: { id: string; nome: string } | null;
-  /** Texto pronto do backend: vencimento da visita ou do lembrete, tipo e período da campanha, "Data sazonal". */
+  /** Texto pronto do backend: vencimento da visita ou do lembrete, tipo e período da campanha, "Data comemorativa". */
   detalhe?: string;
 };
 
 export type Calendario = {
   /** `AAAA-MM`. */
   mes: string;
-  /** Por dia; no mesmo dia, data sazonal, campanha e visitas da mais urgente para a menos. */
+  /** Por dia; no mesmo dia, data comemorativa, campanha e visitas da mais urgente para a menos. */
   itens: ItemCalendario[];
 };
 

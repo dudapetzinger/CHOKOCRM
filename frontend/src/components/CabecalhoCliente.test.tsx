@@ -345,13 +345,13 @@ describe('CabecalhoCliente', () => {
       vi.unstubAllEnvs();
     });
 
-    it('"Ligar" e os contatos do WhatsApp vão para o telefone de teste; o telefone cadastrado continua na tela, com o aviso', async () => {
+    it('"Ligar" e os contatos do WhatsApp vão para o telefone de teste; o telefone cadastrado continua na tela, sem aviso', async () => {
       vi.stubEnv('VITE_TELEFONE_DE_TESTE', '(47) 99783-2223');
       renderizar(<CabecalhoCliente cliente={cliente()} podeCheckIn={false} podeTransferir={false} />);
 
       expect(screen.getByText('Marta Hoffmann · (47) 99900-8080')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Ligar' })).toHaveAttribute('href', 'tel:+5547997832223');
-      expect(screen.getByText('Modo de teste: "Ligar" e WhatsApp vão para (47) 99783-2223.')).toBeInTheDocument();
+      expect(screen.queryByText(/Modo de teste/)).not.toBeInTheDocument();
 
       await usuario.click(screen.getByRole('button', { name: 'WhatsApp' }));
       const itens = await screen.findAllByRole('menuitem');
@@ -361,11 +361,12 @@ describe('CabecalhoCliente', () => {
       }
     });
 
-    it('sem telefone de teste, não há aviso', () => {
-      vi.stubEnv('VITE_TELEFONE_DE_TESTE', '');
+    it('com telefone de teste, o cabeçalho não mostra nenhum aviso e "Ligar" segue para o telefone de teste', () => {
+      vi.stubEnv('VITE_TELEFONE_DE_TESTE', '(47) 99783-2223');
       renderizar(<CabecalhoCliente cliente={cliente()} podeCheckIn={false} podeTransferir={false} />);
 
-      expect(screen.queryByText(/Modo de teste/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/teste/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Ligar' })).toHaveAttribute('href', 'tel:+5547997832223');
     });
   });
 });

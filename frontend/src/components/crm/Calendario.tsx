@@ -6,7 +6,7 @@
  * /agenda/calendario` (o front não recalcula datas) e são só o que foi
  * marcado de fato: a visita marcada e o lembrete aberto, cada
  * um no dia que ficou marcado (o vencido continua nele, com "venceu há N
- * dias"), mais os dias de campanha (só para o gestor) e as datas sazonais.
+ * dias"), mais os dias de campanha (só para o gestor) e as datas comemorativas.
  * A recorrência não põe nada aqui; ela vale só na agenda do dia.
  *
  * Abaixo de 640 px a célula mostra só o número e até 3 pontos coloridos (um
@@ -22,7 +22,7 @@
  * Cores: visita marcada em `bg-primary` com texto branco (o
  * `--primary` escuro, 4,6:1); lembrete em `bg-st-yellow-soft` com
  * `text-brown` (cerca de 9:1); campanha em `bg-chart-soft` com `--chart-text`;
- * data sazonal em `bg-st-green-soft` com `--st-green-text`. O ponto do
+ * data comemorativa em `bg-st-green-soft` com `--st-green-text`. O ponto do
  * lembrete no celular e a borda da amostra na legenda usam `--st-yellow-forte`
  * (3,4:1 sobre o cartão; o `--st-yellow` dá 1,9:1 e some num ponto de 6 px).
  */
@@ -83,14 +83,14 @@ const ROTULO_ESTILO: Record<Estilo, string> = {
   marcada: 'Visita marcada',
   lembrete: 'Lembrete',
   campanha: 'Campanha',
-  sazonal: 'Data sazonal',
+  sazonal: 'Data comemorativa',
 };
 
 const ROTULO_LEGENDA: Record<Estilo, string> = {
   marcada: 'Visita marcada',
   lembrete: 'Lembrete',
-  campanha: 'Campanha/evento',
-  sazonal: 'Data sazonal',
+  campanha: 'Campanha',
+  sazonal: 'Data comemorativa',
 };
 
 /** Caixas do grupo "Mostrar no calendário"; "Campanhas" só existe para o gestor. */

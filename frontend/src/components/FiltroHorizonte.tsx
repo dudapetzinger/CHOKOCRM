@@ -1,5 +1,5 @@
 /**
- * Filtro de horizonte dos eventos sazonais: controle segmentado
+ * Filtro de horizonte das datas comemorativas: controle segmentado
  * "Próximos 30 · 60 · 90 · 180" (como no protótipo) que escolhe
  * quantos dias à frente procurar eventos. Os rótulos curtos fazem as quatro
  * opções caberem em 375 px; o nome acessível de cada uma é "30 dias" etc.
@@ -26,7 +26,7 @@ export function FiltroHorizonte({ valor, onChange, className }: Props) {
   return (
     <FiltroPilulas
       rotulo="Próximos"
-      ariaLabel="Horizonte de eventos sazonais"
+      ariaLabel="Horizonte de datas comemorativas"
       opcoes={OPCOES_HORIZONTE}
       valor={valor}
       onChange={onChange}
