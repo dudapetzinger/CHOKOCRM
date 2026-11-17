@@ -9,7 +9,7 @@ import { diaDaSemana, visitaPrevista } from './rotas';
  * (inclusive). A marcada substitui a recorrência na agenda do dia
  * (`agenda.montagem.ts`), por isso o cliente é marcado, de preferência, na
  * sua data natural (a próxima prevista pela rota, `visitaPrevista` de
- * `rotas.ts`). Ninguém sai da agenda de hoje (ela pode ganhar 1–2 clientes,
+ * `rotas.ts`). Ninguém sai da agenda de hoje (ela pode ganhar 1 a 2 clientes,
  * antecipados para fechar a cota); amanhã pode perder até 3 (até 4 num reset
  * antes das 9h); nos dias seguintes alguns clientes aparecem na data marcada
  * em vez da data da recorrência. O calendário ganha as marcações.
@@ -53,7 +53,7 @@ function girada<T>(lista: readonly T[], deslocamento: number): T[] {
   return [...lista.slice(inicio), ...lista.slice(0, inicio)];
 }
 
-/** Até onde procurar a data natural: a maior recorrência da rota (42 dias) cabe com folga. */
+/** Até onde procurar a data natural: a maior recorrência de um candidato (14 dias; inativo não é candidato) cabe com folga. */
 const HORIZONTE_DA_DATA_NATURAL = 60;
 
 /**
@@ -79,9 +79,10 @@ export function dataNatural(
  * Escolhe, para cada representante e cada dia útil `d` de `hoje` a
  * `hoje + janelaDias`, `MARCADAS_POR_DIA` clientes para marcar a próxima
  * visita em `d`. Candidatos: os da carteira com lugar na rota e sem caso de
- * propósito (nunca visitado, inativo, atrasados), fora os "sempre com venda",
- * que entram mas só num dia que a rota prevê para eles (o propósito, visita
- * com venda, não muda). Em cada dia, nesta ordem:
+ * propósito que mude as visitas (nunca visitado, inativo, atrasados): entram
+ * os de última visita sem venda (a marcação não muda as visitas deles) e os
+ * "sempre com venda", estes só num dia que a rota prevê para eles (o
+ * propósito, visita com venda, não muda). Em cada dia, nesta ordem:
  * 1. os que têm a data natural (`dataNatural`) exatamente em `d`: marcados
  *    no dia em que a recorrência já os põe, a agenda não muda (por nome,
  *    girado pelo índice do dia);
@@ -123,7 +124,7 @@ export function escolherVisitasMarcadas(
   const candidatos = clientes.filter(
     (cliente) =>
       cliente.agenda !== null &&
-      (!cliente.proposito || cliente.proposito.tipo === 'SEMPRE_VENDA') &&
+      (!cliente.proposito || ['SEMPRE_VENDA', 'ULTIMA_SEM_VENDA'].includes(cliente.proposito.tipo)) &&
       !jaMarcadas.has(cliente.cnpj),
   );
   const naturais = new Map(

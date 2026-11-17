@@ -38,7 +38,7 @@ const CLIENTES_DA_DEMONSTRACAO = CLIENTES_ANCORA.length + CLIENTES_GERADOS.lengt
 /** Segunda-feira, 12:00 em São Paulo: dia útil, longe da virada do dia. */
 const DATA = '2026-10-19';
 const HOJE = new Date(`${DATA}T15:00:00.000Z`);
-// Cada recriação grava ~80 clientes, visitas e pedidos numa transação.
+// Cada recriação grava 82 clientes, visitas e pedidos numa transação.
 const PRAZO_MS = 240_000;
 
 async function tokenDaGestao(): Promise<string> {
@@ -154,8 +154,8 @@ describe('clientes reais no reset da demonstração', () => {
 
       await reiniciarDemonstracao(prisma, HOJE);
 
-      expect(CLIENTES_DA_DEMONSTRACAO).toBe(80);
-      expect(await prisma.client.count()).toBe(80 + 1);
+      expect(CLIENTES_DA_DEMONSTRACAO).toBe(82);
+      expect(await prisma.client.count()).toBe(82 + 1);
       const cliente = await prisma.client.findUniqueOrThrow({ where: { cnpj: CNPJ_REAL } });
       expect(cliente.id).toBe(real.cliente.id);
       expect(await prisma.contact.findUnique({ where: { id: real.contato.id } })).not.toBeNull();
@@ -206,7 +206,7 @@ describe('clientes reais no reset da demonstração', () => {
   );
 
   it(
-    'resetar duas vezes não duplica nada: os 80 da demonstração mais os reais',
+    'resetar duas vezes não duplica nada: os 82 da demonstração mais os reais',
     async () => {
       await criarClienteReal();
       await reiniciarDemonstracao(prisma, HOJE);

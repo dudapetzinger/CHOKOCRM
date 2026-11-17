@@ -4,16 +4,21 @@ import { diasEntre, type DataCalendario } from '../services/classificacao.servic
  * Rotas da demonstração (seed dos últimos 3 meses): cada representante roda as
  * mesmas cidades no mesmo dia da semana, e cada cliente tem o seu dia (pela
  * cidade) e a sua fase dentro da recorrência. As recorrências são múltiplos
- * de 7 (7, 14, 21, 28 ou 42 dias), então o cliente cai sempre no mesmo dia da
- * semana. A agenda é absoluta, contada a partir de uma segunda-feira fixa
+ * de 7, então o cliente cai sempre no mesmo dia da semana. Na carteira
+ * ativa, são semanais ou quinzenais (7 ou 14 dias): a última visita fica
+ * sempre a até 15 dias, e o cliente visitado com venda fica em dia
+ * (`classificacao.service.ts`); só os inativos são mensais (28 dias). A
+ * agenda é absoluta, contada a partir de uma segunda-feira fixa
  * (`SEGUNDA_DE_REFERENCIA`), e não a partir de `hoje`: a visita prevista
  * numa data não muda quando `hoje` avança.
  *
  * A distribuição dos clientes por dia e fase (âncoras aqui e gerados em
  * `clientes-gerados.ts`) foi balanceada para que cada dia útil de cada
- * representante tenha de 4 a 6 visitas em qualquer semana do ciclo de 12
- * semanas (mmc de 1, 2, 4 e 6 semanas), mesmo sem as visitas dos clientes de
- * propósito (atrasados e inativo), que somadas nunca passam de 6.
+ * representante tenha de 4 a 5 visitas em qualquer semana: cada dia da rota,
+ * em cada uma das duas fases quinzenais, tem 5 clientes, ou 4 e o inativo
+ * (que só conta nas semanas antigas, quando ainda era visitado); nenhum
+ * desses 5 tem mais de um cliente de propósito que deixa de ser visitado
+ * (atrasados, vencendo e inativo), então o dia nunca cai abaixo de 4.
  */
 
 /** Dia útil: 1 = segunda … 5 = sexta. */
@@ -44,37 +49,37 @@ export const ROTAS: Record<string, Record<DiaUtil, readonly string[]>> = {
 };
 
 /**
- * Dia e fase dos 26 clientes âncora (os escritos à mão em `demonstracao.ts`).
- * A Padaria Confeitaria Indaial não está aqui: nunca foi visitada.
+ * Dia e fase dos clientes âncora (os escritos à mão em `demonstracao.ts`). A
+ * Padaria Confeitaria Indaial e a Confeitaria Rota das Cachoeiras não estão
+ * aqui: nunca foram visitadas.
  */
 export const AGENDA_DAS_ANCORAS: Record<string, AgendaDaRota> = {
   // Eduarda
   'Mercado Central Joinville': { dia: 1, fase: 0 },
-  'Mercearia Bom Retiro': { dia: 1, fase: 4 },
+  'Mercearia Bom Retiro': { dia: 5, fase: 0 },
   'Panificadora Vila Lenzi': { dia: 2, fase: 0 },
   'Casa de Chá Recanto Alemão': { dia: 2, fase: 1 },
   'Empório Pomerode': { dia: 3, fase: 1 },
   'Empório do Chocolate': { dia: 3, fase: 0 },
-  'Doceria Enxaimel': { dia: 3, fase: 3 },
-  'Confeitaria Rota das Cachoeiras': { dia: 3, fase: 4 },
-  'Hotel Fazenda Rio Novo': { dia: 3, fase: 2 },
+  'Doceria Enxaimel': { dia: 3, fase: 1 },
+  'Hotel Fazenda Rio Novo': { dia: 3, fase: 1 },
   'Armazém São Bento': { dia: 4, fase: 0 },
-  'Café Colonial Serra Alta': { dia: 4, fase: 0 },
-  'Padaria Rainha da Serra': { dia: 4, fase: 3 },
+  'Café Colonial Serra Alta': { dia: 4, fase: 1 },
+  'Padaria Rainha da Serra': { dia: 4, fase: 1 },
   'Confeitaria Dona Frida': { dia: 5, fase: 0 },
   'Doceria Jaraguá': { dia: 5, fase: 1 },
-  'Cafeteria Estrada Bonita': { dia: 5, fase: 3 },
+  'Cafeteria Estrada Bonita': { dia: 5, fase: 1 },
   'Café Rua das Palmeiras': { dia: 5, fase: 0 },
   // Rafael
   'Café Blumenau': { dia: 5, fase: 0 },
-  'Confeitaria Vila Germânica': { dia: 5, fase: 3 },
+  'Confeitaria Vila Germânica': { dia: 5, fase: 1 },
   'Empório Itoupava': { dia: 5, fase: 0 },
   'Padaria Vale Europeu': { dia: 2, fase: 1 },
-  'Hotel Fazenda Mulde': { dia: 2, fase: 3 },
+  'Hotel Fazenda Mulde': { dia: 2, fase: 1 },
   'Empório do Vale Brusque': { dia: 3, fase: 0 },
   'Casa de Chás Itajaí': { dia: 4, fase: 1 },
   'Café Beira-Rio': { dia: 4, fase: 2 },
-  'Mercearia Alto Vale': { dia: 5, fase: 2 },
+  'Mercearia Alto Vale': { dia: 5, fase: 0 },
 };
 
 /** Segunda-feira de referência da contagem de semanas (01/01/2024 foi segunda). */

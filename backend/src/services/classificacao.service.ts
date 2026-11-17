@@ -87,7 +87,7 @@ export function diasSemVisita(ultima: UltimaVisita, hoje: Date): number | null {
 /**
  * Tabela de classificação:
  * sem visita → VERMELHO; ≤15 dias com VENDA → VERDE; ≤15 dias sem VENDA →
- * AMARELO; 16–30 dias → LARANJA; >30 dias → VERMELHO.
+ * AMARELO; 16 a 30 dias → LARANJA; >30 dias → VERMELHO.
  */
 export function classificarCor(ultima: UltimaVisita, hoje: Date): Cor {
   if (ultima === null) {

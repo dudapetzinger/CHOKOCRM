@@ -273,3 +273,55 @@ describe('Migration usuario_no_lugar_do_email (conversão dos e-mails)', () => {
     expect(contas.map((conta) => conta.usuario)).toEqual(primeira);
   });
 });
+
+/**
+ * A migration não roda dentro do teste. Os UPDATEs são lidos do arquivo e
+ * executados sobre clientes e contatos gravados com telefones diversos.
+ */
+describe('Migration telefone_da_autora_nos_cadastros', () => {
+  const ARQUIVO = join(
+    __dirname,
+    '..',
+    'prisma',
+    'migrations',
+    '20261116120000_telefone_da_autora_nos_cadastros',
+    'migration.sql',
+  );
+  const TELEFONE = '(47) 99783-2223';
+
+  it('todo cliente e todo contato ficam com o telefone da autora e os usuários não mudam', async () => {
+    const rep = await prisma.user.create({
+      data: { nome: 'Representante', usuario: 'rep.telefone', senhaHash: 'hash-fake', role: 'REPRESENTANTE', telefone: '(47) 3333-4444' },
+    });
+    const telefones = ['(47) 1111-1111', '', '11999990000'];
+    for (const [ordem, telefone] of telefones.entries()) {
+      await prisma.client.create({
+        data: {
+          razaoSocial: `Cliente ${ordem} Ltda`,
+          nomeFantasia: `Cliente ${ordem}`,
+          cnpj: `0000000000${ordem}000`,
+          cidade: 'Blumenau',
+          endereco: 'Rua de Teste, 1',
+          telefone,
+          representanteId: rep.id,
+          contacts: {
+            create: [
+              { nome: 'Contato A', cargo: 'Compradora', telefone, email: 'a@x.com', principal: true },
+              { nome: 'Contato B', cargo: 'Dono', telefone: '(47) 2222-2222', email: 'b@x.com' },
+            ],
+          },
+        },
+      });
+    }
+
+    await prisma.$executeRawUnsafe(readFileSync(ARQUIVO, 'utf8'));
+
+    const clientes = await prisma.client.findMany();
+    const contatos = await prisma.contact.findMany();
+    expect(clientes).toHaveLength(3);
+    expect(contatos).toHaveLength(6);
+    expect(clientes.every((cliente) => cliente.telefone === TELEFONE)).toBe(true);
+    expect(contatos.every((contato) => contato.telefone === TELEFONE)).toBe(true);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: rep.id } })).telefone).toBe('(47) 3333-4444');
+  });
+});

@@ -592,7 +592,7 @@ describe('GET /agenda/calendario', () => {
       data: hojeCal(),
       tipo: 'DATA_SAZONAL',
       titulo: 'Dia de teste',
-      detalhe: 'Data sazonal',
+      detalhe: 'Data comemorativa',
     });
   });
 

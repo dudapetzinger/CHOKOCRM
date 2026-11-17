@@ -44,19 +44,25 @@ import { TELEFONE_DA_DEMONSTRACAO, type ClienteSeed, type ContatoSeed } from './
  * meses.
  *
  * - Clientes: os 26 âncoras escritos à mão (`CLIENTES_ANCORA`, com todos os
- *   casos de propósito) e os gerados (`clientes-gerados.ts`), cerca de 40 por
- *   representante, cada um com cadastro de sistema de verdade (CNPJ válido,
- *   razão social, endereço, telefone `TELEFONE_DA_DEMONSTRACAO` (o mesmo em
- *   todos), e-mail no domínio do cliente, 1 a 2 contatos, `erpId` calibrado
- *   no ERP simulado em todos; só o Armazém São Bento é rebaixado pela
- *   venda).
+ *   casos de propósito) e os gerados (`clientes-gerados.ts`), 40 ativos e 1
+ *   inativo por representante, cada um com cadastro de sistema de verdade
+ *   (CNPJ válido, razão social, endereço, telefone `TELEFONE_DA_DEMONSTRACAO`
+ *   (o mesmo em todos), e-mail no domínio do cliente, 1 a 2 contatos, `erpId`
+ *   calibrado no ERP simulado em todos; só o Armazém São Bento e o Hotel
+ *   Fazenda Mulde são rebaixados pela venda).
+ * - Carteira modelo: no dia da demonstração, cada representante vê na lista
+ *   de clientes 31 Em dia, 5 em Atenção, 4 em Prioridade (um atrasado, um
+ *   vencendo, um nunca visitado e um rebaixado pela compra) e o inativo só na
+ *   aba Todos, em qualquer data e dia da semana (`PROPOSITOS`).
  * - Visitas: geradas (`gerador-visitas.ts`) pelas rotas de cada
- *   representante (`rotas.ts`: dia da semana → cidades, recorrências de 7 a
- *   42 dias, múltiplos de 7): 13 semanas, só de segunda a sexta, 4 a 6 por dia
- *   útil por representante, das 8h às 17h em sequência, ~55 % com venda
+ *   representante (`rotas.ts`: dia da semana → cidades, recorrências de 7 ou
+ *   14 dias na carteira ativa): 13 semanas, só de segunda a sexta, 4 a 5 por
+ *   dia útil por representante, a partir das 8h em sequência, ~55 % com
+ *   venda e a última de cada cliente uma venda, fora os casos de propósito
  *   (pedidos de 1 a 4 itens do `CATALOGO`, coerentes com o tipo do negócio e
  *   a época), anotações do banco de frases (`anotacoes.ts`) sem repetição em
- *   sequência; determinísticas por cliente + data e nunca depois de `hoje`.
+ *   sequência; determinísticas por cliente, data e `hoje` (o resultado da última visita de
+ *   cada cliente é fixado pelo `hoje`) e nunca depois de `hoje`.
  * - Campanhas: a sazonal do mês de `hoje` (em andamento) e a do mês seguinte
  *   (agendada); metas mensais do mês de `hoje` e do seguinte compatíveis com
  *   o ritmo gerado (vendas 10 % acima da média mensal; 5 visitas por dia
@@ -66,7 +72,7 @@ import { TELEFONE_DA_DEMONSTRACAO, type ClienteSeed, type ContatoSeed } from './
  *   Jaraguá) e, para cada representante, 2 em cada dia útil de `hoje` a
  *   `hoje + 23`, de preferência na data natural do cliente (a próxima que a
  *   rota prevê; `proximas-visitas.ts`). O calendário fica cheio; ninguém sai
- *   da agenda de hoje (ela pode ganhar 1–2 clientes); amanhã pode perder até
+ *   da agenda de hoje (ela pode ganhar 1 a 2 clientes); amanhã pode perder até
  *   3 (até 4 num reset antes das 9h); nos dias seguintes alguns clientes
  *   aparecem na data marcada em vez da data da recorrência.
  * - Lembretes: por representante, três abertos (um vencido) e um concluído,
@@ -147,8 +153,8 @@ const USUARIO_GESTOR_ANTIGO = 'gestor';
 /**
  * Os 26 clientes âncora, escritos à mão (carteiras da Eduarda, 16, e do
  * Rafael, 10, na ordem das rotas). Todos os casos de propósito ficam neles
- * (`PROPOSITOS`); as recorrências são múltiplos de 7 (a rota cai sempre no
- * mesmo dia da semana).
+ * (`PROPOSITOS`); as recorrências são de 7 ou 14 dias (a rota cai sempre no
+ * mesmo dia da semana), fora os inativos, de 28.
  */
 export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
   // Carteira da Eduarda, na ordem da rota: Joinville, Jaraguá do Sul, Corupá, São Bento do Sul e Pomerode.
@@ -188,7 +194,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@cafeteriaestradabonita.com.br',
     representanteUsuario: USUARIO_EDUARDA,
-    recorrenciaDias: 28,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Fernanda Souza',
@@ -235,7 +241,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@caferuadaspalmeiras.com.br',
     representanteUsuario: USUARIO_EDUARDA,
-    recorrenciaDias: 28,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Renata Kohler',
@@ -255,7 +261,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@merceariabomretiro.com.br',
     representanteUsuario: USUARIO_EDUARDA,
-    recorrenciaDias: 42,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'José Schulz',
@@ -322,7 +328,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@recantoalemao.com.br',
     representanteUsuario: USUARIO_EDUARDA,
-    recorrenciaDias: 28,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Elfrida Stein',
@@ -349,7 +355,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@rotadascachoeiras.com.br',
     representanteUsuario: USUARIO_EDUARDA,
-    recorrenciaDias: 42,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Marcelo Piske',
@@ -369,7 +375,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'reservas@hotelfazendarionovo.com.br',
     representanteUsuario: USUARIO_EDUARDA,
-    recorrenciaDias: 42,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Cláudio Hruschka',
@@ -417,6 +423,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     email: 'contato@cafecolonialserraalta.com.br',
     representanteUsuario: USUARIO_EDUARDA,
     recorrenciaDias: 28,
+    ativo: false,
     contatos: [
       {
         nome: 'Lúcia Treml',
@@ -436,7 +443,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@padariarainhadaserra.com.br',
     representanteUsuario: USUARIO_EDUARDA,
-    recorrenciaDias: 28,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Edson Grosskopf',
@@ -510,7 +517,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@doceriaenxaimel.com.br',
     representanteUsuario: USUARIO_EDUARDA,
-    recorrenciaDias: 28,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Heloísa Krause',
@@ -558,7 +565,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@confeitariavilagermanica.com.br',
     representanteUsuario: USUARIO_RAFAEL,
-    recorrenciaDias: 28,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Rita Haertel',
@@ -585,7 +592,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@emporioitoupava.com.br',
     representanteUsuario: USUARIO_RAFAEL,
-    recorrenciaDias: 28,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Rodrigo Gaulke',
@@ -625,7 +632,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@padariavaleeuropeu.com.br',
     representanteUsuario: USUARIO_RAFAEL,
-    recorrenciaDias: 28,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Sandra Zimmermann',
@@ -645,7 +652,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@hotelfazendamulde.com.br',
     representanteUsuario: USUARIO_RAFAEL,
-    recorrenciaDias: 42,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'André Pasold',
@@ -740,7 +747,7 @@ export const CLIENTES_ANCORA: readonly ClienteSeed[] = [
     telefone: TELEFONE_DA_DEMONSTRACAO,
     email: 'contato@merceariaaltovale.com.br',
     representanteUsuario: USUARIO_RAFAEL,
-    recorrenciaDias: 28,
+    recorrenciaDias: 14,
     contatos: [
       {
         nome: 'Débora Lenzi',
@@ -782,7 +789,7 @@ export const CLIENTES_GERADOS: readonly ClienteSeed[] = gerarClientes(
   new Set(CLIENTES_ANCORA.flatMap((cliente) => cliente.contatos.map((contato) => contato.nome))),
 );
 
-/** Clientes da demonstração: os 26 âncoras e os gerados, que completam as carteiras para cerca de 40. */
+/** Clientes da demonstração: os 26 âncoras e os gerados, que completam as carteiras para 40 ativos e 1 inativo. */
 const CLIENTES: readonly ClienteSeed[] = [...CLIENTES_ANCORA, ...CLIENTES_GERADOS];
 
 /**
@@ -795,31 +802,50 @@ export function cnpjsDaDemonstracao(): Set<string> {
 }
 
 /**
- * Casos de propósito, todos em clientes âncora (valem para qualquer `hoje`):
- * - Padaria Confeitaria Indaial: nunca visitada (VERMELHO).
- * - Café Beira-Rio: inativo (fechou para reforma), visitas só até 7 semanas atrás.
- * - Três atrasados: Mercado Central Joinville (semanal, uma visita pulada,
- *   a última uma NEGOCIACAO de 8 a 14 dias atrás: AMARELO), Doceria Jaraguá
- *   (quinzenal, sexta-feira, só as visitas até 16 dias antes de `hoje`: a
- *   última de 16 a 29 dias atrás em qualquer dia da semana, sempre LARANJA,
- *   e a próxima visita marcada vencida) e Casa de Chás Itajaí (quinzenal,
- *   três puladas: 43 a 56 dias, VERMELHO).
- * - Armazém São Bento: quinzenal, sempre com venda, a última até 14 dias
- *   atrás, rebaixado para LARANJA pelo ERP (calibração do `erpId`).
- * - Panificadora Vila Lenzi: semanal, sempre com venda (VERDE garantido).
+ * Casos de propósito, todos em clientes âncora (valem para qualquer `hoje`).
+ * Montam a carteira modelo de cada representante na lista de clientes: 40
+ * ativos, 31 Em dia (os demais clientes, com a última visita uma venda), 5 em
+ * Atenção, 4 em Prioridade (um de cada problema) e 1 inativo, só na aba Todos.
+ * - Nunca visitados (VERMELHO): Confeitaria Rota das Cachoeiras (Eduarda) e
+ *   Padaria Confeitaria Indaial (Rafael).
+ * - Inativos, visitas só até 7 semanas atrás: Café Colonial Serra Alta
+ *   (Eduarda) e Café Beira-Rio (Rafael, fechou para reforma).
+ * - Atrasados (quinzenais, três visitas puladas: a última de 43 a 56 dias
+ *   atrás, VERMELHO): Hotel Fazenda Rio Novo e Casa de Chás Itajaí.
+ * - Vencendo (quinzenais, só as visitas até 16 dias antes de `hoje`: a
+ *   última de 16 a 29 dias atrás em qualquer dia da semana, LARANJA): Doceria
+ *   Jaraguá (com a próxima visita marcada vencida) e Confeitaria Vila
+ *   Germânica.
+ * - Rebaixados pela compra (quinzenais, sempre com venda, a última até 14
+ *   dias atrás, mas sem compra no ERP há mais de 60 dias pela calibração do
+ *   `erpId`: LARANJA): Armazém São Bento e Hotel Fazenda Mulde.
+ * - Atenção (AMARELO), a última visita sem venda (negociação ou sem venda)
+ *   nos últimos 15 dias: cinco por representante, que seguem na rota e
+ *   podem ganhar visita marcada.
  */
 const PROPOSITOS: Record<string, Proposito> = {
+  // Eduarda
+  'Confeitaria Rota das Cachoeiras': { tipo: 'NUNCA_VISITADO' },
+  'Café Colonial Serra Alta': { tipo: 'INATIVO', semanasSemVisita: 7 },
+  'Hotel Fazenda Rio Novo': { tipo: 'ATRASADO', recorrenciasPuladas: 3 },
+  'Doceria Jaraguá': { tipo: 'ATRASADO', corteDias: 16 },
+  'Armazém São Bento': { tipo: 'SEMPRE_VENDA' },
+  'Mercado Central Joinville': { tipo: 'ULTIMA_SEM_VENDA', ultimoResultado: 'NEGOCIACAO' },
+  'Café Rua das Palmeiras': { tipo: 'ULTIMA_SEM_VENDA', ultimoResultado: 'SEM_VENDA' },
+  'Casa de Chá Recanto Alemão': { tipo: 'ULTIMA_SEM_VENDA', ultimoResultado: 'NEGOCIACAO' },
+  'Padaria Rainha da Serra': { tipo: 'ULTIMA_SEM_VENDA', ultimoResultado: 'SEM_VENDA' },
+  'Doceria Enxaimel': { tipo: 'ULTIMA_SEM_VENDA', ultimoResultado: 'NEGOCIACAO' },
+  // Rafael
   'Padaria Confeitaria Indaial': { tipo: 'NUNCA_VISITADO' },
   'Café Beira-Rio': { tipo: 'INATIVO', semanasSemVisita: 7 },
-  'Mercado Central Joinville': {
-    tipo: 'ATRASADO',
-    recorrenciasPuladas: 1,
-    ultimoResultado: 'NEGOCIACAO',
-  },
-  'Doceria Jaraguá': { tipo: 'ATRASADO', corteDias: 16 },
   'Casa de Chás Itajaí': { tipo: 'ATRASADO', recorrenciasPuladas: 3 },
-  'Armazém São Bento': { tipo: 'SEMPRE_VENDA' },
-  'Panificadora Vila Lenzi': { tipo: 'SEMPRE_VENDA' },
+  'Confeitaria Vila Germânica': { tipo: 'ATRASADO', corteDias: 16 },
+  'Hotel Fazenda Mulde': { tipo: 'SEMPRE_VENDA' },
+  'Café Blumenau': { tipo: 'ULTIMA_SEM_VENDA', ultimoResultado: 'NEGOCIACAO' },
+  'Empório do Vale Brusque': { tipo: 'ULTIMA_SEM_VENDA', ultimoResultado: 'NEGOCIACAO' },
+  'Padaria Vale Europeu': { tipo: 'ULTIMA_SEM_VENDA', ultimoResultado: 'NEGOCIACAO' },
+  'Empório Itoupava': { tipo: 'ULTIMA_SEM_VENDA', ultimoResultado: 'SEM_VENDA' },
+  'Mercearia Alto Vale': { tipo: 'ULTIMA_SEM_VENDA', ultimoResultado: 'SEM_VENDA' },
 };
 
 /** Os clientes no formato do gerador de visitas: lugar na rota, contatos e caso de propósito. */
@@ -980,7 +1006,7 @@ type ProximaVisitaSeed = { nomeFantasia: string; diasAFrente: number };
  * ou o próximo dia útil se cair em fim de semana; só a do Empório do Vale
  * Brusque leva a campanha que estiver valendo na data, se houver) e uma
  * vencida há 2 dias na Doceria Jaraguá, atrasada (nenhuma visita depois de
- * marcá-la). Nenhuma no inativo. As demais marcações (2 por representante em
+ * marcá-la). Nenhuma nos inativos. As demais marcações (2 por representante em
  * cada dia útil da janela) vêm de `escolherVisitasMarcadas`.
  */
 const PROXIMAS_VISITAS_DEMO: ProximaVisitaSeed[] = [
@@ -1043,14 +1069,14 @@ const LEMBRETES_DEMO: LembreteSeed[] = [
   { nomeFantasia: 'Empório do Vale Brusque', diasAFrente: -3 },
   { nomeFantasia: 'Mercearia Alto Vale', diasAFrente: 9 },
   { nomeFantasia: 'Café Blumenau', diasAFrente: -5, concluido: true },
-  // Eduarda: vencido ontem (o Mercado Central, atrasado), +1 e +6; concluído o catálogo do Armazém.
+  // Eduarda: vencido ontem (o Mercado Central, em negociação), +1 e +6; concluído o catálogo do Armazém.
   { nomeFantasia: 'Mercado Central Joinville', diasAFrente: -1 },
   { nomeFantasia: 'Confeitaria Dona Frida', diasAFrente: 1 },
   { nomeFantasia: 'Empório do Chocolate', diasAFrente: 6 },
   { nomeFantasia: 'Armazém São Bento', diasAFrente: -4, concluido: true },
 ];
 
-/** Visitas por dia útil na meta mensal (a rota tem de 4 a 6). */
+/** Visitas por dia útil na meta mensal (a rota tem de 4 a 5). */
 const VISITAS_POR_DIA_UTIL = 5;
 /** Meta de vendas: 10 % acima da média mensal do histórico gerado. */
 const FATOR_DA_META_DE_VENDAS = 1.1;
@@ -1548,7 +1574,7 @@ async function religarNotasOrfas(tx: Banco): Promise<void> {
  * transação, depois do `semear`, a nota cujo CNPJ voltou a ter cliente é
  * religada a ele (segue alimentando a ficha, pela regra do híbrido) e a que
  * continua sem cliente vira `SEM_CLIENTE`, sem visita sugerida, para aparecer
- * em "CNPJs sem cliente no CRM".
+ * na parte "Criar cliente" do bloco "Pendências".
  */
 export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): Promise<void> {
   await prisma.$transaction(

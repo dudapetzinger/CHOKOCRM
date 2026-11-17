@@ -23,15 +23,22 @@ const CLIENTES = clientesDaDemonstracao();
 const REPRESENTANTES = [...new Set(CLIENTES.map((cliente) => cliente.representanteUsuario))];
 const POR_CNPJ = new Map(CLIENTES.map((cliente) => [cliente.cnpj, cliente]));
 const POR_NOME = new Map(CLIENTES.map((cliente) => [cliente.nomeFantasia, cliente]));
-/** Casos de propósito (`PROPOSITOS` em `demonstracao.ts`) que o seed nunca marca na janela. */
+/**
+ * Casos de propósito (`PROPOSITOS` em `demonstracao.ts`) que o seed nunca
+ * marca na janela: nunca visitados, inativos, atrasados e a vencendo sem
+ * marcação (a Doceria Jaraguá tem a marcação vencida fixa).
+ */
 const FORA_DA_JANELA = [
   'Padaria Confeitaria Indaial',
+  'Confeitaria Rota das Cachoeiras',
   'Café Beira-Rio',
-  'Mercado Central Joinville',
+  'Café Colonial Serra Alta',
+  'Hotel Fazenda Rio Novo',
   'Casa de Chás Itajaí',
+  'Confeitaria Vila Germânica',
 ];
 /** "Sempre com venda": entram, mas só num dia que a rota prevê para eles. */
-const SEMPRE_VENDA = ['Armazém São Bento', 'Panificadora Vila Lenzi'];
+const SEMPRE_VENDA = ['Armazém São Bento', 'Hotel Fazenda Mulde'];
 
 function cnpjDe(nome: string): string {
   return POR_NOME.get(nome)?.cnpj ?? '';
@@ -92,7 +99,7 @@ describe.each([
     }
   });
 
-  it('casos de propósito: Doceria −2; Café Blumenau +2 e Empório +3 no próximo dia útil; atrasados, inativo e nunca visitado de fora', () => {
+  it('casos de propósito: Doceria −2; Café Blumenau +2 e Empório +3 no próximo dia útil; atrasados, inativos e nunca visitados de fora', () => {
     expect(marcadas.get(cnpjDe('Doceria Jaraguá'))).toBe(somarDias(hoje, -2));
     expect(marcadas.get(cnpjDe('Café Blumenau'))).toBe(proximoDiaUtil(somarDias(hoje, 2)));
     expect(marcadas.get(cnpjDe('Empório do Vale Brusque'))).toBe(proximoDiaUtil(somarDias(hoje, 3)));

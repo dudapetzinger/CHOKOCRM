@@ -10,13 +10,15 @@
  *
  * - Empório Pomerode → `10272` (`mesesSemCompra` 0): compra recente no ERP,
  *   a cor composta não é rebaixada.
- * - Armazém São Bento → `10745` (`mesesSemCompra` 3, mais de 60 dias sem
- *   compra): o único rebaixado para LARANJA mesmo com visita recente,
+ * - Armazém São Bento → `10745` (`mesesSemCompra` 3) e Hotel Fazenda Mulde →
+ *   `12160` (`mesesSemCompra` 4), mais de 60 dias sem compra: os dois
+ *   rebaixados para LARANJA mesmo com visita recente (um por representante),
  *   mostrando `rebaixadoPorVenda`.
- * - Doceria Jaraguá → `10448` (2) e Mercado Central Joinville → `10504` (1):
- *   atrasados pela visita (LARANJA e AMARELO); com 2 meses sem compra a
- *   Doceria poderia ser rebaixada, mas já é LARANJA, e 1 mês (até 60 dias)
- *   não rebaixa o Mercado Central.
+ * - Doceria Jaraguá → `10448` (2): vencendo pela visita (LARANJA); com 2
+ *   meses sem compra poderia ser rebaixada, mas já é LARANJA.
+ * - Mercado Central Joinville → `10505` (0): em Atenção pela visita
+ *   (AMARELO); com compra recente, nunca é rebaixado (com 1 mês sem compra,
+ *   a última venda pode passar de 60 dias no fim de um mês de 31 dias).
  * - Empório do Vale Brusque → `10865` (0) e Casa de Chás Itajaí → `10947`
  *   (1): o estoque mais recente tem item BAIXO de
  *   Natal (`SKUS_SUGERIDOS.NATAL`) em todos os snapshots de 05 a 26/11/2026
@@ -29,12 +31,12 @@
  *   `12187` (`mesesSemCompra` 0; `valorBase` 1856 e 1740): todo cliente
  *   ativo da demonstração tem `erpId` (a tela "Sem histórico de compras"
  *   vale para cliente sem `erpId`). Códigos
- *   livres entre os dos âncoras (até 12159) e os dos gerados (de 12201).
- * - Café Beira-Rio → `12106` (`mesesSemCompra` 2): o cliente inativo, fechado
- *   para reforma há mais de um mês, também parou de comprar no ERP; já é
- *   VERMELHO pela visita, então não aparece como rebaixado.
+ *   livres entre os dos âncoras e os dos gerados (de 12201).
+ * - Café Beira-Rio → `12106` (`mesesSemCompra` 2): o cliente inativo do
+ *   Rafael, fechado para reforma há mais de um mês, também parou de comprar
+ *   no ERP; inativo, fica fora das abas de situação.
  * - Os demais (Café Blumenau, Cafeteria Estrada Bonita, Empório do Chocolate
- *   e os outros doze clientes): `mesesSemCompra` 0, para nenhum cliente
+ *   e os outros onze clientes): `mesesSemCompra` 0, para nenhum cliente
  *   em dia ser rebaixado sem querer; `valorBase` variado deixa o histórico de
  *   vendas da ficha diferente em cada um.
  *
@@ -49,7 +51,7 @@ export const ERP_IDS_DEMONSTRACAO: Record<string, string | null> = {
   'Empório Pomerode': '10272',
   'Café Blumenau': '10348',
   'Doceria Jaraguá': '10448',
-  'Mercado Central Joinville': '10504',
+  'Mercado Central Joinville': '10505',
   'Cafeteria Estrada Bonita': '10564',
   'Empório do Chocolate': '10683',
   'Armazém São Bento': '10745',
@@ -69,7 +71,7 @@ export const ERP_IDS_DEMONSTRACAO: Record<string, string | null> = {
   'Confeitaria Vila Germânica': '11959',
   'Empório Itoupava': '12024',
   'Café Beira-Rio': '12106',
-  'Hotel Fazenda Mulde': '12159',
+  'Hotel Fazenda Mulde': '12160',
   'Padaria Vale Europeu': '12168',
   'Confeitaria Rota das Cachoeiras': '12187',
 };

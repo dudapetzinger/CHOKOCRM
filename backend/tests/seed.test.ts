@@ -20,7 +20,7 @@ import { truncateAllTables } from './helpers/db';
 import { fixarRelogio, liberarRelogio } from './helpers/relogio';
 
 const SENHA_DEMONSTRACAO = 'chokocrm123';
-/** Clientes da demonstração: os 26 âncoras escritos à mão e os gerados (cerca de 40 por representante). */
+/** Clientes da demonstração: os 26 âncoras escritos à mão e os gerados (40 ativos e 1 inativo por representante). */
 const CLIENTES_DA_DEMONSTRACAO = CLIENTES_ANCORA.length + CLIENTES_GERADOS.length;
 /** Os 26 clientes âncora, com o cadastro de sempre (casos de propósito incluídos). */
 const NOMES_DAS_ANCORAS = [
@@ -494,7 +494,7 @@ describe('cadastro realista', () => {
     });
   }
 
-  it('carteiras de 40 ± 2 clientes por representante nas cidades das rotas, com os 26 âncoras como sempre', async () => {
+  it('carteiras de 40 clientes ativos e 1 inativo por representante nas cidades das rotas, com os 26 âncoras como sempre', async () => {
     const clientes = await clientesDoSeed();
     expect(clientes.length).toBeGreaterThanOrEqual(26);
     expect(clientes).toHaveLength(CLIENTES_DA_DEMONSTRACAO);
@@ -502,8 +502,8 @@ describe('cadastro realista', () => {
     const daEduarda = clientes.filter((cliente) => cliente.representante.usuario === 'eduarda');
     const doRafael = clientes.filter((cliente) => cliente.representante.usuario === 'rafael');
     for (const carteira of [daEduarda, doRafael]) {
-      expect(carteira.length).toBeGreaterThanOrEqual(38);
-      expect(carteira.length).toBeLessThanOrEqual(42);
+      expect(carteira.filter((cliente) => cliente.ativo)).toHaveLength(40);
+      expect(carteira.filter((cliente) => !cliente.ativo)).toHaveLength(1);
     }
     expect(daEduarda.every((cliente) => CIDADES_EDUARDA.includes(cliente.cidade))).toBe(true);
     expect(doRafael.every((cliente) => CIDADES_RAFAEL.includes(cliente.cidade))).toBe(true);
@@ -588,7 +588,7 @@ describe('cadastro realista', () => {
     expect(new Set(comErp).size).toBe(comErp.length);
   });
 
-  it('a calibração do ERP simulado dá 0 meses sem compra aos clientes em dia e 3 ou mais só ao Armazém São Bento', async () => {
+  it('a calibração do ERP simulado dá 0 meses sem compra aos clientes em dia e 3 ou mais só aos dois rebaixados', async () => {
     const meses = (nomeFantasia: string): number => {
       const erpId = ERP_IDS_DEMONSTRACAO[nomeFantasia];
       if (!erpId) throw new Error(`${nomeFantasia} sem erpId na calibração.`);
@@ -596,6 +596,7 @@ describe('cadastro realista', () => {
     };
 
     expect(meses('Armazém São Bento')).toBeGreaterThanOrEqual(3);
+    expect(meses('Hotel Fazenda Mulde')).toBeGreaterThanOrEqual(3);
     expect(meses('Empório Pomerode')).toBe(0);
     expect(meses('Empório do Vale Brusque')).toBe(0);
     expect(meses('Mercearia Alto Vale')).toBe(0);
@@ -607,7 +608,7 @@ describe('cadastro realista', () => {
     const comTresOuMais = clientes
       .filter((cliente) => cliente.erpId !== null && perfilDoErpId(cliente.erpId).mesesSemCompra >= 3)
       .map((cliente) => cliente.nomeFantasia);
-    expect(comTresOuMais).toEqual(['Armazém São Bento']);
+    expect(comTresOuMais).toEqual(PROPOSITO.rebaixados);
     // Os gerados (fora dos âncoras) compram em dia no ERP simulado
     const ancoras = new Set<string>(NOMES_DAS_ANCORAS);
     const gerados = clientes.filter((cliente) => !ancoras.has(cliente.nomeFantasia));
@@ -628,11 +629,15 @@ describe('cadastro realista', () => {
   });
 });
 
-/** Clientes cujo histórico foge da recorrência de propósito (dependem de `hoje` por definição). */
+/** Casos de propósito da carteira modelo (`PROPOSITOS` em `demonstracao.ts`), em ordem de nome. */
 const PROPOSITO = {
-  nuncaVisitado: 'Padaria Confeitaria Indaial',
-  inativo: 'Café Beira-Rio',
-  atrasados: ['Mercado Central Joinville', 'Doceria Jaraguá', 'Casa de Chás Itajaí'],
+  nuncaVisitados: ['Confeitaria Rota das Cachoeiras', 'Padaria Confeitaria Indaial'],
+  inativos: ['Café Beira-Rio', 'Café Colonial Serra Alta'],
+  /** A última visita uma negociação, nos últimos 15 dias: AMARELO. */
+  emAtencao: 'Mercado Central Joinville',
+  vencendo: ['Confeitaria Vila Germânica', 'Doceria Jaraguá'],
+  atrasados: ['Casa de Chás Itajaí', 'Hotel Fazenda Rio Novo'],
+  rebaixados: ['Armazém São Bento', 'Hotel Fazenda Mulde'],
 };
 
 /** Dia da semana da data: 0 = domingo … 6 = sábado. */
@@ -674,7 +679,7 @@ describe('histórico realista', () => {
     return login.body.token;
   }
 
-  it('cada dia útil das 13 semanas, antes de hoje, tem de 4 a 6 visitas por representante; nenhuma no fim de semana', async () => {
+  it('cada dia útil das 13 semanas, antes de hoje, tem de 4 a 5 visitas por representante; nenhuma no fim de semana', async () => {
     const visitas = await prisma.visit.findMany({ include: { user: true } });
     const hoje = dataCalendario(agora);
     const contagem = new Map<string, number>();
@@ -692,7 +697,7 @@ describe('histórico realista', () => {
       if ([0, 6].includes(diaDaSemanaDe(data))) continue;
       for (const usuario of ['eduarda', 'rafael']) {
         const quantidade = contagem.get(`${usuario}|${data}`) ?? 0;
-        expect({ data, usuario, ok: quantidade >= 4 && quantidade <= 6 }).toEqual({ data, usuario, ok: true });
+        expect({ data, usuario, ok: quantidade >= 4 && quantidade <= 5 }).toEqual({ data, usuario, ok: true });
       }
     }
   });
@@ -703,8 +708,8 @@ describe('histórico realista', () => {
     });
 
     for (const cliente of clientes) {
-      expect([7, 14, 21, 28, 42]).toContain(cliente.recorrenciaDias);
-      if (cliente.nomeFantasia === PROPOSITO.nuncaVisitado) {
+      expect(cliente.ativo ? [7, 14] : [28]).toContain(cliente.recorrenciaDias);
+      if (PROPOSITO.nuncaVisitados.includes(cliente.nomeFantasia)) {
         expect(cliente.visits).toHaveLength(0);
         continue;
       }
@@ -728,12 +733,15 @@ describe('histórico realista', () => {
         });
       }
     }
-    expect(clientes.filter((cliente) => !cliente.ativo).map((cliente) => cliente.nomeFantasia)).toEqual([
-      PROPOSITO.inativo,
-    ]);
+    expect(
+      clientes
+        .filter((cliente) => !cliente.ativo)
+        .map((cliente) => cliente.nomeFantasia)
+        .sort((a, b) => a.localeCompare(b)),
+    ).toEqual(PROPOSITO.inativos);
   });
 
-  it('casos de propósito: inativo há 7 semanas, três atrasados (AMARELO, LARANJA e VERMELHO), Armazém em dia', async () => {
+  it('casos de propósito: inativos há 7 semanas, vencendo, atrasados, e Mercado Central e rebaixados visitados há até 15 dias', async () => {
     const hoje = dataCalendario(agora);
     const diasDesdeAUltima = async (nomeFantasia: string): Promise<number> => {
       const cliente = await prisma.client.findFirstOrThrow({
@@ -742,14 +750,15 @@ describe('histórico realista', () => {
       });
       return diasEntre(dataCalendario((cliente.visits[0] as { dataHora: Date }).dataHora), hoje);
     };
-    expect(await diasDesdeAUltima(PROPOSITO.inativo)).toBeGreaterThanOrEqual(49);
-    const [umaPulada, doceria, tresPuladas] = PROPOSITO.atrasados as [string, string, string];
-    expect(await diasDesdeAUltima(umaPulada)).toBeGreaterThan(7);
-    // Doceria: última visita de 16 a 29 dias atrás (corte fixo), sempre LARANJA
-    expect(await diasDesdeAUltima(doceria)).toBeGreaterThanOrEqual(16);
-    expect(await diasDesdeAUltima(doceria)).toBeLessThanOrEqual(29);
-    expect(await diasDesdeAUltima(tresPuladas)).toBeGreaterThan(42);
-    expect(await diasDesdeAUltima('Armazém São Bento')).toBeLessThanOrEqual(15);
+    for (const nome of PROPOSITO.inativos) expect(await diasDesdeAUltima(nome)).toBeGreaterThanOrEqual(49);
+    expect(await diasDesdeAUltima(PROPOSITO.emAtencao)).toBeLessThanOrEqual(15);
+    // Vencendo: última visita de 16 a 29 dias atrás (corte fixo), sempre LARANJA
+    for (const nome of PROPOSITO.vencendo) {
+      expect(await diasDesdeAUltima(nome)).toBeGreaterThanOrEqual(16);
+      expect(await diasDesdeAUltima(nome)).toBeLessThanOrEqual(29);
+    }
+    for (const nome of PROPOSITO.atrasados) expect(await diasDesdeAUltima(nome)).toBeGreaterThan(42);
+    for (const nome of PROPOSITO.rebaixados) expect(await diasDesdeAUltima(nome)).toBeLessThanOrEqual(15);
   });
 
   it('pedidos têm de 1 a 4 itens só nas visitas de venda; resultados perto de 55/25/20 %', async () => {
@@ -783,7 +792,7 @@ describe('histórico realista', () => {
     expect(fracao('SEM_VENDA')).toBeGreaterThan(0.1);
   });
 
-  it('a demonstração de hoje mostra as quatro cores e um cliente rebaixado pelo ERP', async () => {
+  it('a demonstração de hoje mostra as quatro cores e um cliente rebaixado pelo ERP por representante', async () => {
     const res = await request(app)
       .get('/clients')
       .set('Authorization', `Bearer ${await tokenDoGestor()}`);
@@ -797,12 +806,25 @@ describe('histórico realista', () => {
     expect(new Set(clientes.map((cliente) => cliente.cor))).toEqual(
       new Set(['VERDE', 'AMARELO', 'LARANJA', 'VERMELHO']),
     );
-    // Os três atrasados em três cores distintas
+    // Os casos de propósito, cada um na sua cor
     const corDe = (nome: string): string | undefined => clientes.find((cliente) => cliente.nomeFantasia === nome)?.cor;
-    expect(PROPOSITO.atrasados.map(corDe)).toEqual(['AMARELO', 'LARANJA', 'VERMELHO']);
-    expect(clientes.filter((cliente) => cliente.rebaixadoPorVenda).map((cliente) => cliente.nomeFantasia)).toEqual([
-      'Armazém São Bento',
-    ]);
+    expect({
+      emAtencao: corDe(PROPOSITO.emAtencao),
+      vencendo: PROPOSITO.vencendo.map(corDe),
+      atrasados: PROPOSITO.atrasados.map(corDe),
+      nuncaVisitados: PROPOSITO.nuncaVisitados.map(corDe),
+    }).toEqual({
+      emAtencao: 'AMARELO',
+      vencendo: ['LARANJA', 'LARANJA'],
+      atrasados: ['VERMELHO', 'VERMELHO'],
+      nuncaVisitados: ['VERMELHO', 'VERMELHO'],
+    });
+    expect(
+      clientes
+        .filter((cliente) => cliente.rebaixadoPorVenda)
+        .map((cliente) => cliente.nomeFantasia)
+        .sort((a, b) => a.localeCompare(b)),
+    ).toEqual(PROPOSITO.rebaixados);
   });
 
   it('cada cliente aparece uma vez só na agenda do dia', async () => {

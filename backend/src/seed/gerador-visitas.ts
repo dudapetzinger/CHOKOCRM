@@ -19,29 +19,36 @@ import { diaDaSemana, ordemDaVisita, ROTAS, visitaPrevista, type AgendaDaRota, t
  *
  * - Agenda: o cliente é visitado em toda data em que a rota o prevê
  *   (`visitaPrevista`: mesmo dia da semana, a cada `recorrenciaDias`); a
- *   distribuição da carteira dá de 4 a 6 visitas por dia útil por
+ *   distribuição da carteira dá de 4 a 5 visitas por dia útil por
  *   representante, nunca o mesmo cliente duas vezes no dia.
  * - Horários: em cada dia, os clientes do representante seguem a ordem das
  *   cidades da rota (e, dentro da cidade, um sorteio do dia); a primeira
  *   visita entre 8h00 e 8h24 e as seguintes de 60 a 90 minutos depois da
- *   anterior (no máximo 6 visitas: todo dia termina até as 15h54). Os horários são calculados com
- *   todos os clientes previstos no dia, mesmo os que os casos de propósito
- *   tiram, para nenhum horário mudar quando `hoje` avança. Nenhuma visita
- *   depois de `hoje`: num sábado, a última é a de sexta; antes das 8h, o
- *   dia corrente ainda não tem visita.
+ *   anterior (no máximo 5 visitas: todo dia termina até as 14h24). Os
+ *   horários são calculados com todos os clientes previstos no dia, mesmo os
+ *   que os casos de propósito tiram, para nenhum horário mudar quando `hoje`
+ *   avança. Nenhuma visita depois de `hoje`: num sábado, a última é a de
+ *   sexta; antes das 8h, o dia corrente ainda não tem visita.
  * - Resultado: sorteio por cliente + data (VENDA 55 %, NEGOCIACAO 25 %,
- *   SEM_VENDA 20 %); pedidos de 1 a 4 itens do `CATALOGO` nas vendas, com
- *   quantidades pelo tipo do negócio (`QUANTIDADES`) e produto da época
- *   (`SAZONAIS_DO_MES`) com frequência.
+ *   SEM_VENDA 20 %), o que deixa o histórico variado; a última visita de
+ *   cada cliente até `hoje` é uma venda (o cliente fica em dia), fora os
+ *   casos de propósito, que fixam o resultado dela ou não o mudam. Pedidos
+ *   de 1 a 4 itens do `CATALOGO` nas vendas, com quantidades pelo tipo do
+ *   negócio (`QUANTIDADES`) e produto da época (`SAZONAIS_DO_MES`) com
+ *   frequência.
  * - Determinismo: todo sorteio usa como semente o CNPJ do cliente e a data
- *   (nunca a posição na lista), então o mesmo `hoje` gera as mesmas visitas,
- *   e as visitas dos dias anteriores não mudam quando `hoje` avança, fora as
- *   dos clientes de propósito, que dependem de `hoje` por definição.
+ *   (nunca a posição na lista), então o mesmo `hoje` gera as mesmas visitas.
+ *   Quando `hoje` avança, as visitas dos dias anteriores ficam nas mesmas
+ *   datas e horários e com os mesmos resultados, fora a que era a última de
+ *   cada cliente (o resultado dela volta ao sorteio) e as dos clientes de
+ *   propósito, que dependem de `hoje` por definição.
  * - Casos de propósito (`Proposito`): nunca visitado (sem agenda), inativo
  *   (visitas só até N semanas antes de `hoje`), atrasado (as últimas
  *   `recorrenciasPuladas` visitas não aconteceram, ou só aconteceram as
  *   previstas até `corteDias` dias antes de `hoje`; a última que aconteceu
- *   pode ter o resultado fixado) e sempre com venda.
+ *   pode ter o resultado fixado; sem resultado fixado, fica o sorteado),
+ *   última visita sem venda (todas as visitas acontecem e a última tem o
+ *   resultado fixado em negociação ou sem venda) e sempre com venda.
  */
 
 export type Proposito =
@@ -63,6 +70,11 @@ export type Proposito =
        */
       corteDias: number;
       ultimoResultado?: ResultadoVisita;
+    }
+  | {
+      tipo: 'ULTIMA_SEM_VENDA';
+      /** Resultado da última visita até `hoje` (cor AMARELO, aba Atenção); as anteriores seguem o sorteio. */
+      ultimoResultado: 'NEGOCIACAO' | 'SEM_VENDA';
     }
   | { tipo: 'SEMPRE_VENDA' };
 
@@ -253,6 +265,19 @@ function resultadoSorteado(sorteio: () => number): ResultadoVisita {
   return 'SEM_VENDA';
 }
 
+/**
+ * Resultado da última visita do cliente até `hoje`: o fixado pelo caso de
+ * propósito (atrasado com `ultimoResultado`, última sem venda); o sorteado
+ * nos atrasados sem resultado fixado e no inativo (a cor já vem do tempo sem
+ * visita); venda nos demais, que ficam em dia.
+ */
+function resultadoDaUltima(proposito: Proposito | undefined, sorteado: ResultadoVisita): ResultadoVisita {
+  if (proposito?.tipo === 'ULTIMA_SEM_VENDA') return proposito.ultimoResultado;
+  if (proposito?.tipo === 'ATRASADO') return proposito.ultimoResultado ?? sorteado;
+  if (proposito?.tipo === 'INATIVO') return sorteado;
+  return 'VENDA';
+}
+
 /** A visita prevista nessa data aconteceu, pelos casos de propósito? */
 function aconteceu(cliente: ClienteDoGerador, data: DataCalendario, hojeDia: DataCalendario): boolean {
   const proposito = cliente.proposito;
@@ -330,11 +355,10 @@ export function gerarVisitas(hoje: Date, clientes: readonly ClienteDoGerador[]):
     lista.forEach(({ cliente, data, dataHora }, indice) => {
       const sorteio = sorteioDe(`${cliente.cnpj}|${data}`);
       const proposito = cliente.proposito;
-      let resultado = resultadoSorteado(sorteio);
+      // O sorteio do resultado é consumido sempre, para o contato da visita não mudar.
+      const sorteado = resultadoSorteado(sorteio);
+      let resultado = indice === lista.length - 1 ? resultadoDaUltima(proposito, sorteado) : sorteado;
       if (proposito?.tipo === 'SEMPRE_VENDA') resultado = 'VENDA';
-      if (proposito?.tipo === 'ATRASADO' && proposito.ultimoResultado && indice === lista.length - 1) {
-        resultado = proposito.ultimoResultado;
-      }
       const tipo = tipoDoCliente(cliente.nomeFantasia);
       const mes = Number(data.slice(5, 7));
       const itens = resultado === 'VENDA' ? itensDoPedido(tipo, mes, sorteioDe(`${cliente.cnpj}|${data}|pedido`)) : [];

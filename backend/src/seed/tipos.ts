@@ -33,9 +33,9 @@ export type ClienteSeed = {
   erpId?: string | null;
   /** Dono da carteira (usuário do representante). */
   representanteUsuario: string;
-  /** Intervalo entre visitas, em dias: 7, 14, 21, 28 ou 42 (a rota cai sempre no mesmo dia da semana). */
+  /** Intervalo entre visitas, em dias: 7 ou 14 nos ativos, 28 nos inativos (múltiplos de 7: a rota cai sempre no mesmo dia da semana). */
   recorrenciaDias?: number;
-  /** `false` só no cliente fechado para reforma: guarda o histórico, sem próxima visita nem lembrete. */
+  /** `false` só nos inativos da demonstração (um por representante): guardam o histórico, sem próxima visita nem lembrete. */
   ativo?: boolean;
   /** Dia e fase na rota; nos âncoras vem de `AGENDA_DAS_ANCORAS` (`rotas.ts`). */
   agenda?: AgendaDaRota;

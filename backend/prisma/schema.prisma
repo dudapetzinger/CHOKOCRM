@@ -205,7 +205,7 @@ model SeasonalEvent {
 
 /// Campanha, promoção ou evento comercial, criado pelo gestor.
 /// `inicio` e `fim` são dias de calendário, os dois inclusivos (o status é
-/// calculado em `campaign.regras.ts`, nunca gravado). `desconto` em % (0–100)
+/// calculado em `campaign.regras.ts`, nunca gravado). `desconto` em % (0 a 100)
 /// e `produtos` com os SKUs do catálogo do ERP em destaque.
 model Campaign {
   id                    String       @id @default(uuid())

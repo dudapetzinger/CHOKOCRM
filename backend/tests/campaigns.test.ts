@@ -281,7 +281,7 @@ describe('CHECKs da migration (última linha de defesa, além do zod)', () => {
     });
   }
 
-  it('o banco recusa desconto fora de 0–100', async () => {
+  it('o banco recusa desconto fora de 0 a 100', async () => {
     await expect(gravarDireto({ inicio: '2026-11-01', fim: '2026-11-30', desconto: 101 })).rejects.toThrow();
   });
 

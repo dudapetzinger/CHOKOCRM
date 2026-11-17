@@ -39,7 +39,7 @@ export type ItemCalendario = {
   representante?: { id: string; nome: string };
   /** Na visita, a campanha da próxima visita; na campanha, ela mesma. */
   campanha?: { id: string; nome: string } | null;
-  /** Texto pronto: o vencimento da visita marcada ou do lembrete, o tipo e o período da campanha, "Data sazonal". */
+  /** Texto pronto: o vencimento da visita marcada ou do lembrete, o tipo e o período da campanha, "Data comemorativa". */
   detalhe?: string;
 };
 
@@ -190,7 +190,7 @@ export function montarCalendario(entrada: {
   for (const evento of eventos) {
     const dia = dataDaColunaDate(evento.dataFim);
     if (noMes(dia)) {
-      itens.push({ item: { data: dia, tipo: 'DATA_SAZONAL', titulo: evento.nome, detalhe: 'Data sazonal' } });
+      itens.push({ item: { data: dia, tipo: 'DATA_SAZONAL', titulo: evento.nome, detalhe: 'Data comemorativa' } });
     }
   }
 

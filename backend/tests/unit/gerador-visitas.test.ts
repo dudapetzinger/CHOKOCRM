@@ -1,14 +1,25 @@
+import { ERP_IDS_DEMONSTRACAO } from '../../src/config/erpIdsDemonstracao';
 import { CATALOGO } from '../../src/providers/erp/mock/catalogo';
-import { clientesDaDemonstracao } from '../../src/seed/demonstracao';
+import { gerarHistoricoErp } from '../../src/providers/erp/mock/gerador';
+import { CLIENTES_ANCORA, CLIENTES_GERADOS, clientesDaDemonstracao } from '../../src/seed/demonstracao';
 import { gerarVisitas, inicioDaJanela, type VisitaGerada } from '../../src/seed/gerador-visitas';
 import { diaDaSemana } from '../../src/seed/rotas';
-import { classificarCor, dataCalendario, diasEntre, somarDias } from '../../src/services/classificacao.service';
+import {
+  classificacaoDoCliente,
+  classificarCor,
+  dataCalendario,
+  diasEntre,
+  somarDias,
+} from '../../src/services/classificacao.service';
 
 /**
  * Propriedades do gerador puro das visitas da demonstração (seed "últimos 3
  * meses"), para vários `hoje`: meio-dia de segunda, segunda às 07:30 (antes
  * do expediente), sábado, virada de mês e de ano e a data simulada dos
- * testes do relógio (15/03/2027).
+ * testes do relógio (15/03/2027). A carteira modelo (as abas da lista de
+ * clientes de cada representante) é conferida nesses `hoje` e em 14 dias
+ * seguidos, com a cor calculada como a lista calcula (última visita e
+ * última venda no ERP simulado).
  */
 
 const horaEmSaoPaulo = new Intl.DateTimeFormat('en-GB', {
@@ -40,10 +51,19 @@ const cnpjDe = (nome: string): string => {
   if (!cliente) throw new Error(`${nome} não está na demonstração.`);
   return cliente.cnpj;
 };
-/** Clientes cujas visitas dependem de `hoje` por definição (atrasados e inativo). */
+/** Clientes cujas visitas dependem de `hoje` por definição (atrasados, vencendo e inativos). */
 const DEPENDENTES_DE_HOJE = new Set(
-  ['Mercado Central Joinville', 'Doceria Jaraguá', 'Casa de Chás Itajaí', 'Café Beira-Rio'].map(cnpjDe),
+  [
+    'Doceria Jaraguá',
+    'Hotel Fazenda Rio Novo',
+    'Café Colonial Serra Alta',
+    'Confeitaria Vila Germânica',
+    'Casa de Chás Itajaí',
+    'Café Beira-Rio',
+  ].map(cnpjDe),
 );
+/** Cadastro dos clientes da demonstração (situação ativa e `erpId`), como o seed grava. */
+const CADASTROS = [...CLIENTES_ANCORA, ...CLIENTES_GERADOS];
 
 function porCliente(visitas: readonly VisitaGerada[]): Map<string, VisitaGerada[]> {
   const mapa = new Map<string, VisitaGerada[]>();
@@ -53,6 +73,69 @@ function porCliente(visitas: readonly VisitaGerada[]): Map<string, VisitaGerada[
 
 function ultimaDe(visitas: readonly VisitaGerada[], nome: string): VisitaGerada | undefined {
   return porCliente(visitas).get(cnpjDe(nome))?.at(-1);
+}
+
+/** Casos de propósito da carteira modelo (`PROPOSITOS` em `demonstracao.ts`). */
+const NUNCA_VISITADOS = ['Confeitaria Rota das Cachoeiras', 'Padaria Confeitaria Indaial'];
+const INATIVOS = ['Café Colonial Serra Alta', 'Café Beira-Rio'];
+const VENCENDO = ['Doceria Jaraguá', 'Confeitaria Vila Germânica'];
+const ATRASADOS = ['Hotel Fazenda Rio Novo', 'Casa de Chás Itajaí'];
+const REBAIXADOS = ['Armazém São Bento', 'Hotel Fazenda Mulde'];
+/** Atenção: a última visita sem venda (negociação ou sem venda), cinco por representante. */
+const ATENCAO: Record<string, string> = {
+  'Mercado Central Joinville': 'NEGOCIACAO',
+  'Café Rua das Palmeiras': 'SEM_VENDA',
+  'Casa de Chá Recanto Alemão': 'NEGOCIACAO',
+  'Padaria Rainha da Serra': 'SEM_VENDA',
+  'Doceria Enxaimel': 'NEGOCIACAO',
+  'Café Blumenau': 'NEGOCIACAO',
+  'Empório do Vale Brusque': 'NEGOCIACAO',
+  'Padaria Vale Europeu': 'NEGOCIACAO',
+  'Empório Itoupava': 'SEM_VENDA',
+  'Mercearia Alto Vale': 'SEM_VENDA',
+};
+
+/** A carteira modelo de cada representante na lista de clientes. */
+const CARTEIRA_MODELO = {
+  emDia: 31,
+  atencao: 5,
+  prioridade: 4,
+  inativos: 1,
+  situacoesDaPrioridade: ['atrasado', 'nunca visitado', 'rebaixado pela compra', 'vencendo'],
+};
+
+/**
+ * As abas da lista de clientes do representante como a tela as conta: as de
+ * situação só com os ativos (Prioridade = LARANJA e VERMELHO, Atenção =
+ * AMARELO, Em dia = VERDE) e o inativo só em "Todos". A cor sai de
+ * `classificacaoDoCliente`, como na lista: as visitas da mais recente para a
+ * mais antiga e a última venda do ERP simulado pelo `erpId` do cliente.
+ */
+function abasDoRepresentante(hoje: Date, representante: string) {
+  const doCliente = porCliente(gerarVisitas(hoje, CLIENTES));
+  const abas = { emDia: 0, atencao: 0, prioridade: 0, inativos: 0 };
+  const situacoesDaPrioridade: string[] = [];
+  for (const cadastro of CADASTROS.filter((cliente) => cliente.representanteUsuario === representante)) {
+    if (cadastro.ativo === false) {
+      abas.inativos += 1;
+      continue;
+    }
+    const maisRecentesPrimeiro = [...(doCliente.get(cadastro.cnpj) ?? [])]
+      .reverse()
+      .map(({ dataHora, resultado }) => ({ dataHora, resultado }));
+    const erpId = cadastro.erpId ?? ERP_IDS_DEMONSTRACAO[cadastro.nomeFantasia] ?? null;
+    const ultimaVenda = erpId ? (gerarHistoricoErp(erpId, hoje).vendas[0]?.data ?? null) : null;
+    const { cor, ultima, rebaixadoPorVenda } = classificacaoDoCliente(maisRecentesPrimeiro, hoje, ultimaVenda);
+    if (cor === 'VERDE') abas.emDia += 1;
+    if (cor === 'AMARELO') abas.atencao += 1;
+    if (cor === 'LARANJA' || cor === 'VERMELHO') {
+      abas.prioridade += 1;
+      if (rebaixadoPorVenda) situacoesDaPrioridade.push('rebaixado pela compra');
+      else if (ultima === null) situacoesDaPrioridade.push('nunca visitado');
+      else situacoesDaPrioridade.push(cor === 'VERMELHO' ? 'atrasado' : 'vencendo');
+    }
+  }
+  return { ...abas, situacoesDaPrioridade: situacoesDaPrioridade.sort((a, b) => a.localeCompare(b)) };
 }
 
 describe.each(HOJES.map((hoje) => [hoje.toISOString(), hoje] as const))(
@@ -75,7 +158,7 @@ describe.each(HOJES.map((hoje) => [hoje.toISOString(), hoje] as const))(
       }
     });
 
-    it('cada dia útil antes de hoje tem de 4 a 6 visitas por representante, em horários sequenciais, sem cliente repetido', () => {
+    it('cada dia útil antes de hoje tem de 4 a 5 visitas por representante, em horários sequenciais, sem cliente repetido', () => {
       for (let data = inicioDaJanela(hoje); data < hojeDia; data = somarDias(data, 1)) {
         if (diaDaSemana(data) > 5) continue;
         for (const representante of [EDUARDA, RAFAEL]) {
@@ -84,7 +167,7 @@ describe.each(HOJES.map((hoje) => [hoje.toISOString(), hoje] as const))(
             data,
             representante,
             quantidade: doDia.length,
-            ok: doDia.length >= 4 && doDia.length <= 6,
+            ok: doDia.length >= 4 && doDia.length <= 5,
           }).toMatchObject({
             ok: true,
           });
@@ -94,7 +177,7 @@ describe.each(HOJES.map((hoje) => [hoje.toISOString(), hoje] as const))(
               ((doDia[i] as VisitaGerada).dataHora.getTime() - (doDia[i - 1] as VisitaGerada).dataHora.getTime()) /
               60_000;
             expect(intervalo).toBeGreaterThanOrEqual(60);
-            // 60 a 90 min; até o dobro quando a visita do meio é de um cliente atrasado ou inativo (o horário dela fica vago)
+            // 60 a 90 min; até o dobro quando a visita do meio é de um cliente atrasado, vencendo ou inativo (o horário dela fica vago)
             expect(intervalo).toBeLessThanOrEqual(180);
           }
         }
@@ -113,7 +196,11 @@ describe.each(HOJES.map((hoje) => [hoje.toISOString(), hoje] as const))(
           expect(atual.descricao).not.toBe(anterior.descricao);
         }
       }
-      expect(CLIENTES.every((cliente) => [7, 14, 21, 28, 42].includes(cliente.recorrenciaDias))).toBe(true);
+      expect(
+        CLIENTES.every((cliente) =>
+          cliente.proposito?.tipo === 'INATIVO' ? cliente.recorrenciaDias === 28 : [7, 14].includes(cliente.recorrenciaDias),
+        ),
+      ).toBe(true);
     });
 
     it('pedidos de 1 a 4 itens distintos do catálogo só nas vendas, e ovo de Páscoa só de fevereiro a abril', () => {
@@ -144,25 +231,36 @@ describe.each(HOJES.map((hoje) => [hoje.toISOString(), hoje] as const))(
       expect(fracao('SEM_VENDA')).toBeLessThan(0.28);
     });
 
-    it('casos de propósito: nunca visitado, inativo, três atrasados, Armazém e Panificadora em dia', () => {
+    it('casos de propósito: nunca visitados, inativos, atrasados, vencendo, rebaixados e a última visita dos demais', () => {
       const diasDesde = (nome: string): number => diasEntre((ultimaDe(visitas, nome) as VisitaGerada).data, hojeDia);
-      expect(porCliente(visitas).has(cnpjDe('Padaria Confeitaria Indaial'))).toBe(false);
-      expect(diasDesde('Café Beira-Rio')).toBeGreaterThanOrEqual(49);
-      // Atrasados: uma recorrência pulada, corte de 16 dias (Doceria) e três recorrências puladas
-      expect(diasDesde('Mercado Central Joinville')).toBeGreaterThanOrEqual(8);
-      expect(diasDesde('Mercado Central Joinville')).toBeLessThanOrEqual(14);
-      expect(ultimaDe(visitas, 'Mercado Central Joinville')?.resultado).toBe('NEGOCIACAO');
-      expect(diasDesde('Doceria Jaraguá')).toBeGreaterThanOrEqual(16);
-      expect(diasDesde('Doceria Jaraguá')).toBeLessThanOrEqual(29);
-      expect(diasDesde('Casa de Chás Itajaí')).toBeGreaterThan(30);
-      // Em dia: visitados nos últimos 15 dias, com venda
-      expect(diasDesde('Armazém São Bento')).toBeLessThanOrEqual(15);
-      expect(ultimaDe(visitas, 'Armazém São Bento')?.resultado).toBe('VENDA');
-      expect(diasDesde('Panificadora Vila Lenzi')).toBeLessThanOrEqual(8);
-      expect(ultimaDe(visitas, 'Panificadora Vila Lenzi')?.resultado).toBe('VENDA');
+      for (const nome of NUNCA_VISITADOS) expect(porCliente(visitas).has(cnpjDe(nome))).toBe(false);
+      for (const nome of INATIVOS) expect(diasDesde(nome)).toBeGreaterThanOrEqual(49);
+      // Vencendo: corte de 16 dias, a última de 16 a 29 dias atrás
+      for (const nome of VENCENDO) {
+        expect(diasDesde(nome)).toBeGreaterThanOrEqual(16);
+        expect(diasDesde(nome)).toBeLessThanOrEqual(29);
+      }
+      // Atrasados: três recorrências quinzenais puladas
+      for (const nome of ATRASADOS) expect(diasDesde(nome)).toBeGreaterThan(30);
+      // Rebaixados ("sempre com venda"): visitados nos últimos 15 dias, com venda
+      for (const nome of REBAIXADOS) {
+        expect(diasDesde(nome)).toBeLessThanOrEqual(15);
+        expect(ultimaDe(visitas, nome)?.resultado).toBe('VENDA');
+      }
+      // Atenção: a última visita sem venda, nos últimos 15 dias
+      for (const [nome, resultado] of Object.entries(ATENCAO)) {
+        expect({ nome, resultado: ultimaDe(visitas, nome)?.resultado }).toEqual({ nome, resultado });
+        expect(diasDesde(nome)).toBeLessThanOrEqual(15);
+      }
+      // Os demais clientes: a última visita é uma venda
+      const comProposito = new Set(CLIENTES.filter((cliente) => cliente.proposito).map((cliente) => cliente.cnpj));
+      for (const [cnpj, doCliente] of porCliente(visitas)) {
+        if (comProposito.has(cnpj)) continue;
+        expect({ cnpj, resultado: doCliente.at(-1)?.resultado }).toEqual({ cnpj, resultado: 'VENDA' });
+      }
     });
 
-    it('determinístico: o mesmo hoje gera as mesmas visitas, e o dia seguinte não muda os dias anteriores', () => {
+    it('determinístico: o mesmo hoje gera as mesmas visitas, e o dia seguinte só muda o resultado da última de cada cliente', () => {
       expect(gerarVisitas(hoje, CLIENTES)).toEqual(visitas);
 
       const instanteDeAmanha = new Date(hoje.getTime() + 86_400_000);
@@ -173,7 +271,26 @@ describe.each(HOJES.map((hoje) => [hoje.toISOString(), hoje] as const))(
         lista.filter(
           (visita) => visita.data >= inicio && visita.data < hojeDia && !DEPENDENTES_DE_HOJE.has(visita.cnpj),
         );
-      expect(dosDiasAnteriores(amanha)).toEqual(dosDiasAnteriores(visitas));
+      // As mesmas visitas, nas mesmas datas e horários
+      const agenda = (lista: readonly VisitaGerada[]) =>
+        dosDiasAnteriores(lista).map(({ cnpj, data, dataHora }) => ({ cnpj, data, dataHora }));
+      expect(agenda(amanha)).toEqual(agenda(visitas));
+      // A última visita de cada cliente até hoje tem o resultado fixado (venda,
+      // ou o do caso de propósito): no dia seguinte ela pode deixar de ser a
+      // última e voltar ao sorteio. As outras não mudam.
+      const ultimas = new Set([...porCliente(visitas).values()].map((doCliente) => `${doCliente.at(-1)?.cnpj}|${doCliente.at(-1)?.data}`));
+      const semAsUltimas = (lista: readonly VisitaGerada[]) =>
+        dosDiasAnteriores(lista).filter((visita) => !ultimas.has(`${visita.cnpj}|${visita.data}`));
+      expect(semAsUltimas(amanha)).toEqual(semAsUltimas(visitas));
+    });
+
+    it('carteira modelo: as abas da lista de clientes de cada representante', () => {
+      for (const representante of [EDUARDA, RAFAEL]) {
+        expect({ representante, ...abasDoRepresentante(hoje, representante) }).toEqual({
+          representante,
+          ...CARTEIRA_MODELO,
+        });
+      }
     });
   },
 );
@@ -196,16 +313,21 @@ describe('gerarVisitas nos limites do expediente e da semana', () => {
     expect(visitas.every((visita) => visita.dataHora <= SEGUNDA_MEIO_DIA)).toBe(true);
   });
 
-  it('carteiras de 40 ± 2 clientes por representante, com os 26 âncoras', () => {
-    expect(CLIENTES.filter((cliente) => cliente.representanteUsuario === EDUARDA).length).toBeGreaterThanOrEqual(38);
-    expect(CLIENTES.filter((cliente) => cliente.representanteUsuario === EDUARDA).length).toBeLessThanOrEqual(42);
-    expect(CLIENTES.filter((cliente) => cliente.representanteUsuario === RAFAEL).length).toBeGreaterThanOrEqual(38);
-    expect(CLIENTES.filter((cliente) => cliente.representanteUsuario === RAFAEL).length).toBeLessThanOrEqual(42);
+  it('carteiras de 40 clientes ativos e 1 inativo por representante, com os 26 âncoras', () => {
+    for (const representante of [EDUARDA, RAFAEL]) {
+      const daCarteira = CADASTROS.filter((cliente) => cliente.representanteUsuario === representante);
+      expect({
+        representante,
+        ativos: daCarteira.filter((cliente) => cliente.ativo !== false).length,
+        inativos: daCarteira.filter((cliente) => cliente.ativo === false).length,
+      }).toEqual({ representante, ativos: 40, inativos: 1 });
+    }
+    expect(CLIENTES).toHaveLength(CADASTROS.length);
     expect(new Set(CLIENTES.map((cliente) => cliente.cnpj)).size).toBe(CLIENTES.length);
   });
 });
 
-describe('atrasados em três cores distintas, qualquer que seja o dia da semana de hoje', () => {
+describe('carteira modelo e casos de propósito em qualquer dia da semana de hoje', () => {
   // 14 dias seguidos (cada dia da semana duas vezes), às 14h de São Paulo
   const hojes = Array.from({ length: 14 }, (_, indice) => new Date(Date.UTC(2026, 10, 9 + indice, 17, 0, 0)));
 
@@ -216,9 +338,19 @@ describe('atrasados em três cores distintas, qualquer que seja o dia da semana 
       return classificarCor({ dataHora: ultima.dataHora, resultado: ultima.resultado }, hoje);
     };
     expect({
-      mercadoCentral: corDe('Mercado Central Joinville'),
-      doceria: corDe('Doceria Jaraguá'),
-      casaDeChas: corDe('Casa de Chás Itajaí'),
-    }).toEqual({ mercadoCentral: 'AMARELO', doceria: 'LARANJA', casaDeChas: 'VERMELHO' });
+      atencao: Object.keys(ATENCAO).map(corDe),
+      vencendo: VENCENDO.map(corDe),
+      atrasados: ATRASADOS.map(corDe),
+    }).toEqual({
+      atencao: Object.keys(ATENCAO).map(() => 'AMARELO'),
+      vencendo: ['LARANJA', 'LARANJA'],
+      atrasados: ['VERMELHO', 'VERMELHO'],
+    });
+    for (const representante of [EDUARDA, RAFAEL]) {
+      expect({ representante, ...abasDoRepresentante(hoje, representante) }).toEqual({
+        representante,
+        ...CARTEIRA_MODELO,
+      });
+    }
   });
 });

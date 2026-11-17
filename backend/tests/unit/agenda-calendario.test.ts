@@ -245,7 +245,7 @@ describe('montarCalendario', () => {
     }).itens;
 
     expect(itens).toEqual([
-      { data: '2026-10-12', tipo: 'DATA_SAZONAL', titulo: 'Dia das Crianças', detalhe: 'Data sazonal' },
+      { data: '2026-10-12', tipo: 'DATA_SAZONAL', titulo: 'Dia das Crianças', detalhe: 'Data comemorativa' },
     ]);
   });
 

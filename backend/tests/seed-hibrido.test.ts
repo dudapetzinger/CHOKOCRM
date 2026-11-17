@@ -146,7 +146,11 @@ describe('seed de demonstração com o provedor híbrido', () => {
       const ficha = await request(app).get(`/clients/${novo.id}/erp`).set('Authorization', `Bearer ${token}`);
       expect(ficha.status).toBe(200);
       expect(ficha.body.estoqueIndisponivel).toBe(true);
-      expect(ficha.body.ultimasVendas[0].origem).toEqual({ tipo: 'nota', numero: '1' });
+      // A nota entra nas últimas vendas junto com os pedidos das visitas do seed sem nota
+      expect(ficha.body.ultimasVendas.map((venda: { origem: unknown }) => venda.origem)).toContainEqual({
+        tipo: 'nota',
+        numero: '1',
+      });
     });
   });
 });

@@ -3,17 +3,19 @@ import { ROTAS, type DiaUtil } from './rotas';
 import { TELEFONE_DA_DEMONSTRACAO, type ClienteSeed, type ContatoSeed } from './tipos';
 
 /**
- * Clientes gerados da demonstração: completam as carteiras para cerca de 40
- * clientes por representante (24 da Eduarda e 30 do Rafael, além dos 26
- * âncoras de `demonstracao.ts`), para a rota de cada dia útil ter de 4 a 6
- * visitas. Tudo é determinístico pelo índice do cliente, sem sorteio: o mesmo
- * código gera sempre o mesmo cadastro.
+ * Clientes gerados da demonstração: completam as carteiras para 41 clientes
+ * por representante, 40 ativos e 1 inativo (25 da Eduarda e 31 do Rafael,
+ * além dos 26 âncoras de `demonstracao.ts`), para a rota de cada dia útil ter
+ * de 4 a 5 visitas. Todos são clientes em dia, sem caso de propósito (os
+ * casos ficam nos âncoras). Tudo é determinístico pelo índice do cliente, sem
+ * sorteio: o mesmo código gera sempre o mesmo cadastro.
  *
  * Cada cliente nasce de uma vaga da grade (`GRADE`: dia da rota,
- * recorrência e fase, balanceadas junto com os âncoras, ver `rotas.ts`); a
- * cidade é uma das cidades daquele dia da rota; o tipo do negócio segue a
- * recorrência (semanais são padarias, mercearias, cafés; os de 28 dias,
- * pousadas, lojas de presentes, casas de chá). Cadastro de sistema de
+ * recorrência de 7 ou 14 dias e fase, balanceadas junto com os âncoras, ver
+ * `rotas.ts`); a cidade é uma das cidades daquele dia da rota; o tipo do
+ * negócio segue a recorrência (semanais são padarias, mercearias, cafés; os
+ * quinzenais, confeitarias, empórios, restaurantes, casas de chá, lojas de
+ * presentes). Cadastro de sistema de
  * verdade: nome fantasia de bairro ou de família, razão social diferente
  * (Ltda/ME/EPP), CNPJ com dígitos verificadores válidos, endereço em rua da
  * cidade, telefone `TELEFONE_DA_DEMONSTRACAO`, e-mail no domínio do
@@ -31,73 +33,86 @@ type Vaga = readonly [dia: DiaUtil, recorrenciaDias: number, fase: number];
 const USUARIO_EDUARDA = 'eduarda';
 const USUARIO_RAFAEL = 'rafael';
 
-/** Vagas da grade de cada carteira (dia, recorrência, fase), balanceadas com os âncoras. */
-const GRADE: Record<string, readonly Vaga[]> = {
-  [USUARIO_EDUARDA]: [
-    [1, 7, 0],
-    [1, 7, 0],
-    [1, 14, 0],
-    [1, 14, 0],
-    [1, 14, 1],
-    [1, 14, 1],
-    [2, 7, 0],
-    [2, 7, 0],
-    [2, 14, 0],
-    [2, 14, 0],
-    [2, 14, 1],
-    [3, 7, 0],
-    [3, 7, 0],
-    [3, 7, 0],
-    [3, 28, 2],
-    [4, 7, 0],
-    [4, 7, 0],
-    [4, 7, 0],
-    [4, 14, 1],
-    [4, 28, 2],
-    [5, 7, 0],
-    [5, 7, 0],
-    [5, 7, 0],
-    [5, 28, 1],
+/**
+ * Vagas da grade (dia, recorrência, fase), balanceadas com os âncoras, em
+ * blocos por carteira. A ordem dos blocos e das vagas fixa o índice de cada
+ * cliente, de onde saem o CNPJ e o `erpId`: vaga nova entra num bloco novo no
+ * fim, para nenhum cliente que já existe trocar de CNPJ (o reinício da
+ * demonstração só apaga os CNPJs da lista atual).
+ */
+const GRADE: readonly (readonly [representanteUsuario: string, vagas: readonly Vaga[]])[] = [
+  [
+    USUARIO_EDUARDA,
+    [
+      [1, 7, 0],
+      [1, 7, 0],
+      [1, 14, 0],
+      [1, 14, 0],
+      [1, 14, 1],
+      [1, 14, 1],
+      [2, 7, 0],
+      [2, 14, 0],
+      [2, 14, 0],
+      [2, 14, 0],
+      [2, 14, 1],
+      [3, 7, 0],
+      [3, 7, 0],
+      [3, 14, 0],
+      [3, 14, 0],
+      [4, 7, 0],
+      [4, 7, 0],
+      [4, 14, 0],
+      [4, 14, 1],
+      [4, 14, 0],
+      [5, 7, 0],
+      [5, 14, 1],
+      [5, 14, 0],
+      [5, 14, 1],
+    ],
   ],
-  [USUARIO_RAFAEL]: [
-    [1, 7, 0],
-    [1, 7, 0],
-    [1, 7, 0],
-    [1, 14, 0],
-    [1, 14, 0],
-    [1, 14, 1],
-    [1, 14, 1],
-    [2, 7, 0],
-    [2, 7, 0],
-    [2, 7, 0],
-    [2, 7, 0],
-    [2, 14, 0],
-    [2, 28, 3],
-    [3, 7, 0],
-    [3, 7, 0],
-    [3, 7, 0],
-    [3, 14, 0],
-    [3, 14, 1],
-    [3, 14, 1],
-    [4, 7, 0],
-    [4, 7, 0],
-    [4, 7, 0],
-    [4, 14, 0],
-    [4, 28, 0],
-    [4, 28, 1],
-    [4, 28, 3],
-    [5, 7, 0],
-    [5, 7, 0],
-    [5, 7, 0],
-    [5, 14, 1],
+  [
+    USUARIO_RAFAEL,
+    [
+      [1, 7, 0],
+      [1, 7, 0],
+      [1, 14, 0],
+      [1, 14, 0],
+      [1, 14, 0],
+      [1, 14, 1],
+      [1, 14, 1],
+      [2, 7, 0],
+      [2, 7, 0],
+      [2, 14, 0],
+      [2, 14, 0],
+      [2, 14, 0],
+      [2, 14, 1],
+      [3, 7, 0],
+      [3, 7, 0],
+      [3, 7, 0],
+      [3, 14, 0],
+      [3, 14, 1],
+      [3, 14, 1],
+      [4, 7, 0],
+      [4, 14, 1],
+      [4, 14, 0],
+      [4, 14, 0],
+      [4, 14, 0],
+      [4, 14, 1],
+      [4, 14, 1],
+      [5, 7, 0],
+      [5, 7, 0],
+      [5, 14, 1],
+      [5, 14, 1],
+    ],
   ],
-};
+  [USUARIO_EDUARDA, [[2, 14, 1]]],
+  [USUARIO_RAFAEL, [[1, 14, 1]]],
+];
 
 /** Tipo do negócio pela recorrência: quem compra toda semana é padaria, mercearia, café… */
 const TIPOS_POR_RECORRENCIA: Record<number, readonly TipoDeCliente[]> = {
   7: ['padaria', 'mercearia', 'cafe', 'confeitaria', 'padaria', 'restaurante', 'cafe', 'mercearia'],
   14: ['confeitaria', 'emporio', 'cafe', 'restaurante', 'casaDeCha', 'presentes'],
-  28: ['hotel', 'presentes', 'casaDeCha', 'emporio'],
 };
 
 const PREFIXOS: Record<TipoDeCliente, readonly string[]> = {
@@ -387,9 +402,7 @@ function erpIdsCalibrados(quantidade: number): string[] {
  * também é único.
  */
 export function gerarClientes(nomesDeContatoReservados: ReadonlySet<string> = new Set()): ClienteSeed[] {
-  const vagas = Object.entries(GRADE).flatMap(([representanteUsuario, lista]) =>
-    lista.map((vaga) => ({ representanteUsuario, vaga })),
-  );
+  const vagas = GRADE.flatMap(([representanteUsuario, lista]) => lista.map((vaga) => ({ representanteUsuario, vaga })));
   const erpIds = erpIdsCalibrados(vagas.length);
   const nomesUsados = new Set<string>();
   const contatosUsados = new Set<string>(nomesDeContatoReservados);
