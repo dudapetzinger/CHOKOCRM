@@ -179,7 +179,7 @@ O desenho das camadas, a organização das pastas e as decisões técnicas, com 
 
 ## Testes e qualidade
 
-O projeto tem mais de 2.100 testes automatizados, cerca de 1.150 no servidor e 980 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
+O projeto tem mais de 2.100 testes automatizados, cerca de 1.150 no servidor e 1.000 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
 
 ```bash
 cd backend

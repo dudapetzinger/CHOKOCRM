@@ -17,9 +17,9 @@ Este documento explica como o ChokoCRM é testado: que tipos de teste existem, o
 
 | Onde | Ferramentas | Arquivos de teste | Testes |
 |------|-------------|-------------------|--------|
-| Servidor | Jest e Supertest | 66 | 1.148 |
-| Interface | Vitest e Testing Library | 99 | 979 |
-| Total | | 165 | 2.127 |
+| Servidor | Jest e Supertest | 67 | 1.153 |
+| Interface | Vitest e Testing Library | 99 | 1.017 |
+| Total | | 166 | 2.170 |
 
 Os testes cobrem 92,5 % das linhas do código, segundo a medição do SonarCloud.
 
@@ -167,7 +167,7 @@ Alguns testes não conferem uma funcionalidade, e sim uma regra que o código in
 
 ### Relógio único
 
-O modo demonstração só funciona se nenhuma regra ler a data diretamente do computador. Por isso, existe um teste no servidor e outro na interface que varrem todos os arquivos de código e falham se encontrarem uma leitura direta do relógio fora do módulo responsável. As poucas exceções legítimas, como a validade do token de login, precisam estar marcadas com um comentário explicando o motivo.
+O modo demonstração só funciona se nenhuma regra ler a data diretamente do computador. Por isso, existe um teste no servidor e outro na interface que varrem todos os arquivos de código e falham se encontrarem uma leitura direta do relógio fora do módulo responsável. Uma leitura do relógio real só é aceita quando está marcada com o comentário `// relógio real:` e o motivo. Hoje a única é o prazo do convite para instalar o aplicativo, que segue a hora do aparelho (`frontend/src/pwa/BannerInstalar.tsx`). A validade do token de login também segue o relógio real, mas quem a conta é a biblioteca de tokens, fora do código do projeto.
 
 ### Sem travessão no código e na documentação
 

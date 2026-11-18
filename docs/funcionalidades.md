@@ -153,7 +153,7 @@ Regras:
 
 ### Venda e nota fiscal
 
-No check-in, o representante informa apenas que houve venda. Ele não digita produtos nem valores.
+No check-in, o representante informa apenas que houve venda. Ele não digita produtos nem valores. A API do check-in aceita uma lista opcional de produtos, que a tela não envia; os testes automatizados a usam para montar visitas de venda com produtos.
 
 Os produtos e o valor chegam depois, quando a gestão importa a nota fiscal daquela venda (nos dados de demonstração, já vêm gravados na visita). O sistema liga a nota à visita pela data, seguindo as regras da seção [Importação de notas fiscais](#11-importação-de-notas-fiscais). A partir daí, a visita passa a mostrar os produtos e o total da nota, e a venda entra nas metas, nas campanhas e no ranking.
 
