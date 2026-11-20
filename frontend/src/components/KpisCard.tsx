@@ -2,7 +2,7 @@
  * "Quem está visitando pouco?" (gestor) ou "Como está a minha carteira?"
  * (representante), os números de visitas do Painel, nos cartões
  * do protótipo: o título com o período e os clientes
- * ativos e, embaixo, visitas, taxa de registro, conversão em vendas e
+ * ativos e, embaixo, número de visitas, clientes visitados, conversão em vendas e
  * clientes esfriando no período escolhido, cada um num cartão (quatro em linha
  * a partir de 1024 px, dois por linha abaixo). O período e o representante
  * vêm da página. Ao trocar o período, o resultado anterior segue na tela,
@@ -48,7 +48,7 @@ function Indicadores({ kpis }: { kpis: Kpis }) {
   return (
     <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Indicador
-        rotulo="Visitas no período"
+        rotulo="Número de visitas"
         valor={String(visitas.total)}
         apoio={
           visitas.mediaPorCliente === null
@@ -57,7 +57,7 @@ function Indicadores({ kpis }: { kpis: Kpis }) {
         }
       />
       <Indicador
-        rotulo="Taxa de registro"
+        rotulo="Clientes visitados"
         valor={formatarProporcao(taxaDeRegistro)}
         apoio={`${taxaDeRegistro.numerador} de ${taxaDeRegistro.denominador} clientes com visita no período`}
       />

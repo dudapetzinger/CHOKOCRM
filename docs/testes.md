@@ -129,7 +129,7 @@ Em todas as áreas, os testes conferem também que o representante não lê nem 
 | Campanhas | Situação pelas datas, resultados por representante e produtos mais vendidos |
 | Metas | Período semanal e mensal e o cálculo do realizado |
 | Sugestões | Período do ano anterior, variação em relação à média e a ação sugerida |
-| Indicadores | Período, contagens, taxa de registro, conversão e distribuição por cor |
+| Indicadores | Período, contagens, clientes visitados, conversão e distribuição por cor |
 | Vendas mensais | Meses do período, soma por mês e marcação das datas comemorativas |
 | Datas comemorativas | Cálculo da Páscoa e das datas móveis de cada ano |
 | Leitura da nota fiscal | Extração dos campos, das linhas de itens e do endereço |

@@ -250,8 +250,8 @@ O painel tem duas abas.
 
 | Indicador | Como é calculado |
 |-----------|------------------|
-| Visitas no período | Total de visitas e média por cliente ativo |
-| Taxa de registro | Parte dos clientes ativos que recebeu ao menos uma visita no período |
+| Número de visitas | Total de visitas no período e média por cliente ativo |
+| Clientes visitados | Parte dos clientes ativos que recebeu ao menos uma visita no período (cada cliente conta uma vez) |
 | Conversão em vendas | Parte das visitas que terminou em venda |
 | Clientes esfriando | Clientes em laranja ou vermelho, com a distribuição da carteira pelas quatro cores |
 
