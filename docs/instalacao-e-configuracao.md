@@ -266,6 +266,8 @@ Use o botão Modo demonstração da tela de login, com a senha da conta Gestão,
 
 Prefira recriar a demonstração depois das 9h. Feita de madrugada, o último dia da janela de visitas marcadas pode ficar com menos visitas.
 
+Com a simulação ativa, uma nota fiscal importada entra com o dia de emissão deslocado pelo mesmo número de dias do relógio, para acompanhar as visitas. Para uma nota real ficar no dia impresso nela, importe com a simulação desligada (Voltar ao real). Importar de novo a mesma nota grava o dia outra vez.
+
 Depois de uma publicação que muda a interface, quem tem o aplicativo instalado vê o aviso "Nova versão disponível" e precisa tocar em Atualizar.
 
 ### 9.6 Acompanhamento

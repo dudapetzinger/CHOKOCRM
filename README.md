@@ -32,7 +32,7 @@ Há dois perfis de uso. O representante trabalha com a própria carteira de clie
 O representante:
 
 - vê a carteira de clientes organizada por cores, do verde (visita em dia) ao vermelho (há muito tempo sem visita), e sabe quem atender primeiro;
-- abre a agenda do dia, com as visitas atrasadas, as de hoje e os lembretes, e traça o roteiro no Google Maps;
+- abre a agenda do dia, separada nas abas Hoje, Atrasadas, Próximos 7 dias e Lembretes, e traça o roteiro no Google Maps;
 - registra a visita em quatro passos, com foto, resultado e a data da próxima visita;
 - consulta a ficha do cliente, com o histórico de visitas, as compras e sugestões do que oferecer conforme a época do ano (Páscoa, Dia das Mães, Natal e outras datas);
 - abre a conversa com o contato do cliente no WhatsApp, já com uma mensagem sugerida, que ele pode ajustar, perguntando sobre o estoque;
@@ -40,8 +40,8 @@ O representante:
 
 A gestão:
 
-- acompanha no painel as visitas, as vendas e a conversão de cada representante, com gráficos, ranking e mapa dos clientes por cidade;
-- recebe alertas dos clientes que estão esfriando e dos produtos com estoque baixo antes de uma data comemorativa;
+- acompanha no painel as visitas, as vendas e a conversão de cada representante, com gráficos, ranking e mapa dos clientes por cidade, e abre com um clique os clientes e as visitas por trás de cada número;
+- vê quais clientes estão esfriando e, para cada data comemorativa que se aproxima, as vendas do mesmo período do ano anterior, as campanhas e os produtos com estoque baixo nos clientes;
 - cria campanhas e metas e acompanha o resultado de cada uma;
 - importa as notas fiscais em PDF emitidas pelo sistema de gestão (ERP) da empresa. É a partir delas que os clientes são criados e que as vendas entram no sistema;
 - cria as contas dos usuários, inativa clientes e transfere clientes de um representante para outro.
@@ -72,7 +72,7 @@ Os dados que aparecem são de demonstração: clientes, visitas e vendas fictíc
 
 Como representante (conta da Eduarda ou do Rafael):
 
-1. Entre no sistema. A primeira tela é a Agenda, com as visitas atrasadas e as de hoje.
+1. Entre no sistema. A primeira tela é a Agenda, aberta na aba Hoje. A aba Atrasadas mostra, ao lado do nome, quantas visitas estão em atraso.
 2. Abra Clientes e observe as cores e as abas Prioridade, Atenção e Em dia. Em Prioridade ficam um cliente atrasado, um vencendo, um nunca visitado e um rebaixado pela última compra.
 3. Toque em um cliente para abrir a ficha. Veja as compras, as sugestões da época e o histórico de visitas.
 4. Toque em WhatsApp, no alto da ficha, e, se o cliente tiver dois contatos, escolha com quem falar. A conversa abre com a mensagem pronta.
@@ -84,9 +84,10 @@ Como gestor (conta Gestão Chokolaten):
 
 1. Entre no sistema. A primeira tela é o Painel, com os indicadores de toda a equipe.
 2. Use o seletor de representante para comparar as carteiras e troque o período de análise.
-3. Abra a aba Produção e sazonalidade para ver as vendas por mês, os alertas e o mapa.
-4. Em Campanhas, crie uma campanha e uma meta para um representante.
-5. No menu da conta, abra Usuários para criar uma conta ou definir uma senha provisória.
+3. Clique em um indicador ou em uma barra de gráfico para abrir, ao lado, os clientes e as visitas por trás do número.
+4. Abra a aba Produção e sazonalidade para ver as próximas datas comemorativas, as vendas por mês, o estoque baixo por produto e o mapa.
+5. Em Campanhas, crie uma campanha e uma meta para um representante.
+6. No menu da conta, abra Usuários para criar uma conta ou definir uma senha provisória.
 
 ### Simulando outra data
 
@@ -179,7 +180,7 @@ O desenho das camadas, a organização das pastas e as decisões técnicas, com 
 
 ## Testes e qualidade
 
-O projeto tem mais de 2.100 testes automatizados, cerca de 1.150 no servidor e 1.000 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
+O projeto tem mais de 2.400 testes automatizados, cerca de 1.240 no servidor e 1.150 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
 
 ```bash
 cd backend

@@ -233,7 +233,7 @@ Cada arquivo PDF de notas fiscais enviado pela gestão, com o resumo do que foi 
 | `notas_importadas` | Inteiro | Sim | Quantas notas entraram |
 | `notas_ignoradas` | Inteiro | Sim | Quantas foram descartadas |
 | `vinculadas_automaticamente` | Inteiro | Sim | Quantas foram ligadas a uma visita sem intervenção |
-| `pendentes` | Inteiro | Sim | Quantas aguardam a escolha de uma visita |
+| `pendentes` | Inteiro | Sim | Quantas ficaram aguardando a decisão da gestão no momento da importação |
 | `cnpjs_sem_cliente` | JSON | Sim | Empresas das notas que ainda não são clientes |
 
 ### 3.12 Nota fiscal (`erp_sales`)
@@ -246,7 +246,7 @@ Cada nota fiscal de venda lida de um PDF. A chave de acesso impede que a mesma n
 | `chave_acesso` | Texto, único | Sim | Chave de acesso da nota |
 | `numero` | Texto | Sim | Número da nota |
 | `serie` | Texto | Sim | Série |
-| `data_emissao` | Data | Sim | Data de emissão |
+| `data_emissao` | Data | Sim | Dia de emissão com que a nota entra no sistema. É o dia impresso na nota e, com o modo demonstração ativo, esse dia deslocado pelo mesmo número de dias do relógio |
 | `natureza_operacao` | Texto | Sim | Natureza da operação |
 | `destinatario_cnpj` | Texto | Sim | CNPJ de quem comprou |
 | `destinatario_nome` | Texto | Sim | Nome de quem comprou |
@@ -257,7 +257,7 @@ Cada nota fiscal de venda lida de um PDF. A chave de acesso impede que a mesma n
 | `valor_total` | Decimal (12,2) | Sim | Total da nota |
 | `import_id` | UUID | Sim | Importação que trouxe a nota |
 | `vinculo_status` | Ver abaixo | Sim | Situação da ligação com uma visita |
-| `visita_sugerida_id` | UUID | Não | Visita sugerida quando a ligação depende de confirmação |
+| `visita_recusada_id` | UUID | Não | Visita que a gestão recusou ligar à nota ("Deixar só no ERP"). Os produtos dessa visita ficam fora da soma de compras do cliente |
 | `atualizado_em` | Data e hora | Sim | Última atualização |
 
 Valores de `vinculo_status`:
@@ -265,11 +265,13 @@ Valores de `vinculo_status`:
 | Valor | Significado |
 |-------|-------------|
 | `AUTOMATICO` | Ligada sozinha à visita do mesmo dia |
-| `PENDENTE` | Aguarda a gestão confirmar a visita sugerida |
 | `VINCULADA` | Ligada a uma visita pela gestão |
-| `RECUSADA` | A gestão decidiu não ligar a nenhuma visita |
-| `SEM_VISITA` | O cliente não tem visita para ligar |
+| `RECUSADA` | A gestão decidiu não ligar a nenhuma visita. A visita recusada fica em `visita_recusada_id` |
+| `PENDENTE` | Sem decisão da gestão |
+| `SEM_VISITA` | Sem decisão da gestão |
 | `SEM_CLIENTE` | O CNPJ ainda não é cliente |
+
+A tabela guarda apenas as ligações (a automática do mesmo dia e a feita pela gestão) e a recusa. `PENDENTE` e `SEM_VISITA` significam a mesma coisa no banco: a nota tem cliente e ainda não recebeu decisão. Qual das duas situações aparece na tela é calculado a cada consulta, pela visita candidata do momento (a visita mais recente do cliente, sem nota ligada, no dia da nota ou até 15 dias antes). Com candidata, a nota é uma pendência. Sem candidata, ela conta só como compra. A visita candidata não é gravada.
 
 ### 3.13 Item da nota (`erp_sale_items`)
 
@@ -321,6 +323,8 @@ Algumas informações que aparecem nas telas não existem em nenhuma tabela, por
 | Situação da campanha | Datas de início e fim comparadas com o dia de hoje |
 | Realizado das metas | Visitas do representante no período e o valor das que têm venda |
 | Indicadores e gráficos do painel | Visitas e vendas do período |
-| Sugestões por época do ano | Compras do cliente no mesmo período do ano anterior |
+| Sugestões por época do ano | Compras do cliente no mesmo período do ano anterior, e as campanhas do período |
+| Pendências da importação de notas | Visita candidata de cada nota sem decisão: a mais recente do cliente, sem nota ligada, no dia da nota ou até 15 dias antes |
+| Vendas e estoque baixo por data comemorativa | Vendas da carteira no período de cada data e estoque informado pelos clientes |
 
 As vendas e o estoque da fonte simulada também não ficam no banco: são gerados a partir do código do cliente toda vez que são consultados. As regras de cada cálculo estão em [Funcionalidades](funcionalidades.md).

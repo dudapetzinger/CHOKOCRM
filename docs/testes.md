@@ -17,9 +17,9 @@ Este documento explica como o ChokoCRM é testado: que tipos de teste existem, o
 
 | Onde | Ferramentas | Arquivos de teste | Testes |
 |------|-------------|-------------------|--------|
-| Servidor | Jest e Supertest | 67 | 1.153 |
-| Interface | Vitest e Testing Library | 99 | 1.017 |
-| Total | | 166 | 2.170 |
+| Servidor | Jest e Supertest | 70 | 1.244 |
+| Interface | Vitest e Testing Library | 106 | 1.157 |
+| Total | | 176 | 2.401 |
 
 Os testes cobrem 92,5 % das linhas do código, segundo a medição do SonarCloud.
 
@@ -107,13 +107,13 @@ Alguns testes congelam a data do sistema. Isso evita falhas que só apareceriam 
 | Fotos | Envio, leitura, tipos aceitos e a limpeza depois de 90 dias |
 | Lembretes | Criação no check-in, listagem e conclusão |
 | Agenda e calendário | Visitas atrasadas, de hoje e da semana, ordem por cor, filtro do gestor e a rotina diária |
-| Vendas e estoque | Dados do cliente em cada uma das três fontes: simulada, notas importadas e híbrida |
-| Importação de notas | Leitura do PDF, conferência sem gravar, gravação, ligação com a visita e criação do cliente pela nota |
-| Painel | Indicadores por período, resultado por representante, vendas mensais e planilha |
-| Sugestões e alertas | Sugestões por época do ano e alertas de estoque baixo, com a regra de carteira |
+| Vendas e estoque | Dados do cliente em cada uma das três fontes: simulada, notas importadas e híbrida, com o período do volume de compras dos últimos 90 dias |
+| Importação de notas | Leitura do PDF, conferência sem gravar, gravação, ligação com a visita do mesmo dia, pendências calculadas na consulta pela visita de até 15 dias antes, recusa e criação do cliente pela nota |
+| Painel | Indicadores por período, resultado por representante, visitas do período uma a uma com os mesmos totais dos indicadores, vendas mensais com os meses até a próxima data comemorativa e planilha |
+| Sugestões e datas comemorativas | Sugestões por época do ano com as campanhas do período, estoque baixo antes das datas comemorativas e, para o painel, as vendas da carteira no período de cada data, com a regra de carteira |
 | Campanhas e metas | Criação, edição, exclusão, situação pelas datas e realizado |
 | Mensagem de estoque | Texto sugerido e contatos do cliente |
-| Modo demonstração | Troca de data com a senha da Gestão, recriação dos dados e sistema inteiro seguindo a data simulada |
+| Modo demonstração | Troca de data com a senha da Gestão, recriação dos dados, sistema inteiro seguindo a data simulada e nota importada entrando no dia deslocado |
 | Dados de demonstração | Geração repetível, preservação dos clientes reais e das contas, e completude do que é criado |
 | Infraestrutura | Endereço de saúde, regra de origem aceita, entrega da interface pelo servidor, validação das variáveis de ambiente e restrições do banco |
 
@@ -128,12 +128,13 @@ Em todas as áreas, os testes conferem também que o representante não lê nem 
 | Calendário | Limites do mês e o que aparece em cada dia |
 | Campanhas | Situação pelas datas, resultados por representante e produtos mais vendidos |
 | Metas | Período semanal e mensal e o cálculo do realizado |
-| Sugestões | Período do ano anterior, variação em relação à média e a ação sugerida |
+| Sugestões | Período do ano anterior, variação em relação à média, a ação sugerida e as campanhas que cruzam o período da data |
 | Indicadores | Período, contagens, clientes visitados, conversão e distribuição por cor |
-| Vendas mensais | Meses do período, soma por mês e marcação das datas comemorativas |
+| Vendas mensais | Meses do período, soma por mês, marcação das datas comemorativas e meses por vir até a próxima data |
 | Datas comemorativas | Cálculo da Páscoa e das datas móveis de cada ano |
+| Datas comemorativas do painel | Período de vendas de cada data, total da carteira no período e estoque baixo por produto |
 | Leitura da nota fiscal | Extração dos campos, das linhas de itens e do endereço |
-| Ligação da nota com a visita | Cada situação possível e a decisão tomada |
+| Ligação da nota com a visita | Janela de 15 dias, visita do mesmo dia, visita posterior nunca escolhida e a mais recente da janela |
 | Mensagem de estoque | Montagem do texto sugerido para o WhatsApp |
 | Fonte simulada | Mesmos números para o mesmo código de cliente |
 | Relógio do sistema | Data real, data simulada e avanço de um dia por dia |
@@ -154,10 +155,10 @@ Um utilitário simula a largura da tela, para conferir o comportamento no celula
 
 | Área | O que é conferido |
 |------|-------------------|
-| Telas | Login, clientes, ficha, check-in em quatro passos, agenda, painel, campanhas, importação de notas, usuários e troca de senha |
+| Telas | Login, clientes, ficha, check-in em quatro passos, agenda em abas, painel, campanhas, importação de notas, usuários e troca de senha |
 | Navegação | Tela inicial de cada perfil, menus, botão central e troca de usuário |
-| Componentes do sistema | Calendário com os filtros, metas, escolha do contato no WhatsApp, aviso de próxima visita, lembretes, conferência das notas e criação do cliente pela nota |
-| Gráficos e mapa | Valores exibidos, tabela equivalente para leitor de tela, balão com os clientes de cada fatia e zoom do mapa |
+| Componentes do sistema | Calendário com os filtros, metas, escolha do contato no WhatsApp, aviso de próxima visita, lembretes, conferência das notas, criação do cliente pela nota, legenda das situações, campo de arquivo, blocos recolhíveis, painel lateral, datas comemorativas e estoque baixo por produto |
+| Gráficos e mapa | Valores exibidos, tabela equivalente para leitor de tela, balão ao passar o mouse, painel lateral ao clicar, com o foco devolvido ao fechar, meses por vir nas vendas por mês e zoom do mapa |
 | Funções de apoio | Validação do check-in, cálculo do roteiro, links do Google Maps, formatação de telefone, datas e valores, e geração da planilha |
 | Aplicativo instalável | Convite para instalar, aviso de falta de internet e aviso de versão nova |
 

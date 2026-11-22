@@ -96,19 +96,29 @@ A interface é uma aplicação React de página única. Ela é dividida assim:
 | Pasta | Conteúdo |
 |-------|----------|
 | `pages` | Uma tela por arquivo: login, clientes, ficha do cliente, check-in, agenda, painel, campanhas, importação de notas, usuários e troca de senha |
-| `components` | Peças reaproveitadas pelas telas. Em `ui` ficam os componentes básicos (botão, campo, menu), em `crm` as peças próprias do sistema (moldura, calendário, metas, roteiro) e em `crm/graficos` os gráficos e o mapa do painel |
+| `components` | Peças reaproveitadas pelas telas. Em `ui` ficam os componentes básicos (botão, campo, menu), em `crm` as peças próprias do sistema (moldura, calendário, metas, roteiro, painel lateral, campo de arquivo), em `crm/graficos` os gráficos e o mapa do painel e em `crm/sazonalidade` os blocos das datas comemorativas e do estoque baixo |
 | `hooks` | Busca e atualização dos dados do servidor, com cache, usando TanStack Query |
 | `services` | As chamadas à API, com o envio do token de login |
 | `auth` | Controle de quem está logado e proteção das telas |
 | `representante` | O representante escolhido pela gestão no seletor que filtra clientes, agenda e painel |
 | `pwa` | Convite para instalar, aviso de falta de internet e aviso de versão nova |
-| `lib` | Funções de apoio: formatação de datas e valores, cálculo do roteiro, mapa, calendário e geração de planilha |
+| `lib` | Funções de apoio: formatação de datas e valores, cálculo do roteiro, mapa, calendário, geração de planilha, estado dos blocos recolhíveis e abertura do painel lateral |
 
 A interface não repete as regras do negócio. A cor de um cliente, a ordem da agenda e os números do painel chegam prontos do servidor.
 
 O layout se adapta ao tamanho da tela. No celular, a navegação fica em uma barra inferior. A partir de 768 pixels de largura, ela passa para um menu lateral. A partir de 1024 pixels, a lista de clientes e a ficha aparecem lado a lado.
 
 Os gráficos do painel são desenhados em SVG, sem biblioteca de gráficos. Cada um tem uma tabela equivalente para leitores de tela.
+
+Três peças são compartilhadas por várias telas:
+
+| Peça | Arquivo | O que faz |
+|------|---------|-----------|
+| Painel lateral | `components/crm/PainelLateral.tsx` | Abre, ao lado, os clientes ou as visitas por trás de uma barra, fatia, linha ou indicador. É o mesmo diálogo das outras telas (`Dialogo`) na variante `lateral`: prende o foco, fecha com Esc ou com um clique fora e devolve o foco a quem o abriu. No celular ocupa a tela inteira |
+| Bloco recolhível | `Cartao` com a opção `recolhivel`, em `components/crm/ui.tsx` | Põe no título do cartão um botão que recolhe e expande o conteúdo. O estado fica no `localStorage` do navegador, por identificador de bloco (`lib/blocoRecolhivel.ts`). Sem armazenamento disponível, o bloco fica aberto |
+| Campo de arquivo | `components/crm/CampoDeArquivo.tsx` | Mostra um botão e um texto próprios ("Anexar arquivos", "Nenhum arquivo selecionado") no lugar do texto nativo do navegador, que sai no idioma dele. O campo nativo continua na página, invisível sobre o botão, e é ele que o teclado e o leitor de tela alcançam |
+
+As abas da agenda, do painel e da ficha guardam a aba aberta no endereço da página (`?aba=`).
 
 ## 4. Estrutura de pastas
 
@@ -124,7 +134,7 @@ CHOKOCRM/
 │   │   ├── controllers/        entrada e saída de cada endereço
 │   │   ├── schemas/            validação dos dados recebidos
 │   │   ├── services/           regras do negócio
-│   │   │   └── importacao-nf/  leitura das notas fiscais em PDF
+│   │   │   └── importacao-nf/  leitura das notas fiscais em PDF e ligação com as visitas
 │   │   ├── repositories/       acesso ao banco de dados
 │   │   ├── providers/erp/      fontes de vendas e estoque
 │   │   ├── storage/            gravação das fotos
@@ -164,6 +174,8 @@ A tabela resume o que foi escolhido em cada assunto e o motivo.
 | Compras dos clientes | Notas fiscais em PDF importadas pela gestão. Quem não tem nota usa dados simulados | A empresa não liberou acesso direto ao sistema de gestão durante o projeto |
 | Valor das vendas | O representante marca só o resultado da visita. O valor chega pela nota fiscal vinculada | A nota é o registro oficial da venda. Evita digitar o pedido duas vezes |
 | Cálculos | Cor do cliente, agenda, indicadores, metas e campanhas são calculados na hora da consulta, nunca gravados | Não existe dado desatualizado: uma visita nova muda a cor do cliente no mesmo instante |
+| Pendências das notas | A visita candidata de cada nota é calculada na consulta (`services/importacao-nf/visita-candidata.ts`). Na nota ficam gravadas só as ligações (a automática do mesmo dia e a feita pela gestão) e a recusa | A lista de pendências acompanha as visitas e nunca aponta para uma visita que deixou de existir |
+| Nota no modo demonstração | O dia de emissão é gravado deslocado pelo mesmo número de dias do relógio | A nota importada durante a simulação fica na mesma linha do tempo das visitas e entra no volume de compras dos últimos 90 dias |
 | Login | Usuário e senha, com dois perfis (representante e gestor). O acesso vale por oito horas | Simples para quem usa em campo. O e-mail não teria utilidade no sistema |
 | Senha esquecida | O gestor define uma senha provisória e a pessoa troca depois, no próprio perfil | Dispensa um serviço de envio de e-mails |
 | WhatsApp | O sistema monta o texto e abre a conversa com o contato escolhido. Nada é registrado | Não usa a API paga do WhatsApp. Quem envia é o representante, que pode alterar o texto antes |
@@ -244,14 +256,14 @@ Na coluna "Quem", R significa representante e G significa gestor.
 
 | Método | Endereço | Quem | O que faz |
 |--------|----------|------|-----------|
-| GET | `/clients/:id/erp` | R e G | Última venda, volume comprado, estoque e vendas recentes do cliente |
+| GET | `/clients/:id/erp` | R e G | Última venda, volume de compras dos últimos 90 dias com o início e o fim do período somado (`volume90Dias.inicio` e `volume90Dias.fim`), estoque e vendas recentes do cliente |
 | GET | `/erp/produtos` | R e G | Catálogo de produtos com preço |
-| POST | `/erp/importacoes/leitura` | G | Lê um PDF de notas e devolve o conteúdo para conferência, sem gravar |
+| POST | `/erp/importacoes/leitura` | G | Lê um PDF de notas e devolve o conteúdo para conferência, sem gravar. Cada nota traz `dataEmissao`, o dia com que ela entra no sistema, e `dataEmissaoDanfe`, o dia impresso na nota. Os dois só diferem com o modo demonstração ativo |
 | POST | `/erp/importacoes` | G | Importa um PDF de notas |
-| GET | `/erp/importacoes` | G | Lista as importações recentes |
-| GET | `/erp/pendencias` | G | Notas que aguardam a escolha de uma visita |
+| GET | `/erp/importacoes` | G | Lista as importações recentes, com a situação de cada nota calculada na consulta |
+| GET | `/erp/pendencias` | G | Notas sem decisão da gestão que têm uma visita candidata, cada uma com o dia da visita, o resultado dela e quantos dias antes da nota ela aconteceu |
 | POST | `/erp/vendas/:id/vinculo` | G | Liga a nota a uma visita |
-| DELETE | `/erp/vendas/:id/vinculo` | G | Desfaz a ligação |
+| DELETE | `/erp/vendas/:id/vinculo` | G | Desfaz a ligação ou recusa a visita candidata. A nota fica como recusada e conta só como compra |
 | GET | `/erp/sem-cliente` | G | Notas de empresas que ainda não são clientes |
 | POST | `/erp/sem-cliente/:cnpj/cliente` | G | Cria o cliente a partir dos dados da nota. É a única forma de criar cliente |
 
@@ -260,8 +272,10 @@ Na coluna "Quem", R significa representante e G significa gestor.
 | Método | Endereço | Quem | O que faz |
 |--------|----------|------|-----------|
 | GET | `/clients/:id/stock-message/proposta` | R | Texto sugerido para a mensagem de estoque e contatos do cliente |
-| GET | `/clients/:id/insights` | R e G | Sugestões do que oferecer ao cliente na época |
-| GET | `/insights/manager-alerts` | R e G | Alertas de estoque baixo antes das datas comemorativas |
+| GET | `/clients/:id/insights` | R e G | Sugestões do que oferecer ao cliente na época. A ação é `AUMENTAR_OFERTA`, `OFERTAR_DESCONTO` ou `MANTER_OFERTA`, e cada sugestão traz as campanhas do período de vendas da data (`campanhas`) |
+| GET | `/insights/manager-alerts` | R e G | Clientes com estoque baixo dos produtos indicados para as datas comemorativas próximas. A interface lê o estoque baixo de `/insights/sazonalidade` |
+
+Em `/clients/:id/insights`, a lista `campanhas` vem em cada sugestão e em cada data sem histórico (`eventosSemHistorico`). Ela pode vir vazia. Cada item tem `id`, `nome`, `tipo` (`CAMPANHA`, `PROMOCAO` ou `EVENTO`), `inicio`, `fim`, `desconto` (em porcentagem, ou nulo) e `situacao` (`EM_ANDAMENTO` ou `PROGRAMADA`). Campanha encerrada não entra.
 
 ### Painel
 
@@ -269,8 +283,84 @@ Na coluna "Quem", R significa representante e G significa gestor.
 |--------|----------|------|-----------|
 | GET | `/dashboard/kpis` | R e G | Indicadores do período |
 | GET | `/dashboard/kpis/por-representante` | R e G | Resultado, receita e ritmo de visitas por representante |
-| GET | `/dashboard/vendas-mensais` | R e G | Vendas mês a mês, com as datas comemorativas |
+| GET | `/dashboard/kpis/visitas` | R e G | Visitas do período, uma a uma, e clientes ativos sem visita. Alimenta o painel lateral |
+| GET | `/dashboard/vendas-mensais` | R e G | Vendas mês a mês, com as datas comemorativas. Pode estender a série até o mês da próxima data comemorativa |
+| GET | `/insights/sazonalidade` | R e G | Datas comemorativas do horizonte, com as vendas da carteira no período de cada uma, as campanhas e o estoque baixo por produto |
 | GET | `/dashboard/relatorio` | R e G | Dados da planilha, uma linha por cliente |
+
+Todos esses endereços exigem login e valem para os dois perfis. O representante recebe sempre a própria carteira, e o `representanteId` que ele envia é ignorado. O gestor recebe a empresa inteira ou, com `representanteId`, a carteira daquele representante. Parâmetro inválido responde 400 com o código `VALIDATION_ERROR`.
+
+Os endereços em `/dashboard` recebem o período de um de dois modos, nunca os dois juntos: `periodoDias` (30, 90 ou 365) ou `inicio` e `fim` (datas no formato AAAA-MM-DD).
+
+#### `GET /dashboard/kpis/visitas`
+
+| Parâmetro | Valores | Para quê |
+|-----------|---------|----------|
+| `periodoDias` ou `inicio` e `fim` | Os mesmos de `/dashboard/kpis` | Período das visitas |
+| `representanteId` | UUID, opcional | Carteira de um representante |
+
+A resposta tem:
+
+| Campo | Conteúdo |
+|-------|----------|
+| `periodo` | `dias`, `inicio` e `fim`, o mesmo período dos indicadores |
+| `granularidade` | `SEMANA` em períodos de até 91 dias, `MES` nos maiores. É a mesma do ritmo de visitas |
+| `visitas` | Todas as visitas do período, da mais recente para a mais antiga. Cada uma tem `visitaId`, `clienteId`, `nomeFantasia`, `cidade`, `clienteAtivo`, `representanteId` e `representanteNome` (o dono da carteira do cliente), `dataHora`, `faixaInicio` (a segunda-feira da semana ou o dia 1 do mês, igual ao início de uma faixa do ritmo), `resultado` e `valor` (total dos produtos nas visitas com venda, zero nas outras) |
+| `naoVisitados` | Clientes ativos da carteira sem visita no período, do que está há mais tempo sem visita ao que está há menos. Cada um tem `id`, `nomeFantasia`, `cidade`, `representanteId`, `representanteNome`, `ultimaVisita` e `diasSemVisita`, os dois últimos nulos para quem nunca foi visitado |
+| `simulado` | Verdadeiro quando a fonte de vendas é a simulação |
+
+Os números batem com os dos indicadores para os mesmos parâmetros: a quantidade de `visitas` é o número de visitas, as que têm resultado `VENDA` são as da conversão, e os clientes ativos distintos são os clientes visitados.
+
+#### `GET /dashboard/vendas-mensais`
+
+| Parâmetro | Valores | Para quê |
+|-----------|---------|----------|
+| `periodoDias` ou `inicio` e `fim` | Os mesmos de `/dashboard/kpis` | Período, que define os meses da série |
+| `representanteId` | UUID, opcional | Carteira de um representante |
+| `ateProximaData` | `true` ou `false`, opcional. Ausente, vale `false` | Estende a série até o mês da próxima data comemorativa |
+| `horizonteDias` | Inteiro de 30 a 180. O padrão é 90 | Até quantos dias à frente procurar a próxima data. Só tem efeito com `ateProximaData=true` |
+
+A série só é estendida quando o último mês do período é o mês atual. Com um período que termina antes, a opção é ignorada.
+
+A resposta tem `periodo`, `meses`, `eventos` (as datas comemorativas que caem na série), `simulado`, `clientesConsultados`, `clientesIndisponiveis` e `proximaData`. Cada item de `meses` tem `mes` (AAAA-MM), `total`, `clientesComDados`, `clientes` e `futuro`. Os meses depois do mês atual vêm com `futuro` verdadeiro, `total` e `clientesComDados` nulos e `clientes` vazio. `proximaData` traz `id`, `nome`, `chave` e `data` da data até cujo mês a série vai, ou nulo sem a opção, com o período terminando antes do mês atual ou sem data comemorativa no horizonte. Quando a próxima data cai no mês atual, ela vem preenchida e a série não ganha mês.
+
+#### `GET /insights/sazonalidade`
+
+| Parâmetro | Valores | Para quê |
+|-----------|---------|----------|
+| `horizonteDias` | Inteiro de 30 a 180. O padrão é 90 | Até quantos dias à frente uma data comemorativa entra na resposta |
+| `representanteId` | UUID, opcional | Carteira de um representante |
+
+A resposta tem, para a carteira toda:
+
+| Campo | Conteúdo |
+|-------|----------|
+| `hoje` | O dia de hoje do sistema, que segue a data simulada |
+| `horizonteDias` | O horizonte aplicado |
+| `simulado` | Verdadeiro quando a fonte de vendas é a simulação |
+| `limiteEstoqueBaixo` | Quantidade abaixo da qual o estoque de um produto é baixo. Vale 10 |
+| `clientesDaCarteira` | Clientes ativos da carteira |
+| `clientesConsultados` | Dos ativos, os que foram consultados na fonte de vendas |
+| `clientesComEstoque` | Dos consultados, os que têm estoque estimado |
+| `estoqueIndisponivel` | Verdadeiro quando a fonte em uso não tem estoque estimado de nenhum cliente |
+| `clientesIndisponiveis` | `vendas` e `estoque`: quantos clientes ficaram sem resposta em cada consulta e, por isso, fora das somas |
+| `datas` | Uma entrada por data comemorativa do horizonte, da mais próxima à mais distante |
+
+Cada entrada de `datas` tem:
+
+| Campo | Conteúdo |
+|-------|----------|
+| `id`, `nome`, `chave`, `data` | A data comemorativa e o dia dela |
+| `diasAte` | Dias de hoje até a data |
+| `janela` | `inicio` e `fim` do período de vendas deste ano: dos 30 dias antes da data até o dia dela |
+| `janelaAnoAnterior` | O mesmo período no ano anterior, calculado pela data real daquele ano |
+| `vendasAnoAnterior` | Total vendido pela carteira no período do ano anterior |
+| `vendasNaJanelaAtual` | Total vendido no período deste ano até hoje. Nulo enquanto o período não começa |
+| `campanhas` | Campanhas em andamento ou programadas com algum dia no período, no mesmo formato de `/clients/:id/insights` |
+| `clientesComEstoqueBaixo` | Clientes com estoque baixo de pelo menos um produto da data, cada um contado uma vez |
+| `estoqueBaixo` | Um item por produto indicado para a data, com `sku`, `nome`, `totalClientes` e `clientes` (`id`, `nomeFantasia`, `cidade` e `quantidade`, da menor quantidade para a maior) |
+
+Sem nenhuma data no horizonte, `datas` vem vazia e a fonte de vendas não é consultada.
 
 ### Campanhas e metas
 

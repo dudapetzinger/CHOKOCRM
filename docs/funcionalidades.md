@@ -95,6 +95,18 @@ A cor nunca é gravada. Ela é calculada toda vez que a lista é aberta, então 
 
 Dentro de cada aba, os clientes aparecem do mais urgente para o menos urgente.
 
+Um botão de ajuda, na barra da lista, abre a legenda das situações, organizada pelas mesmas abas:
+
+| Aba | Etiqueta | Regra |
+|-----|----------|-------|
+| Prioridade | Atrasado | Mais de 30 dias sem visita, ou nunca visitado |
+| Prioridade | Vencendo | De 16 a 30 dias sem visita |
+| Prioridade | Rebaixado | Visitado há até 15 dias, mas sem compra há mais de 60 dias |
+| Atenção | Visitado sem venda | Visitado há até 15 dias, e a última visita não teve venda |
+| Em dia | Em dia | Visitado há até 15 dias, e a última visita teve venda |
+
+A legenda lembra ainda que a cor olha só a última visita e a última compra, que negociação conta como sem venda, que quem nunca comprou não é rebaixado e que o cliente inativo não tem cor.
+
 ### Cliente inativo
 
 Só a gestão inativa e reativa um cliente. O cliente inativo:
@@ -109,13 +121,26 @@ Só a gestão inativa e reativa um cliente. O cliente inativo:
 
 A ficha reúne tudo sobre o cliente em três abas.
 
-A aba ERP e sugestões mostra a última compra, o volume comprado, o histórico de compras (cada compra indica a origem: "NF" com o número da nota ou "Venda registrada na visita"), o estoque informado e as sugestões do que oferecer na época do ano. Para o representante, com o cliente ativo, ela traz também o cartão Mensagem de estoque: um texto sugerido que pode ser editado, a escolha do contato e o botão Abrir no WhatsApp. Nada do que é escrito ali fica guardado.
+A aba ERP e sugestões mostra a última compra, o volume de compras dos últimos 90 dias (com o período somado escrito ao lado, "de dd/mm a dd/mm"), o histórico de compras (cada compra indica a origem: "NF" com o número da nota ou "Venda registrada na visita"), o estoque informado e as sugestões do que oferecer na época do ano. Para o representante, com o cliente ativo, ela traz também o cartão Mensagem de estoque: um texto sugerido que pode ser editado, a escolha do contato e o botão Abrir no WhatsApp. Nada do que é escrito ali fica guardado.
 
 A aba Visitas mostra a última visita em destaque e as anteriores, com o resultado, a descrição e a foto de cada uma. Quando a visita tem produtos, vindos de uma nota fiscal vinculada ou dos dados de demonstração, aparecem também os produtos e o total ("Produtos · total"), com o botão "Ver produtos", e, quando há nota, o título "Produtos da NF" com o número dela.
 
 A aba Cadastro mostra os dados do cliente e os contatos. Um dos contatos é o principal.
 
 No alto da ficha ficam as ações do dia a dia: iniciar o check-in, abrir a conversa no WhatsApp e ver ou alterar a data da próxima visita.
+
+### Recolher e expandir blocos
+
+Os blocos maiores das telas têm, no título, um botão que recolhe e expande o conteúdo. O título continua visível com o bloco recolhido. A escolha fica guardada no navegador, por bloco, então a tela abre do mesmo jeito na próxima vez naquele aparelho.
+
+| Tela | Blocos que recolhem |
+|------|---------------------|
+| Ficha do cliente | Insights e sugestões, Dados do ERP, Mensagem de estoque, Histórico de visitas e Recorrência de visitas |
+| Painel | Metas, resultado das visitas, ritmo de visitas, ranking, datas comemorativas, vendas por mês, estoque baixo, clientes esfriando, época do ano e mapa |
+| Campanhas | Cada campanha, que recolhe a descrição, os produtos, os resultados e as metas dela |
+| Importar notas | Importações anteriores |
+
+Os quatro indicadores do alto do Painel ficam sempre abertos.
 
 ### Intervalo entre visitas
 
@@ -146,7 +171,7 @@ Regras:
 
 - A descrição é obrigatória e precisa ter pelo menos três caracteres.
 - A data da visita não pode estar no futuro.
-- A foto é obrigatória no aplicativo. São aceitas imagens JPEG, PNG ou WebP de até 5 MB, uma por visita.
+- A foto é obrigatória no aplicativo. São aceitas imagens JPEG, PNG ou WebP de até 5 MB, uma por visita. O campo da foto tem os textos do próprio sistema ("Anexar foto" e, sem foto escolhida, "Nenhuma foto selecionada"), e não os do navegador.
 - A data da próxima visita, quando informada, precisa ser de hoje em diante.
 - O lembrete tem um texto de até 200 caracteres e uma data, de hoje em diante.
 - Não é possível registrar visita em cliente inativo nem vincular a visita a uma campanha encerrada.
@@ -173,14 +198,16 @@ O lembrete é uma tarefa com data, ligada a um cliente. Ele aparece na agenda a 
 
 ### Agenda do dia
 
-A agenda organiza o trabalho do representante em quatro blocos:
+A agenda organiza o trabalho do representante em quatro abas, cada uma com a contagem do que tem dentro:
 
-| Bloco | O que entra |
-|-------|-------------|
+| Aba | O que entra |
+|-----|-------------|
+| Hoje | Clientes com visita prevista para hoje, e o roteiro do dia |
 | Atrasadas | Clientes cuja próxima visita já passou |
-| Hoje | Clientes com visita prevista para hoje |
 | Próximos 7 dias | Clientes com visita prevista para a semana seguinte |
 | Lembretes | Lembretes abertos com data até hoje |
+
+A agenda abre na aba Hoje. A contagem de Atrasadas aparece em tom de alerta sempre que há visita atrasada, para a prioridade ficar à vista com outra aba aberta. A aba escolhida fica no endereço da página (`?aba=atrasadas`, por exemplo). Cada aba vazia tem o próprio texto, como "Nenhuma visita atrasada.".
 
 Nas atrasadas e nas de hoje, a ordem é pela cor, do vermelho ao verde, e depois pelos dias de atraso.
 
@@ -201,7 +228,7 @@ Na legenda e no detalhe de cada dia, as datas aparecem como "Data comemorativa" 
 
 ### Roteiro
 
-O roteiro do dia pega as visitas de hoje, ordena pela distância entre as cidades e abre o trajeto no Google Maps. As distâncias são estimadas a partir das coordenadas dos municípios de Santa Catarina.
+O roteiro do dia fica na aba Hoje da agenda. Ele pega as visitas de hoje, ordena pela distância entre as cidades e abre o trajeto no Google Maps. As distâncias são estimadas a partir das coordenadas dos municípios de Santa Catarina.
 
 ## 7. Compras, estoque e sugestões
 
@@ -228,9 +255,11 @@ Para cada data que cai nos próximos 90 dias (o prazo pode ser ajustado de 30 a 
 |------------------------|----------|
 | Comprou pelo menos 20 % acima | Aumentar a oferta |
 | Comprou pelo menos 20 % abaixo | Ofertar desconto |
-| Ficou perto da média | Criar promoção |
+| Ficou perto da média | Manter a oferta |
 
 A sugestão cita os três produtos que o cliente mais comprou naquele período. Se não há compras para comparar, a ficha avisa que falta histórico.
+
+Cada sugestão mostra também as campanhas, promoções e eventos que têm algum dia dentro do período de vendas da data, desde que estejam em andamento ou programados. A que está em andamento aparece com o nome e, se houver, o desconto. A programada aparece com o nome e as datas. Campanha encerrada não aparece. O mesmo vale para a data sem histórico de compras.
 
 ## 8. Mensagem pelo WhatsApp
 
@@ -242,7 +271,7 @@ O envio acontece no WhatsApp, pelas mãos de quem está usando. A pessoa pode al
 
 ## 9. Painel
 
-O painel mostra os resultados de um período. O período pode ser de 30, 90 ou 365 dias, ou um intervalo de datas à escolha, de até 365 dias. O representante vê os números da própria carteira. O gestor vê a equipe inteira ou um representante.
+O painel mostra os resultados de um período. O período pode ser de 30, 90 ou 365 dias, ou um intervalo de datas à escolha, de até 365 dias. No intervalo à escolha, os dois campos de data ficam em uma linha própria, abaixo dos botões de período. O representante vê os números da própria carteira. O gestor vê a equipe inteira ou um representante.
 
 O painel tem duas abas.
 
@@ -259,15 +288,54 @@ Abaixo dos indicadores ficam as metas com o realizado, o resultado das visitas p
 
 ### Produção e sazonalidade
 
-Esta aba mostra as vendas mês a mês com as datas comemorativas marcadas, a lista de clientes que estão esfriando, a época do ano e o mapa de clientes por cidade, com o contorno de Santa Catarina.
+Esta aba serve para acompanhar as vendas e o estoque em volta das datas comemorativas e das campanhas, para a fábrica se antecipar. No alto fica o horizonte (próximos 30, 60, 90 ou 180 dias), que vale para a aba inteira. Os blocos aparecem nesta ordem:
 
-Ela traz também os alertas de produção: clientes com estoque baixo de produtos indicados para uma data comemorativa que está chegando. Servem para a fábrica se antecipar.
+| Bloco | O que mostra |
+|-------|--------------|
+| Próximas datas comemorativas | Um cartão por data do horizonte, da mais próxima à mais distante |
+| Vendas por mês, em R$ | As vendas mês a mês no período do painel, com as datas comemorativas e os períodos das campanhas marcados |
+| Estoque baixo nos clientes | Os produtos indicados para a data escolhida e quantos clientes estão com pouco estoque de cada um |
+| Clientes esfriando, época do ano e mapa | A distribuição da carteira por cor com os clientes mais urgentes, as datas comemorativas do horizonte com os produtos sugeridos para cada uma e o mapa de clientes por cidade, com o contorno de Santa Catarina |
+
+Cada cartão de data comemorativa traz:
+
+- o prazo e o dia da data;
+- o período de vendas, que são os 30 dias até a data;
+- quanto a carteira vendeu no mesmo período do ano anterior;
+- quanto vendeu no período deste ano até hoje ou, se o período ainda não começou, o dia em que ele começa;
+- as campanhas em andamento ou programadas que têm algum dia no período. Sem nenhuma, o gestor vê um atalho para criar uma campanha;
+- quantos clientes, entre os que têm estoque estimado, estão com estoque baixo de algum produto indicado para a data.
+
+Clicar em um cartão escolhe a data do bloco de estoque. A data mais próxima vem escolhida.
+
+O gráfico de vendas por mês segue o período do painel. Quando o período termina no mês atual, a série continua com os meses seguintes até o mês da próxima data comemorativa do horizonte. O mês que ainda não chegou aparece como um espaço vazio, sem valor, para não ser lido como venda zero. Com um intervalo de datas que termina em um mês anterior, o gráfico mostra só os meses pedidos.
+
+No bloco de estoque, cada produto indicado para a data tem uma linha com a contagem de clientes com menos de 10 unidades em estoque. O estoque é uma estimativa por cliente, do ponto de venda. Os clientes com nota fiscal importada não têm estimativa e ficam fora da contagem, e o bloco diz quantos clientes da carteira entram na conta.
+
+### Detalhe de cada número
+
+Em todos os gráficos, passar o mouse sobre uma barra, uma fatia ou um ponto mostra um balão com o resumo. Clicar, ou tocar no celular, abre um painel lateral com os clientes ou as visitas por trás daquele número. Cada cliente do painel leva à ficha. O painel fecha no botão Fechar, com a tecla Esc ou com um clique fora dele. No celular ele ocupa a tela inteira.
+
+| Onde se clica | O que o painel lateral mostra |
+|---------------|-------------------------------|
+| Indicador Número de visitas | As visitas do período |
+| Indicador Clientes visitados | Os clientes visitados e os que ficaram sem visita no período |
+| Indicador Conversão em vendas | As visitas que terminaram em venda, com o valor |
+| Indicador Clientes esfriando | Os clientes em laranja e vermelho |
+| Barra de uma meta | Os clientes por trás do realizado de visitas ou de vendas |
+| Fatia do resultado das visitas | As visitas daquele representante com aquele resultado |
+| Semana ou mês do ritmo de visitas | As visitas daquela faixa |
+| Linha do ranking | As visitas do representante, agrupadas por cliente |
+| Mês das vendas por mês | Quem comprou no mês e quanto |
+| Cor da distribuição da carteira | Os clientes daquela cor |
+| Cidade do mapa | Os clientes da cidade |
+| Produto do estoque baixo | Os clientes com pouco estoque do produto e a quantidade de cada um |
+
+Na tela de Campanhas, o nome do representante na tabela de resultados abre as vendas dele na campanha.
 
 ### Planilha
 
 O botão Planilha exporta os dados do período em um arquivo CSV, com uma linha por cliente.
-
-Em todos os gráficos, passar o mouse ou tocar em uma barra mostra os clientes daquela fatia.
 
 ## 10. Campanhas e metas
 
@@ -301,7 +369,9 @@ O processo tem três momentos:
 2. O sistema lê os arquivos e mostra as notas encontradas para conferência, sem gravar nada.
 3. Ao confirmar, as notas são gravadas e o resultado aparece: quantas entraram, quantas foram ignoradas e quais dependem de alguma decisão.
 
-O que depende de decisão fica em um bloco só, "Pendências (N)", com duas partes: "Criar cliente" (notas cujo comprador ainda não é cliente) e "Ligar à visita" (notas de um dia diferente do da última visita do cliente). Cada parte tem um "?" que explica por que a nota está pendente.
+O campo de escolha dos arquivos tem os textos do próprio sistema, e não os do navegador: o botão "Anexar arquivos" e, enquanto nada foi escolhido, "Nenhum arquivo selecionado". Com arquivos escolhidos, ele mostra o nome ou a quantidade.
+
+O que depende de decisão fica em um bloco só, "Pendências (N)", com duas partes: "Criar cliente" (notas cujo comprador ainda não é cliente) e "Ligar à visita" (notas de um cliente que tem uma visita até 15 dias antes do dia da nota). Cada parte tem um "?" que explica a regra. Na parte "Ligar à visita", cada nota diz por que está pendente: a data e o resultado da visita encontrada e quantos dias antes da nota ela aconteceu.
 
 O PDF precisa ter texto selecionável. Foto ou digitalização de nota não é lida.
 
@@ -323,15 +393,27 @@ Quando o CNPJ da nota ainda não é cliente, a gestão cria o cadastro direto da
 
 ### Ligação da nota com a visita
 
-A nota encontra o cliente pelo CNPJ. Depois disso, o sistema compara a data da nota com a data da última visita do cliente:
+A nota encontra o cliente pelo CNPJ. Depois disso, o sistema procura a visita candidata: a visita mais recente do cliente, ainda sem nota ligada, feita no dia da nota ou até 15 dias antes. Uma visita posterior à nota nunca é candidata.
 
 | Situação | O que acontece |
 |----------|----------------|
-| A última visita foi no mesmo dia da nota | A nota é ligada à visita sozinha, e os produtos e o total da nota passam a aparecer na visita |
-| A última visita foi em outro dia | A nota fica pendente, e a gestão decide se liga àquela visita ou se deixa só como compra do cliente |
-| O cliente não tem visita | A nota fica registrada como compra do cliente |
+| A visita candidata é do mesmo dia da nota | Na importação, a nota é ligada à visita sozinha, e os produtos e o total da nota aparecem na visita. Se a visita do mesmo dia é registrada depois da importação, a nota vira pendência |
+| A visita candidata é de 1 a 15 dias antes da nota | A nota fica pendente, e a gestão decide se liga àquela visita ou se deixa só como compra do cliente |
+| O cliente não tem visita nesse período | A nota fica registrada como compra do cliente, sem pendência |
 
 Em todos os casos a nota entra no histórico de compras do cliente e alimenta as sugestões e os gráficos de vendas.
+
+A visita candidata não é gravada. Ela é calculada a cada consulta, com as visitas que existem naquele momento, e por isso a lista de pendências acompanha as visitas: a nota cuja visita candidata deixa de existir sai das pendências, e a nota registrada só como compra vira pendência quando o cliente ganha uma visita dentro dos 15 dias.
+
+O que fica gravado na nota são as ligações a uma visita (a automática do mesmo dia e a feita pela gestão) e a recusa ("Deixar só no ERP"), junto com a visita recusada. Uma nota recusada não volta às pendências. Enquanto a nota está pendente, os produtos já registrados na visita candidata ficam fora da soma de compras do cliente, para a mesma venda não contar duas vezes. O mesmo vale para a visita recusada.
+
+### Dia da nota no modo demonstração
+
+Com o modo demonstração ativo, o sistema trabalha em outra data, e as visitas são gravadas nela. Para a nota acompanhar as visitas, o dia de emissão é guardado deslocado pelo mesmo número de dias que separa a data simulada da data real. A nota emitida hoje entra no hoje simulado, e a nota de 16 dias atrás entra 16 dias antes dele.
+
+Com isso, a nota importada durante a simulação entra no volume de compras dos últimos 90 dias da ficha do cliente. A conferência mostra as duas datas, a impressa na nota e a de entrada, sempre que elas são diferentes. Importar a mesma nota de novo grava o dia outra vez, com o deslocamento daquele momento.
+
+Sem simulação, o dia guardado é o da própria nota.
 
 ## 12. Usuários
 
@@ -363,7 +445,7 @@ A recriação apaga os clientes de demonstração, com as visitas e os lembretes
 - as contas de usuário e as senhas;
 - as notas fiscais importadas.
 
-As visitas de venda da demonstração já trazem produtos e valores, como se a nota fiscal tivesse sido importada.
+As visitas de venda da demonstração já trazem produtos e valores, como se a nota fiscal tivesse sido importada. Uma nota fiscal importada com a simulação ativa entra na data simulada, como descrito em [Dia da nota no modo demonstração](#dia-da-nota-no-modo-demonstração).
 
 Todos os contatos dos clientes de demonstração usam o mesmo telefone, o da autora do projeto, para que as mensagens de teste pelo WhatsApp cheguem a um número conhecido. Os clientes e contatos já cadastrados no banco usam esse mesmo número. Para os cadastros criados depois, como um cliente criado a partir de uma nota fiscal, o telefone de teste (`VITE_TELEFONE_DE_TESTE`) leva os botões Ligar e WhatsApp de qualquer cliente para esse número, sem aviso na tela.
 
