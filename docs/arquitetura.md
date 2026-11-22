@@ -14,7 +14,7 @@ Este documento explica como o ChokoCRM é construído: quais são as partes do s
 
 ## 1. Visão geral
 
-O sistema tem três partes. A interface roda no navegador do representante ou do gestor. O servidor recebe os pedidos da interface, aplica as regras do negócio e responde. O banco de dados guarda clientes, visitas, pedidos e o restante das informações.
+O sistema tem três partes. A interface roda no navegador do representante ou do gestor. O servidor recebe os pedidos da interface, aplica as regras do negócio e responde. O banco de dados guarda clientes, visitas, notas fiscais e o restante das informações.
 
 ```mermaid
 flowchart LR
