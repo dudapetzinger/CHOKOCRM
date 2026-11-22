@@ -57,7 +57,7 @@ export type NotaData = {
   valorTotal: number;
   importId: string;
   vinculoStatus: VinculoNota;
-  visitaSugeridaId: string | null;
+  visitaRecusadaId: string | null;
   itens: ItemDaNotaData[];
 };
 
@@ -95,15 +95,16 @@ export async function salvarNota(
   });
 }
 
+/** Grava a situação do vínculo e a visita recusada pela gestão (`null` fora da recusa). */
 export async function atualizarVinculo(
   id: string,
   vinculoStatus: VinculoNota,
-  visitaSugeridaId: string | null,
+  visitaRecusadaId: string | null,
   banco: Banco = prisma,
 ): Promise<NotaComRelacoes> {
   return banco.erpSale.update({
     where: { id },
-    data: { vinculoStatus, visitaSugeridaId },
+    data: { vinculoStatus, visitaRecusadaId },
     include: INCLUDE_NOTA,
   });
 }
@@ -179,9 +180,13 @@ const ORDEM_MAIS_RECENTE = [
   { chaveAcesso: 'desc' },
 ] satisfies Prisma.ErpSaleOrderByWithRelationInput[];
 
-export async function listarPendentes(): Promise<NotaComRelacoes[]> {
+/** Situações da nota sem decisão da gestão: a leitura recalcula qual das duas vale. */
+export const VINCULOS_SEM_DECISAO: VinculoNota[] = ['PENDENTE', 'SEM_VISITA'];
+
+/** Notas com cliente e sem decisão da gestão, da mais recente para a mais antiga (as possíveis pendências). */
+export async function listarSemDecisao(): Promise<NotaComRelacoes[]> {
   return prisma.erpSale.findMany({
-    where: { vinculoStatus: 'PENDENTE' },
+    where: { vinculoStatus: { in: VINCULOS_SEM_DECISAO }, clientId: { not: null } },
     orderBy: ORDEM_MAIS_RECENTE,
     include: INCLUDE_NOTA,
   });
@@ -246,6 +251,23 @@ export async function somarNotasDoCnpj(
     _count: { _all: true },
   });
   return { total: resultado._sum.valorTotal, quantidade: resultado._count._all };
+}
+
+/**
+ * Notas do CNPJ que podem tirar um pedido de check-in das vendas: as sem
+ * decisão (a candidata é calculada por quem lê) e as recusadas com a visita
+ * recusada.
+ */
+export async function listarNotasQueTiramPedidosDoCnpj(
+  cnpj: string,
+): Promise<{ id: string; clientId: string | null; dataEmissao: Date; vinculoStatus: VinculoNota; visitaRecusadaId: string | null }[]> {
+  return prisma.erpSale.findMany({
+    where: {
+      destinatarioCnpj: cnpj,
+      OR: [{ vinculoStatus: { in: VINCULOS_SEM_DECISAO } }, { visitaRecusadaId: { not: null } }],
+    },
+    select: { id: true, clientId: true, dataEmissao: true, vinculoStatus: true, visitaRecusadaId: true },
+  });
 }
 
 /** Catálogo aprendido das notas (`ErpProduct`), por nome. */

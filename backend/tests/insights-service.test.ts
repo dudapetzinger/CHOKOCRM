@@ -10,6 +10,8 @@ import { AppError } from '../src/errors/AppError';
 import { ErrorCode } from '../src/errors/errorCodes';
 import type { Sale } from '../src/providers/erp/ErpProvider';
 import { gerarHistoricoErp } from '../src/providers/erp/mock/gerador';
+import type { Campaign } from '@prisma/client';
+import * as campaignRepository from '../src/repositories/campaign.repository';
 import * as clientRepository from '../src/repositories/client.repository';
 import type { ClienteParaAgenda, ClientComContatos } from '../src/repositories/client.repository';
 import * as seasonalEventRepository from '../src/repositories/seasonal-event.repository';
@@ -129,6 +131,7 @@ function sugestoesDe(resultado: InsightsDTO) {
 
 let findById: jest.SpiedFunction<typeof clientRepository.findById>;
 let listAtivosParaAgenda: jest.SpiedFunction<typeof clientRepository.listAtivosParaAgenda>;
+let listarCampanhasNoIntervalo: jest.SpiedFunction<typeof campaignRepository.listarNoIntervalo>;
 let findNoIntervalo: jest.SpiedFunction<typeof seasonalEventRepository.findNoIntervalo>;
 let consultarVendas: jest.SpiedFunction<typeof erpService.consultarVendas>;
 let consultarItensBaixosEmLote: jest.SpiedFunction<typeof erpService.consultarItensBaixosEmLote>;
@@ -149,6 +152,7 @@ beforeEach(() => {
   listAtivosParaAgenda = jest
     .spyOn(clientRepository, 'listAtivosParaAgenda')
     .mockRejectedValue(naoStubado('listAtivosParaAgenda'));
+  listarCampanhasNoIntervalo = jest.spyOn(campaignRepository, 'listarNoIntervalo').mockResolvedValue([]);
   findNoIntervalo = jest
     .spyOn(seasonalEventRepository, 'findNoIntervalo')
     .mockRejectedValue(naoStubado('findNoIntervalo'));
@@ -233,6 +237,7 @@ describe('obterInsights', () => {
           comprasNaJanela: esperado.totalJanela,
           mediaNaJanela: esperado.mediaNaJanela,
           produtosMaisComprados: esperado.produtos,
+          campanhas: [],
           titulo: 'Natal em 79 dias',
           texto,
         },
@@ -255,7 +260,7 @@ describe('obterInsights', () => {
 
     const [sugestao] = sugestoesDe(await obterInsights(CLIENTE_ID, GESTOR, 90, HOJE));
 
-    expect(acaoPorVariacao(0.19603)).toBe('CRIAR_PROMOCAO'); // sem arredondar, a ação discordaria do número exibido
+    expect(acaoPorVariacao(0.19603)).toBe('MANTER_OFERTA'); // sem arredondar, a ação discordaria do número exibido
     expect(sugestao).toMatchObject({
       variacaoPercentual: 20,
       acao: 'AUMENTAR_OFERTA',
@@ -312,11 +317,106 @@ describe('obterInsights', () => {
       horizonteDias: 180,
       sugestoes: [],
       eventosSemHistorico: [
-        { id: 'natal-2026', nome: 'Natal 2026', diasAteEvento: 79 },
-        { id: 'pascoa-2027', nome: 'Páscoa 2027', diasAteEvento: 172 },
+        { id: 'natal-2026', nome: 'Natal 2026', diasAteEvento: 79, campanhas: [] },
+        { id: 'pascoa-2027', nome: 'Páscoa 2027', diasAteEvento: 172, campanhas: [] },
       ],
     });
     expect(consultarVendas).toHaveBeenCalledTimes(1);
+  });
+
+  /** Linha de `Campaign` como o Prisma devolve: colunas `@db.Date` à meia-noite UTC. */
+  function campanhaDoBanco(id: string, inicio: string, fim: string, extra: Partial<Campaign> = {}): Campaign {
+    return {
+      id,
+      nome: `Campanha ${id}`,
+      tipo: 'CAMPANHA',
+      inicio: new Date(`${inicio}T00:00:00Z`),
+      fim: new Date(`${fim}T00:00:00Z`),
+      descricao: '',
+      desconto: null,
+      produtos: [],
+      criadoEm: new Date('2026-01-01T12:00:00Z'),
+      ...extra,
+    };
+  }
+
+  it('a sugestão traz as campanhas que cruzam a janela da data, com a situação; uma só consulta para todas as datas', async () => {
+    const hoje = new Date('2027-03-01T12:00:00Z');
+    findById.mockResolvedValue(clienteDaFicha('ERP-1003'));
+    findNoIntervalo.mockResolvedValue([NAMORADOS_2027, MAES_2027]);
+    vendasDoMock(hoje);
+    // Janela das Mães: 2027-04-09..2027-05-09; dos Namorados: 2027-05-13..2027-06-12.
+    listarCampanhasNoIntervalo.mockResolvedValue([
+      campanhaDoBanco('maes-prog', '2027-04-20', '2027-05-10', { tipo: 'PROMOCAO', desconto: 15 }),
+      campanhaDoBanco('em-curso', '2027-02-15', '2027-04-10'),
+      campanhaDoBanco('so-namorados', '2027-06-01', '2027-06-30', { tipo: 'EVENTO' }),
+    ]);
+
+    const sugestoes = sugestoesDe(await obterInsights(CLIENTE_ID, GESTOR, 180, hoje));
+
+    expect(listarCampanhasNoIntervalo).toHaveBeenCalledTimes(1);
+    expect(listarCampanhasNoIntervalo).toHaveBeenCalledWith('2027-04-09', '2027-06-12');
+    expect(sugestoes.map((sugestao) => [sugestao.evento.id, sugestao.campanhas])).toEqual([
+      [
+        'maes-2027',
+        [
+          { id: 'em-curso', nome: 'Campanha em-curso', tipo: 'CAMPANHA', inicio: '2027-02-15', fim: '2027-04-10', desconto: null, situacao: 'EM_ANDAMENTO' },
+          { id: 'maes-prog', nome: 'Campanha maes-prog', tipo: 'PROMOCAO', inicio: '2027-04-20', fim: '2027-05-10', desconto: 15, situacao: 'PROGRAMADA' },
+        ],
+      ],
+      [
+        'namorados-2027',
+        [{ id: 'so-namorados', nome: 'Campanha so-namorados', tipo: 'EVENTO', inicio: '2027-06-01', fim: '2027-06-30', desconto: null, situacao: 'PROGRAMADA' }],
+      ],
+    ]);
+  });
+
+  it('campanha encerrada não entra, mesmo cruzando a janela da data', async () => {
+    const hoje = new Date('2026-12-10T12:00:00Z');
+    findById.mockResolvedValue(clienteDaFicha('ERP-1001'));
+    findNoIntervalo.mockResolvedValue([NATAL_2026]);
+    vendasDoMock(hoje);
+    listarCampanhasNoIntervalo.mockResolvedValue([
+      campanhaDoBanco('encerrada', '2026-11-20', '2026-12-05'),
+      campanhaDoBanco('vigente', '2026-12-01', '2026-12-31'),
+    ]);
+
+    const [sugestao] = sugestoesDe(await obterInsights(CLIENTE_ID, GESTOR, 90, hoje));
+
+    expect(sugestao?.campanhas.map((campanha) => [campanha.id, campanha.situacao])).toEqual([['vigente', 'EM_ANDAMENTO']]);
+  });
+
+  it('campanha fora da janela da data não entra', async () => {
+    findById.mockResolvedValue(clienteDaFicha('ERP-1001'));
+    findNoIntervalo.mockResolvedValue([NATAL_2026]);
+    vendasDoMock(HOJE);
+    listarCampanhasNoIntervalo.mockResolvedValue([
+      campanhaDoBanco('antes', '2026-10-01', '2026-11-24'),
+      campanhaDoBanco('depois', '2026-12-26', '2027-01-10'),
+    ]);
+
+    const [sugestao] = sugestoesDe(await obterInsights(CLIENTE_ID, GESTOR, 90, HOJE));
+
+    expect(sugestao?.campanhas).toEqual([]);
+  });
+
+  it('a data sem histórico também traz as campanhas do período', async () => {
+    findById.mockResolvedValue(clienteDaFicha('ERP-1000-0'));
+    findNoIntervalo.mockResolvedValue([NATAL_2026]);
+    vendasDoMock(HOJE);
+    listarCampanhasNoIntervalo.mockResolvedValue([campanhaDoBanco('natal', '2026-12-01', '2026-12-31', { desconto: 10 })]);
+
+    await expect(obterInsights(CLIENTE_ID, GESTOR, 90, HOJE)).resolves.toMatchObject({
+      sugestoes: [],
+      eventosSemHistorico: [
+        {
+          id: 'natal-2026',
+          campanhas: [
+            { id: 'natal', nome: 'Campanha natal', tipo: 'CAMPANHA', inicio: '2026-12-01', fim: '2026-12-31', desconto: 10, situacao: 'PROGRAMADA' },
+          ],
+        },
+      ],
+    });
   });
 
   it('consultarVendas null → INDISPONIVEL', async () => {

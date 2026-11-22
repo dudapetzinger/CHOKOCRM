@@ -52,13 +52,21 @@ export const HORIZONTE_PADRAO_DIAS = 90;
 export const HORIZONTE_MIN_DIAS = 30;
 export const HORIZONTE_MAX_DIAS = 180;
 
+/**
+ * Quantidade abaixo da qual um item do estoque do cliente (o do ponto de
+ * venda, informado pelo ERP simulado) fica em nível BAIXO. O gerador do ERP
+ * simulado classifica por ela e a aba de datas comemorativas do Painel a
+ * devolve, para a tela não repetir o número.
+ */
+export const LIMITE_ESTOQUE_BAIXO = 10;
+
 /** Período (dias), imediatamente antes da janela do evento no ano anterior, que define a "média" do cliente. */
 export const DIAS_DE_BASE = 365;
 
 /** Variação de compras na janela ≥ +20% sobre a média do cliente → AUMENTAR_OFERTA. */
 export const LIMIAR_VARIACAO_ALTA = 0.2;
 
-/** Variação ≤ −20% → OFERTAR_DESCONTO; entre os dois limiares → CRIAR_PROMOCAO. */
+/** Variação ≤ −20% → OFERTAR_DESCONTO; entre os dois limiares → MANTER_OFERTA. */
 export const LIMIAR_VARIACAO_BAIXA = -0.2;
 
 /** Quantos produtos mais comprados na janela entram no texto da sugestão. */

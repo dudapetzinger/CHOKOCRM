@@ -1,6 +1,7 @@
 import type { ResultadoVisita } from '@prisma/client';
 import type { Cor } from '../../src/services/classificacao.service';
 import {
+  clientesNaoVisitados,
   contarInativos,
   contarVisitas,
   conversaoEmVendas,
@@ -121,5 +122,34 @@ describe('distribuicaoPorCor / contarInativos', () => {
     expect(distribuicao).toEqual({ VERDE: 3, AMARELO: 2, LARANJA: 2, VERMELHO: 2 });
     expect(contarInativos(distribuicao)).toBe(4);
     expect(contarInativos(distribuicaoPorCor([]))).toBe(0);
+  });
+});
+
+describe('clientesNaoVisitados', () => {
+  function ativo(id: string, nomeFantasia: string, ultimaVisita: Date | null = null) {
+    return {
+      id,
+      nomeFantasia,
+      cidade: 'Pomerode',
+      representante: { id: 'r1', nome: 'Eduarda Fischer' },
+      visits: ultimaVisita ? [{ dataHora: ultimaVisita, resultado: 'VENDA' as const }] : [],
+    };
+  }
+
+  it('dois clientes nunca visitados vêm por nome, antes de quem tem visita', () => {
+    const hoje = new Date('2026-11-04T15:00:00.000Z');
+    const ativos = [
+      ativo('c1', 'Padaria Zimmermann'),
+      ativo('c2', 'Confeitaria Bauer', new Date('2026-10-05T15:00:00.000Z')),
+      ativo('c3', 'Armazém Krause'),
+    ];
+
+    const resultado = clientesNaoVisitados(ativos, new Set<string>(), hoje);
+
+    expect(resultado.map((cliente) => [cliente.nomeFantasia, cliente.diasSemVisita])).toEqual([
+      ['Armazém Krause', null],
+      ['Padaria Zimmermann', null],
+      ['Confeitaria Bauer', 30],
+    ]);
   });
 });

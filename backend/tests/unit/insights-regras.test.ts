@@ -8,6 +8,7 @@ import {
   eventosNoHorizonte,
   janelaDoAnoAnterior,
   mediaNaJanela,
+  campanhasDaJanela,
   montarTextoDaSugestao,
   periodoBase,
   produtosMaisComprados,
@@ -176,11 +177,11 @@ describe('vendasNaJanela / totalNaJanela / mediaNaJanela / calcularVariacao / ac
     expect(calcularVariacao(0, 0, 31)).toBeNull();
   });
 
-  it('limiares: 0.2 → AUMENTAR_OFERTA; 0.19 → CRIAR_PROMOCAO; -0.19 → CRIAR_PROMOCAO; -0.2 → OFERTAR_DESCONTO', () => {
+  it('limiares: 0.2 → AUMENTAR_OFERTA; 0.19 → MANTER_OFERTA; -0.19 → MANTER_OFERTA; -0.2 → OFERTAR_DESCONTO', () => {
     expect(acaoPorVariacao(0.2)).toBe('AUMENTAR_OFERTA');
-    expect(acaoPorVariacao(0.19)).toBe('CRIAR_PROMOCAO');
-    expect(acaoPorVariacao(0)).toBe('CRIAR_PROMOCAO');
-    expect(acaoPorVariacao(-0.19)).toBe('CRIAR_PROMOCAO');
+    expect(acaoPorVariacao(0.19)).toBe('MANTER_OFERTA');
+    expect(acaoPorVariacao(0)).toBe('MANTER_OFERTA');
+    expect(acaoPorVariacao(-0.19)).toBe('MANTER_OFERTA');
     expect(acaoPorVariacao(-0.2)).toBe('OFERTAR_DESCONTO');
   });
 
@@ -231,14 +232,14 @@ describe('montarTextoDaSugestao', () => {
     });
   });
 
-  it('CRIAR_PROMOCAO com +5%: "As compras no mesmo período do ano passado ficaram na média (+5%). Criar promoção sazonal para puxar o volume de …"', () => {
-    expect(montarTextoDaSugestao(eventoProximo(), 'CRIAR_PROMOCAO', 5, produtos).texto).toBe(
-      `As compras no mesmo período do ano passado ficaram na média (+5%). Criar promoção sazonal para puxar o volume de ${listaDeProdutos}.`,
+  it('MANTER_OFERTA com +5%: "As compras no mesmo período do ano passado ficaram na média (+5%). Manter a oferta de …"', () => {
+    expect(montarTextoDaSugestao(eventoProximo(), 'MANTER_OFERTA', 5, produtos).texto).toBe(
+      `As compras no mesmo período do ano passado ficaram na média (+5%). Manter a oferta de ${listaDeProdutos}.`,
     );
   });
 
-  it('CRIAR_PROMOCAO com -12%: sinal negativo explícito', () => {
-    expect(montarTextoDaSugestao(eventoProximo(), 'CRIAR_PROMOCAO', -12, produtos).texto).toContain('na média (-12%).');
+  it('MANTER_OFERTA com -12%: sinal negativo explícito', () => {
+    expect(montarTextoDaSugestao(eventoProximo(), 'MANTER_OFERTA', -12, produtos).texto).toContain('na média (-12%).');
   });
 
   it('OFERTAR_DESCONTO com -30%: "Comprou 30% a menos no mesmo período do ano passado. Ofertar desconto para recuperar o volume de …"', () => {
@@ -254,14 +255,14 @@ describe('montarTextoDaSugestao', () => {
     expect(montarTextoDaSugestao(eventoProximo({ diasAteEvento: 1 }), 'AUMENTAR_OFERTA', 85, produtos).titulo).toBe(
       'Natal é amanhã',
     );
-    expect(montarTextoDaSugestao(eventoProximo(), 'CRIAR_PROMOCAO', 0, produtos).texto).toContain('na média (0%).');
-    expect(montarTextoDaSugestao(eventoProximo(), 'CRIAR_PROMOCAO', -0, produtos).texto).toContain('na média (0%).');
+    expect(montarTextoDaSugestao(eventoProximo(), 'MANTER_OFERTA', 0, produtos).texto).toContain('na média (0%).');
+    expect(montarTextoDaSugestao(eventoProximo(), 'MANTER_OFERTA', -0, produtos).texto).toContain('na média (0%).');
 
     expect(montarTextoDaSugestao(eventoProximo(), 'AUMENTAR_OFERTA', 85, []).texto).toBe(
       'Comprou 85% a mais no mesmo período do ano passado. Aumentar a oferta.',
     );
-    expect(montarTextoDaSugestao(eventoProximo(), 'CRIAR_PROMOCAO', 5, []).texto).toBe(
-      'As compras no mesmo período do ano passado ficaram na média (+5%). Criar promoção sazonal para puxar o volume.',
+    expect(montarTextoDaSugestao(eventoProximo(), 'MANTER_OFERTA', 5, []).texto).toBe(
+      'As compras no mesmo período do ano passado ficaram na média (+5%). Manter a oferta.',
     );
     expect(montarTextoDaSugestao(eventoProximo(), 'OFERTAR_DESCONTO', -30, []).texto).toBe(
       'Comprou 30% a menos no mesmo período do ano passado. Ofertar desconto para recuperar o volume.',
@@ -362,5 +363,50 @@ describe('cruzarEstoqueComEventos', () => {
   it('devolve lista vazia sem eventos ou sem clientes com item baixo', () => {
     expect(cruzarEstoqueComEventos([cliente('a', [cx(4)])], [])).toEqual([]);
     expect(cruzarEstoqueComEventos([cliente('a', [])], [eventoProximo()])).toEqual([]);
+  });
+});
+
+describe('campanhasDaJanela', () => {
+  const janela = { inicio: '2026-11-25', fim: '2026-12-25' };
+  const campanha = (id: string, inicio: string, fim: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    nome: `Campanha ${id}`,
+    tipo: 'CAMPANHA' as const,
+    inicio,
+    fim,
+    desconto: null,
+    ...extra,
+  });
+
+  it('inclui as que cruzam a janela, com a situação em relação a hoje, por início e nome', () => {
+    const resultado = campanhasDaJanela(
+      [
+        campanha('b', '2026-12-01', '2026-12-31', { desconto: 10, tipo: 'PROMOCAO' }),
+        campanha('a', '2026-11-01', '2026-11-30'),
+        campanha('c', '2026-12-25', '2027-01-05'),
+      ],
+      janela,
+      '2026-11-20',
+    );
+
+    expect(resultado).toEqual([
+      { id: 'a', nome: 'Campanha a', tipo: 'CAMPANHA', inicio: '2026-11-01', fim: '2026-11-30', desconto: null, situacao: 'EM_ANDAMENTO' },
+      { id: 'b', nome: 'Campanha b', tipo: 'PROMOCAO', inicio: '2026-12-01', fim: '2026-12-31', desconto: 10, situacao: 'PROGRAMADA' },
+      { id: 'c', nome: 'Campanha c', tipo: 'CAMPANHA', inicio: '2026-12-25', fim: '2027-01-05', desconto: null, situacao: 'PROGRAMADA' },
+    ]);
+  });
+
+  it('deixa de fora a encerrada e a que termina antes ou começa depois da janela', () => {
+    const resultado = campanhasDaJanela(
+      [
+        campanha('encerrada', '2026-11-01', '2026-11-19'),
+        campanha('antes', '2026-10-01', '2026-11-24'),
+        campanha('depois', '2026-12-26', '2027-01-10'),
+      ],
+      janela,
+      '2026-11-20',
+    );
+
+    expect(resultado).toEqual([]);
   });
 });

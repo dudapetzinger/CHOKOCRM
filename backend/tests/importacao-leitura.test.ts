@@ -103,7 +103,9 @@ describe('POST /erp/importacoes/leitura', () => {
       cliente: { id: clienteId, nomeFantasia: 'Don Giacomo' },
       jaImportada: false,
     });
+    // Sem modo demonstração, a nota entra no dia impresso na DANFE.
     expect(nota.dataEmissao).toBe('2026-11-04');
+    expect(nota.dataEmissaoDanfe).toBe('2026-11-04');
     expect(nota.itens.length).toBeGreaterThan(0);
     expect(nota.itens[0]).toEqual({
       codigo: expect.any(String),

@@ -19,7 +19,8 @@ export const horizonteQuerySchema = z.object({
 });
 
 /**
- * Query dos alertas de produção: o horizonte e, opcionalmente,
+ * Query dos alertas de produção e da aba de datas comemorativas do Painel:
+ * o horizonte e, opcionalmente,
  * `?representanteId=` para restringir à carteira daquele representante.
  */
 export const alertasQuerySchema = horizonteQuerySchema.extend({

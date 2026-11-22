@@ -1,6 +1,14 @@
 import { Prisma, type ResultadoVisita } from '@prisma/client';
 import { CORES_INATIVAS, DIAS_MAXIMOS_DO_RITMO_SEMANAL, PERIODO_PADRAO_DIAS } from '../config/kpis';
-import { CORES, dataCalendario, diasEntre, somarDias, type Cor, type DataCalendario } from './classificacao.service';
+import {
+  CORES,
+  dataCalendario,
+  diasEntre,
+  diasSemVisita,
+  somarDias,
+  type Cor,
+  type DataCalendario,
+} from './classificacao.service';
 
 /**
  * Regras puras dos indicadores do painel do gestor, com o mesmo papel de
@@ -244,6 +252,19 @@ function faixasQueCruzam(
   return faixas;
 }
 
+/** Até `DIAS_MAXIMOS_DO_RITMO_SEMANAL` dias, uma faixa por semana; acima disso, uma por mês. */
+export function granularidadeDoRitmo(janela: Janela): Ritmo['granularidade'] {
+  return janela.dias <= DIAS_MAXIMOS_DO_RITMO_SEMANAL ? 'SEMANA' : 'MES';
+}
+
+/**
+ * Início (inclusive) da faixa do ritmo que contém `dia`: a segunda-feira da
+ * semana ou o primeiro dia do mês. É o `inicio` da faixa em `Ritmo.faixas`.
+ */
+export function inicioDaFaixa(dia: DataCalendario, granularidade: Ritmo['granularidade']): DataCalendario {
+  return granularidade === 'SEMANA' ? segundaDaSemana(dia) : `${dia.slice(0, 7)}-01`;
+}
+
 /**
  * Ritmo de visitas do Painel na janela de análise: até
  * `DIAS_MAXIMOS_DO_RITMO_SEMANAL` dias, uma faixa por semana (segunda a
@@ -253,7 +274,7 @@ function faixasQueCruzam(
  * visitas com resultado VENDA; `clientes` são os visitados na faixa.
  */
 export function ritmoNoPeriodo(visitas: VisitaDoRitmo[], janela: Janela): Ritmo {
-  const granularidade = janela.dias <= DIAS_MAXIMOS_DO_RITMO_SEMANAL ? 'SEMANA' : 'MES';
+  const granularidade = granularidadeDoRitmo(janela);
   const faixas = faixasQueCruzam(janela, granularidade).map((faixa) => ({
     ...faixa,
     parcial: faixa.inicio < janela.inicio || faixa.fim > janela.fim,
@@ -281,4 +302,101 @@ export function ritmoNoPeriodo(visitas: VisitaDoRitmo[], janela: Janela): Ritmo 
       })),
     })),
   };
+}
+
+/** Visita do período com o que o detalhe do painel lateral mostra (ver `kpis.service.obterDetalheDasVisitas`). */
+export type VisitaParaDetalhe = {
+  id: string;
+  dataHora: Date;
+  resultado: ResultadoVisita;
+  totalPedido: Prisma.Decimal.Value;
+  cliente: { id: string; nomeFantasia: string; cidade: string; ativo: boolean };
+  representante: { id: string; nome: string };
+};
+
+/**
+ * Uma visita do período, do jeito que o painel lateral a lista. `valor` é o
+ * total do pedido (a mesma soma da `receita` do comparativo) só nas visitas
+ * VENDA; nas demais é 0. `faixaInicio` é o `inicio` da faixa do ritmo que
+ * contém o dia da visita no `FUSO_HORARIO`.
+ */
+export type VisitaDetalhada = {
+  visitaId: string;
+  clienteId: string;
+  nomeFantasia: string;
+  cidade: string;
+  clienteAtivo: boolean;
+  representanteId: string;
+  representanteNome: string;
+  dataHora: string;
+  faixaInicio: DataCalendario;
+  resultado: ResultadoVisita;
+  valor: number;
+};
+
+export function detalharVisitas(visitas: VisitaParaDetalhe[], janela: Janela): VisitaDetalhada[] {
+  const granularidade = granularidadeDoRitmo(janela);
+
+  return visitas.map((visita) => ({
+    visitaId: visita.id,
+    clienteId: visita.cliente.id,
+    nomeFantasia: visita.cliente.nomeFantasia,
+    cidade: visita.cliente.cidade,
+    clienteAtivo: visita.cliente.ativo,
+    representanteId: visita.representante.id,
+    representanteNome: visita.representante.nome,
+    dataHora: visita.dataHora.toISOString(),
+    faixaInicio: inicioDaFaixa(dataCalendario(visita.dataHora), granularidade),
+    resultado: visita.resultado,
+    valor: visita.resultado === 'VENDA' ? new Prisma.Decimal(visita.totalPedido).toDecimalPlaces(2).toNumber() : 0,
+  }));
+}
+
+/** Cliente ativo da carteira sem visita no período. `ultimaVisita` e `diasSemVisita` são `null` se nunca foi visitado. */
+export type ClienteNaoVisitado = {
+  id: string;
+  nomeFantasia: string;
+  cidade: string;
+  representanteId: string;
+  representanteNome: string;
+  ultimaVisita: string | null;
+  diasSemVisita: number | null;
+};
+
+/**
+ * Os clientes ativos que não aparecem em `visitadosIds`, do mais tempo sem
+ * visita ao menos (quem nunca foi visitado primeiro) e, no empate, por nome.
+ * `ultimaVisita` é a mais recente de todas, não só a do período.
+ */
+export function clientesNaoVisitados(
+  ativos: {
+    id: string;
+    nomeFantasia: string;
+    cidade: string;
+    representante: { id: string; nome: string };
+    visits: { dataHora: Date; resultado: ResultadoVisita }[];
+  }[],
+  visitadosIds: Set<string>,
+  hoje: Date,
+): ClienteNaoVisitado[] {
+  return ativos
+    .filter((cliente) => !visitadosIds.has(cliente.id))
+    .map((cliente) => {
+      const ultima = cliente.visits[0] ?? null;
+
+      return {
+        id: cliente.id,
+        nomeFantasia: cliente.nomeFantasia,
+        cidade: cliente.cidade,
+        representanteId: cliente.representante.id,
+        representanteNome: cliente.representante.nome,
+        ultimaVisita: ultima ? ultima.dataHora.toISOString() : null,
+        diasSemVisita: diasSemVisita(ultima, hoje),
+      };
+    })
+    .sort(
+      (a, b) =>
+        (b.diasSemVisita ?? Number.MAX_SAFE_INTEGER) - (a.diasSemVisita ?? Number.MAX_SAFE_INTEGER) ||
+        porNome(a.nomeFantasia, b.nomeFantasia),
+    );
 }

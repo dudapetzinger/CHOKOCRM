@@ -1,4 +1,4 @@
-import type { SeasonalEvent } from '@prisma/client';
+import type { SeasonalEvent, TipoCampanha } from '@prisma/client';
 import {
   DIAS_DE_BASE,
   JANELA_PICO_DIAS,
@@ -11,6 +11,7 @@ import {
 } from '../config/sazonalidade';
 import type { Sale } from '../providers/erp/ErpProvider';
 import { dataCalendario, diasEntre, somarDias, type DataCalendario } from './classificacao.service';
+import { statusDaCampanha } from './campaign.regras';
 import type { ItemBaixo } from './erp.service';
 import { listarProdutos } from './stock-message.template';
 
@@ -21,7 +22,7 @@ import { listarProdutos } from './stock-message.template';
  * `import type`), para que o teste unitário rode sem `DATABASE_URL`. Quem
  * busca os dados (`insights.service.ts`) importa daqui, nunca o contrário.
  */
-export type AcaoSugerida = 'AUMENTAR_OFERTA' | 'CRIAR_PROMOCAO' | 'OFERTAR_DESCONTO';
+export type AcaoSugerida = 'AUMENTAR_OFERTA' | 'MANTER_OFERTA' | 'OFERTAR_DESCONTO';
 
 export type EventoProximo = {
   id: string;
@@ -35,6 +36,18 @@ export type EventoProximo = {
 };
 
 export type Janela = { inicio: DataCalendario; fim: DataCalendario };
+
+/** Campanha, promoção ou evento da empresa que cobre parte da janela de vendas de uma data comemorativa. */
+export type CampanhaDaJanela = {
+  id: string;
+  nome: string;
+  tipo: TipoCampanha;
+  inicio: DataCalendario;
+  fim: DataCalendario;
+  desconto: number | null;
+  /** Em relação a hoje; a encerrada não entra. */
+  situacao: 'EM_ANDAMENTO' | 'PROGRAMADA';
+};
 
 export type AlertaProducao = {
   evento: { id: string; nome: string; dataEvento: DataCalendario; diasAteEvento: number };
@@ -103,6 +116,14 @@ export function janelaDoAnoAnterior(chave: EventoSazonal, anoDoEvento: number): 
   return { inicio: somarDias(dataNoAnoAnterior, -JANELA_PICO_DIAS), fim: dataNoAnoAnterior };
 }
 
+/**
+ * Janela de vendas deste ano para a data comemorativa: do dia da data menos
+ * `JANELA_PICO_DIAS` até o próprio dia, limites inclusivos.
+ */
+export function janelaDeVendas(evento: Pick<EventoProximo, 'dataEvento'>): Janela {
+  return { inicio: somarDias(evento.dataEvento, -JANELA_PICO_DIAS), fim: evento.dataEvento };
+}
+
 /** Os `DIAS_DE_BASE` dias imediatamente anteriores à janela: `[janela.inicio − DIAS_DE_BASE, janela.inicio − 1]`. */
 export function periodoBase(janela: Janela): Janela {
   return { inicio: somarDias(janela.inicio, -DIAS_DE_BASE), fim: somarDias(janela.inicio, -1) };
@@ -149,7 +170,7 @@ export function calcularVariacao(totalJanela: number, totalBase: number, diasJan
 
 /**
  * `variacao ≥ LIMIAR_VARIACAO_ALTA` → AUMENTAR_OFERTA; `≤ LIMIAR_VARIACAO_BAIXA`
- * → OFERTAR_DESCONTO; entre os dois → CRIAR_PROMOCAO. Quem exibe a variação
+ * → OFERTAR_DESCONTO; entre os dois → MANTER_OFERTA. Quem exibe a variação
  * em percentual inteiro deve arredondar antes de chamar, para a ação
  * coincidir com o número mostrado.
  */
@@ -162,7 +183,39 @@ export function acaoPorVariacao(variacao: number): AcaoSugerida {
     return 'OFERTAR_DESCONTO';
   }
 
-  return 'CRIAR_PROMOCAO';
+  return 'MANTER_OFERTA';
+}
+
+/**
+ * As campanhas, promoções e eventos em andamento ou programados que têm algum
+ * dia na janela (limites inclusivos), por início e, no mesmo dia, por nome. A
+ * encerrada em relação a `hoje` fica de fora, mesmo cruzando a janela.
+ */
+export function campanhasDaJanela(
+  campanhas: Omit<CampanhaDaJanela, 'situacao'>[],
+  janela: Janela,
+  hoje: DataCalendario,
+): CampanhaDaJanela[] {
+  return campanhas
+    .filter((campanha) => campanha.inicio <= janela.fim && campanha.fim >= janela.inicio)
+    .flatMap((campanha): CampanhaDaJanela[] => {
+      const situacao = statusDaCampanha(campanha, hoje);
+
+      return situacao === 'ENCERRADA'
+        ? []
+        : [
+            {
+              id: campanha.id,
+              nome: campanha.nome,
+              tipo: campanha.tipo,
+              inicio: campanha.inicio,
+              fim: campanha.fim,
+              desconto: campanha.desconto,
+              situacao,
+            },
+          ];
+    })
+    .sort((a, b) => a.inicio.localeCompare(b.inicio) || a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
 /** Soma `quantidade` por SKU em todas as vendas recebidas; os `max` maiores, em ordem decrescente e, no empate, pelo nome. */
@@ -229,10 +282,10 @@ export function montarTextoDaSugestao(
         titulo,
         texto: `Comprou ${percentual}% a mais no mesmo período do ano passado. Aumentar a oferta${deProdutos}.`,
       };
-    case 'CRIAR_PROMOCAO':
+    case 'MANTER_OFERTA':
       return {
         titulo,
-        texto: `As compras no mesmo período do ano passado ficaram na média (${percentualComSinal(variacaoPercentual)}%). Criar promoção sazonal para puxar o volume${deProdutos}.`,
+        texto: `As compras no mesmo período do ano passado ficaram na média (${percentualComSinal(variacaoPercentual)}%). Manter a oferta${deProdutos}.`,
       };
     case 'OFERTAR_DESCONTO':
       return {

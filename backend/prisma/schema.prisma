@@ -246,7 +246,9 @@ model Goal {
   @@map("goals")
 }
 
-/// Situação do vínculo da nota importada com uma visita.
+/// Situação do vínculo da nota importada com uma visita. `PENDENTE` e
+/// `SEM_VISITA` marcam a nota sem decisão da gestão: a leitura recalcula qual
+/// das duas vale pela visita candidata do momento.
 enum VinculoNota {
   AUTOMATICO
   PENDENTE
@@ -299,7 +301,8 @@ model ErpSale {
   importId              String        @map("import_id")
   import                ErpImport     @relation(fields: [importId], references: [id])
   vinculoStatus         VinculoNota   @map("vinculo_status")
-  visitaSugeridaId      String?       @map("visita_sugerida_id")
+  /// Visita recusada pela gestão ("Deixar só no ERP"): o pedido dela fica fora das vendas. A candidata é calculada na leitura.
+  visitaRecusadaId      String?       @map("visita_recusada_id")
   atualizadoEm          DateTime      @updatedAt @map("atualizado_em")
   itens                 ErpSaleItem[]
   visita                Visit?

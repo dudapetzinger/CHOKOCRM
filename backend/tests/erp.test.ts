@@ -182,7 +182,13 @@ describe('GET /clients/:id/erp', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('OK');
-    expect(res.body.volume90Dias).toEqual({ total: 0, quantidadeVendas: 0 });
+    const hojeCal = dataCalendario(new Date());
+    expect(res.body.volume90Dias).toEqual({
+      total: 0,
+      quantidadeVendas: 0,
+      inicio: somarDias(hojeCal, -90),
+      fim: hojeCal,
+    });
     expect(res.body.ultimaVenda).not.toBeNull();
 
     const diasDesdeAUltimaVenda =

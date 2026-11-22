@@ -1,19 +1,30 @@
 /**
  * Importação de notas fiscais (DANFE em PDF) pelo gestor: lê o PDF,
  * casa cada nota com o cliente pelo CNPJ (guardando o endereço do destinatário
- * lido da DANFE), decide o vínculo com a última visita
- * (`vinculo.regras.ts`) e grava tudo numa transação por arquivo. Também cuida
+ * lido da DANFE), decide o vínculo com a visita candidata
+ * (`vinculo.regras.ts`, `visita-candidata.ts`) e grava tudo numa transação
+ * por arquivo. A candidata do mesmo dia recebe a nota na hora; fora isso a
+ * nota fica sem decisão, e as pendências, o histórico e a recusa calculam a
+ * candidata na leitura, com as visitas do momento. Também cuida
  * das pendências e do vínculo/desvínculo manual feitos pelo gestor, e decide o
  * vínculo das notas ligadas ao cliente criado pela nota fiscal
  * (`decidirVinculoDaNotaLigada` e `adotarNotasSemCliente`, usados por
  * `cliente-pela-nota.service.ts`). A leitura (`lerPdf`) só mostra o que o PDF traz, sem
  * gravar nada, para o gestor conferir antes de importar.
+ *
+ * Dia de emissão no modo demonstração: a nota entra no dia da DANFE somado
+ * aos dias de deslocamento do relógio (`deslocamentoDias()`), o mesmo número
+ * de dias que separa o hoje simulado do real. A nota emitida hoje entra no
+ * hoje simulado e conversa com os check-ins, que são gravados na data
+ * simulada. Sem deslocamento, o dia é o da DANFE. Reimportar a mesma nota
+ * grava o dia de novo, com o deslocamento do momento.
  */
 import type { Prisma, ResultadoVisita, VinculoNota } from '@prisma/client';
 import { z } from 'zod';
 import { AppError } from '../../errors/AppError';
 import { ErrorCode } from '../../errors/errorCodes';
 import { prisma } from '../../lib/prisma';
+import { deslocamentoDias } from '../../lib/relogio';
 import { somarItens } from '../../lib/somarItens';
 import * as clientRepository from '../../repositories/client.repository';
 import * as erpSaleRepository from '../../repositories/erp-sale.repository';
@@ -21,10 +32,11 @@ import type { Banco, ImportacaoComRelacoes, NotaComRelacoes } from '../../reposi
 import * as visitRepository from '../../repositories/visit.repository';
 import type { ItemDoPedidoData } from '../../repositories/visit.repository';
 import type { UsuarioAutenticado } from '../carteira';
-import { colunaDateDaData, dataDaColunaDate } from '../classificacao.service';
+import { colunaDateDaData, dataDaColunaDate, type DataCalendario, somarDias } from '../classificacao.service';
 import { lerDanfes, type NotaFiscalLida, type NotaIgnorada } from './danfe.regras';
 import { extrairTextoDoPdf, type PaginaDeTexto } from './pdf-texto';
-import { decidirVinculo } from './vinculo.regras';
+import { type CandidataDaNota, candidataDoCliente, candidatasDasNotas, semDecisao } from './visita-candidata';
+import { statusDoVinculo } from './vinculo.regras';
 
 const MENSAGEM_SEM_DANFE = 'Não encontrei uma DANFE legível neste PDF.';
 const MENSAGEM_NOTA_NAO_ENCONTRADA = 'Nota fiscal não encontrada.';
@@ -36,11 +48,19 @@ const LIMITE_DO_HISTORICO = 20;
 /** Um PDF grande tem dezenas de notas; o padrão de 5 s da transação não basta. */
 const OPCOES_DA_TRANSACAO = { timeout: 60_000, maxWait: 10_000 };
 
+/**
+ * A visita candidata da nota sem decisão, com o motivo da sugestão: o dia da
+ * visita e quantos dias ela vem antes do dia da nota (`dataEmissao`).
+ */
 export type VisitaSugeridaDTO = {
   id: string;
   dataHora: string;
-  resultado: ResultadoVisita | null;
-  totalPedido: number | null;
+  /** AAAA-MM-DD, no calendário de São Paulo. */
+  dia: string;
+  /** De 0 (mesmo dia da nota) a 15. */
+  diasAntes: number;
+  resultado: ResultadoVisita;
+  totalPedido: number;
 };
 
 export type NotaDTO = {
@@ -66,7 +86,12 @@ export type NotaDTO = {
   desconto: number;
   valorTotal: number;
   itens: { codigo: string; descricao: string; quantidade: number; precoUnitario: number; valorTotal: number }[];
+  /**
+   * Na nota sem decisão da gestão, calculado na leitura: `PENDENTE` com
+   * candidata, `SEM_VISITA` sem. Nas demais, o gravado.
+   */
   vinculo: VinculoNota;
+  /** A candidata calculada na leitura; `null` fora de `PENDENTE`. */
   visitaSugerida: VisitaSugeridaDTO | null;
   visitaVinculadaId: string | null;
 };
@@ -76,8 +101,10 @@ export type NotaLidaDTO = {
   chaveAcesso: string;
   numero: string;
   serie: string;
-  /** AAAA-MM-DD */
+  /** AAAA-MM-DD: o dia com que a nota entra no sistema (o da DANFE mais o deslocamento da demonstração). */
   dataEmissao: string;
+  /** AAAA-MM-DD: o dia de emissão impresso na DANFE; igual a `dataEmissao` sem modo demonstração. */
+  dataEmissaoDanfe: string;
   destinatarioNome: string;
   destinatarioCnpj: string;
   cliente: { id: string; nomeFantasia: string } | null;
@@ -101,28 +128,27 @@ export type ImportacaoDTO = {
   cnpjsSemCliente: CnpjSemClienteDTO[];
 };
 
-type VisitaParaDTO = { id: string; dataHora: Date; resultado: ResultadoVisita; totalPedido: number };
-
 const cnpjsSemClienteSchema = z.array(z.object({ cnpj: z.string(), razaoSocial: z.string() })).catch([]);
 
-/** Visitas sugeridas das notas, de uma vez, com o total do pedido de cada uma. */
-async function carregarVisitasSugeridas(
-  notas: NotaComRelacoes[],
-  banco: Banco = prisma,
-): Promise<Map<string, VisitaParaDTO>> {
-  const ids = [...new Set(notas.flatMap((n) => (n.visitaSugeridaId === null ? [] : [n.visitaSugeridaId])))];
-  if (ids.length === 0) return new Map();
-  const visitas = await visitRepository.findManyComItens(ids, banco);
-  return new Map(
-    visitas.map((v) => [
-      v.id,
-      { id: v.id, dataHora: v.dataHora, resultado: v.resultado, totalPedido: Number(somarItens(v.itens)) },
-    ]),
-  );
+/** O dia com que a nota entra: o da DANFE deslocado pelos dias da demonstração (0 no relógio real). */
+function diaDeEntrada(diaDaDanfe: DataCalendario): DataCalendario {
+  return somarDias(diaDaDanfe, deslocamentoDias());
 }
 
-function paraNotaDTO(nota: NotaComRelacoes, visitas: Map<string, VisitaParaDTO>): NotaDTO {
-  const sugerida = nota.visitaSugeridaId === null ? undefined : visitas.get(nota.visitaSugeridaId);
+function paraVisitaSugeridaDTO({ visita, dia, diasAntes }: CandidataDaNota): VisitaSugeridaDTO {
+  return {
+    id: visita.id,
+    dataHora: visita.dataHora.toISOString(),
+    dia,
+    diasAntes,
+    resultado: visita.resultado,
+    totalPedido: Number(somarItens(visita.itens)),
+  };
+}
+
+/** `candidatas`: as de `candidatasDasNotas`, pelo id da nota. */
+function paraNotaDTO(nota: NotaComRelacoes, candidatas: Map<string, CandidataDaNota>): NotaDTO {
+  const candidata = semDecisao(nota) ? (candidatas.get(nota.id) ?? null) : null;
   return {
     id: nota.id,
     chaveAcesso: nota.chaveAcesso,
@@ -150,23 +176,16 @@ function paraNotaDTO(nota: NotaComRelacoes, visitas: Map<string, VisitaParaDTO>)
       precoUnitario: Number(i.precoUnitario),
       valorTotal: Number(i.valorTotal),
     })),
-    vinculo: nota.vinculoStatus,
-    // Se a visita sugerida sumiu (cliente excluído em cascata, por exemplo), a pergunta não tem o que mostrar.
-    visitaSugerida: sugerida
-      ? {
-          id: sugerida.id,
-          dataHora: sugerida.dataHora.toISOString(),
-          resultado: sugerida.resultado,
-          totalPedido: sugerida.totalPedido,
-        }
-      : null,
+    // Leitura não grava: a candidata do mesmo dia também aparece como pendência.
+    vinculo: semDecisao(nota) ? (candidata === null ? 'SEM_VISITA' : 'PENDENTE') : nota.vinculoStatus,
+    visitaSugerida: candidata === null ? null : paraVisitaSugeridaDTO(candidata),
     visitaVinculadaId: nota.visita?.id ?? null,
   };
 }
 
 async function paraNotasDTO(notas: NotaComRelacoes[], banco: Banco = prisma): Promise<NotaDTO[]> {
-  const visitas = await carregarVisitasSugeridas(notas, banco);
-  return notas.map((n) => paraNotaDTO(n, visitas));
+  const candidatas = await candidatasDasNotas(notas, banco);
+  return notas.map((n) => paraNotaDTO(n, candidatas));
 }
 
 function paraImportacaoDTO(
@@ -195,7 +214,7 @@ function itensDaVisita(itens: { codigo: string; descricao: string; quantidade: n
   }));
 }
 
-type Decisao = { status: VinculoNota; visitaSugeridaId: string | null; visitaParaVincular: string | null };
+type Decisao = { status: VinculoNota; visitaRecusadaId: string | null; visitaParaVincular: string | null };
 
 /** Itens de uma nota já gravada no formato que `itensDaVisita` espera. */
 function itensDaNotaGravada(nota: NotaComRelacoes): ItemDoPedidoData[] {
@@ -212,6 +231,9 @@ function itensDaNotaGravada(nota: NotaComRelacoes): ItemDoPedidoData[] {
 /**
  * Situação do vínculo de uma nota que chega (nova ou reimportada) ou que
  * acabou de ganhar cliente (cliente pela nota); da nota só importa o dia.
+ * A decisão já tomada (vínculo ou recusa) se mantém; sem ela, a candidata do
+ * mesmo dia recebe a nota, a de 1 a 15 dias antes a deixa `PENDENTE`, e sem
+ * candidata a nota fica `SEM_VISITA`.
  */
 async function decidirSituacao(
   tx: Prisma.TransactionClient,
@@ -221,30 +243,27 @@ async function decidirSituacao(
 ): Promise<Decisao> {
   // Já vinculada antes: reimportar atualiza a nota e mantém o vínculo.
   if (existente?.visita) {
-    return { status: existente.vinculoStatus, visitaSugeridaId: null, visitaParaVincular: existente.visita.id };
+    return { status: existente.vinculoStatus, visitaRecusadaId: null, visitaParaVincular: existente.visita.id };
   }
   // O gestor já recusou ou desfez o vínculo desta nota: reimportar só atualiza os dados, sem vincular nem perguntar.
   if (existente?.vinculoStatus === 'RECUSADA') {
-    return { status: 'RECUSADA', visitaSugeridaId: null, visitaParaVincular: null };
+    return { status: 'RECUSADA', visitaRecusadaId: existente.visitaRecusadaId, visitaParaVincular: null };
   }
-  if (clientId === null) return { status: 'SEM_CLIENTE', visitaSugeridaId: null, visitaParaVincular: null };
+  if (clientId === null) return { status: 'SEM_CLIENTE', visitaRecusadaId: null, visitaParaVincular: null };
 
-  const ultima = await visitRepository.ultimaVisitaDoCliente(clientId, tx);
-  const decisao = decidirVinculo(nota, ultima);
-  if (decisao.status === 'SEM_VISITA' || ultima === null) {
-    return { status: 'SEM_VISITA', visitaSugeridaId: null, visitaParaVincular: null };
-  }
-  // Duas vendas no mesmo dia: a visita já tem a primeira nota, a segunda só pergunta.
-  if (decisao.status === 'AUTOMATICO' && ultima.erpSaleId === null) {
-    return { status: 'AUTOMATICO', visitaSugeridaId: null, visitaParaVincular: ultima.id };
-  }
-  return { status: 'PENDENTE', visitaSugeridaId: ultima.id, visitaParaVincular: null };
+  const candidata = await candidataDoCliente(clientId, nota.dataEmissao, tx);
+  const status = statusDoVinculo(candidata);
+  return {
+    status,
+    visitaRecusadaId: null,
+    visitaParaVincular: status === 'AUTOMATICO' && candidata !== null ? candidata.visita.id : null,
+  };
 }
 
 /**
  * Nota já gravada (`SEM_CLIENTE`) que acabou de ser ligada a `clientId`
  * (cliente criado pela nota fiscal): decide o vínculo com as mesmas regras da
- * importação e grava o status (e, no mesmo dia da última visita, os itens na
+ * importação e grava o status (e, com candidata do mesmo dia, os itens na
  * visita). Roda na transação de quem chama. Devolve o status decidido.
  */
 export async function decidirVinculoDaNotaLigada(
@@ -253,7 +272,7 @@ export async function decidirVinculoDaNotaLigada(
   clientId: string,
 ): Promise<VinculoNota> {
   const decisao = await decidirSituacao(tx, { dataEmissao: dataDaColunaDate(nota.dataEmissao) }, clientId, nota);
-  await erpSaleRepository.atualizarVinculo(nota.id, decisao.status, decisao.visitaSugeridaId, tx);
+  await erpSaleRepository.atualizarVinculo(nota.id, decisao.status, decisao.visitaRecusadaId, tx);
   if (decisao.visitaParaVincular !== null) {
     await visitRepository.substituirItensPorNota(decisao.visitaParaVincular, nota.id, itensDaNotaGravada(nota), tx);
   }
@@ -289,14 +308,15 @@ async function gravarNota(
 ): Promise<{ id: string; status: VinculoNota }> {
   const existente = await erpSaleRepository.findByChave(nota.chaveAcesso, tx);
   const clientId = await erpSaleRepository.findClienteIdPorCnpj(nota.destinatario.cnpj, tx);
-  const decisao = await decidirSituacao(tx, nota, clientId, existente);
+  const dataEmissao = diaDeEntrada(nota.dataEmissao);
+  const decisao = await decidirSituacao(tx, { dataEmissao }, clientId, existente);
 
   const salva = await erpSaleRepository.salvarNota(
     {
       chaveAcesso: nota.chaveAcesso,
       numero: nota.numero,
       serie: nota.serie,
-      dataEmissao: colunaDateDaData(nota.dataEmissao),
+      dataEmissao: colunaDateDaData(dataEmissao),
       naturezaOperacao: nota.naturezaOperacao,
       destinatarioCnpj: nota.destinatario.cnpj.replace(/\D/g, ''),
       destinatarioNome: nota.destinatario.nome,
@@ -312,7 +332,7 @@ async function gravarNota(
       valorTotal: nota.valorTotal,
       importId,
       vinculoStatus: decisao.status,
-      visitaSugeridaId: decisao.visitaSugeridaId,
+      visitaRecusadaId: decisao.visitaRecusadaId,
       itens: nota.itens.map((i) => ({
         produtoCodigo: i.codigo,
         produtoNome: i.descricao,
@@ -350,7 +370,10 @@ async function lerNotas(conteudo: Buffer): Promise<{ notas: NotaFiscalLida[]; ig
   return lidas;
 }
 
-/** Lê as DANFEs de um PDF sem gravar nada: cliente do CNPJ e se a nota já foi importada. */
+/**
+ * Lê as DANFEs de um PDF sem gravar nada: cliente do CNPJ, se a nota já foi
+ * importada e os dois dias da nota (o da DANFE e o com que ela entra).
+ */
 export async function lerPdf(conteudo: Buffer): Promise<LeituraDTO> {
   const { notas, ignoradas } = await lerNotas(conteudo);
 
@@ -369,7 +392,8 @@ export async function lerPdf(conteudo: Buffer): Promise<LeituraDTO> {
       chaveAcesso: nota.chaveAcesso,
       numero: nota.numero,
       serie: nota.serie,
-      dataEmissao: nota.dataEmissao,
+      dataEmissao: diaDeEntrada(nota.dataEmissao),
+      dataEmissaoDanfe: nota.dataEmissao,
       destinatarioNome: nota.destinatario.nome,
       destinatarioCnpj: cnpj,
       cliente: clientes.get(cnpj) ?? null,
@@ -431,22 +455,27 @@ export async function importarPdf(
   return paraImportacaoDTO(importacao, await paraNotasDTO(ordenadas), ignoradas);
 }
 
-/** Últimas importações (as notas que ainda pertencem a cada uma); as ignoradas não são guardadas. */
+/**
+ * Últimas importações (as notas que ainda pertencem a cada uma, com a
+ * situação calculada na leitura); as ignoradas não são guardadas.
+ */
 export async function listarImportacoes(): Promise<ImportacaoDTO[]> {
   const importacoes = await erpSaleRepository.listarImportacoes(LIMITE_DO_HISTORICO);
-  const todas = importacoes.flatMap((i) => i.sales);
-  const visitas = await carregarVisitasSugeridas(todas);
+  const candidatas = await candidatasDasNotas(importacoes.flatMap((i) => i.sales));
   return importacoes.map((i) =>
     paraImportacaoDTO(
       i,
-      i.sales.map((n) => paraNotaDTO(n, visitas)),
+      i.sales.map((n) => paraNotaDTO(n, candidatas)),
       [],
     ),
   );
 }
 
+/** As notas sem decisão da gestão que têm visita candidata agora, da mais recente para a mais antiga. */
 export async function listarPendencias(): Promise<NotaDTO[]> {
-  return paraNotasDTO(await erpSaleRepository.listarPendentes());
+  const notas = await erpSaleRepository.listarSemDecisao();
+  const candidatas = await candidatasDasNotas(notas);
+  return notas.filter((n) => candidatas.has(n.id)).map((n) => paraNotaDTO(n, candidatas));
 }
 
 /** O gestor responde "sim": a visita (do mesmo cliente, ainda sem nota) recebe a nota. */
@@ -480,11 +509,14 @@ export async function vincular(saleId: string, visitId: string): Promise<NotaDTO
 }
 
 /**
- * Desfaz o vínculo (a visita fica sem itens) ou, numa pendência, responde
- * "não". Em ambos os casos a nota fica `RECUSADA`, e uma reimportação não a
- * vincula nem pergunta de novo. Uma nota `AUTOMATICO`/`VINCULADA` cuja visita
- * foi apagada (ex.: pelo `db:seed:reset`) também fica `RECUSADA`, em vez de
- * seguir "vinculada" sem visita.
+ * Desfaz o vínculo (a visita fica sem itens) ou, numa nota sem decisão,
+ * responde "Deixar só no ERP". Em ambos os casos a nota fica `RECUSADA`, com
+ * a visita recusada gravada (a vinculada, ou a candidata do momento), e não
+ * volta a ser pendência: uma reimportação não a vincula nem pergunta de novo,
+ * e o pedido da visita recusada segue fora das vendas (sem contagem dupla).
+ * Uma nota `AUTOMATICO`/`VINCULADA` cuja visita foi apagada (ex.: pelo
+ * `db:seed:reset`) também fica `RECUSADA`, em vez de seguir "vinculada" sem
+ * visita.
  */
 export async function desvincular(saleId: string): Promise<NotaDTO> {
   return prisma.$transaction(async (tx) => {
@@ -492,18 +524,21 @@ export async function desvincular(saleId: string): Promise<NotaDTO> {
     if (nota === null) throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_NOTA_NAO_ENCONTRADA, 404);
 
     let status: VinculoNota = nota.vinculoStatus;
+    let visitaRecusadaId = nota.visitaRecusadaId;
     if (nota.visita !== null) {
       await visitRepository.desvincularNota(nota.visita.id, tx);
       status = 'RECUSADA';
-    } else if (
-      nota.vinculoStatus === 'PENDENTE' ||
-      nota.vinculoStatus === 'AUTOMATICO' ||
-      nota.vinculoStatus === 'VINCULADA'
-    ) {
+      visitaRecusadaId = nota.visita.id;
+    } else if (semDecisao(nota)) {
+      const candidata = (await candidatasDasNotas([nota], tx)).get(nota.id);
       status = 'RECUSADA';
+      visitaRecusadaId = candidata?.visita.id ?? null;
+    } else if (nota.vinculoStatus === 'AUTOMATICO' || nota.vinculoStatus === 'VINCULADA') {
+      status = 'RECUSADA';
+      visitaRecusadaId = null;
     }
 
-    await erpSaleRepository.atualizarVinculo(nota.id, status, null, tx);
+    await erpSaleRepository.atualizarVinculo(nota.id, status, visitaRecusadaId, tx);
     const atualizada = await erpSaleRepository.findById(nota.id, tx);
     if (atualizada === null) throw new AppError(ErrorCode.NOT_FOUND, MENSAGEM_NOTA_NAO_ENCONTRADA, 404);
     const [dto] = await paraNotasDTO([atualizada], tx);

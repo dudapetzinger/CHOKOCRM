@@ -1,21 +1,22 @@
 import { Router } from 'express';
-import { getKpis, getKpisPorRepresentante } from '../controllers/kpis.controller';
+import { getDetalheDasVisitas, getKpis, getKpisPorRepresentante } from '../controllers/kpis.controller';
 import { getRelatorio } from '../controllers/relatorio.controller';
 import { getVendasMensais } from '../controllers/vendas-mensais.controller';
 import { authJwt } from '../middlewares/authJwt';
 
 /**
- * Router montado em `/dashboard`: os indicadores do painel, o
- * comparativo por representante, as vendas mensais e o relatório da
- * planilha. Qualquer usuário autenticado lê,
- * sem `requireRole`: cada controller passa por `representanteEfetivo`, que
- * prende o representante à própria carteira (o `representanteId` que ele
- * mandar é ignorado); o gestor vê a empresa toda ou a carteira escolhida.
+ * Router montado em `/dashboard`: os indicadores do painel, o comparativo
+ * por representante, o detalhe das visitas do período, as vendas mensais e o
+ * relatório da planilha. Qualquer usuário autenticado lê, sem `requireRole`:
+ * cada controller passa por `representanteEfetivo`, que prende o
+ * representante à própria carteira (o `representanteId` que ele mandar é
+ * ignorado); o gestor vê a empresa toda ou a carteira escolhida.
  */
 export const dashboardRouter = Router();
 
 dashboardRouter.use(authJwt);
 dashboardRouter.get('/kpis', getKpis);
 dashboardRouter.get('/kpis/por-representante', getKpisPorRepresentante);
+dashboardRouter.get('/kpis/visitas', getDetalheDasVisitas);
 dashboardRouter.get('/vendas-mensais', getVendasMensais);
 dashboardRouter.get('/relatorio', getRelatorio);

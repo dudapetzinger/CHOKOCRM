@@ -7,6 +7,8 @@ import { prisma } from '../src/lib/prisma';
 import { erpProvider } from '../src/providers/erp';
 import { ErpIndisponivelError } from '../src/providers/erp/ErpProvider';
 import * as seasonalEventRepository from '../src/repositories/seasonal-event.repository';
+import { agora } from '../src/lib/relogio';
+import { colunaDateDaData, dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -160,6 +162,31 @@ describe('GET /clients/:id/insights', () => {
     expect(res.body.simulado).toBe(true);
     expect(res.body.horizonteDias).toBe(HORIZONTE_PADRAO_DIAS);
     expect(res.body.sugestoes.length + res.body.eventosSemHistorico.length).toBe(1);
+  });
+
+  it('o representante recebe, em cada data, as campanhas em andamento ou programadas que cruzam a janela de vendas', async () => {
+    await criarNatalEmDias(40);
+    // Dias a partir do hoje do sistema no fuso do negócio, como o serviço calcula, gravados como coluna de data.
+    const dia = (deslocamento: number): Date => colunaDateDaData(somarDias(dataCalendario(agora()), deslocamento));
+    // O Natal teste é daqui a 40 dias: a janela de vendas vai de hoje + 10 a hoje + 40.
+    await prisma.campaign.createMany({
+      data: [
+        { nome: 'Promoção de Natal', tipo: 'PROMOCAO', inicio: dia(20), fim: dia(60), desconto: 12, produtos: [] },
+        { nome: 'Campanha encerrada', tipo: 'CAMPANHA', inicio: dia(-30), fim: dia(-1), produtos: [] },
+        { nome: 'Campanha distante', tipo: 'CAMPANHA', inicio: dia(70), fim: dia(90), produtos: [] },
+      ],
+    });
+
+    const res = await request(app)
+      .get(`/clients/${clienteComErpId}/insights`)
+      .set('Authorization', `Bearer ${token}`);
+
+    const [entrada] = [...res.body.sugestoes, ...res.body.eventosSemHistorico];
+
+    expect(res.status).toBe(200);
+    expect(entrada.campanhas).toEqual([
+      expect.objectContaining({ nome: 'Promoção de Natal', tipo: 'PROMOCAO', desconto: 12, situacao: 'PROGRAMADA' }),
+    ]);
   });
 
   it('o gestor também recebe 200', async () => {

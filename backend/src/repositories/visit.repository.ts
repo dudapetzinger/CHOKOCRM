@@ -216,37 +216,82 @@ export async function listNoPeriodoComPedido(
   }));
 }
 
-/** Cliente do Prisma ou a transação em andamento (a importação de notas grava tudo numa transação só). */
-type Banco = PrismaClient | Prisma.TransactionClient;
-
-export type UltimaVisitaDoCliente = {
+/** Visita do período com o cliente e o dono da carteira por extenso, para o detalhe do painel lateral. */
+export type VisitaDoPeriodoParaDetalheData = {
   id: string;
   dataHora: Date;
   resultado: ResultadoVisita;
-  erpSaleId: string | null;
+  totalPedido: Prisma.Decimal;
+  cliente: { id: string; nomeFantasia: string; cidade: string; ativo: boolean };
+  representante: { id: string; nome: string };
 };
 
-/** Visita mais recente do cliente, de qualquer resultado, para o vínculo com a nota. */
-export async function ultimaVisitaDoCliente(
-  clientId: string,
-  banco: Banco = prisma,
-): Promise<UltimaVisitaDoCliente | null> {
-  return banco.visit.findFirst({
-    where: { clientId },
-    orderBy: [{ dataHora: 'desc' }, { criadoEm: 'desc' }],
-    select: { id: true, dataHora: true, resultado: true, erpSaleId: true },
+/**
+ * O mesmo recorte de `listNoPeriodoComPedido` (mesmo período, mesma carteira
+ * pelo cliente, mesmo `totalPedido`), com o id da visita, a cidade, a situação
+ * do cliente e o nome do representante dono da carteira.
+ */
+export async function listNoPeriodoParaDetalhe(
+  inicio: Date,
+  fim: Date,
+  representanteId?: string,
+): Promise<VisitaDoPeriodoParaDetalheData[]> {
+  const visitas = await prisma.visit.findMany({
+    where: filtroDoPeriodo(inicio, fim, representanteId),
+    select: {
+      id: true,
+      dataHora: true,
+      resultado: true,
+      client: {
+        select: {
+          id: true,
+          nomeFantasia: true,
+          cidade: true,
+          ativo: true,
+          representante: { select: { id: true, nome: true } },
+        },
+      },
+      itens: { select: { quantidade: true, precoUnitario: true } },
+    },
+    orderBy: [{ dataHora: 'desc' }, { id: 'asc' }],
+  });
+
+  return visitas.map(({ client, itens, ...visita }) => {
+    const { representante, ...dadosDoCliente } = client;
+    return { ...visita, totalPedido: somarItens(itens), cliente: dadosDoCliente, representante };
   });
 }
 
-/** Visitas com os itens do pedido, para mostrar a visita sugerida das pendências. */
-export async function findManyComItens(
-  ids: string[],
+/** Cliente do Prisma ou a transação em andamento (a importação de notas grava tudo numa transação só). */
+type Banco = PrismaClient | Prisma.TransactionClient;
+
+export type VisitaSemNota = {
+  id: string;
+  clientId: string;
+  dataHora: Date;
+  resultado: ResultadoVisita;
+  itens: ItemSomavel[];
+};
+
+/**
+ * Visitas dos clientes, de qualquer resultado, ainda sem nota ligada, com
+ * `dataHora` entre os instantes `inicio` e `fim` (inclusivos), da mais
+ * recente para a mais antiga, com os itens do pedido: as possíveis
+ * candidatas das notas (`visita-candidata.ts`).
+ */
+export async function listarVisitasSemNota(
+  clientIds: string[],
+  inicio: Date,
+  fim: Date,
   banco: Banco = prisma,
-): Promise<{ id: string; dataHora: Date; resultado: ResultadoVisita; itens: ItemSomavel[] }[]> {
+): Promise<VisitaSemNota[]> {
+  if (clientIds.length === 0) return [];
   return banco.visit.findMany({
-    where: { id: { in: ids } },
+    where: { clientId: { in: clientIds }, erpSaleId: null, dataHora: { gte: inicio, lte: fim } },
+    orderBy: [{ dataHora: 'desc' }, { criadoEm: 'desc' }],
     select: {
       id: true,
+      clientId: true,
       dataHora: true,
       resultado: true,
       itens: { select: { quantidade: true, precoUnitario: true } },
@@ -304,27 +349,19 @@ export type PedidoSemNota = Prisma.VisitGetPayload<{ select: typeof SELECT_PEDID
  * visitas VENDA com pelo menos um item e `erpSaleId` nulo. A visita com nota
  * vinculada fica de fora (os itens dela já são os da nota, que o provedor lê
  * por conta própria); VENDA sem itens também (não vira venda de valor 0).
- * Fica de fora ainda a visita que é a `visitaSugeridaId` de alguma nota do
- * mesmo CNPJ, em qualquer status (pendente ou recusada): se uma nota apontou
- * para ela, o ERP já tem essa venda e ela não conta duas vezes.
- * `inicio`/`fim` filtram `dataHora` com os dois instantes inclusivos; da
- * mais recente para a mais antiga; `limite` corta a lista.
+ * Ficam de fora ainda as visitas de `excluir` (a candidata de uma nota sem
+ * decisão e a visita recusada pela gestão: o ERP já tem essa venda e ela não
+ * conta duas vezes). `inicio`/`fim` filtram `dataHora` com os dois instantes
+ * inclusivos; da mais recente para a mais antiga; `limite` corta a lista.
  */
 export async function listarPedidosSemNotaDoCnpj(
   cnpj: string,
-  { inicio, fim, limite }: { inicio?: Date; fim?: Date; limite?: number } = {},
+  { inicio, fim, limite, excluir = [] }: { inicio?: Date; fim?: Date; limite?: number; excluir?: string[] } = {},
 ): Promise<PedidoSemNota[]> {
-  const notasQueApontam = await prisma.erpSale.findMany({
-    where: { destinatarioCnpj: cnpj, visitaSugeridaId: { not: null } },
-    select: { visitaSugeridaId: true },
-  });
-  const visitasApontadas = notasQueApontam.flatMap((nota) =>
-    nota.visitaSugeridaId === null ? [] : [nota.visitaSugeridaId],
-  );
   return prisma.visit.findMany({
     where: {
       client: { cnpj },
-      ...(visitasApontadas.length > 0 ? { id: { notIn: visitasApontadas } } : {}),
+      ...(excluir.length > 0 ? { id: { notIn: excluir } } : {}),
       resultado: 'VENDA',
       erpSaleId: null,
       itens: { some: {} },

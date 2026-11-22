@@ -1,6 +1,8 @@
 // Primeiro import: troca o provedor para `importado` antes de `config/env` ser lido.
 import './helpers/provedor-importado';
 import bcrypt from 'bcryptjs';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import request from 'supertest';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
@@ -16,7 +18,15 @@ import {
   somarDias,
 } from '../src/services/classificacao.service';
 import * as erpService from '../src/services/erp.service';
+import { extrairTextoDoPdf } from '../src/services/importacao-nf/pdf-texto';
+import { ativarDataDeDemonstracao, DATA_SIMULADA } from './helpers/data-de-demonstracao';
 import { truncateAllTables } from './helpers/db';
+
+// O extrator do PDF (pdf.js num worker) é trocado pelas linhas do fixture, como em importacao-nf.test.ts.
+jest.mock('../src/services/importacao-nf/pdf-texto', () => ({ extrairTextoDoPdf: jest.fn() }));
+const extrairMock = jest.mocked(extrairTextoDoPdf);
+const LINHAS_NF_2455 = readFileSync(join(__dirname, 'fixtures', 'danfe-2455.txt'), 'utf8').split(/\r?\n/);
+const CNPJ_NF_2455 = '25382906000149';
 
 /**
  * Provedor de ERP `importado`: as vendas vêm das notas fiscais
@@ -386,14 +396,12 @@ describe('ImportadoErpProvider: notas + pedidos dos check-ins sem nota', () => {
     expect(vendas.map((venda) => venda.origem?.tipo)).toEqual(['nota', 'pedido']);
   });
 
-  it('nota PENDENTE que sugere a visita: o pedido dela não entra (a nota já é essa venda); vinculada, continua uma vez só', async () => {
+  it('nota sem decisão com visita candidata (até 15 dias antes): o pedido dela não entra; vinculada, continua uma vez só', async () => {
     const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
     const visita = await criarPedido(emporioId, noDia('2026-09-28', 10));
     const nota = await criarNota(CNPJ_EMPORIO, '2026-10-01', 100, ITENS_PADRAO, '2455');
-    await prisma.erpSale.update({
-      where: { id: nota.id },
-      data: { vinculoStatus: 'PENDENTE', visitaSugeridaId: visita.id },
-    });
+    // O status gravado é SEM_VISITA: a candidata é calculada na leitura, não guardada.
+    await prisma.erpSale.update({ where: { id: nota.id }, data: { clientId: emporioId } });
     const periodo = { inicio: inicioDoDia('2026-09-01'), fim: fimDoDia('2026-10-31') };
 
     const vendas = await provedor.getRecentSales(CNPJ_EMPORIO, 10);
@@ -405,7 +413,7 @@ describe('ImportadoErpProvider: notas + pedidos dos check-ins sem nota', () => {
 
     // O gestor vincula a pendência: a visita passa a apontar para a nota.
     await prisma.$transaction([
-      prisma.erpSale.update({ where: { id: nota.id }, data: { vinculoStatus: 'VINCULADA', visitaSugeridaId: null } }),
+      prisma.erpSale.update({ where: { id: nota.id }, data: { vinculoStatus: 'VINCULADA' } }),
       prisma.visit.update({ where: { id: visita.id }, data: { erpSaleId: nota.id } }),
     ]);
     await expect(provedor.getPurchaseVolume(CNPJ_EMPORIO, periodo)).resolves.toEqual({
@@ -414,22 +422,41 @@ describe('ImportadoErpProvider: notas + pedidos dos check-ins sem nota', () => {
     });
   });
 
-  it('nota RECUSADA que apontava para a visita também a tira do histórico; visita sem nota apontando entra', async () => {
+  it('visita posterior à nota ou a 16 dias dela não é candidata: o pedido conta junto da nota', async () => {
     const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
-    const apontada = await criarPedido(emporioId, noDia('2026-09-28', 10));
-    const livre = await criarPedido(emporioId, noDia('2026-10-05', 10));
+    const antiga = await criarPedido(emporioId, noDia('2026-09-15', 10));
+    const posterior = await criarPedido(emporioId, noDia('2026-10-02', 10));
     const nota = await criarNota(CNPJ_EMPORIO, '2026-10-01', 100, ITENS_PADRAO, '2455');
-    await prisma.erpSale.update({
-      where: { id: nota.id },
-      data: { vinculoStatus: 'RECUSADA', visitaSugeridaId: apontada.id },
-    });
+    await prisma.erpSale.update({ where: { id: nota.id }, data: { clientId: emporioId, vinculoStatus: 'PENDENTE' } });
 
     const vendas = await provedor.getRecentSales(CNPJ_EMPORIO, 10);
 
     expect(vendas.map((venda) => venda.origem)).toEqual([
+      { tipo: 'pedido', visitaId: posterior.id },
+      { tipo: 'nota', numero: '2455' },
+      { tipo: 'pedido', visitaId: antiga.id },
+    ]);
+  });
+
+  it('"Deixar só no ERP" grava a visita recusada: o pedido dela continua fora (sem contagem dupla)', async () => {
+    const emporioId = await criarCliente(CNPJ_EMPORIO, 'Emporio Pomerode');
+    const recusada = await criarPedido(emporioId, noDia('2026-09-28', 10));
+    const livre = await criarPedido(emporioId, noDia('2026-10-05', 10));
+    const nota = await criarNota(CNPJ_EMPORIO, '2026-10-01', 100, ITENS_PADRAO, '2455');
+    await prisma.erpSale.update({ where: { id: nota.id }, data: { clientId: emporioId, vinculoStatus: 'PENDENTE' } });
+
+    const res = await request(app)
+      .delete(`/erp/vendas/${nota.id}/vinculo`)
+      .set('Authorization', `Bearer ${tokenGestor}`);
+    expect(res.status).toBe(200);
+    expect(res.body.vinculo).toBe('RECUSADA');
+
+    const vendas = await provedor.getRecentSales(CNPJ_EMPORIO, 10);
+    expect(vendas.map((venda) => venda.origem)).toEqual([
       { tipo: 'pedido', visitaId: livre.id },
       { tipo: 'nota', numero: '2455' },
     ]);
+    expect(vendas.map((venda) => venda.origem)).not.toContainEqual({ tipo: 'pedido', visitaId: recusada.id });
   });
 });
 
@@ -469,7 +496,12 @@ describe('GET /clients/:id/erp (importado)', () => {
     expect(res.body.estoque).toBeNull();
     expect(res.body.ultimaVenda.valor).toBe(100);
     expect(dataCalendario(new Date(res.body.ultimaVenda.data))).toBe(diaRelativo(0));
-    expect(res.body.volume90Dias).toEqual({ total: 400, quantidadeVendas: 5 });
+    expect(res.body.volume90Dias).toEqual({
+      total: 400,
+      quantidadeVendas: 5,
+      inicio: diaRelativo(-90),
+      fim: diaRelativo(0),
+    });
     expect(res.body.ultimasVendas).toHaveLength(5);
     expect(res.body.ultimasVendas.map((venda: { data: string }) => venda.data)).toEqual([
       diaRelativo(0),
@@ -495,7 +527,7 @@ describe('GET /clients/:id/erp (importado)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ultimaVenda).toEqual({ data: noDia(diaRelativo(-2), 10).toISOString(), valor: 103.8 });
-    expect(res.body.volume90Dias).toEqual({ total: 203.8, quantidadeVendas: 2 });
+    expect(res.body.volume90Dias).toMatchObject({ total: 203.8, quantidadeVendas: 2 });
     expect(
       res.body.ultimasVendas.map((venda: { data: string; valor: number; origem: unknown }) => [
         venda.data,
@@ -519,10 +551,35 @@ describe('GET /clients/:id/erp (importado)', () => {
       status: 'OK',
       simulado: false,
       ultimaVenda: null,
-      volume90Dias: { total: 0, quantidadeVendas: 0 },
+      volume90Dias: { total: 0, quantidadeVendas: 0, inicio: diaRelativo(-90), fim: diaRelativo(0) },
       estoque: null,
       estoqueIndisponivel: true,
       ultimasVendas: [],
+    });
+  });
+
+  it('nota emitida no dia real de hoje, importada com o relógio deslocado, entra no volume dos 90 dias simulados', async () => {
+    const clienteId = await criarCliente(CNPJ_NF_2455, 'Don Giacomo');
+    await ativarDataDeDemonstracao();
+    const [ano, mes, dia] = diaRelativo(0).split('-');
+    const emitidaHoje = LINHAS_NF_2455.map((linha) => linha.replaceAll('04/11/2026', `${dia}/${mes}/${ano}`));
+    extrairMock.mockResolvedValue([{ numero: 1, linhas: emitidaHoje }]);
+
+    const importada = await request(app)
+      .post('/erp/importacoes?nome=notas.pdf')
+      .set('Authorization', `Bearer ${tokenGestor}`)
+      .set('Content-Type', 'application/pdf')
+      .send(Buffer.from('%PDF-1.4 simulado'));
+    expect(importada.status).toBe(201);
+
+    const res = await request(app).get(`/clients/${clienteId}/erp`).set('Authorization', `Bearer ${tokenRep}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.volume90Dias).toEqual({
+      total: 1529.98,
+      quantidadeVendas: 1,
+      inicio: somarDias(DATA_SIMULADA, -90),
+      fim: DATA_SIMULADA,
     });
   });
 

@@ -10,7 +10,7 @@ import { prisma } from '../src/lib/prisma';
 import { agora, dataDeDemonstracao, deslocamentoDias, simulado } from '../src/lib/relogio';
 import { reiniciarDemonstracao } from '../src/seed/demonstracao';
 import * as agendaService from '../src/services/agenda.service';
-import { dataCalendario, inicioDoDia, somarDias } from '../src/services/classificacao.service';
+import { dataCalendario, dataDaColunaDate, inicioDoDia, somarDias } from '../src/services/classificacao.service';
 import { extrairTextoDoPdf } from '../src/services/importacao-nf/pdf-texto';
 import { fileStorage } from '../src/storage';
 import {
@@ -39,6 +39,14 @@ import { fixarRelogio, liberarRelogio } from './helpers/relogio';
 jest.mock('../src/services/importacao-nf/pdf-texto', () => ({ extrairTextoDoPdf: jest.fn() }));
 const extrairMock = jest.mocked(extrairTextoDoPdf);
 const LINHAS_NF_2455 = readFileSync(join(__dirname, 'fixtures', 'danfe-2455.txt'), 'utf8').split(/\r?\n/);
+/** Dia de emissão impresso na DANFE do fixture. */
+const DIA_DA_DANFE_2455 = '2026-11-04';
+
+/** A NF 2455 com o dia de emissão trocado por `dia` ('AAAA-MM-DD'). */
+function danfeEmitidaEm(dia: string): string[] {
+  const [ano, mes, diaDoMes] = dia.split('-');
+  return LINHAS_NF_2455.map((linha) => linha.replaceAll('04/11/2026', `${diaDoMes}/${mes}/${ano}`));
+}
 
 const SENHA = 'chokocrm123';
 const USUARIO_REP = 'eduarda.relogio-teste';
@@ -313,6 +321,60 @@ describe('modo demonstração ligado (2027-03-15)', () => {
     expect(dataCalendario(new Date(res.body.criadoEm))).toBe(DATA_SIMULADA);
     const importacao = await prisma.erpImport.findUniqueOrThrow({ where: { id: res.body.id } });
     expect(dataCalendario(importacao.criadoEm)).toBe(DATA_SIMULADA);
+  });
+
+  it('importação grava o dia de emissão da DANFE deslocado pelos dias da demonstração', async () => {
+    const token = await logar(USUARIO_GESTOR);
+    const res = await request(app)
+      .post('/erp/importacoes?nome=notas.pdf')
+      .set('Authorization', `Bearer ${token}`)
+      .set('Content-Type', 'application/pdf')
+      .send(Buffer.from('%PDF-1.4 simulado'));
+
+    const esperado = somarDias(DIA_DA_DANFE_2455, deslocamentoEsperado());
+    expect(res.status).toBe(201);
+    expect(res.body.notas[0].dataEmissao).toBe(esperado);
+    const nota = await prisma.erpSale.findFirstOrThrow();
+    expect(dataDaColunaDate(nota.dataEmissao)).toBe(esperado);
+  });
+
+  it('a leitura do PDF devolve o dia da DANFE e o dia com que a nota entra', async () => {
+    const token = await logar(USUARIO_GESTOR);
+    const res = await request(app)
+      .post('/erp/importacoes/leitura?nome=notas.pdf')
+      .set('Authorization', `Bearer ${token}`)
+      .set('Content-Type', 'application/pdf')
+      .send(Buffer.from('%PDF-1.4 simulado'));
+
+    expect(res.status).toBe(200);
+    expect(res.body.notas[0]).toMatchObject({
+      dataEmissaoDanfe: DIA_DA_DANFE_2455,
+      dataEmissao: somarDias(DIA_DA_DANFE_2455, deslocamentoEsperado()),
+    });
+    expect(await prisma.erpSale.count()).toBe(0);
+  });
+
+  it('nota emitida no dia real de hoje entra no hoje simulado, e reimportar com outra data realinha o dia', async () => {
+    extrairMock.mockResolvedValue([{ numero: 1, linhas: danfeEmitidaEm(DIA_REAL) }]);
+    const token = await logar(USUARIO_GESTOR);
+    const importar = () =>
+      request(app)
+        .post('/erp/importacoes?nome=notas.pdf')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', 'application/pdf')
+        .send(Buffer.from('%PDF-1.4 simulado'));
+
+    expect((await importar()).status).toBe(201);
+    const primeira = await prisma.erpSale.findFirstOrThrow();
+    expect(dataDaColunaDate(primeira.dataEmissao)).toBe(DATA_SIMULADA);
+
+    await ativarDataDeDemonstracao('2027-04-01');
+    const segunda = await importar();
+
+    expect(segunda.status).toBe(201);
+    expect(segunda.body.notas[0]).toMatchObject({ id: primeira.id, dataEmissao: '2027-04-01' });
+    const realinhada = await prisma.erpSale.findUniqueOrThrow({ where: { id: primeira.id } });
+    expect(dataDaColunaDate(realinhada.dataEmissao)).toBe('2027-04-01');
   });
 
   it('a agenda diária, sem argumento, calcula o dia simulado', async () => {

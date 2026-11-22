@@ -9,6 +9,13 @@ import { erpProvider } from '../src/providers/erp';
 import { HibridoErpProvider } from '../src/providers/erp/HibridoErpProvider';
 import { extrairTextoDoPdf } from '../src/services/importacao-nf/pdf-texto';
 import { CLIENTES_ANCORA, USUARIO_GESTAO, reiniciarDemonstracao, SENHA_DEMONSTRACAO } from '../src/seed/demonstracao';
+import {
+  colunaDateDaData,
+  dataCalendario,
+  fimDoDia,
+  inicioDoDia,
+  somarDias,
+} from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 /**
@@ -94,10 +101,78 @@ describe('seed de demonstração com o provedor híbrido', () => {
       const nota = await prisma.erpSale.findFirstOrThrow({ where: { destinatarioCnpj: CNPJ_NF } });
       expect(nota.clientId).toBeNull();
       expect(nota.vinculoStatus).toBe('SEM_CLIENTE');
-      expect(nota.visitaSugeridaId).toBeNull();
+      expect(nota.visitaRecusadaId).toBeNull();
       const resposta = await request(app).get('/erp/sem-cliente').set('Authorization', `Bearer ${await tokenDaGestao()}`);
       expect(resposta.status).toBe(200);
       expect(resposta.body.data.map((grupo: { cnpj: string }) => grupo.cnpj)).toContain(CNPJ_NF);
+    });
+
+    it('a recriação não deixa pendência apontando para visita inexistente: a nota volta a ter a candidata das visitas novas', async () => {
+      await reiniciarDemonstracao(prisma, HOJE);
+      const ancora = CLIENTES_ANCORA[0];
+      if (!ancora) throw new Error('o seed não tem cliente âncora');
+      const antes = await prisma.client.findUniqueOrThrow({ where: { cnpj: ancora.cnpj } });
+      const visitaAntiga = await prisma.visit.findFirstOrThrow({
+        where: { clientId: antes.id, erpSaleId: null },
+        orderBy: { dataHora: 'desc' },
+      });
+      // Nota um dia depois da visita mais recente do cliente: pendente, apontando para ela.
+      const diaDaNota = somarDias(dataCalendario(visitaAntiga.dataHora), 1);
+      await prisma.erpSale.create({
+        data: {
+          chaveAcesso: '42261100000000000000550010000000021000000021',
+          numero: '2',
+          serie: '1',
+          dataEmissao: colunaDateDaData(diaDaNota),
+          naturezaOperacao: 'VENDA',
+          destinatarioCnpj: ancora.cnpj,
+          destinatarioNome: ancora.razaoSocial,
+          clientId: antes.id,
+          valorProdutos: 100,
+          desconto: 0,
+          valorTotal: 100,
+          importId: (
+            await prisma.erpImport.create({
+              data: {
+                userId: (await prisma.user.findFirstOrThrow({ where: { usuario: USUARIO_GESTAO } })).id,
+                nomeArquivo: 'notas.pdf',
+                notasImportadas: 1,
+                notasIgnoradas: 0,
+                vinculadasAutomaticamente: 0,
+                pendentes: 1,
+                cnpjsSemCliente: [],
+              },
+            })
+          ).id,
+          vinculoStatus: 'PENDENTE',
+        },
+      });
+      const token = await tokenDaGestao();
+      const antesDoReset = await request(app).get('/erp/pendencias').set('Authorization', `Bearer ${token}`);
+      expect(antesDoReset.body.data.map((nota: { visitaSugerida: { id: string } }) => nota.visitaSugerida.id)).toEqual([
+        visitaAntiga.id,
+      ]);
+
+      await reiniciarDemonstracao(prisma, HOJE);
+
+      expect(await prisma.visit.findUnique({ where: { id: visitaAntiga.id } })).toBeNull();
+      const novo = await prisma.client.findUniqueOrThrow({ where: { cnpj: ancora.cnpj } });
+      const candidata = await prisma.visit.findFirstOrThrow({
+        where: {
+          clientId: novo.id,
+          erpSaleId: null,
+          dataHora: { gte: inicioDoDia(somarDias(diaDaNota, -15)), lte: fimDoDia(diaDaNota) },
+        },
+        orderBy: { dataHora: 'desc' },
+      });
+      const depois = await request(app).get('/erp/pendencias').set('Authorization', `Bearer ${await tokenDaGestao()}`);
+      expect(depois.status).toBe(200);
+      expect(depois.body.data).toHaveLength(1);
+      expect(depois.body.data[0]).toMatchObject({
+        dataEmissao: diaDaNota,
+        cliente: { id: novo.id },
+        visitaSugerida: { id: candidata.id },
+      });
     });
 
     it('a nota de um CNPJ que continua no seed segue alimentando o cliente', async () => {

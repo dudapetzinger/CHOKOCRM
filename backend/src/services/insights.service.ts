@@ -1,9 +1,11 @@
 import { MAX_PRODUTOS_MAIS_COMPRADOS } from '../config/sazonalidade';
+import * as campaignRepository from '../repositories/campaign.repository';
 import * as clientRepository from '../repositories/client.repository';
 import type { ClienteParaAgenda } from '../repositories/client.repository';
 import * as seasonalEventRepository from '../repositories/seasonal-event.repository';
 import {
   dataCalendario,
+  dataDaColunaDate,
   diasEntre,
   fimDoDia,
   inicioDoDia,
@@ -22,8 +24,10 @@ import {
 import {
   acaoPorVariacao,
   calcularVariacao,
+  campanhasDaJanela,
   cruzarEstoqueComEventos,
   eventosNoHorizonte,
+  janelaDeVendas,
   janelaDoAnoAnterior,
   mediaNaJanela,
   montarTextoDaSugestao,
@@ -33,6 +37,7 @@ import {
   vendasNaJanela,
   type AcaoSugerida,
   type AlertaProducao,
+  type CampanhaDaJanela,
   type ClienteComEstoque,
   type EventoProximo,
   type Janela,
@@ -63,6 +68,8 @@ export type SugestaoDTO = {
   /** R$ que o cliente compraria no ritmo do período de base, para a mesma duração da janela. */
   mediaNaJanela: number;
   produtosMaisComprados: { sku: string; nome: string; quantidade: number }[];
+  /** Campanhas, promoções e eventos em andamento ou programados que cobrem a janela de vendas da data (30 dias antes até o dia), por início. */
+  campanhas: CampanhaDaJanela[];
   titulo: string;
   texto: string;
 };
@@ -73,7 +80,7 @@ export type InsightsDTO =
       simulado: boolean;
       horizonteDias: number;
       sugestoes: SugestaoDTO[];
-      eventosSemHistorico: { id: string; nome: string; diasAteEvento: number }[];
+      eventosSemHistorico: { id: string; nome: string; diasAteEvento: number; campanhas: CampanhaDaJanela[] }[];
     }
   | { status: 'SEM_ERP_ID' }
   | { status: 'INDISPONIVEL' };
@@ -99,7 +106,7 @@ export type AlertasDTO = {
 };
 
 /** Eventos com `dataFim` em `[hoje, hoje + horizonteDias]`, do mais próximo ao mais distante. */
-async function eventosDoHorizonte(hoje: DataCalendario, horizonteDias: number): Promise<EventoProximo[]> {
+export async function eventosDoHorizonte(hoje: DataCalendario, horizonteDias: number): Promise<EventoProximo[]> {
   const eventos = await seasonalEventRepository.findNoIntervalo(hoje, somarDias(hoje, horizonteDias));
 
   return eventosNoHorizonte(eventos, hoje, horizonteDias);
@@ -126,6 +133,30 @@ function periodoDaConsulta(comparacoes: { janela: Janela; base: Janela }[]): { i
       comparacoes.reduce((maior, { janela }) => (janela.fim > maior ? janela.fim : maior), primeira.janela.fim),
     ),
   };
+}
+
+/**
+ * Uma única consulta de campanhas para todas as datas: do começo da primeira
+ * janela de vendas ao fim da última. Cada data filtra depois, em
+ * `campanhasDaJanela`. Todas as campanhas são visíveis a representante e gestor.
+ */
+export async function campanhasDoHorizonte(
+  eventos: EventoProximo[],
+  hoje: DataCalendario,
+): Promise<Omit<CampanhaDaJanela, 'situacao'>[]> {
+  const janelas = eventos.map(janelaDeVendas);
+  const inicio = janelas.reduce((menor, janela) => (janela.inicio < menor ? janela.inicio : menor), janelas[0]?.inicio ?? hoje);
+  const fim = janelas.reduce((maior, janela) => (janela.fim > maior ? janela.fim : maior), janelas[0]?.fim ?? hoje);
+  const linhas = await campaignRepository.listarNoIntervalo(inicio, fim);
+
+  return linhas.map((linha) => ({
+    id: linha.id,
+    nome: linha.nome,
+    tipo: linha.tipo,
+    inicio: dataDaColunaDate(linha.inicio),
+    fim: dataDaColunaDate(linha.fim),
+    desconto: linha.desconto,
+  }));
 }
 
 function arredondarCentavos(valor: number): number {
@@ -175,17 +206,25 @@ export async function obterInsights(
     return { status: 'INDISPONIVEL' };
   }
 
+  const diaDeHoje = dataCalendario(hoje);
+  const campanhasDoPeriodo = await campanhasDoHorizonte(eventos, diaDeHoje);
   const sugestoes: SugestaoDTO[] = [];
-  const eventosSemHistorico: { id: string; nome: string; diasAteEvento: number }[] = [];
+  const eventosSemHistorico: { id: string; nome: string; diasAteEvento: number; campanhas: CampanhaDaJanela[] }[] = [];
 
   for (const { evento, janela, base } of comparacoes) {
     const totalJanela = totalNaJanela(vendas, janela);
     const totalBase = totalNaJanela(vendas, base);
     const diasJanela = diasEntre(janela.inicio, janela.fim) + 1;
     const variacao = calcularVariacao(totalJanela, totalBase, diasJanela);
+    const campanhas = campanhasDaJanela(campanhasDoPeriodo, janelaDeVendas(evento), diaDeHoje);
 
     if (variacao === null) {
-      eventosSemHistorico.push({ id: evento.id, nome: evento.nome, diasAteEvento: evento.diasAteEvento });
+      eventosSemHistorico.push({
+        id: evento.id,
+        nome: evento.nome,
+        diasAteEvento: evento.diasAteEvento,
+        campanhas,
+      });
       continue;
     }
 
@@ -209,6 +248,7 @@ export async function obterInsights(
       comprasNaJanela: arredondarCentavos(totalJanela),
       mediaNaJanela: arredondarCentavos(mediaNaJanela(totalBase, diasJanela)),
       produtosMaisComprados: produtos,
+      campanhas,
       titulo,
       texto,
     });

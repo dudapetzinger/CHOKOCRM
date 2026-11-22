@@ -2,13 +2,16 @@ import * as clientRepository from '../repositories/client.repository';
 import { dataCalendario, fimDoDia, inicioDoDia, type DataCalendario } from './classificacao.service';
 import { chaveDoCliente, consultarVendasEmLote, erpSimulado } from './erp.service';
 import type { Janela } from './kpis.regras';
+import { eventosDoHorizonte } from './insights.service';
 import {
+  estenderMesesAte,
   marcadoresDeEventos,
+  marcarMesesFuturos,
   mesesDaJanela,
   serieMensal,
   ultimoDiaDoMes,
   type MarcadorDeEvento,
-  type PontoMensal,
+  type PontoMensalDTO,
   type VendasDeUmCliente,
 } from './vendas-mensais.regras';
 import { agora } from '../lib/relogio';
@@ -23,8 +26,13 @@ import { agora } from '../lib/relogio';
 export type VendasMensaisDTO = {
   /** O período pedido, já resolvido (dias e datas de início e fim). */
   periodo: { dias: number; inicio: DataCalendario; fim: DataCalendario };
-  /** Os meses ('AAAA-MM') do início ao fim do período (no mínimo `MESES_MINIMOS_DO_GRAFICO`), do mais antigo ao mais recente. */
-  meses: PontoMensal[];
+  /**
+   * Os meses ('AAAA-MM') do início ao fim do período (no mínimo
+   * `MESES_MINIMOS_DO_GRAFICO`), do mais antigo ao mais recente; com
+   * `ateProximaData`, seguidos dos meses até o da próxima data comemorativa,
+   * os futuros com `futuro: true` e sem valor.
+   */
+  meses: PontoMensalDTO[];
   /** Eventos sazonais que caem nesses meses, por data. */
   eventos: MarcadorDeEvento[];
   simulado: boolean;
@@ -36,20 +44,38 @@ export type VendasMensaisDTO = {
   clientesConsultados: number;
   /** Dos consultados, quantos o ERP não conseguiu responder. */
   clientesIndisponiveis: number;
+  /** A data comemorativa até cujo mês a série foi estendida; `null` sem a opção, com o período no passado ou sem data no horizonte. */
+  proximaData: { id: string; nome: string; chave: string; data: DataCalendario } | null;
 };
+
+/**
+ * Estende a série até o mês da próxima data comemorativa em até
+ * `horizonteDias` dias, só quando o período termina no mês de hoje; com o
+ * período no passado, a opção é ignorada (`proximaData` nula).
+ */
+export type OpcoesDaSerie = { ateProximaData?: { horizonteDias: number } };
 
 /**
  * Com `representanteId`, só a carteira daquele representante; sem ele, a
  * empresa toda. O período no ERP vai de 00:00 do primeiro dia do mês mais
- * antigo ao fim do último dia do mais recente (ou de hoje, se o mês é o atual).
+ * antigo ao fim do último dia do mais recente (ou de hoje, se o mês é o atual
+ * ou futuro): a série estendida não faz consulta a mais ao ERP.
  */
 export async function obterVendasMensais(
   janela: Janela,
   hoje: Date = agora(),
   representanteId?: string,
+  opcoes: OpcoesDaSerie = {},
 ): Promise<VendasMensaisDTO> {
   const hojeCal = dataCalendario(hoje);
-  const meses = mesesDaJanela(janela);
+  const mesesDoPeriodo = mesesDaJanela(janela);
+  // Só o período que termina no mês de hoje se estende: um período no passado ignora a opção.
+  const terminaNoMesDeHoje = mesesDoPeriodo[mesesDoPeriodo.length - 1] === hojeCal.slice(0, 7);
+  const [proxima] =
+    opcoes.ateProximaData && terminaNoMesDeHoje
+      ? await eventosDoHorizonte(hojeCal, opcoes.ateProximaData.horizonteDias)
+      : [];
+  const meses = proxima ? estenderMesesAte(mesesDoPeriodo, proxima.dataEvento.slice(0, 7)) : mesesDoPeriodo;
   const ultimoDia = ultimoDiaDoMes(meses[meses.length - 1] as string);
 
   const ativos = await clientRepository.listAtivosParaAgenda(representanteId);
@@ -72,10 +98,13 @@ export async function obterVendasMensais(
 
   return {
     periodo: { dias: janela.dias, inicio: janela.inicio, fim: janela.fim },
-    meses: serieMensal(vendasPorCliente, meses),
+    meses: marcarMesesFuturos(serieMensal(vendasPorCliente, meses), hojeCal.slice(0, 7)),
     eventos: marcadoresDeEventos(meses),
     simulado: erpSimulado(),
     clientesConsultados: chaves.length,
     clientesIndisponiveis: chaves.filter((chave) => indisponiveis.includes(chave)).length,
+    proximaData: proxima
+      ? { id: proxima.id, nome: proxima.nome, chave: proxima.chave, data: proxima.dataEvento }
+      : null,
   };
 }

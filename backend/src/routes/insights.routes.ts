@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAlertasDeProducao, getInsightsDoCliente } from '../controllers/insights.controller';
+import { getAlertasDeProducao, getInsightsDoCliente, getSazonalidadeDoPainel } from '../controllers/insights.controller';
 import { authJwt } from '../middlewares/authJwt';
 
 /**
@@ -14,12 +14,15 @@ clientInsightsRouter.use(authJwt);
 clientInsightsRouter.get('/', getInsightsDoCliente);
 
 /**
- * Router montado em `/insights`. Os alertas de produção cruzam o
- * estoque dos clientes da carteira: o gestor vê todos ou os do
- * representante escolhido; o representante (no Painel dele) só os
- * da própria carteira, via `representanteEfetivo` no controller.
+ * Router montado em `/insights`. Os alertas de produção e a aba de datas
+ * comemorativas do Painel (`/sazonalidade`: vendas da carteira nas janelas
+ * das datas, campanhas e estoque baixo) cruzam os clientes da carteira: o
+ * gestor vê todos ou os do representante escolhido; o representante (no
+ * Painel dele) só os da própria carteira, via `representanteEfetivo` no
+ * controller.
  */
 export const insightsRouter = Router();
 
 insightsRouter.use(authJwt);
 insightsRouter.get('/manager-alerts', getAlertasDeProducao);
+insightsRouter.get('/sazonalidade', getSazonalidadeDoPainel);

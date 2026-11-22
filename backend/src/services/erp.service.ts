@@ -46,7 +46,11 @@ export type DadosErpDTO =
       status: 'OK';
       simulado: boolean;
       ultimaVenda: { data: string; valor: number } | null;
-      volume90Dias: Volume;
+      /**
+       * Compras dos últimos 90 dias e o período somado: `inicio` e `fim` em
+       * 'AAAA-MM-DD', inclusivos, contados do hoje do relógio do sistema.
+       */
+      volume90Dias: Volume & { inicio: string; fim: string };
       estoque: {
         nivel: NivelEstoque;
         atualizadoEm: string;
@@ -338,6 +342,25 @@ export async function consultarItensBaixosEmLote(
   return { itensPorChave: resultados, indisponiveis };
 }
 
+/**
+ * Resumo do snapshot de estoque mais recente de cada chave (para a aba de
+ * datas comemorativas do Painel): `null` quando o ERP não tem estoque do
+ * cliente (sem histórico, como o cliente de fonte `notas` no híbrido), para
+ * quem chama contar quantos clientes informam estoque. O que o ERP não
+ * conseguiu responder vai para `indisponiveis` e fica fora do mapa.
+ */
+export async function consultarEstoqueEmLote(
+  chaves: (string | null)[],
+): Promise<{ resumoPorChave: Map<string, ResumoEstoque | null>; indisponiveis: string[] }> {
+  const { resultados, indisponiveis } = await consultarEmLote(
+    chaves,
+    async (chave) => resumirEstoque(await erpProvider.getStockHistory(chave)),
+    'ERP indisponível ao consultar estoque em lote',
+  );
+
+  return { resumoPorChave: resultados, indisponiveis };
+}
+
 /** Snapshot de estoque mais recente (por `data`), com o pior nível entre os itens dessa data. */
 export function resumirEstoque(historico: StockSnapshot[]): ResumoEstoque | null {
   if (historico.length === 0) {
@@ -400,15 +423,13 @@ export async function obterDadosErp(
 
   const comNotas = fonte === 'notas';
   const hojeCal = dataCalendario(hoje);
-  const periodo = {
-    inicio: inicioDoDia(somarDias(hojeCal, -DIAS_DE_VOLUME)),
-    fim: fimDoDia(hojeCal),
-  };
+  const inicioCal = somarDias(hojeCal, -DIAS_DE_VOLUME);
+  const periodo = { inicio: inicioDoDia(inicioCal), fim: fimDoDia(hojeCal) };
 
   try {
     // Com notas, uma consulta só traz as últimas vendas, e a primeira é a
     // última venda; no simulado, só a última venda (a ficha não lista vendas).
-    const [recentes, historicoDeEstoque, volume90Dias] = await Promise.all([
+    const [recentes, historicoDeEstoque, volume] = await Promise.all([
       comNotas
         ? erpProvider.getRecentSales(chave, QUANTIDADE_DE_ULTIMAS_VENDAS)
         : erpProvider.getLastSale(chave).then((venda) => (venda ? [venda] : [])),
@@ -427,7 +448,7 @@ export async function obterDadosErp(
       status: 'OK',
       simulado: erpProvider.simulado,
       ultimaVenda: ultimaVenda ? { data: ultimaVenda.data.toISOString(), valor: ultimaVenda.valor } : null,
-      volume90Dias,
+      volume90Dias: { ...volume, inicio: inicioCal, fim: hojeCal },
       // O DTO não expõe `atualizadoEm` por item (já vai uma vez no resumo).
       estoque: resumoDeEstoque && {
         ...resumoDeEstoque,

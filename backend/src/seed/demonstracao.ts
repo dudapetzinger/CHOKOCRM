@@ -1518,7 +1518,8 @@ export async function semear(prisma: Banco, hoje: Date): Promise<void> {
 
 /**
  * Depois de recriar os clientes: liga cada nota sem cliente ao cliente de mesmo
- * CNPJ (quando existe) e marca as que seguem sem cliente como `SEM_CLIENTE`.
+ * CNPJ (quando existe) e marca as que seguem sem cliente como `SEM_CLIENTE`,
+ * sem visita recusada.
  */
 async function religarNotasOrfas(tx: Banco): Promise<void> {
   const orfas = await tx.erpSale.findMany({
@@ -1541,7 +1542,7 @@ async function religarNotasOrfas(tx: Banco): Promise<void> {
   }
   await tx.erpSale.updateMany({
     where: { clientId: null },
-    data: { vinculoStatus: 'SEM_CLIENTE', visitaSugeridaId: null },
+    data: { vinculoStatus: 'SEM_CLIENTE', visitaRecusadaId: null },
   });
 }
 
@@ -1567,14 +1568,16 @@ async function religarNotasOrfas(tx: Banco): Promise<void> {
  * demonstração voltam ao nome e preço do catálogo pelo upsert. Antes de
  * apagar as visitas, as notas sem cliente ou de cliente da demonstração que
  * estavam vinculadas (`AUTOMATICO`, `VINCULADA`) ou pendentes voltam a
- * `SEM_VISITA`, sem visita sugerida: a visita delas some, e uma reimportação
- * decide o vínculo de novo; as do cliente real ficam como estão (a visita
- * dele não some). As `RECUSADA` ficam como estão. Apagar os clientes da
- * demonstração deixa as notas deles sem cliente (`SetNull`); no fim da
- * transação, depois do `semear`, a nota cujo CNPJ voltou a ter cliente é
- * religada a ele (segue alimentando a ficha, pela regra do híbrido) e a que
- * continua sem cliente vira `SEM_CLIENTE`, sem visita sugerida, para aparecer
- * na parte "Criar cliente" do bloco "Pendências".
+ * `SEM_VISITA`, sem decisão: a visita delas some, e a candidata é calculada
+ * na leitura com as visitas novas (a nota com candidata volta a ser
+ * pendência, apontando para uma visita que existe). As do cliente real ficam
+ * como estão (a visita dele não some). As `RECUSADA` continuam recusadas,
+ * mas as desses clientes perdem a visita recusada, que é apagada. Apagar os
+ * clientes da demonstração deixa as notas deles sem cliente (`SetNull`); no
+ * fim da transação, depois do `semear`, a nota cujo CNPJ voltou a ter cliente
+ * é religada a ele (segue alimentando a ficha, pela regra do híbrido) e a que
+ * continua sem cliente vira `SEM_CLIENTE`, para aparecer na parte "Criar
+ * cliente" do bloco "Pendências".
  */
 export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): Promise<void> {
   await prisma.$transaction(
@@ -1593,7 +1596,11 @@ export async function reiniciarDemonstracao(prisma: PrismaClient, hoje: Date): P
           vinculoStatus: { in: ['AUTOMATICO', 'VINCULADA', 'PENDENTE'] },
           OR: [{ clientId: null }, doCliente],
         },
-        data: { vinculoStatus: 'SEM_VISITA', visitaSugeridaId: null },
+        data: { vinculoStatus: 'SEM_VISITA' },
+      });
+      await tx.erpSale.updateMany({
+        where: { visitaRecusadaId: { not: null }, OR: [{ clientId: null }, doCliente] },
+        data: { visitaRecusadaId: null },
       });
       await tx.visitItem.deleteMany({ where: { visit: doCliente } });
       await tx.visit.deleteMany({ where: doCliente });

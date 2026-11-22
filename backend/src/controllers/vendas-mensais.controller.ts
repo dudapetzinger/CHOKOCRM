@@ -18,6 +18,7 @@ export async function getVendasMensais(req: Request, res: Response, next: NextFu
       janela,
       hoje,
       representanteEfetivo(usuario, query.representanteId),
+      query.ateProximaData ? { ateProximaData: { horizonteDias: query.horizonteDias } } : {},
     );
     res.status(200).json(vendas);
   } catch (err) {

@@ -99,6 +99,44 @@ export function serieMensal(vendasPorCliente: VendasDeUmCliente[], meses: string
   });
 }
 
+/**
+ * Ponto da série como a rota devolve: `futuro` marca o mês depois do mês de
+ * hoje (série estendida até a próxima data comemorativa), que vem sem valor
+ * (`total` e `clientesComDados` nulos, nunca zero) e sem clientes.
+ */
+export type PontoMensalDTO =
+  | (PontoMensal & { futuro: false })
+  | { mes: string; total: null; clientesComDados: null; clientes: []; futuro: true };
+
+/** O mês `'AAAA-MM'` seguinte. */
+function mesSeguinte(mes: string): string {
+  const primeiroDia = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 1));
+  return `${primeiroDia.getUTCFullYear()}-${pad2(primeiroDia.getUTCMonth() + 1)}`;
+}
+
+/** Os `meses` seguidos dos meses depois do último até `mesFinal`; com `mesFinal` já coberto, os mesmos `meses`. */
+export function estenderMesesAte(meses: string[], mesFinal: string): string[] {
+  const estendidos = [...meses];
+  let ultimo = estendidos[estendidos.length - 1];
+
+  while (ultimo !== undefined && ultimo < mesFinal) {
+    ultimo = mesSeguinte(ultimo);
+    estendidos.push(ultimo);
+  }
+
+  return estendidos;
+}
+
+/** Marca cada ponto: o mês depois de `mesAtual` vira futuro e sem valor; os demais ficam como estão. */
+export function marcarMesesFuturos(pontos: PontoMensal[], mesAtual: string): PontoMensalDTO[] {
+  return pontos.map(
+    (ponto): PontoMensalDTO =>
+      ponto.mes > mesAtual
+        ? { mes: ponto.mes, total: null, clientesComDados: null, clientes: [], futuro: true }
+        : { ...ponto, futuro: false },
+  );
+}
+
 /** Último dia (`'AAAA-MM-DD'`) do mês `'AAAA-MM'`. */
 export function ultimoDiaDoMes(mes: string): DataCalendario {
   const ultimo = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0));

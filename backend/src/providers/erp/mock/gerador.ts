@@ -1,5 +1,5 @@
 import { dataCalendario, type DataCalendario } from '../../../services/classificacao.service';
-import { multiplicadorSazonal } from '../../../config/sazonalidade';
+import { LIMITE_ESTOQUE_BAIXO, multiplicadorSazonal } from '../../../config/sazonalidade';
 import type { Sale, StockSnapshot, NivelEstoque } from '../ErpProvider';
 import { CATALOGO } from './catalogo';
 
@@ -194,7 +194,7 @@ function gerarEstoque(erpId: string, hojeCalendario: DataCalendario): StockSnaps
 
     for (const produto of CATALOGO) {
       const quantidade = Math.floor(rng() * 60);
-      const nivel: NivelEstoque = quantidade < 10 ? 'BAIXO' : quantidade < 40 ? 'NORMAL' : 'ALTO';
+      const nivel: NivelEstoque = quantidade < LIMITE_ESTOQUE_BAIXO ? 'BAIXO' : quantidade < 40 ? 'NORMAL' : 'ALTO';
 
       estoque.push({
         data: new Date(`${dataDoSnapshot}T12:00:00Z`),

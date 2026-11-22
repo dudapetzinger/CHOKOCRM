@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { alertasQuerySchema, horizonteQuerySchema } from '../schemas/insights.schema';
 import { representanteEfetivo } from '../services/carteira';
 import * as insightsService from '../services/insights.service';
+import * as sazonalidadeDoPainelService from '../services/sazonalidade-painel.service';
 import { usuarioAutenticado } from './usuarioAutenticado';
 import { agora } from '../lib/relogio';
 
@@ -32,6 +33,22 @@ export async function getAlertasDeProducao(req: Request, res: Response, next: Ne
       representanteEfetivo(usuario, representanteId),
     );
     res.status(200).json(alertas);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getSazonalidadeDoPainel(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { horizonteDias, representanteId } = alertasQuerySchema.parse(req.query);
+    const usuario = usuarioAutenticado(req);
+
+    const sazonalidade = await sazonalidadeDoPainelService.obterSazonalidadeDoPainel(
+      horizonteDias,
+      agora(),
+      representanteEfetivo(usuario, representanteId),
+    );
+    res.status(200).json(sazonalidade);
   } catch (err) {
     next(err);
   }

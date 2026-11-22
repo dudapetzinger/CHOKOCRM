@@ -9,6 +9,7 @@ import {
   dataDaColunaDate,
   inicioDoDia,
 } from '../../services/classificacao.service';
+import { candidatasDasNotas } from '../../services/importacao-nf/visita-candidata';
 import type { ErpProvider, Period, Sale, StockSnapshot, Volume } from './ErpProvider';
 
 /**
@@ -18,8 +19,10 @@ import type { ErpProvider, Period, Sale, StockSnapshot, Volume } from './ErpProv
  * `erp.service.chaveDoCliente`), mais os pedidos dos check-ins sem nota:
  * visitas VENDA com itens e sem `erpSaleId` do cliente com esse CNPJ. A
  * visita já vinculada a uma nota não entra (os itens dela são os da nota),
- * nem a VENDA sem itens, nem a visita para a qual uma nota do CNPJ aponta
- * (`visitaSugeridaId`, pendente ou recusada). Cada `Sale` diz a `origem`
+ * nem a VENDA sem itens, nem a visita candidata de uma nota do CNPJ sem
+ * decisão da gestão (calculada na hora, `visita-candidata.ts`), nem a visita
+ * recusada de uma nota (`visitaRecusadaId`): o ERP já tem essa venda e ela
+ * não conta duas vezes. Cada `Sale` diz a `origem`
  * (nota pelo número ou pedido pela visita), e a lista mesclada vai da mais
  * recente para a mais antiga (no mesmo instante, a nota antes). Mesclar aqui deixa coerentes
  * todos os consumidores do `erp.service` (ficha, insights, vendas mensais,
@@ -41,7 +44,7 @@ export class ImportadoErpProvider implements ErpProvider {
   async getRecentSales(cnpj: string, limite: number): Promise<Sale[]> {
     const [notas, pedidos] = await Promise.all([
       erpSaleRepository.listarNotasDoCnpj(cnpj, { limite }),
-      visitRepository.listarPedidosSemNotaDoCnpj(cnpj, { limite }),
+      listarPedidos(cnpj, { limite }),
     ]);
     return mesclar(notas, pedidos).slice(0, limite);
   }
@@ -49,7 +52,7 @@ export class ImportadoErpProvider implements ErpProvider {
   async getSales(cnpj: string, period: Period): Promise<Sale[]> {
     const [notas, pedidos] = await Promise.all([
       erpSaleRepository.listarNotasDoCnpj(cnpj, diasDoPeriodo(period)),
-      visitRepository.listarPedidosSemNotaDoCnpj(cnpj, period),
+      listarPedidos(cnpj, period),
     ]);
     return mesclar(notas, pedidos);
   }
@@ -58,7 +61,7 @@ export class ImportadoErpProvider implements ErpProvider {
     const { de, ate } = diasDoPeriodo(period);
     const [notas, pedidos] = await Promise.all([
       erpSaleRepository.somarNotasDoCnpj(cnpj, de, ate),
-      visitRepository.listarPedidosSemNotaDoCnpj(cnpj, period),
+      listarPedidos(cnpj, period),
     ]);
     // Em Decimal até o fim: 100,10 + 103,80 não vira 203,89999….
     const total = pedidos.reduce((soma, pedido) => somarItens(pedido.itens, soma), notas.total ?? undefined);
@@ -71,6 +74,27 @@ export class ImportadoErpProvider implements ErpProvider {
   async getStockHistory(_cnpj: string): Promise<StockSnapshot[]> {
     return [];
   }
+}
+
+/**
+ * Visitas cujo pedido fica fora das vendas do CNPJ: a candidata de cada nota
+ * sem decisão da gestão e a visita recusada de cada nota.
+ */
+async function visitasForaDasVendas(cnpj: string): Promise<string[]> {
+  const notas = await erpSaleRepository.listarNotasQueTiramPedidosDoCnpj(cnpj);
+  if (notas.length === 0) return [];
+  const candidatas = await candidatasDasNotas(notas);
+  const recusadas = notas.flatMap((nota) => (nota.visitaRecusadaId === null ? [] : [nota.visitaRecusadaId]));
+  return [...new Set([...recusadas, ...[...candidatas.values()].map((candidata) => candidata.visita.id)])];
+}
+
+/** Pedidos dos check-ins sem nota do CNPJ, menos os de `visitasForaDasVendas`. */
+async function listarPedidos(
+  cnpj: string,
+  filtro: { inicio?: Date; fim?: Date; limite?: number },
+): Promise<PedidoSemNota[]> {
+  const excluir = await visitasForaDasVendas(cnpj);
+  return visitRepository.listarPedidosSemNotaDoCnpj(cnpj, { ...filtro, excluir });
 }
 
 /**

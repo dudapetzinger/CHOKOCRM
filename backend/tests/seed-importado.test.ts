@@ -137,7 +137,7 @@ describe('seed de demonstração com o provedor importado', () => {
           valorTotal: 100,
           importId: importacao.id,
           vinculoStatus,
-          visitaSugeridaId: vinculoStatus === 'PENDENTE' ? visita.id : null,
+          visitaRecusadaId: vinculoStatus === 'RECUSADA' ? visita.id : null,
         },
       });
     const vinculada = await nota('2455', 'VINCULADA');
@@ -151,19 +151,19 @@ describe('seed de demonstração com o provedor importado', () => {
     const depois = await prisma.erpSale.findMany({ include: { visita: true } });
     const porId = new Map(depois.map((n) => [n.id, n]));
     // O CNPJ não está no seed: o cliente é real e sobrevive ao reset com a visita; as notas
-    // continuam dele, com o mesmo vínculo (a vinculada segue ligada à visita, a pendente
-    // mantém a visita sugerida) e nenhuma vai para "CNPJs sem cliente no CRM".
+    // continuam dele, com o mesmo vínculo (a vinculada segue ligada à visita, a recusada
+    // mantém a visita recusada) e nenhuma vai para "CNPJs sem cliente no CRM".
     expect(porId.get(vinculada.id)).toMatchObject({
       vinculoStatus: 'VINCULADA',
       clientId: cliente.id,
       visita: { id: visita.id },
     });
     expect(porId.get(automatica.id)).toMatchObject({ vinculoStatus: 'AUTOMATICO', clientId: cliente.id });
-    expect(porId.get(pendente.id)).toMatchObject({
-      vinculoStatus: 'PENDENTE',
+    expect(porId.get(pendente.id)).toMatchObject({ vinculoStatus: 'PENDENTE', clientId: cliente.id });
+    expect(porId.get(recusada.id)).toMatchObject({
+      vinculoStatus: 'RECUSADA',
       clientId: cliente.id,
-      visitaSugeridaId: visita.id,
+      visitaRecusadaId: visita.id,
     });
-    expect(porId.get(recusada.id)).toMatchObject({ vinculoStatus: 'RECUSADA', clientId: cliente.id });
   });
 });

@@ -5,18 +5,23 @@ import { classificacaoDoCliente, fimDoDia, inicioDoDia } from './classificacao.s
 import { chaveDoCliente, consultarUltimasVendas, erpSimulado } from './erp.service';
 import {
   agruparPorRepresentante,
+  clientesNaoVisitados,
   contarInativos,
   contarVisitas,
   conversaoEmVendas,
+  detalharVisitas,
   distribuicaoPorCor,
+  granularidadeDoRitmo,
   mediaDeVisitasPorCliente,
   ritmoNoPeriodo,
   taxaDeRegistro,
+  type ClienteNaoVisitado,
   type DistribuicaoPorCor,
   type Janela,
   type KpiRepresentante,
   type Proporcao,
   type Ritmo,
+  type VisitaDetalhada,
 } from './kpis.regras';
 import { agora } from '../lib/relogio';
 
@@ -48,6 +53,18 @@ export type KpisPorRepresentanteDTO = {
   representantes: KpiRepresentante[];
   /** Visitas e vendas por semana (período de até 91 dias) ou por mês, nas faixas que cruzam o período. */
   ritmo: Ritmo;
+  simulado: boolean;
+};
+
+export type DetalheDasVisitasDTO = {
+  /** Mesmo objeto de `KpisDTO.periodo`. */
+  periodo: KpisDTO['periodo'];
+  /** A do ritmo de `KpisPorRepresentanteDTO`: a `faixaInicio` de cada visita é o `inicio` de uma faixa dele. */
+  granularidade: Ritmo['granularidade'];
+  /** Todas as visitas do período, da mais recente para a mais antiga. */
+  visitas: VisitaDetalhada[];
+  /** Clientes ativos da carteira sem visita no período. */
+  naoVisitados: ClienteNaoVisitado[];
   simulado: boolean;
 };
 
@@ -127,6 +144,34 @@ export async function obterKpisPorRepresentante(
       representantes,
     ),
     ritmo: ritmoNoPeriodo(visitas, janela),
+    simulado: erpSimulado(),
+  };
+}
+
+/**
+ * Detalhe do painel lateral: as visitas do período (o mesmo recorte e a mesma
+ * carteira de `obterKpis` e `obterKpisPorRepresentante`) com cliente,
+ * representante, valor e faixa do ritmo, e os clientes ativos sem visita no
+ * período. Uma consulta à parte, só quando o painel abre, para os indicadores
+ * continuarem leves.
+ */
+export async function obterDetalheDasVisitas(
+  janela: Janela,
+  hoje: Date = agora(),
+  representanteId?: string,
+): Promise<DetalheDasVisitasDTO> {
+  const { inicio, fim } = janela;
+
+  const [visitas, ativos] = await Promise.all([
+    visitRepository.listNoPeriodoParaDetalhe(inicioDoDia(inicio), fimDoDia(fim), representanteId),
+    clientRepository.listAtivosParaAgenda(representanteId),
+  ]);
+
+  return {
+    periodo: janela,
+    granularidade: granularidadeDoRitmo(janela),
+    visitas: detalharVisitas(visitas, janela),
+    naoVisitados: clientesNaoVisitados(ativos, new Set(visitas.map((visita) => visita.cliente.id)), hoje),
     simulado: erpSimulado(),
   };
 }

@@ -34,3 +34,21 @@ export async function getKpisPorRepresentante(req: Request, res: Response, next:
     next(err);
   }
 }
+
+export async function getDetalheDasVisitas(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const query = periodoQuerySchema.parse(req.query);
+    const usuario = usuarioAutenticado(req);
+    const hoje = agora();
+    const janela = resolverPeriodo(query, hoje, { limiteDias: LIMITE_DIAS_DO_PAINEL });
+
+    const detalhe = await kpisService.obterDetalheDasVisitas(
+      janela,
+      hoje,
+      representanteEfetivo(usuario, query.representanteId),
+    );
+    res.status(200).json(detalhe);
+  } catch (err) {
+    next(err);
+  }
+}

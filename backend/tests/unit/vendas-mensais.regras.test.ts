@@ -1,6 +1,13 @@
 import { dataDoEvento } from '../../src/config/sazonalidade';
 import type { Sale } from '../../src/providers/erp/ErpProvider';
-import { marcadoresDeEventos, mesesDaJanela, serieMensal, somarPorMes } from '../../src/services/vendas-mensais.regras';
+import {
+  estenderMesesAte,
+  marcadoresDeEventos,
+  marcarMesesFuturos,
+  mesesDaJanela,
+  serieMensal,
+  somarPorMes,
+} from '../../src/services/vendas-mensais.regras';
 
 /** Venda ao meio-dia em -03:00 do dia informado. */
 function venda(dia: string, valor: number): Sale {
@@ -148,5 +155,37 @@ describe('marcadoresDeEventos', () => {
 
     expect(marcadores.map((m) => m.chave)).toEqual(['NATAL']);
     expect(marcadores[0]?.data).toBe('2026-12-25');
+  });
+});
+
+describe('estenderMesesAte', () => {
+  it('acrescenta os meses seguintes até o mês final, cruzando a virada de ano', () => {
+    expect(estenderMesesAte(['2026-10', '2026-11'], '2027-01')).toEqual(['2026-10', '2026-11', '2026-12', '2027-01']);
+  });
+
+  it('com o mês final já na série (ou antes dela), não muda nada', () => {
+    expect(estenderMesesAte(['2026-10', '2026-11'], '2026-11')).toEqual(['2026-10', '2026-11']);
+    expect(estenderMesesAte(['2026-10', '2026-11'], '2026-09')).toEqual(['2026-10', '2026-11']);
+  });
+});
+
+describe('marcarMesesFuturos', () => {
+  const pontos = serieMensal(
+    [{ cliente: { id: 'c1', nomeFantasia: 'Cliente 1' }, vendas: [venda('2026-11-10', 30)] }],
+    ['2026-10', '2026-11', '2026-12'],
+  );
+
+  it('o mês depois do mês de hoje fica sem valor e marcado como futuro; os demais ficam como estão', () => {
+    expect(marcarMesesFuturos(pontos, '2026-11')).toEqual([
+      { mes: '2026-10', total: 0, clientesComDados: 0, clientes: [], futuro: false },
+      {
+        mes: '2026-11',
+        total: 30,
+        clientesComDados: 1,
+        clientes: [{ id: 'c1', nomeFantasia: 'Cliente 1', total: 30 }],
+        futuro: false,
+      },
+      { mes: '2026-12', total: null, clientesComDados: null, clientes: [], futuro: true },
+    ]);
   });
 });

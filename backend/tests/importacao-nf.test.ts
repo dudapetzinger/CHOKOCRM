@@ -201,7 +201,7 @@ describe('POST /erp/importacoes', () => {
     expect(res.body.notas[0].itens).toHaveLength(2);
   });
 
-  it('deixa pendente, com a visita sugerida, quando a última visita é de outro dia', async () => {
+  it('visita na véspera da nota: a nota fica pendente, com a visita sugerida, e a visita não muda', async () => {
     const visita = await criarVisita(DIA_ANTERIOR, 'SEM_VENDA');
 
     const res = await importar(tokenGestor);
@@ -210,7 +210,13 @@ describe('POST /erp/importacoes', () => {
     const nota = res.body.notas[0];
     expect(nota.vinculo).toBe('PENDENTE');
     expect(nota.visitaVinculadaId).toBeNull();
-    expect(nota.visitaSugerida).toMatchObject({ id: visita.id, resultado: 'SEM_VENDA', totalPedido: 30 });
+    expect(nota.visitaSugerida).toMatchObject({
+      id: visita.id,
+      dia: '2026-11-03',
+      diasAntes: 1,
+      resultado: 'SEM_VENDA',
+      totalPedido: 30,
+    });
     expect(new Date(nota.visitaSugerida.dataHora).toISOString()).toBe(DIA_ANTERIOR.toISOString());
     const intacta = await prisma.visit.findUniqueOrThrow({ where: { id: visita.id }, include: { itens: true } });
     expect(intacta.erpSaleId).toBeNull();
@@ -308,7 +314,7 @@ describe('POST /erp/importacoes', () => {
     expect(visitaDepois.erpSaleId).toBe(primeira.body.notas[0].id);
   });
 
-  it('duas notas do mesmo cliente no mesmo dia: só a primeira vincula, a segunda fica pendente', async () => {
+  it('duas notas do mesmo cliente no mesmo dia: só a primeira vincula, a segunda fica só como compra', async () => {
     const visita = await criarVisita(DIA_DA_NOTA);
     const segundaNota = variante(LINHAS_NF_2455, { chave: CHAVE_2456, numero: '2456' });
     simularPdf(LINHAS_NF_2455, segundaNota);
@@ -319,11 +325,16 @@ describe('POST /erp/importacoes', () => {
     expect(res.body.notas).toHaveLength(2);
     const [primeira, segunda] = res.body.notas;
     expect(primeira).toMatchObject({ numero: '2455', vinculo: 'AUTOMATICO', visitaVinculadaId: visita.id });
-    expect(segunda).toMatchObject({ numero: '2456', vinculo: 'PENDENTE', visitaVinculadaId: null });
-    expect(segunda.visitaSugerida.id).toBe(visita.id);
+    // A única visita da janela já tem nota: a segunda não tem candidata.
+    expect(segunda).toMatchObject({
+      numero: '2456',
+      vinculo: 'SEM_VISITA',
+      visitaVinculadaId: null,
+      visitaSugerida: null,
+    });
     expect(await prisma.erpSale.count()).toBe(2);
     const importacao = await prisma.erpImport.findUniqueOrThrow({ where: { id: res.body.id } });
-    expect(importacao).toMatchObject({ notasImportadas: 2, vinculadasAutomaticamente: 1, pendentes: 1 });
+    expect(importacao).toMatchObject({ notasImportadas: 2, vinculadasAutomaticamente: 1, pendentes: 0 });
     // A visita já tem nota: vincular a segunda a ela é conflito.
     const vinculo = await request(app)
       .post(`/erp/vendas/${segunda.id}/vinculo`)
@@ -331,6 +342,26 @@ describe('POST /erp/importacoes', () => {
       .send({ visitId: visita.id });
     expect(vinculo.status).toBe(409);
     expect(vinculo.body.error.message).toBe('Esta visita já tem uma nota vinculada.');
+  });
+
+  it('duas notas no mesmo dia, com visita no dia e outra 5 dias antes: a primeira vincula sozinha e a segunda fica pendente com a visita de 5 dias antes', async () => {
+    const visitaDeAntes = await criarVisita(new Date('2026-10-30T15:00:00.000Z'), 'NEGOCIACAO');
+    const visitaDoDia = await criarVisita(DIA_DA_NOTA);
+    const segundaNota = variante(LINHAS_NF_2455, { chave: CHAVE_2456, numero: '2456' });
+    simularPdf(LINHAS_NF_2455, segundaNota);
+
+    const res = await importar(tokenGestor);
+
+    expect(res.status).toBe(201);
+    expect(res.body.notas).toHaveLength(2);
+    const [primeira, segunda] = res.body.notas;
+    expect(primeira).toMatchObject({ numero: '2455', vinculo: 'AUTOMATICO', visitaVinculadaId: visitaDoDia.id });
+    expect(segunda).toMatchObject({
+      numero: '2456',
+      vinculo: 'PENDENTE',
+      visitaVinculadaId: null,
+      visitaSugerida: { id: visitaDeAntes.id, dia: '2026-10-30', diasAntes: 5 },
+    });
   });
 
   it('quantidade fracionária: ErpSaleItem guarda o decimal e VisitItem um inteiro de no mínimo 1', async () => {
@@ -610,7 +641,7 @@ describe('listagens', () => {
     expect(res.body.data).toHaveLength(20);
   });
 
-  it('GET /erp/pendencias traz só as PENDENTE, com cliente e visita sugerida', async () => {
+  it('GET /erp/pendencias traz a nota do cliente com visita na janela de 15 dias, com o cliente e a visita sugerida calculada na leitura', async () => {
     const visita = await criarVisita(DIA_ANTERIOR, 'VENDA');
     await importar(tokenGestor);
 
@@ -631,5 +662,106 @@ describe('listagens', () => {
       const res = await request(app).get(rota).set('Authorization', `Bearer ${tokenRep}`);
       expect(res.status).toBe(403);
     }
+  });
+});
+
+describe('pendências calculadas na leitura', () => {
+  function pendencias() {
+    return request(app).get('/erp/pendencias').set('Authorization', `Bearer ${tokenGestor}`);
+  }
+
+  async function notaNoHistorico() {
+    const res = await request(app).get('/erp/importacoes').set('Authorization', `Bearer ${tokenGestor}`);
+    return res.body.data[0].notas[0];
+  }
+
+  it('cada pendência traz o motivo: dia da nota, dia e resultado da visita sugerida e quantos dias antes', async () => {
+    const visita = await criarVisita(new Date('2026-10-30T15:00:00.000Z'), 'NEGOCIACAO');
+    await importar(tokenGestor);
+
+    const res = await pendencias();
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({
+      numero: '2455',
+      dataEmissao: '2026-11-04',
+      vinculo: 'PENDENTE',
+      visitaSugerida: { id: visita.id, dia: '2026-10-30', diasAntes: 5, resultado: 'NEGOCIACAO', totalPedido: 30 },
+    });
+  });
+
+  it('visita posterior à nota nunca é sugerida: a nota fica só como compra, sem pendência', async () => {
+    await criarVisita(new Date('2026-11-05T15:00:00.000Z'), 'VENDA');
+
+    const res = await importar(tokenGestor);
+
+    expect(res.body.notas[0]).toMatchObject({ vinculo: 'SEM_VISITA', visitaSugerida: null });
+    expect((await pendencias()).body.data).toEqual([]);
+  });
+
+  it('nota a 16 dias da visita não é pendência; a 15 dias é', async () => {
+    const visita = await criarVisita(new Date('2026-10-19T15:00:00.000Z'), 'VENDA');
+
+    const res = await importar(tokenGestor);
+
+    expect(res.body.notas[0]).toMatchObject({ vinculo: 'SEM_VISITA', visitaSugerida: null });
+    expect((await pendencias()).body.data).toEqual([]);
+
+    await prisma.visit.update({ where: { id: visita.id }, data: { dataHora: new Date('2026-10-20T15:00:00.000Z') } });
+    const depois = await pendencias();
+    expect(depois.body.data).toHaveLength(1);
+    expect(depois.body.data[0].visitaSugerida).toMatchObject({ id: visita.id, diasAntes: 15 });
+  });
+
+  it('candidata apagada: a nota deixa de ser pendência e aparece como só compra no histórico', async () => {
+    const visita = await criarVisita(DIA_ANTERIOR, 'NEGOCIACAO');
+    const importada = await importar(tokenGestor);
+    expect(importada.body.notas[0].vinculo).toBe('PENDENTE');
+
+    await prisma.visitItem.deleteMany({ where: { visitId: visita.id } });
+    await prisma.visit.delete({ where: { id: visita.id } });
+
+    expect((await pendencias()).body.data).toEqual([]);
+    expect(await notaNoHistorico()).toMatchObject({ vinculo: 'SEM_VISITA', visitaSugerida: null });
+  });
+
+  it('nota só como compra, sem decisão da gestão, volta a ser pendência quando ganha candidata', async () => {
+    const importada = await importar(tokenGestor);
+    expect(importada.body.notas[0].vinculo).toBe('SEM_VISITA');
+
+    const visita = await criarVisita(new Date('2026-11-02T15:00:00.000Z'), 'VENDA');
+
+    const res = await pendencias();
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({ vinculo: 'PENDENTE', visitaSugerida: { id: visita.id, diasAntes: 2 } });
+    expect(await notaNoHistorico()).toMatchObject({ vinculo: 'PENDENTE', visitaSugerida: { id: visita.id } });
+  });
+
+  it('"Deixar só no ERP" fica gravado com a visita recusada e a nota não volta a ser pendência', async () => {
+    const visita = await criarVisita(DIA_ANTERIOR, 'NEGOCIACAO');
+    const importada = await importar(tokenGestor);
+    const id = importada.body.notas[0].id;
+
+    const res = await request(app).delete(`/erp/vendas/${id}/vinculo`).set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ vinculo: 'RECUSADA', visitaSugerida: null });
+    const gravada = await prisma.erpSale.findUniqueOrThrow({ where: { id } });
+    expect(gravada).toMatchObject({ vinculoStatus: 'RECUSADA', visitaRecusadaId: visita.id });
+    // Outra visita na janela não traz a nota de volta.
+    await criarVisita(new Date('2026-11-04T18:00:00.000Z'), 'VENDA');
+    expect((await pendencias()).body.data).toEqual([]);
+    expect(await notaNoHistorico()).toMatchObject({ vinculo: 'RECUSADA', visitaSugerida: null });
+  });
+
+  it('nota sem decisão e sem candidata: "Deixar só no ERP" também fica gravado', async () => {
+    const importada = await importar(tokenGestor);
+    const id = importada.body.notas[0].id;
+
+    const res = await request(app).delete(`/erp/vendas/${id}/vinculo`).set('Authorization', `Bearer ${tokenGestor}`);
+
+    expect(res.body.vinculo).toBe('RECUSADA');
+    await criarVisita(DIA_ANTERIOR, 'VENDA');
+    expect((await pendencias()).body.data).toEqual([]);
   });
 });
