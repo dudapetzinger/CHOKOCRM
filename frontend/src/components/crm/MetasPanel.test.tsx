@@ -249,22 +249,12 @@ describe('MetasPanel: lista', () => {
     expect(screen.queryByRole('button', { name: /Excluir meta/ })).not.toBeInTheDocument();
   });
 
-  it('representante: o bloco tem a largura das metas, em colunas de 20 rem', async () => {
+  it('representante: as metas ficam numa lista dentro do bloco, com o nome dele', async () => {
     renderizar({}, 'REPRESENTANTE');
 
-    const lista = await screen.findByRole('list', { name: /Metas/ });
     const bloco = screen.getByRole('region', { name: 'Metas de visitas e vendas' });
-    expect(bloco).toHaveClass('md:w-fit');
-    expect(lista).toHaveClass('md:max-w-[40.75rem]', 'md:grid-cols-[repeat(auto-fit,20rem)]');
-  });
-
-  it('gestor: o bloco ocupa a largura toda, em duas colunas', async () => {
-    renderizar();
-
-    const lista = await screen.findByRole('list', { name: /Metas/ });
-    const bloco = screen.getByRole('region', { name: 'Metas de visitas e vendas' });
-    expect(bloco).not.toHaveClass('md:w-fit');
-    expect(lista).toHaveClass('md:grid-cols-2');
+    const lista = await within(bloco).findByRole('list', { name: /Metas/ });
+    expect(within(lista).getAllByRole('listitem')).not.toHaveLength(0);
   });
 });
 
@@ -538,11 +528,10 @@ describe('MetasPanel: campanha', () => {
     );
   });
 
-  it('representante na campanha: a área segue a largura do cartão da campanha', async () => {
+  it('representante na campanha: as metas ficam numa lista dentro da área da campanha', async () => {
     renderizar({ campanha: NATAL }, 'REPRESENTANTE');
 
-    const lista = await screen.findByRole('list', { name: /Metas/ });
-    expect(screen.getByRole('region', { name: 'Metas da campanha' })).not.toHaveClass('md:w-fit');
-    expect(lista).toHaveClass('md:grid-cols-2');
+    const area = screen.getByRole('region', { name: 'Metas da campanha' });
+    expect(await within(area).findByRole('list', { name: /Metas/ })).toBeInTheDocument();
   });
 });

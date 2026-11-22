@@ -11,27 +11,33 @@
  * (`?aba=producao`; sem o parâmetro, a primeira). Só o painel da aba aberta
  * fica montado.
  *
- * "Metas e resultados", nesta ordem: "Quem está visitando pouco?" (gestor) ou
- * "Como está a minha carteira?" (representante) com os quatro indicadores; as
- * "Metas de visitas e vendas" do período (só leitura para o
- * representante); e, a partir de 1024 px (empilhados abaixo, nessa ordem):
- *   - gestor: à esquerda, o resultado das visitas por representante e o ritmo
- *     de visitas; à direita, o ranking dos representantes (só com "Todos");
- *   - representante: o resultado das minhas visitas e o ritmo lado a lado.
+ * "Metas e resultados" responde como andam as visitas e as vendas da
+ * carteira: "Quem está visitando pouco?" (gestor) ou "Como está a minha
+ * carteira?" (representante) com os quatro indicadores e, a partir de
+ * 1024 px, duas colunas que empilham os blocos (abaixo disso, uma só, na
+ * ordem esquerda e depois direita):
+ *   - gestor: as "Metas de visitas e vendas" na largura toda; à esquerda, o
+ *     resultado das visitas por representante e o ritmo de visitas; à
+ *     direita, o ranking dos representantes (só com "Todos") e "Quais
+ *     clientes estão esfriando?";
+ *   - representante: à esquerda, as metas (só leitura) e o ritmo; à direita,
+ *     o resultado das minhas visitas e "Quais clientes estão esfriando?".
+ * "Quais clientes estão esfriando?" traz a distribuição por cor e os cinco
+ * mais urgentes.
  *
- * "Produção e sazonalidade", com o horizonte ("Datas nos próximos 30 dias ·
- * 60 dias · 90 dias · 180 dias")
- * no topo valendo para a aba inteira, nesta ordem, na largura toda:
- *   1. "Próximas datas comemorativas": um cartão por data do horizonte, a
- *      mais próxima escolhida de início; clicar num cartão escolhe a data do
- *      bloco 3;
- *   2. "Vendas por mês, em R$": o gráfico no período do Painel, estendido até
- *      o mês da próxima data do horizonte, com as datas e as campanhas;
- *   3. "Estoque baixo nos clientes para {data}": os produtos da data escolhida;
- * e, a partir de 1024 px, à esquerda "Quais clientes estão esfriando?"
- * (distribuição por cor e os cinco mais urgentes) e, à direita, a "Época do
- * ano" com as datas do horizonte e o mapa de clientes por cidade. As datas,
- * o estoque e a época do ano saem de uma consulta só (`useSazonalidade`).
+ * "Produção e sazonalidade" responde o que oferecer nas próximas datas, com
+ * o horizonte ("Datas nos próximos 30 dias · 60 dias · 90 dias · 180 dias")
+ * no topo valendo para a aba inteira. A partir de 1280 px, duas colunas
+ * (abaixo disso, uma só, na ordem esquerda e depois direita):
+ *   - à esquerda, "Próximas datas comemorativas" (um cartão por data do
+ *     horizonte, a mais próxima escolhida de início; clicar num cartão
+ *     escolhe a data do estoque) e "Estoque baixo nos clientes para {data}"
+ *     (os produtos da data escolhida);
+ *   - à direita, "Vendas por mês, em R$": o gráfico no período do Painel,
+ *     estendido até o mês da próxima data do horizonte, com as datas e as
+ *     campanhas.
+ * As datas e o estoque saem de uma consulta só (`useSazonalidade`). O mapa
+ * de clientes por cidade fica na página de Clientes.
  *
  * Os números vêm da API. Com um bloco já carregado, o erro de um refetch
  * (rede caída) aparece como aviso acima do conteúdo, que continua visível.
@@ -47,7 +53,6 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '../auth/useAuth';
 import { Abas, PainelDaAba, type Aba } from '../components/Abas';
 import { DistribuicaoPorCor } from '../components/crm/graficos/DistribuicaoPorCor';
-import { MapaPorCidade } from '../components/crm/graficos/MapaPorCidade';
 import { Ranking } from '../components/crm/graficos/Ranking';
 import { ResultadoPorRepresentante } from '../components/crm/graficos/ResultadoPorRepresentante';
 import { RitmoDeVisitas } from '../components/crm/graficos/RitmoDeVisitas';
@@ -68,9 +73,6 @@ import { useSazonalidade } from '../hooks/useInsights';
 import { useKpis } from '../hooks/useKpis';
 import { baixarCsv, gerarCsvRelatorio, nomeDoArquivoRelatorio } from '../lib/csv';
 import { contar } from '../lib/contar';
-import { descreverPrazo } from '../lib/descreverPrazo';
-import { formatarDataCalendario } from '../lib/formatarData';
-import { listarComE } from '../lib/listarComE';
 import { PERIODO_PADRAO, type Periodo } from '../lib/periodo';
 import { useAbaNaUrl } from '../lib/useAbaNaUrl';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
@@ -107,57 +109,62 @@ function Atualizavel({ atualizando, children }: { atualizando: boolean; children
 }
 
 /**
- * Os dois cartões que saem de `/dashboard/kpis/por-representante`: o
- * resultado das visitas por representante e o ritmo de visitas, os dois no
- * período escolhido (o ritmo por semana ou por mês, conforme o tamanho
- * dele). Uma consulta só; o erro é anunciado uma vez, no primeiro cartão.
+ * O resultado das visitas por representante e o ritmo de visitas saem de
+ * `/dashboard/kpis/por-representante`, os dois no período escolhido (o ritmo
+ * por semana ou por mês, conforme o tamanho dele). Os dois cartões pedem a
+ * mesma consulta (a mesma chave: o TanStack Query busca uma vez só); o erro é
+ * anunciado uma vez, no cartão do resultado.
  */
-function CartoesDeVisitas({
+function CartaoResultadoDasVisitas({
   periodo,
   representanteId,
-  tituloDoResultado,
+  titulo,
 }: {
   periodo: Periodo;
   representanteId?: string;
-  tituloDoResultado: string;
+  titulo: string;
 }) {
   const { data, isLoading, isError, error, isPlaceholderData } = useKpisPorRepresentante(periodo, representanteId);
-  const mensagemDeErro = isError ? mensagemErroApi(error, MENSAGEM_ERRO_VISITAS) : null;
 
   return (
-    <>
-      <Cartao titulo={tituloDoResultado} recolhivel="painel-resultado-visitas" className="min-w-0">
-        <div className="space-y-3">
-          {isLoading && <Carregando>Carregando gráfico de visitas...</Carregando>}
-          {mensagemDeErro && (
-            <Aviso tom="erro" role="alert">
-              {mensagemDeErro}
-            </Aviso>
-          )}
-          {data && (
-            <Atualizavel atualizando={isPlaceholderData}>
-              <ResultadoPorRepresentante
-                representantes={data.representantes}
-                periodo={periodo}
-                representanteId={representanteId}
-              />
-            </Atualizavel>
-          )}
-        </div>
-      </Cartao>
+    <Cartao titulo={titulo} recolhivel="painel-resultado-visitas" className="min-w-0">
+      <div className="space-y-3">
+        {isLoading && <Carregando>Carregando gráfico de visitas...</Carregando>}
+        {isError && (
+          <Aviso tom="erro" role="alert">
+            {mensagemErroApi(error, MENSAGEM_ERRO_VISITAS)}
+          </Aviso>
+        )}
+        {data && (
+          <Atualizavel atualizando={isPlaceholderData}>
+            <ResultadoPorRepresentante
+              representantes={data.representantes}
+              periodo={periodo}
+              representanteId={representanteId}
+            />
+          </Atualizavel>
+        )}
+      </div>
+    </Cartao>
+  );
+}
 
-      <Cartao titulo="Ritmo de visitas no período" recolhivel="painel-ritmo" className="min-w-0">
-        <div className="space-y-3">
-          {isLoading && <Carregando>Carregando gráfico de visitas...</Carregando>}
-          {mensagemDeErro && !data && <Aviso tom="erro">{mensagemDeErro}</Aviso>}
-          {data && (
-            <Atualizavel atualizando={isPlaceholderData}>
-              <RitmoDeVisitas ritmo={data.ritmo} periodo={periodo} representanteId={representanteId} />
-            </Atualizavel>
-          )}
-        </div>
-      </Cartao>
-    </>
+function CartaoRitmo({ periodo, representanteId }: { periodo: Periodo; representanteId?: string }) {
+  const { data, isLoading, isError, error, isPlaceholderData } = useKpisPorRepresentante(periodo, representanteId);
+
+  return (
+    <Cartao titulo="Ritmo de visitas no período" recolhivel="painel-ritmo" className="min-w-0">
+      <div className="space-y-3">
+        {isLoading && <Carregando>Carregando gráfico de visitas...</Carregando>}
+        {/* O erro já é anunciado no resultado das visitas; aqui, só sem dados para mostrar. */}
+        {isError && !data && <Aviso tom="erro">{mensagemErroApi(error, MENSAGEM_ERRO_VISITAS)}</Aviso>}
+        {data && (
+          <Atualizavel atualizando={isPlaceholderData}>
+            <RitmoDeVisitas ritmo={data.ritmo} periodo={periodo} representanteId={representanteId} />
+          </Atualizavel>
+        )}
+      </div>
+    </Cartao>
   );
 }
 
@@ -289,56 +296,6 @@ function CartaoVendasPorMes({ periodo, representanteId, horizonteDias, sazonalid
   );
 }
 
-/** A mesma carteira (e a mesma consulta, em cache) de "Quais clientes estão esfriando?". */
-function CartaoMapa({ representanteId }: { representanteId?: string }) {
-  const { data: clientes, isLoading, isError, error } = useClientesDaCarteira(representanteId);
-
-  return (
-    <Cartao titulo="Mapa de clientes por cidade" recolhivel="painel-mapa">
-      {isLoading && <Carregando>Carregando clientes...</Carregando>}
-      {/* O erro já é anunciado no cartão dos clientes esfriando; aqui, só sem dados para mostrar. */}
-      {isError && !clientes && (
-        <Aviso tom="erro">{mensagemErroApi(error, 'Não foi possível carregar os clientes.')}</Aviso>
-      )}
-      {clientes && <MapaPorCidade clientes={clientes} />}
-    </Cartao>
-  );
-}
-
-/** As datas do horizonte com o dia, o prazo e os produtos indicados (em ordem alfabética). */
-function CartaoEpocaDoAno({ sazonalidade }: { sazonalidade: Sazonalidade }) {
-  return (
-    <Cartao titulo="Época do ano" recolhivel="painel-epoca">
-      {sazonalidade.datas.length === 0 ? (
-        <EstadoVazio icone="calendar">
-          Nenhuma data comemorativa nos próximos {sazonalidade.horizonteDias} dias.
-        </EstadoVazio>
-      ) : (
-        <ul className="-my-2 divide-y text-sm">
-          {sazonalidade.datas.map((data) => {
-            const produtos = data.estoqueBaixo
-              .map(({ nome }) => nome)
-              .sort((a, b) => a.localeCompare(b, 'pt-BR'));
-            return (
-              <li key={data.id} className="py-2">
-                <div className="flex flex-wrap justify-between gap-x-3">
-                  <span className="font-medium">{data.nome}</span>
-                  <span className="text-muted-foreground">
-                    {formatarDataCalendario(data.data)} · {descreverPrazo(data.diasAte)}
-                  </span>
-                </div>
-                {produtos.length > 0 && (
-                  <p className="text-xs text-muted-foreground">Produtos sugeridos: {listarComE(produtos)}.</p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </Cartao>
-  );
-}
-
 /** "Planilha", à direita do seletor de período; no celular, numa linha só dela. */
 function BotoesDeExportar({ periodo, representanteId }: { periodo: Periodo; representanteId?: string }) {
   const relatorio = useRelatorio();
@@ -378,10 +335,50 @@ type AbaResultadosProps = {
   gestor: boolean;
   periodo: Periodo;
   representanteId?: string;
+  mostrarRepresentante: boolean;
 };
 
-/** "Metas e resultados": indicadores, metas e, em duas colunas a partir de 1024 px, visitas, ritmo e ranking. */
-function AbaResultados({ gestor, periodo, representanteId }: AbaResultadosProps) {
+/**
+ * Duas colunas, cada uma empilhando os seus blocos; em tela estreita, uma só
+ * (a esquerda e depois a direita). `colunas` diz a partir de que largura e em
+ * que proporção: por padrão, metades a partir de 1024 px.
+ */
+function DuasColunas({
+  esquerda,
+  direita,
+  colunas = 'lg:grid-cols-2',
+}: {
+  esquerda: ReactNode;
+  direita: ReactNode;
+  colunas?: string;
+}) {
+  return (
+    <div className={cn('grid items-start gap-4', colunas)}>
+      <div className="min-w-0 space-y-4">{esquerda}</div>
+      <div className="min-w-0 space-y-4">{direita}</div>
+    </div>
+  );
+}
+
+/** "Metas e resultados": indicadores e, em duas colunas a partir de 1024 px, metas, visitas, ritmo, ranking e clientes esfriando. */
+function AbaResultados({ gestor, periodo, representanteId, mostrarRepresentante }: AbaResultadosProps) {
+  const metas = <MetasPanel representanteId={representanteId} periodo={periodo} />;
+  const esfriando = (
+    <CartaoClientesEsfriando
+      periodo={periodo}
+      representanteId={representanteId}
+      mostrarRepresentante={mostrarRepresentante}
+    />
+  );
+  const resultado = (
+    <CartaoResultadoDasVisitas
+      periodo={periodo}
+      representanteId={representanteId}
+      titulo={gestor ? 'Resultado das visitas por representante' : 'Resultado das minhas visitas'}
+    />
+  );
+  const ritmo = <CartaoRitmo periodo={periodo} representanteId={representanteId} />;
+
   return (
     <>
       <KpisCard
@@ -390,27 +387,39 @@ function AbaResultados({ gestor, periodo, representanteId }: AbaResultadosProps)
         titulo={gestor ? 'Quem está visitando pouco?' : 'Como está a minha carteira?'}
       />
 
-      <MetasPanel representanteId={representanteId} periodo={periodo} />
-
       {gestor ? (
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <div className="min-w-0 space-y-4">
-            <CartoesDeVisitas
-              periodo={periodo}
-              representanteId={representanteId}
-              tituloDoResultado="Resultado das visitas por representante"
-            />
-          </div>
-          <CartaoRanking periodo={periodo} representanteId={representanteId} />
-        </div>
-      ) : (
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <CartoesDeVisitas
-            periodo={periodo}
-            representanteId={representanteId}
-            tituloDoResultado="Resultado das minhas visitas"
+        <>
+          {metas}
+          <DuasColunas
+            esquerda={
+              <>
+                {resultado}
+                {ritmo}
+              </>
+            }
+            direita={
+              <>
+                <CartaoRanking periodo={periodo} representanteId={representanteId} />
+                {esfriando}
+              </>
+            }
           />
-        </div>
+        </>
+      ) : (
+        <DuasColunas
+          esquerda={
+            <>
+              {metas}
+              {ritmo}
+            </>
+          }
+          direita={
+            <>
+              {resultado}
+              {esfriando}
+            </>
+          }
+        />
       )}
     </>
   );
@@ -420,25 +429,18 @@ type AbaProducaoProps = {
   gestor: boolean;
   periodo: Periodo;
   representanteId?: string;
-  mostrarRepresentante: boolean;
   horizonteDias: number;
   onHorizonteChange: (dias: number) => void;
 };
 
 /**
- * "Produção e sazonalidade": o horizonte no topo; as datas, as vendas por mês
- * e o estoque baixo da data escolhida na largura toda; embaixo, clientes
- * esfriando, época do ano e mapa. A data escolhida é a primeira até o
- * usuário clicar noutra; se ela sai do horizonte, volta a ser a primeira.
+ * "Produção e sazonalidade": o horizonte no topo e, em duas colunas a partir
+ * de 1280 px, as datas com o estoque baixo da data escolhida (esquerda, a
+ * mais estreita) e as vendas por mês (direita). A data escolhida é a primeira
+ * até o usuário clicar noutra; se ela sai do horizonte, volta a ser a
+ * primeira.
  */
-function AbaProducao({
-  gestor,
-  periodo,
-  representanteId,
-  mostrarRepresentante,
-  horizonteDias,
-  onHorizonteChange,
-}: AbaProducaoProps) {
+function AbaProducao({ gestor, periodo, representanteId, horizonteDias, onHorizonteChange }: AbaProducaoProps) {
   const { data: sazonalidade, isLoading, isError, error, isPlaceholderData } = useSazonalidade(
     horizonteDias,
     representanteId,
@@ -451,65 +453,62 @@ function AbaProducao({
     <>
       <FiltroHorizonte valor={horizonteDias} onChange={onHorizonteChange} className="print:hidden" />
 
-      <Cartao titulo="Próximas datas comemorativas" recolhivel="painel-datas">
-        <div className="space-y-3">
-          {isLoading && <Carregando>Carregando datas comemorativas...</Carregando>}
-          {isError && (
-            <Aviso tom="erro" role="alert">
-              {mensagemErroApi(error, MENSAGEM_ERRO_DATAS)}
-            </Aviso>
-          )}
-          {sazonalidade && (
-            <Atualizavel atualizando={isPlaceholderData}>
-              <DatasComemorativas
-                sazonalidade={sazonalidade}
-                escolhida={dataEscolhida?.id ?? ''}
-                onEscolher={setEscolhida}
-                gestor={gestor}
-              />
-            </Atualizavel>
-          )}
-        </div>
-      </Cartao>
+      <DuasColunas
+        colunas="xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+        esquerda={
+          <>
+            <Cartao titulo="Próximas datas comemorativas" recolhivel="painel-datas">
+              <div className="space-y-3">
+                {isLoading && <Carregando>Carregando datas comemorativas...</Carregando>}
+                {isError && (
+                  <Aviso tom="erro" role="alert">
+                    {mensagemErroApi(error, MENSAGEM_ERRO_DATAS)}
+                  </Aviso>
+                )}
+                {sazonalidade && (
+                  <Atualizavel atualizando={isPlaceholderData}>
+                    <DatasComemorativas
+                      sazonalidade={sazonalidade}
+                      escolhida={dataEscolhida?.id ?? ''}
+                      onEscolher={setEscolhida}
+                      gestor={gestor}
+                    />
+                  </Atualizavel>
+                )}
+              </div>
+            </Cartao>
 
-      <CartaoVendasPorMes
-        periodo={periodo}
-        representanteId={representanteId}
-        horizonteDias={horizonteDias}
-        sazonalidade={sazonalidade}
-      />
-
-      <Cartao
-        titulo={dataEscolhida ? `Estoque baixo nos clientes para ${dataEscolhida.nome}` : 'Estoque baixo nos clientes'}
-        recolhivel="painel-estoque-baixo"
-      >
-        {isLoading && <Carregando>Carregando o estoque dos clientes...</Carregando>}
-        {/* O erro já é anunciado nas datas; aqui, só sem dados para mostrar. */}
-        {isError && !sazonalidade && <Aviso tom="erro">Não foi possível carregar o estoque dos clientes.</Aviso>}
-        {sazonalidade && !dataEscolhida && (
-          <EstadoVazio icone="calendar">Sem data comemorativa no horizonte escolhido.</EstadoVazio>
-        )}
-        {sazonalidade && dataEscolhida && (
-          <Atualizavel atualizando={isPlaceholderData}>
-            <EstoqueBaixoDaData sazonalidade={sazonalidade} data={dataEscolhida} />
-          </Atualizavel>
-        )}
-      </Cartao>
-
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <div className="min-w-0">
-          <CartaoClientesEsfriando
+            <Cartao
+              titulo={
+                dataEscolhida ? `Estoque baixo nos clientes para ${dataEscolhida.nome}` : 'Estoque baixo nos clientes'
+              }
+              recolhivel="painel-estoque-baixo"
+            >
+              {isLoading && <Carregando>Carregando o estoque dos clientes...</Carregando>}
+              {/* O erro já é anunciado nas datas; aqui, só sem dados para mostrar. */}
+              {isError && !sazonalidade && (
+                <Aviso tom="erro">Não foi possível carregar o estoque dos clientes.</Aviso>
+              )}
+              {sazonalidade && !dataEscolhida && (
+                <EstadoVazio icone="calendar">Sem data comemorativa no horizonte escolhido.</EstadoVazio>
+              )}
+              {sazonalidade && dataEscolhida && (
+                <Atualizavel atualizando={isPlaceholderData}>
+                  <EstoqueBaixoDaData sazonalidade={sazonalidade} data={dataEscolhida} />
+                </Atualizavel>
+              )}
+            </Cartao>
+          </>
+        }
+        direita={
+          <CartaoVendasPorMes
             periodo={periodo}
             representanteId={representanteId}
-            mostrarRepresentante={mostrarRepresentante}
+            horizonteDias={horizonteDias}
+            sazonalidade={sazonalidade}
           />
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          {sazonalidade && <CartaoEpocaDoAno sazonalidade={sazonalidade} />}
-          <CartaoMapa representanteId={representanteId} />
-        </div>
-      </div>
+        }
+      />
     </>
   );
 }
@@ -550,13 +549,17 @@ export function PainelPage() {
 
       <PainelDaAba idBase={ID_DAS_ABAS} valor={aba} className="space-y-5">
         {aba === 'resultados' ? (
-          <AbaResultados gestor={gestor} periodo={periodo} representanteId={representanteId} />
+          <AbaResultados
+            gestor={gestor}
+            periodo={periodo}
+            representanteId={representanteId}
+            mostrarRepresentante={gestor && representanteId === undefined}
+          />
         ) : (
           <AbaProducao
             gestor={gestor}
             periodo={periodo}
             representanteId={representanteId}
-            mostrarRepresentante={gestor && representanteId === undefined}
             horizonteDias={horizonteDias}
             onHorizonteChange={setHorizonteDias}
           />

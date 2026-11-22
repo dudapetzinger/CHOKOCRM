@@ -155,24 +155,27 @@ export function BotaoRecolher({
  * Cartão branco do protótipo (`Card`). Com título, vira uma região com o nome
  * dele. Com `recolhivel` (o identificador do bloco), o cabeçalho ganha o botão
  * de recolher e a escolha fica guardada no navegador; o título e a `acao`
- * continuam visíveis e o conteúdo some de verdade.
+ * continuam visíveis e o conteúdo some de verdade. `recolhidoDeInicio` faz o
+ * bloco começar recolhido até a pessoa abrir.
  */
 export function Cartao({
   titulo,
   acao,
   recolhivel,
+  recolhidoDeInicio,
   className,
   children,
 }: {
   titulo?: ReactNode;
   acao?: ReactNode;
   recolhivel?: string;
+  recolhidoDeInicio?: boolean;
   className?: string;
   children: ReactNode;
 }) {
   const idTitulo = useId();
   const idConteudo = useId();
-  const { aberto, alternar } = useBlocoRecolhivel(recolhivel);
+  const { aberto, alternar } = useBlocoRecolhivel(recolhivel, recolhidoDeInicio);
   const comBotao = Boolean(recolhivel && titulo);
   return (
     <section

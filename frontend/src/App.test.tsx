@@ -189,12 +189,13 @@ describe('rota /clientes/:id', () => {
     expect(outroItem).not.toHaveAttribute('aria-current');
   });
 
-  it('desktop (1024 px) em /clientes: lista com o convite "Selecione um cliente" e nenhum item destacado', async () => {
+  it('desktop (1024 px) em /clientes: lista com o mapa e o convite ao lado, e nenhum item destacado', async () => {
     simularLargura(1024);
     abrirApp('/clientes');
 
     expect(await screen.findByText('Empório Central')).toBeInTheDocument();
-    expect(screen.getByText('Selecione um cliente')).toBeInTheDocument();
+    const mapa = screen.getByRole('region', { name: 'Mapa de clientes por cidade' });
+    expect(within(mapa).getByText('Selecione um cliente na lista ou uma cidade no mapa.')).toBeInTheDocument();
     expect(rolarParaTopo).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: /Doces da Vovó/ })).not.toHaveAttribute('aria-current');
     expect(screen.getByRole('link', { name: /Empório Central/ })).not.toHaveAttribute('aria-current');

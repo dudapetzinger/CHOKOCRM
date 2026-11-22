@@ -7,12 +7,12 @@
  * 3), com as metas daquela campanha. O representante recebe do backend só
  * as próprias e não vê criar, editar nem excluir (o backend também barra).
  * No Painel, o `periodo` escolhido limita a lista às metas que cruzam a janela;
- * sem `periodo`, todas. No Painel do representante,
- * o bloco tem a largura das metas a partir de 768 px: colunas de 20 rem,
- * no máximo duas (~22 rem com uma meta, ~43 rem com duas ou mais); para o
- * gestor e na campanha, a largura toda.
+ * sem `periodo`, todas. O bloco ocupa a largura de onde está (uma coluna
+ * do Painel para o representante, a largura toda para o gestor e na
+ * campanha).
  *
- * Cada meta é um cartão (uma coluna no celular, duas a partir de 768 px)
+ * Cada meta é um cartão (uma sozinha ocupa a linha toda; cabem tantas por
+ * linha quantas tiverem pelo menos 17 rem)
  * com o representante, a periodicidade, o período e as barras de visitas e
  * de vendas, com o realizado calculado no backend; cada barra abre o balão
  * com os clientes do realizado: as visitas de cada um e, nas
@@ -517,8 +517,6 @@ export function MetasPanel({
   const { aberto, alternar, expandir } = useBlocoRecolhivel(campanha ? undefined : 'painel-metas');
   const titulo = campanha ? 'Metas da campanha' : 'Metas de visitas e vendas';
   const Titulo = campanha ? 'h3' : 'h2';
-  // O representante só lê: no Painel, o bloco encolhe para a largura das metas
-  const larguraDasMetas = !gestor && !campanha;
 
   // Ao fechar o formulário, o foco volta a quem o abriu ou a "Nova meta"
   useEffect(() => {
@@ -544,7 +542,6 @@ export function MetasPanel({
       className={cn(
         aberto && 'space-y-3',
         campanha ? 'mt-4 border-t pt-4' : 'rounded-xl border bg-card p-5',
-        larguraDasMetas && 'md:w-fit',
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -600,12 +597,9 @@ export function MetasPanel({
         {metas && metas.length > 0 && (
           <ul
             aria-labelledby={idTitulo}
-            className={cn(
-              'grid gap-3',
-              // O teto de duas colunas fica na própria grade: dentro de um bloco `w-fit`, o `auto-fit` só conta
-              // mais de uma coluna quando a grade tem largura máxima definida (sem ela, fica sempre em uma).
-              larguraDasMetas ? 'md:max-w-[40.75rem] md:grid-cols-[repeat(auto-fit,20rem)]' : 'md:grid-cols-2',
-            )}
+            // As metas dividem a largura do bloco: uma sozinha ocupa a linha toda, e cabem tantas por linha
+            // quantas tiverem pelo menos 17 rem (o bloco pode estar numa coluna do Painel ou na largura toda).
+            className="grid grid-cols-[repeat(auto-fit,minmax(min(17rem,100%),1fr))] gap-3"
           >
             {metas.map((meta) => (
               <CartaoMeta key={meta.id} meta={meta} gestor={gestor} aoEditar={abrir} />

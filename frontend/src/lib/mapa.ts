@@ -1,5 +1,5 @@
 /**
- * Mapa de clientes por cidade do Painel: agrupa a carteira por
+ * Mapa de clientes por cidade da página de Clientes: agrupa a carteira por
  * cidade com as coordenadas da tabela dos municípios de SC (a mesma do
  * roteiro) e projeta as cidades presentes numa área retangular,
  * com margem, mantendo a proporção (a área enquadra só as cidades da

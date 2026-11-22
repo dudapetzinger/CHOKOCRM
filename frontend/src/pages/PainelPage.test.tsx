@@ -244,7 +244,7 @@ describe('PainelPage (gestor)', () => {
     ]);
   });
 
-  it('duas abas logo abaixo da barra; "Metas e resultados" abre por padrão com indicadores, metas e o ranking', () => {
+  it('duas abas logo abaixo da barra; "Metas e resultados" abre por padrão com indicadores, metas, visitas, ranking e clientes esfriando', () => {
     renderizarComo('GESTOR');
 
     const abas = screen.getByRole('tablist', { name: 'Seções do Painel' });
@@ -260,10 +260,11 @@ describe('PainelPage (gestor)', () => {
       'Resultado das visitas por representante',
       'Ritmo de visitas no período',
       'Ranking dos representantes',
+      'Quais clientes estão esfriando?',
     ]);
     // Só o painel da aba aberta fica montado
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
-    expect(screen.queryByText('Época do ano')).not.toBeInTheDocument();
+    expect(screen.queryByText('Próximas datas comemorativas')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Planilha' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /PDF/ })).not.toBeInTheDocument();
   });
@@ -290,29 +291,25 @@ describe('PainelPage (gestor)', () => {
     await recolherEConferir('Estoque baixo nos clientes para Natal 2026');
   });
 
-  it('os cartões de baixo de "Produção e sazonalidade" recolhem e expandem', async () => {
-    renderizarComo('GESTOR', '/painel?aba=producao');
+  it('os clientes esfriando recolhem e expandem', async () => {
+    renderizarComo('GESTOR');
 
     await recolherEConferir('Quais clientes estão esfriando?');
-    await recolherEConferir('Época do ano');
-    await recolherEConferir('Mapa de clientes por cidade');
   });
 
-  it('?aba=producao abre "Produção e sazonalidade" com as datas, as vendas por mês e o estoque baixo, nessa ordem', () => {
+  it('?aba=producao abre "Produção e sazonalidade" com as datas, o estoque baixo e as vendas por mês, nessa ordem', () => {
     renderizarComo('GESTOR', '/painel?aba=producao');
 
     expect(screen.getByRole('tab', { name: 'Produção e sazonalidade' })).toHaveAttribute('aria-selected', 'true');
     const painel = screen.getByRole('tabpanel', { name: 'Produção e sazonalidade' });
     expect(within(painel).getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent)).toEqual([
       'Próximas datas comemorativas',
-      'Vendas por mês, em R$',
       'Estoque baixo nos clientes para Natal 2026',
-      'Quais clientes estão esfriando?',
-      'Época do ano',
-      'Mapa de clientes por cidade',
+      'Vendas por mês, em R$',
     ]);
     expect(screen.queryByRole('region', { name: 'Ranking dos representantes' })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Quem está visitando pouco?' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Quais clientes estão esfriando?' })).not.toBeInTheDocument();
   });
 
   it('trocar de aba troca o painel', async () => {
@@ -321,7 +318,7 @@ describe('PainelPage (gestor)', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Produção e sazonalidade' }));
 
     expect(screen.getByRole('tabpanel', { name: 'Produção e sazonalidade' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Época do ano' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Próximas datas comemorativas' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Metas de visitas e vendas' })).not.toBeInTheDocument();
   });
 
@@ -347,13 +344,14 @@ describe('PainelPage (gestor)', () => {
     expect(within(ranking).queryByRole('list')).not.toBeInTheDocument();
   });
 
-  it('mapa de clientes por cidade com a carteira carregada no Painel', () => {
-    renderizarComo('GESTOR', '/painel?aba=producao');
+  it('o Painel não tem o mapa de clientes nem o bloco "Época do ano", em nenhuma das abas', async () => {
+    renderizarComo('GESTOR');
 
-    const mapa = screen.getByRole('region', { name: 'Mapa de clientes por cidade' });
-    expect(
-      within(mapa).getByRole('button', { name: 'Ver clientes de Joinville, 1 cliente, situação mais urgente vermelho' }),
-    ).toBeInTheDocument();
+    expect(screen.queryByText('Mapa de clientes por cidade')).not.toBeInTheDocument();
+    expect(screen.queryByText('Época do ano')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Produção e sazonalidade' }));
+    expect(screen.queryByText('Mapa de clientes por cidade')).not.toBeInTheDocument();
+    expect(screen.queryByText('Época do ano')).not.toBeInTheDocument();
   });
 
   it('"Planilha" busca o relatório do período e do representante e baixa o CSV', async () => {
@@ -509,7 +507,7 @@ describe('PainelPage (gestor)', () => {
   });
 
   it('quais clientes estão esfriando: distribuição por cor e os mais urgentes, que levam à ficha', () => {
-    renderizarComo('GESTOR', '/painel?aba=producao');
+    renderizarComo('GESTOR');
 
     const bloco = screen.getByRole('region', { name: 'Quais clientes estão esfriando?' });
     expect(
@@ -621,18 +619,6 @@ describe('PainelPage (gestor)', () => {
     expect(screen.queryByText(/0 de 0/)).not.toBeInTheDocument();
   });
 
-  it('época do ano lista os eventos do horizonte com a data, o prazo e os produtos sugeridos', () => {
-    renderizarComo('GESTOR', '/painel?aba=producao');
-
-    const bloco = screen.getByRole('region', { name: 'Época do ano' });
-    const itens = within(bloco).getAllByRole('listitem');
-    expect(itens).toHaveLength(2);
-    expect(itens[0]).toHaveTextContent('Natal 2026');
-    expect(itens[0]).toHaveTextContent('25/12/2026 · em 35 dias');
-    expect(itens[0]).toHaveTextContent('Produtos sugeridos: Bombons sortidos e Caixa presente sortida.');
-    expect(itens[1]).toHaveTextContent('Páscoa 2027');
-  });
-
   it('com as vendas zeradas no período, diz "Sem vendas no período."', () => {
     vi.mocked(useVendasMensais).mockReturnValue(
       consulta({ ...VENDAS, meses: VENDAS.meses.map((mes) => ({ ...mes, total: 0 })) }) as unknown as Retorno<
@@ -651,7 +637,7 @@ describe('PainelPage (gestor)', () => {
       isError: true,
       error: new ApiError('NETWORK', 'Você está sem internet.'),
     } as unknown as Retorno<typeof useClientesDaCarteira>);
-    renderizarComo('GESTOR', '/painel?aba=producao');
+    renderizarComo('GESTOR');
 
     expect(screen.getByRole('alert')).toHaveTextContent('Você está sem internet.');
     const esfriando = screen.getByRole('region', { name: 'Quais clientes estão esfriando?' });
@@ -681,8 +667,9 @@ describe('PainelPage (representante)', () => {
     expect(screen.getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent)).toEqual([
       'Como está a minha carteira?',
       'Metas de visitas e vendas',
-      'Resultado das minhas visitas',
       'Ritmo de visitas no período',
+      'Resultado das minhas visitas',
+      'Quais clientes estão esfriando?',
     ]);
     expect(screen.queryByRole('region', { name: 'Ranking dos representantes' })).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: /Ranking/ })).not.toBeInTheDocument();
@@ -710,19 +697,21 @@ describe('PainelPage (representante)', () => {
     ).toBeInTheDocument();
   });
 
-  it('"Produção e sazonalidade": as datas à frente, sem "Criar campanha", e os mais urgentes sem o nome do representante', () => {
+  it('"Produção e sazonalidade": as datas à frente, sem "Criar campanha"', () => {
     renderizarComo('REPRESENTANTE', '/painel?aba=producao');
 
     expect(screen.getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent)).toEqual([
       'Próximas datas comemorativas',
-      'Vendas por mês, em R$',
       'Estoque baixo nos clientes para Natal 2026',
-      'Quais clientes estão esfriando?',
-      'Época do ano',
-      'Mapa de clientes por cidade',
+      'Vendas por mês, em R$',
     ]);
     expect(screen.getByText('Nenhuma campanha para esta data.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Criar campanha' })).not.toBeInTheDocument();
+  });
+
+  it('os clientes esfriando da própria carteira vêm sem o nome do representante', () => {
+    renderizarComo('REPRESENTANTE');
+
     const esfriando = screen.getByRole('region', { name: 'Quais clientes estão esfriando?' });
     expect(within(esfriando).getByRole('link', { name: /Doces da Vovó/ })).not.toHaveTextContent('Eduarda');
   });

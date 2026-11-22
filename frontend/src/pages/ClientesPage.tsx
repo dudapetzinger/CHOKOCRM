@@ -11,7 +11,8 @@ import { BarraDeFerramentas } from '../components/BarraDeFerramentas';
 import { ItemListaCliente } from '../components/ItemListaCliente';
 import { LegendaSituacao } from '../components/LegendaSituacao';
 import { SeletorRepresentante } from '../components/SeletorRepresentante';
-import { Aviso, CLASSES_SELECT } from '../components/crm/ui';
+import { MapaPorCidade } from '../components/crm/graficos/MapaPorCidade';
+import { Aviso, Cartao, CLASSES_SELECT } from '../components/crm/ui';
 import { cidadesDaCarteira, filtrarPorCidade } from '../lib/cidadesDaCarteira';
 import { ordenarPorUrgencia } from '../lib/ordenarPorUrgencia';
 import { useLarguraDuasColunas } from '../lib/useLarguraDesktop';
@@ -19,6 +20,10 @@ import { useRepresentanteSelecionado } from '../representante/useRepresentante';
 import { ClienteDetalhePage } from './ClienteDetalhePage';
 
 const ATRASO_BUSCA_MS = 300;
+
+const TITULO_DO_MAPA = 'Mapa de clientes por cidade';
+/** Ao lado da lista o mapa tem espaço para ser mais alto que no celular. */
+const ALTURA_DO_MAPA_AO_LADO_DA_LISTA = 520;
 
 const MENSAGEM_CARTEIRA_VAZIA =
   'Nenhum cliente na carteira. Os clientes entram pela importação das notas fiscais, feita pela gestão.';
@@ -42,6 +47,13 @@ function contarPorAba(clientes: readonly ClienteListItem[]): Record<Aba, number>
  * o cliente aberto destacado, e a ficha dele à direita (ou o convite para
  * escolher um). Abaixo de 1024, `/clientes/:id` abre só a ficha (ver
  * `ClientesOuFicha` em App.tsx).
+ *
+ * O mapa de clientes por cidade mostra os clientes ativos da carteira (a do
+ * representante escolhido, para o gestor), sem a busca nem o filtro de
+ * cidade. A partir de 1024 px ele ocupa o lugar da ficha enquanto nenhum
+ * cliente está aberto; abaixo disso, fica num bloco acima das abas, recolhido
+ * de início para a lista continuar à vista. Clicar numa cidade abre o painel
+ * com os clientes dela e o link para a ficha de cada um.
  *
  * A lista traz também os clientes inativos: as abas de situação mostram só os
  * ativos (e contam só eles) e "Todos" acrescenta os inativos, por nome, no
@@ -107,6 +119,8 @@ export function ClientesPage() {
     queryFn: () => listClients({ representanteId, ativo: 'todos' }),
   });
   const cidades = useMemo(() => cidadesDaCarteira(carteira ?? []), [carteira]);
+  const ativosDaCarteira = useMemo(() => (carteira ?? []).filter((cliente) => cliente.ativo), [carteira]);
+  const temMapa = ativosDaCarteira.length > 0;
 
   // A cidade escolhida pode sumir da carteira (cliente transferido, cidade
   // corrigida): o valor efetivo volta a "todas" em vez de esvaziar a lista.
@@ -190,6 +204,12 @@ export function ClientesPage() {
         <LegendaSituacao />
       </BarraDeFerramentas>
 
+      {!duasColunas && temMapa && (
+        <Cartao titulo={TITULO_DO_MAPA} recolhivel="clientes-mapa" recolhidoDeInicio className="px-4 py-3">
+          <MapaPorCidade clientes={ativosDaCarteira} />
+        </Cartao>
+      )}
+
       {contagens && aba !== null && <AbasSituacao valor={aba} onChange={setAba} contagens={contagens} />}
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando clientes...</p>}
@@ -236,6 +256,14 @@ export function ClientesPage() {
           <div className="min-w-0">
             {clienteAbertoId ? (
               <ClienteDetalhePage key={clienteAbertoId} embutida />
+            ) : temMapa ? (
+              <Cartao titulo={TITULO_DO_MAPA}>
+                <p className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+                  <MousePointerClick aria-hidden="true" className="size-4 shrink-0" />
+                  Selecione um cliente na lista ou uma cidade no mapa.
+                </p>
+                <MapaPorCidade clientes={ativosDaCarteira} alturaMaxima={ALTURA_DO_MAPA_AO_LADO_DA_LISTA} />
+              </Cartao>
             ) : (
               <div className="flex h-80 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-card text-muted-foreground">
                 <MousePointerClick aria-hidden="true" className="size-8" />

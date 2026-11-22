@@ -368,6 +368,61 @@ describe('ClientesPage', () => {
     });
   });
 
+  describe('mapa de clientes por cidade', () => {
+    const NOME_DA_BOLHA = 'Ver clientes de Joinville, 1 cliente, situação mais urgente vermelho';
+
+    it('a partir de 1024 px, sem cliente aberto, o mapa ocupa o lugar da ficha, com o convite', async () => {
+      simularLargura(1024);
+      vi.mocked(listClients).mockResolvedValue([CLIENTE]);
+      renderizar();
+
+      const mapa = await screen.findByRole('region', { name: 'Mapa de clientes por cidade' });
+      expect(within(mapa).getByText('Selecione um cliente na lista ou uma cidade no mapa.')).toBeInTheDocument();
+      expect(within(mapa).getByRole('button', { name: NOME_DA_BOLHA })).toBeInTheDocument();
+      // Ao lado da lista o mapa fica sempre aberto: não é um bloco de recolher.
+      expect(within(mapa).queryByRole('button', { name: /Recolher|Expandir/ })).not.toBeInTheDocument();
+      expect(screen.queryByText('Selecione um cliente')).not.toBeInTheDocument();
+    });
+
+    it('no celular, o mapa fica num bloco acima das abas, recolhido de início; expandir mostra as cidades', async () => {
+      simularLargura(false);
+      vi.mocked(listClients).mockResolvedValue([CLIENTE]);
+      renderizar();
+
+      const mapa = await screen.findByRole('region', { name: 'Mapa de clientes por cidade' });
+      const expandir = within(mapa).getByRole('button', { name: 'Expandir Mapa de clientes por cidade' });
+      expect(expandir).toHaveAttribute('aria-expanded', 'false');
+      expect(within(mapa).queryByRole('button', { name: NOME_DA_BOLHA })).not.toBeInTheDocument();
+      expect(screen.getByText('Doces da Vovó')).toBeInTheDocument();
+
+      await userEvent.click(expandir);
+
+      expect(within(mapa).getByRole('button', { name: NOME_DA_BOLHA })).toBeInTheDocument();
+      expect(within(mapa).queryByText('Selecione um cliente na lista ou uma cidade no mapa.')).not.toBeInTheDocument();
+    });
+
+    it('o mapa conta só os clientes ativos', async () => {
+      simularLargura(1024);
+      vi.mocked(listClients).mockResolvedValue([
+        CLIENTE,
+        { ...CLIENTE, id: 'c2', nomeFantasia: 'Empório Fechado', ativo: false },
+      ]);
+      renderizar();
+
+      const mapa = await screen.findByRole('region', { name: 'Mapa de clientes por cidade' });
+      expect(within(mapa).getByRole('button', { name: NOME_DA_BOLHA })).toBeInTheDocument();
+    });
+
+    it('sem cliente ativo na carteira, não há mapa: fica o convite para escolher um cliente', async () => {
+      simularLargura(1024);
+      vi.mocked(listClients).mockResolvedValue([{ ...CLIENTE, ativo: false }]);
+      renderizar();
+
+      expect(await screen.findByText('Selecione um cliente')).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Mapa de clientes por cidade' })).not.toBeInTheDocument();
+    });
+  });
+
   it('com a lista já carregada, um refetch que falha por rede mantém as linhas e mostra o aviso acima', async () => {
     simularLargura(false);
     vi.mocked(listClients).mockResolvedValue([CLIENTE]);

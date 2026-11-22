@@ -145,7 +145,11 @@ export function DatasComemorativas({ sazonalidade, escolhida, onEscolher, gestor
         {`O período de vendas são os ${JANELA_PICO_DIAS} dias até a data.${escolher}`}
       </p>
 
-      <ul aria-label="Datas comemorativas do horizonte" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {/* Uma data sozinha ocupa a linha toda; cabem tantas por linha quantas tiverem pelo menos 16 rem. */}
+      <ul
+        aria-label="Datas comemorativas do horizonte"
+        className="grid grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))] gap-3"
+      >
         {sazonalidade.datas.map((data) => (
           <CartaoDaData
             key={data.id}

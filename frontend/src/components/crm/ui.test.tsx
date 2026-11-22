@@ -86,6 +86,34 @@ describe('Etiqueta', () => {
 });
 
 describe('Cartao recolhível', () => {
+  it('com recolhidoDeInicio, começa recolhido; abrir e recolher de novo guardam a escolha', async () => {
+    const usuario = userEvent.setup();
+    const arvore = () => (
+      <Cartao titulo="Mapa" recolhivel="teste-mapa" recolhidoDeInicio>
+        <p>conteúdo do mapa</p>
+      </Cartao>
+    );
+    const { unmount } = render(arvore());
+
+    const expandir = screen.getByRole('button', { name: 'Expandir Mapa' });
+    expect(expandir).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText('conteúdo do mapa')).not.toBeVisible();
+
+    await usuario.click(expandir);
+    expect(screen.getByText('conteúdo do mapa')).toBeVisible();
+
+    // Aberto por escolha: ao voltar à tela, continua aberto.
+    unmount();
+    const segunda = render(arvore());
+    expect(screen.getByRole('button', { name: 'Recolher Mapa' })).toHaveAttribute('aria-expanded', 'true');
+
+    // Recolhido de novo: volta ao estado de início e assim fica.
+    await usuario.click(screen.getByRole('button', { name: 'Recolher Mapa' }));
+    segunda.unmount();
+    render(arvore());
+    expect(screen.getByRole('button', { name: 'Expandir Mapa' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('começa aberto, com o botão "Recolher" ligado ao conteúdo', () => {
     render(
       <Cartao titulo="Dados do ERP" recolhivel="teste-erp">

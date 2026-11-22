@@ -107,6 +107,12 @@ Um botão de ajuda, na barra da lista, abre a legenda das situações, organizad
 
 A legenda lembra ainda que a cor olha só a última visita e a última compra, que negociação conta como sem venda, que quem nunca comprou não é rebaixado e que o cliente inativo não tem cor.
 
+### Mapa de clientes por cidade
+
+A página de clientes traz o mapa da carteira, com o contorno de Santa Catarina e uma bolha por cidade. O tamanho da bolha é o número de clientes ativos da cidade e a cor é a situação mais urgente entre eles. Clicar em uma cidade abre, ao lado, os clientes dela, do mais urgente ao menos, com o link para a ficha de cada um. Para o gestor, o mapa segue o representante escolhido.
+
+No computador, o mapa ocupa o espaço da ficha enquanto nenhum cliente está aberto. No celular, ele fica em um bloco acima das abas, que começa recolhido para a lista continuar à vista.
+
 ### Cliente inativo
 
 Só a gestão inativa e reativa um cliente. O cliente inativo:
@@ -136,7 +142,8 @@ Os blocos maiores das telas têm, no título, um botão que recolhe e expande o 
 | Tela | Blocos que recolhem |
 |------|---------------------|
 | Ficha do cliente | Insights e sugestões, Dados do ERP, Mensagem de estoque, Histórico de visitas e Recorrência de visitas |
-| Painel | Metas, resultado das visitas, ritmo de visitas, ranking, datas comemorativas, vendas por mês, estoque baixo, clientes esfriando, época do ano e mapa |
+| Clientes | Mapa de clientes por cidade, no celular (começa recolhido) |
+| Painel | Metas, resultado das visitas, ritmo de visitas, ranking, clientes esfriando, datas comemorativas, estoque baixo e vendas por mês |
 | Campanhas | Cada campanha, que recolhe a descrição, os produtos, os resultados e as metas dela |
 | Importar notas | Importações anteriores |
 
@@ -273,7 +280,7 @@ O envio acontece no WhatsApp, pelas mãos de quem está usando. A pessoa pode al
 
 O painel mostra os resultados de um período. O período pode ser este mês (do dia 1º até hoje), 30, 90 ou 365 dias, ou um intervalo de datas à escolha, de até 365 dias. O painel abre em "Este mês", que é o período da meta mensal: assim o número de visitas dos indicadores é o mesmo da meta. No intervalo à escolha, os dois campos de data ficam em uma linha própria, abaixo dos botões de período. O representante vê os números da própria carteira. O gestor vê a equipe inteira ou um representante.
 
-O painel tem duas abas.
+O painel tem duas abas. A primeira responde como andam as visitas e as vendas da carteira; a segunda, o que oferecer nas próximas datas comemorativas. Em telas largas os blocos de cada aba se dividem em duas colunas; no celular ficam um abaixo do outro.
 
 ### Metas e resultados
 
@@ -284,7 +291,7 @@ O painel tem duas abas.
 | Conversão em vendas | Parte das visitas que terminou em venda |
 | Clientes esfriando | Clientes em laranja ou vermelho, com a distribuição da carteira pelas quatro cores |
 
-Abaixo dos indicadores ficam as metas com o realizado, o resultado das visitas por representante, o ritmo de visitas ao longo do período (por semana em períodos de até 91 dias, por mês nos maiores) e, para o gestor, o ranking dos representantes em visitas, conversão e receita.
+Abaixo dos indicadores ficam as metas com o realizado, o resultado das visitas por representante, o ritmo de visitas ao longo do período (por semana em períodos de até 91 dias, por mês nos maiores), o bloco dos clientes esfriando (a distribuição da carteira por cor e os cinco clientes mais urgentes) e, para o gestor, o ranking dos representantes em visitas, conversão e receita.
 
 ### Produção e sazonalidade
 
@@ -293,9 +300,8 @@ Esta aba serve para acompanhar as vendas e o estoque em volta das datas comemora
 | Bloco | O que mostra |
 |-------|--------------|
 | Próximas datas comemorativas | Um cartão por data do horizonte, da mais próxima à mais distante |
-| Vendas por mês, em R$ | As vendas mês a mês no período do painel, com as datas comemorativas e os períodos das campanhas marcados |
 | Estoque baixo nos clientes | Os produtos indicados para a data escolhida e quantos clientes estão com pouco estoque de cada um |
-| Clientes esfriando, época do ano e mapa | A distribuição da carteira por cor com os clientes mais urgentes, as datas comemorativas do horizonte com os produtos sugeridos para cada uma e o mapa de clientes por cidade, com o contorno de Santa Catarina |
+| Vendas por mês, em R$ | As vendas mês a mês no período do painel, com as datas comemorativas e os períodos das campanhas marcados |
 
 Cada cartão de data comemorativa traz:
 
@@ -328,7 +334,7 @@ Em todos os gráficos, passar o mouse sobre uma barra, uma fatia ou um ponto mos
 | Linha do ranking | As visitas do representante, agrupadas por cliente |
 | Mês das vendas por mês | Quem comprou no mês e quanto |
 | Cor da distribuição da carteira | Os clientes daquela cor |
-| Cidade do mapa | Os clientes da cidade |
+| Cidade do mapa, na página de clientes | Os clientes da cidade |
 | Produto do estoque baixo | Os clientes com pouco estoque do produto e a quantidade de cada um |
 
 Na tela de Campanhas, o nome do representante na tabela de resultados abre as vendas dele na campanha.

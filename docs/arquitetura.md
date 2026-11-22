@@ -96,7 +96,7 @@ A interface é uma aplicação React de página única. Ela é dividida assim:
 | Pasta | Conteúdo |
 |-------|----------|
 | `pages` | Uma tela por arquivo: login, clientes, ficha do cliente, check-in, agenda, painel, campanhas, importação de notas, usuários e troca de senha |
-| `components` | Peças reaproveitadas pelas telas. Em `ui` ficam os componentes básicos (botão, campo, menu), em `crm` as peças próprias do sistema (moldura, calendário, metas, roteiro, painel lateral, campo de arquivo), em `crm/graficos` os gráficos e o mapa do painel e em `crm/sazonalidade` os blocos das datas comemorativas e do estoque baixo |
+| `components` | Peças reaproveitadas pelas telas. Em `ui` ficam os componentes básicos (botão, campo, menu), em `crm` as peças próprias do sistema (moldura, calendário, metas, roteiro, painel lateral, campo de arquivo), em `crm/graficos` os gráficos do painel e o mapa da página de clientes e em `crm/sazonalidade` os blocos das datas comemorativas e do estoque baixo |
 | `hooks` | Busca e atualização dos dados do servidor, com cache, usando TanStack Query |
 | `services` | As chamadas à API, com o envio do token de login |
 | `auth` | Controle de quem está logado e proteção das telas |

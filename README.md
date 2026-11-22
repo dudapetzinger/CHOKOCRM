@@ -40,7 +40,8 @@ O representante:
 
 A gestão:
 
-- acompanha no painel as visitas, as vendas e a conversão de cada representante, com gráficos, ranking e mapa dos clientes por cidade, e abre com um clique os clientes e as visitas por trás de cada número;
+- acompanha no painel as visitas, as vendas e a conversão de cada representante, com gráficos e ranking, e abre com um clique os clientes e as visitas por trás de cada número;
+- vê na página de clientes o mapa da carteira por cidade, com a situação mais urgente de cada uma;
 - vê quais clientes estão esfriando e, para cada data comemorativa que se aproxima, as vendas do mesmo período do ano anterior, as campanhas e os produtos com estoque baixo nos clientes;
 - cria campanhas e metas e acompanha o resultado de cada uma;
 - importa as notas fiscais em PDF emitidas pelo sistema de gestão (ERP) da empresa. É a partir delas que os clientes são criados e que as vendas entram no sistema;
@@ -85,9 +86,10 @@ Como gestor (conta Gestão Chokolaten):
 1. Entre no sistema. A primeira tela é o Painel, com os indicadores de toda a equipe.
 2. Use o seletor de representante para comparar as carteiras e troque o período de análise.
 3. Clique em um indicador ou em uma barra de gráfico para abrir, ao lado, os clientes e as visitas por trás do número.
-4. Abra a aba Produção e sazonalidade para ver as próximas datas comemorativas, as vendas por mês, o estoque baixo por produto e o mapa.
-5. Em Campanhas, crie uma campanha e uma meta para um representante.
-6. No menu da conta, abra Usuários para criar uma conta ou definir uma senha provisória.
+4. Abra a aba Produção e sazonalidade para ver as próximas datas comemorativas, o estoque baixo por produto e as vendas por mês.
+5. Abra Clientes para ver o mapa da carteira por cidade e clique em uma cidade para ver os clientes dela.
+6. Em Campanhas, crie uma campanha e uma meta para um representante.
+7. No menu da conta, abra Usuários para criar uma conta ou definir uma senha provisória.
 
 ### Simulando outra data
 

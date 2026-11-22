@@ -1,5 +1,5 @@
 /**
- * "Mapa de clientes por cidade" do Painel (`Mapa` de
+ * "Mapa de clientes por cidade" da página de Clientes (`Mapa` de
  * `routes/painel.tsx` do protótipo): SVG desenhado à mão, com uma
  * bolha por cidade da carteira (raio 7 + 3 × nº de clientes, com teto), na
  * cor da situação mais urgente da cidade, o número de clientes dentro e o
@@ -170,7 +170,14 @@ function noMinimo(caixa: ViewBox, inicial: ViewBox, nivelMinimo: number, caixaDo
   return nivelDoZoom(caixa, inicial) <= nivelMinimo ? conterCaixa(caixa, caixaDoEstado) : caixa;
 }
 
-export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
+export function MapaPorCidade({
+  clientes,
+  alturaMaxima = ALTURA_MAXIMA,
+}: {
+  clientes: ClienteListItem[];
+  /** Teto da altura do mapa, em px (o mapa tem 60 % da largura até esse teto). */
+  alturaMaxima?: number;
+}) {
   const desktop = useLarguraDesktop();
   const [refArea, largura] = useLarguraDoElemento<HTMLDivElement>(LARGURA_PADRAO);
   const { cidades, semCoordenadas } = useMemo(() => agruparPorCidade(clientes), [clientes]);
@@ -186,7 +193,7 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
   const pinca = useRef<{ distancia: number; meio: Ponto; viewBox: ViewBox } | null>(null);
   const [arrastando, setArrastando] = useState(false);
 
-  const altura = Math.round(Math.min(ALTURA_MAXIMA, Math.max(ALTURA_MINIMA, largura * 0.6)));
+  const altura = Math.round(Math.min(alturaMaxima, Math.max(ALTURA_MINIMA, largura * 0.6)));
   const inicial = useMemo<ViewBox>(() => ({ x: 0, y: 0, largura, altura }), [largura, altura]);
   const [viewBox, setViewBox] = useState<ViewBox>(inicial);
   const [inicialAnterior, setInicialAnterior] = useState(inicial);
