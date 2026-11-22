@@ -135,7 +135,9 @@ export function FiltroPeriodo({ valor, onChange, onPeriodoDaPlanilha, className 
   }
 
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    // `contents`: o segmentado e o bloco das datas são itens da barra do Painel. Assim "Planilha"
+    // fica ao lado do segmentado e as datas ocupam uma linha própria, na largura da barra.
+    <div className={cn('contents', className)}>
       <FiltroPilulas
         rotulo="Período"
         ariaLabel="Período de análise dos indicadores"
@@ -146,13 +148,14 @@ export function FiltroPeriodo({ valor, onChange, onPeriodoDaPlanilha, className 
       />
 
       {datas && (
-        <div className="space-y-2">
+        <div role="group" aria-label="Datas do período" className="order-last w-full basis-full space-y-2">
           <div className="flex gap-2">
             <div className="min-w-0 flex-1 md:w-40 md:flex-none">
               <Campo rotulo="De" htmlFor={idDe} erro={erros.de}>
                 <Input
                   id={idDe}
                   type="date"
+                  className="min-w-0"
                   max={hoje}
                   value={datas.de}
                   onChange={(evento) => editar({ ...datas, de: evento.target.value })}
@@ -164,6 +167,7 @@ export function FiltroPeriodo({ valor, onChange, onPeriodoDaPlanilha, className 
                 <Input
                   id={idAte}
                   type="date"
+                  className="min-w-0"
                   max={hoje}
                   value={datas.ate}
                   onChange={(evento) => editar({ ...datas, ate: evento.target.value })}

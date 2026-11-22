@@ -77,7 +77,7 @@ const PENDENTE = nota({
   id: 'n9',
   numero: '2460',
   vinculo: 'PENDENTE',
-  visitaSugerida: { id: 'v1', dataHora: '2026-11-03T15:00:00.000Z', resultado: 'VENDA', totalPedido: 900 },
+  visitaSugerida: { id: 'v1', dataHora: '2026-11-03T15:00:00.000Z', dia: '2026-11-03', diasAntes: 1, resultado: 'VENDA', totalPedido: 900 },
 });
 
 function semCliente(extra: Partial<CnpjSemCliente> = {}): CnpjSemCliente {
@@ -171,6 +171,7 @@ function notaLida(extra: Partial<NotaLida> = {}): NotaLida {
     numero: '2455',
     serie: '1',
     dataEmissao: '2026-11-05',
+    dataEmissaoDanfe: '2026-11-05',
     destinatarioNome: 'EMPORIO POMERODE LTDA',
     destinatarioCnpj: '12345678000190',
     cliente: POMERODE,
@@ -460,6 +461,18 @@ describe('ImportacoesPage', () => {
     expect(importarPdf).not.toHaveBeenCalled();
   });
 
+  it('o campo de arquivos usa os textos do app: sem arquivo, com um e com vários', async () => {
+    renderizar();
+    expect(screen.getByText('Anexar arquivos')).toBeInTheDocument();
+    expect(screen.getByText('Nenhum arquivo selecionado')).toBeInTheDocument();
+
+    await usuario.upload(screen.getByLabelText('Notas fiscais (PDF)'), [pdf('a.pdf')]);
+    expect(screen.getByText('a.pdf')).toBeInTheDocument();
+
+    await usuario.upload(screen.getByLabelText('Notas fiscais (PDF)'), [pdf('a.pdf'), pdf('b.pdf')]);
+    expect(screen.getByText('2 arquivos selecionados')).toBeInTheDocument();
+  });
+
   it('"Nova importação" limpa a tela e as listas de baixo já refletem a gravação', async () => {
     lerDe(LEITURAS);
     gravarDe(GRAVACOES);
@@ -704,14 +717,74 @@ describe('ImportacoesPage', () => {
     expect(await screen.findByText(/ainda não é cliente/)).toHaveTextContent(/representante/);
   });
 
-  it('o "?" de "Ligar à visita" abre a explicação da nota em dia diferente da última visita', async () => {
+  it('o "?" de "Ligar à visita" explica a regra da janela de 15 dias em duas frases', async () => {
     vi.mocked(listarPendencias).mockResolvedValue([PENDENTE]);
     renderizar();
 
     const parte = await screen.findByRole('region', { name: 'Ligar à visita' });
     await usuario.click(within(parte).getByRole('button', { name: 'Por que é uma pendência?' }));
 
-    expect(await screen.findByText(/dia diferente da última visita/)).toHaveTextContent(/conversão/);
+    expect(await screen.findByText(/Uma nota vira pendência quando o cliente tem uma visita até 15 dias antes do dia da nota\./)).toHaveTextContent(
+      `Sem visita nesse período, a nota conta só como compra.`,
+    );
+  });
+
+  it('cada pendência diz o motivo: dia da nota, última visita com o resultado e quantos dias antes', async () => {
+    vi.mocked(listarPendencias).mockResolvedValue([
+      nota({
+        id: 'n9',
+        numero: '2460',
+        dataEmissao: '2026-11-10',
+        vinculo: 'PENDENTE',
+        visitaSugerida: { id: 'v1', dataHora: '2026-11-05T15:00:00.000Z', dia: '2026-11-05', diasAntes: 5, resultado: 'NEGOCIACAO', totalPedido: 30 },
+      }),
+    ]);
+    renderizar();
+
+    expect(
+      await screen.findByText('A última visita foi em 05/11 (Em negociação), 5 dias antes da nota. A venda conta para essa visita?'),
+    ).toBeInTheDocument();
+  });
+
+  it('o motivo da pendência diz "no mesmo dia da nota" quando a visita é do dia da nota', async () => {
+    vi.mocked(listarPendencias).mockResolvedValue([
+      nota({
+        id: 'n9',
+        numero: '2460',
+        vinculo: 'PENDENTE',
+        visitaSugerida: { id: 'v1', dataHora: '2026-11-04T15:00:00.000Z', dia: '2026-11-04', diasAntes: 0, resultado: 'VENDA', totalPedido: 900 },
+      }),
+    ]);
+    renderizar();
+
+    expect(
+      await screen.findByText('A última visita foi em 04/11 (Houve venda), no mesmo dia da nota. A venda conta para essa visita?'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/0 dias/)).not.toBeInTheDocument();
+  });
+
+  it('a linha de produtos da visita só aparece quando o total é maior que zero', async () => {
+    vi.mocked(listarPendencias).mockResolvedValue([
+      nota({
+        id: 'n9',
+        numero: '2460',
+        vinculo: 'PENDENTE',
+        visitaSugerida: { id: 'v1', dataHora: '2026-11-03T15:00:00.000Z', dia: '2026-11-03', diasAntes: 1, resultado: 'VENDA', totalPedido: 0 },
+      }),
+    ]);
+    renderizar();
+
+    await screen.findByText(/1 dia antes da nota/);
+    expect(screen.queryByText(/Produtos da visita/)).not.toBeInTheDocument();
+  });
+
+  it('o motivo da pendência usa "1 dia antes" no singular', async () => {
+    vi.mocked(listarPendencias).mockResolvedValue([PENDENTE]);
+    renderizar();
+
+    expect(
+      await screen.findByText('A última visita foi em 03/11 (Houve venda), 1 dia antes da nota. A venda conta para essa visita?'),
+    ).toBeInTheDocument();
   });
 
   it('os dois "?" têm o mesmo nome e cada um descreve o título da sua parte', async () => {
@@ -767,7 +840,7 @@ describe('ImportacoesPage', () => {
     await waitFor(() => expect(screen.queryByText(/2460/)).not.toBeInTheDocument());
   });
 
-  it('pendência: vincular busca de novo a ficha do cliente (vendas e visitas)', async () => {
+  it('pendência: vincular busca de novo a ficha do cliente (vendas e visitas) e os números do Painel', async () => {
     const invalidar = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
     vi.mocked(listarPendencias).mockResolvedValueOnce([PENDENTE]).mockResolvedValue([]);
     renderizar();
@@ -776,6 +849,20 @@ describe('ImportacoesPage', () => {
 
     await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ['client'] }));
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ['erp'] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ['dashboard'] });
+    invalidar.mockRestore();
+  });
+
+  it('pendência: "Deixar só no ERP" busca de novo os números do Painel', async () => {
+    const invalidar = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    vi.mocked(listarPendencias).mockResolvedValueOnce([PENDENTE]).mockResolvedValue([]);
+    renderizar();
+
+    await usuario.click(await screen.findByRole('button', { name: 'Deixar só no ERP' }));
+
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ['dashboard'] }));
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ['erp'] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ['client'] });
     invalidar.mockRestore();
   });
 
@@ -785,7 +872,7 @@ describe('ImportacoesPage', () => {
         id: 'n9',
         numero: '2460',
         vinculo: 'PENDENTE',
-        visitaSugerida: { id: 'v1', dataHora: '2026-11-03T15:00:00.000Z', resultado: 'NEGOCIACAO', totalPedido: null },
+        visitaSugerida: { id: 'v1', dataHora: '2026-11-03T15:00:00.000Z', dia: '2026-11-03', diasAntes: 1, resultado: 'NEGOCIACAO', totalPedido: 0 },
       }),
     ]);
     renderizar();
@@ -812,19 +899,11 @@ describe('ImportacoesPage', () => {
     await waitFor(() => expect(screen.queryByText(/2460/)).not.toBeInTheDocument());
   });
 
-  it('pendência sem resultado na visita mostra só a data, e o pedido da visita ao lado do valor da nota', async () => {
-    vi.mocked(listarPendencias).mockResolvedValue([
-      nota({
-        id: 'n9',
-        numero: '2460',
-        vinculo: 'PENDENTE',
-        visitaSugerida: { id: 'v1', dataHora: '2026-11-03T15:00:00.000Z', resultado: null, totalPedido: 900 },
-      }),
-    ]);
+  it('pendência mostra o total dos produtos da visita ao lado do valor da nota', async () => {
+    vi.mocked(listarPendencias).mockResolvedValue([PENDENTE]);
     renderizar();
 
-    expect(await screen.findByRole('button', { name: 'Vincular à visita de 03/11' })).toBeInTheDocument();
-    expect(screen.getByText(/Pedido da visita: R\$\s900,00/)).toBeInTheDocument();
+    expect(await screen.findByText(/Produtos da visita: R\$\s900,00/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pendências (1)' })).toBeInTheDocument();
   });
 
@@ -842,6 +921,20 @@ describe('ImportacoesPage', () => {
     expect(await screen.findByText('Importações anteriores')).toBeInTheDocument();
     expect(await screen.findByText(/ontem\.pdf/)).toBeInTheDocument();
     expect(screen.getByText(/Marina Gestora/)).toBeInTheDocument();
+  });
+
+  it('"Importações anteriores" recolhe e expande', async () => {
+    vi.mocked(listarImportacoes).mockResolvedValue([importacao({ nomeArquivo: 'ontem.pdf' })]);
+    renderizar();
+    await screen.findByText(/ontem\.pdf/);
+
+    const botao = screen.getByRole('button', { name: 'Recolher Importações anteriores' });
+    const conteudo = document.getElementById(botao.getAttribute('aria-controls')!)!;
+    await usuario.click(botao);
+    expect(conteudo).not.toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Importações anteriores' })).toBeVisible();
+    await usuario.click(screen.getByRole('button', { name: 'Expandir Importações anteriores' }));
+    expect(conteudo).toBeVisible();
   });
 
   /** O item de uma nota nas importações anteriores, achado pelo número. */

@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthContext } from '../auth/auth-context';
 import { Toaster } from '../components/ui/sonner';
 import { useClientesDaCarteira, useKpisPorRepresentante, useVendasMensais } from '../hooks/useDashboard';
-import { useAlertasDeProducao } from '../hooks/useInsights';
+import { useSazonalidade } from '../hooks/useInsights';
 import { useKpis } from '../hooks/useKpis';
 import { baixarCsv } from '../lib/csv';
 import { useRepresentanteSelecionado } from '../representante/useRepresentante';
@@ -18,8 +18,8 @@ import {
   type VendasMensais,
 } from '../services/dashboard';
 import { listarMetas, type Meta } from '../services/goals';
-import type { Alertas } from '../services/insights';
 import type { Kpis } from '../services/kpis';
+import { SAZONALIDADE } from '../test/sazonalidade';
 import { PainelPage } from './PainelPage';
 
 vi.mock('../representante/useRepresentante', () => ({
@@ -50,7 +50,7 @@ vi.mock('../lib/csv', async (importOriginal) => ({
   baixarCsv: vi.fn(),
 }));
 
-vi.mock('../hooks/useInsights', () => ({ useAlertasDeProducao: vi.fn() }));
+vi.mock('../hooks/useInsights', () => ({ useSazonalidade: vi.fn() }));
 
 vi.mock('../services/goals', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/goals')>()),
@@ -119,31 +119,14 @@ const POR_REPRESENTANTE: KpisPorRepresentante = {
 const VENDAS: VendasMensais = {
   periodo: { dias: 30, inicio: '2026-09-19', fim: '2026-10-18' },
   meses: [
-    { mes: '2026-09', total: 1000, clientesComDados: 3, clientes: [] },
-    { mes: '2026-10', total: 1500, clientesComDados: 3, clientes: [] },
+    { mes: '2026-09', total: 1000, clientesComDados: 3, clientes: [], futuro: false },
+    { mes: '2026-10', total: 1500, clientesComDados: 3, clientes: [], futuro: false },
   ],
   eventos: [],
   simulado: false,
   clientesConsultados: 3,
   clientesIndisponiveis: 0,
-};
-
-const ALERTAS: Alertas = {
-  simulado: false,
-  horizonteDias: 90,
-  eventos: [
-    {
-      id: 'e1',
-      nome: 'Natal',
-      dataEvento: '2026-12-25',
-      diasAteEvento: 72,
-      produtosSugeridos: ['bombons sortidos', 'caixas presente'],
-    },
-  ],
-  alertas: [],
-  clientesConsultados: 3,
-  clientesIndisponiveis: 0,
-  estoqueIndisponivel: false,
+  proximaData: null,
 };
 
 const CLIENTE_ESFRIANDO: ClienteListItem = {
@@ -185,7 +168,7 @@ beforeEach(() => {
   vi.mocked(useClientesDaCarteira).mockReturnValue(
     consulta([CLIENTE_ESFRIANDO]) as unknown as Retorno<typeof useClientesDaCarteira>,
   );
-  vi.mocked(useAlertasDeProducao).mockReturnValue(consulta(ALERTAS) as unknown as Retorno<typeof useAlertasDeProducao>);
+  vi.mocked(useSazonalidade).mockReturnValue(consulta(SAZONALIDADE) as unknown as Retorno<typeof useSazonalidade>);
 });
 
 function renderizarComo(role: 'GESTOR' | 'REPRESENTANTE', url = '/painel') {
@@ -209,6 +192,20 @@ function renderizarComo(role: 'GESTOR' | 'REPRESENTANTE', url = '/painel') {
       </AuthContext.Provider>
     </QueryClientProvider>,
   );
+}
+
+
+/** O conteúdo que o botão controla: recolher o bloco o esconde, expandir o mostra de novo. */
+async function recolherEConferir(nome: string) {
+  const usuario = userEvent.setup({ delay: null });
+  const botao = screen.getByRole('button', { name: `Recolher ${nome}` });
+  const conteudo = document.getElementById(botao.getAttribute('aria-controls')!)!;
+  expect(conteudo).toBeVisible();
+  await usuario.click(botao);
+  expect(conteudo).not.toBeVisible();
+  expect(screen.getByRole('heading', { name: nome })).toBeVisible();
+  await usuario.click(screen.getByRole('button', { name: `Expandir ${nome}` }));
+  expect(conteudo).toBeVisible();
 }
 
 describe('PainelPage (gestor)', () => {
@@ -268,13 +265,45 @@ describe('PainelPage (gestor)', () => {
     expect(screen.queryByRole('button', { name: /PDF/ })).not.toBeInTheDocument();
   });
 
-  it('?aba=producao abre "Produção e sazonalidade" com o próximo evento à frente da época do ano', () => {
+  it('as metas e o resultado por representante recolhem e expandem', async () => {
+    renderizarComo('GESTOR');
+
+    await recolherEConferir('Metas de visitas e vendas');
+    await recolherEConferir('Resultado das visitas por representante');
+  });
+
+  it('o ritmo de visitas e o ranking recolhem e expandem', async () => {
+    renderizarComo('GESTOR');
+
+    await recolherEConferir('Ritmo de visitas no período');
+    await recolherEConferir('Ranking dos representantes');
+  });
+
+  it('os três blocos das datas comemorativas recolhem e expandem', async () => {
+    renderizarComo('GESTOR', '/painel?aba=producao');
+
+    await recolherEConferir('Próximas datas comemorativas');
+    await recolherEConferir('Vendas por mês, em R$');
+    await recolherEConferir('Estoque baixo nos clientes para Natal 2026');
+  });
+
+  it('os cartões de baixo de "Produção e sazonalidade" recolhem e expandem', async () => {
+    renderizarComo('GESTOR', '/painel?aba=producao');
+
+    await recolherEConferir('Quais clientes estão esfriando?');
+    await recolherEConferir('Época do ano');
+    await recolherEConferir('Mapa de clientes por cidade');
+  });
+
+  it('?aba=producao abre "Produção e sazonalidade" com as datas, as vendas por mês e o estoque baixo, nessa ordem', () => {
     renderizarComo('GESTOR', '/painel?aba=producao');
 
     expect(screen.getByRole('tab', { name: 'Produção e sazonalidade' })).toHaveAttribute('aria-selected', 'true');
     const painel = screen.getByRole('tabpanel', { name: 'Produção e sazonalidade' });
     expect(within(painel).getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent)).toEqual([
-      'O próximo evento está chegando e o estoque acompanha?',
+      'Próximas datas comemorativas',
+      'Vendas por mês, em R$',
+      'Estoque baixo nos clientes para Natal 2026',
       'Quais clientes estão esfriando?',
       'Época do ano',
       'Mapa de clientes por cidade',
@@ -320,7 +349,7 @@ describe('PainelPage (gestor)', () => {
 
     const mapa = screen.getByRole('region', { name: 'Mapa de clientes por cidade' });
     expect(
-      within(mapa).getByRole('button', { name: 'Joinville: 1 cliente, situação mais urgente vermelho' }),
+      within(mapa).getByRole('button', { name: 'Ver clientes de Joinville, 1 cliente, situação mais urgente vermelho' }),
     ).toBeInTheDocument();
   });
 
@@ -388,10 +417,10 @@ describe('PainelPage (gestor)', () => {
 
     expect(useKpis).toHaveBeenCalledWith({ dias: 30 }, 'u1');
     expect(useKpisPorRepresentante).toHaveBeenCalledWith({ dias: 30 }, 'u1');
-    expect(useAlertasDeProducao).toHaveBeenCalledWith(90, 'u1');
 
     await userEvent.click(screen.getByRole('tab', { name: 'Produção e sazonalidade' }));
-    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, 'u1');
+    expect(useSazonalidade).toHaveBeenCalledWith(90, 'u1');
+    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, 'u1', 90);
     expect(useClientesDaCarteira).toHaveBeenCalledWith('u1');
   });
 
@@ -487,14 +516,106 @@ describe('PainelPage (gestor)', () => {
     expect(within(bloco).getByRole('link', { name: /Doces da Vovó/ })).toHaveAttribute('href', '/clientes/c1');
   });
 
-  it('o próximo evento: vendas mensais com a tabela acessível e os alertas de produção com o horizonte', () => {
+  it('o filtro de horizonte fica no topo da aba, antes dos blocos, e não dentro do bloco das datas', () => {
     renderizarComo('GESTOR', '/painel?aba=producao');
 
-    const bloco = screen.getByRole('region', { name: 'O próximo evento está chegando e o estoque acompanha?' });
-    expect(within(bloco).getByRole('table', { name: 'Vendas mensais de set/26 a out/26 (R$ mil)' })).toBeInTheDocument();
-    expect(within(bloco).getByRole('heading', { level: 3, name: 'Alertas de produção' })).toBeInTheDocument();
-    expect(within(bloco).getByRole('radiogroup', { name: 'Horizonte de datas comemorativas' })).toBeInTheDocument();
-    expect(within(bloco).getByText('Nenhum alerta de produção para os próximos 90 dias.')).toBeInTheDocument();
+    const painel = screen.getByRole('tabpanel', { name: 'Produção e sazonalidade' });
+    const filtro = within(painel).getByRole('radiogroup', { name: 'Horizonte de datas comemorativas' });
+    const datas = within(painel).getByRole('region', { name: 'Próximas datas comemorativas' });
+    expect(filtro.compareDocumentPosition(datas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(datas).queryByRole('radiogroup')).not.toBeInTheDocument();
+  });
+
+  it('o horizonte diz a unidade: "Datas nos próximos" e cada opção em dias', () => {
+    renderizarComo('GESTOR', '/painel?aba=producao');
+
+    const filtro = screen.getByRole('radiogroup', { name: 'Horizonte de datas comemorativas' });
+    expect(within(filtro).getAllByRole('radio').map((opcao) => opcao.textContent)).toEqual([
+      '30 dias',
+      '60 dias',
+      '90 dias',
+      '180 dias',
+    ]);
+    expect(screen.getByText('Datas nos próximos')).toBeInTheDocument();
+  });
+
+  it('a primeira data vem escolhida; escolher outra troca o bloco do estoque baixo', async () => {
+    renderizarComo('GESTOR', '/painel?aba=producao');
+
+    expect(screen.getByRole('button', { name: /^Natal 2026/ })).toHaveAttribute('aria-pressed', 'true');
+    const natal = screen.getByRole('region', { name: 'Estoque baixo nos clientes para Natal 2026' });
+    expect(within(natal).getByRole('button', { name: /^Caixa presente sortida: 2 de 2 clientes/ })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^Páscoa 2027/ }));
+
+    expect(screen.getByRole('button', { name: /^Páscoa 2027/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^Natal 2026/ })).toHaveAttribute('aria-pressed', 'false');
+    const pascoa = screen.getByRole('region', { name: 'Estoque baixo nos clientes para Páscoa 2027' });
+    expect(within(pascoa).getByRole('button', { name: /^Ovo de Páscoa: 0 de 2 clientes/ })).toBeInTheDocument();
+  });
+
+  it('as vendas por mês seguem o período do Painel e vão até o mês da próxima data do horizonte', () => {
+    renderizarComo('GESTOR', '/painel?aba=producao');
+
+    const vendas = screen.getByRole('region', { name: 'Vendas por mês, em R$' });
+    expect(within(vendas).getByRole('table', { name: 'Vendas por mês, em R$, de set/26 a out/26' })).toBeInTheDocument();
+    expect(useVendasMensais).toHaveBeenLastCalledWith({ dias: 30 }, undefined, 90);
+  });
+
+  it('trocar o horizonte refaz as datas e as vendas por mês com o horizonte novo', async () => {
+    renderizarComo('GESTOR', '/painel?aba=producao');
+    expect(useSazonalidade).toHaveBeenLastCalledWith(90, undefined);
+
+    await userEvent.click(screen.getByRole('radio', { name: '180 dias' }));
+
+    expect(useSazonalidade).toHaveBeenLastCalledWith(180, undefined);
+    expect(useVendasMensais).toHaveBeenLastCalledWith({ dias: 30 }, undefined, 180);
+  });
+
+  it('o gestor vê "Criar campanha" na data sem campanha', () => {
+    renderizarComo('GESTOR', '/painel?aba=producao');
+
+    expect(screen.getByRole('link', { name: 'Criar campanha' })).toHaveAttribute('href', '/campanhas');
+  });
+
+  it('enquanto as datas carregam, os blocos dizem isso', () => {
+    vi.mocked(useSazonalidade).mockReturnValue({
+      ...consulta(undefined),
+      isLoading: true,
+    } as unknown as Retorno<typeof useSazonalidade>);
+    renderizarComo('GESTOR', '/painel?aba=producao');
+
+    expect(screen.getByText('Carregando datas comemorativas...')).toHaveAttribute('role', 'status');
+    const estoque = screen.getByRole('region', { name: 'Estoque baixo nos clientes' });
+    expect(within(estoque).getByText('Carregando o estoque dos clientes...')).toBeInTheDocument();
+  });
+
+  it('com erro nas datas, avisa uma vez e o bloco do estoque diz que não carregou', () => {
+    vi.mocked(useSazonalidade).mockReturnValue({
+      ...consulta(undefined),
+      isError: true,
+      error: new ApiError('NETWORK', 'Você está sem internet.'),
+    } as unknown as Retorno<typeof useSazonalidade>);
+    renderizarComo('GESTOR', '/painel?aba=producao');
+
+    const datas = screen.getByRole('region', { name: 'Próximas datas comemorativas' });
+    expect(within(datas).getByRole('alert')).toHaveTextContent('Você está sem internet.');
+    const estoque = screen.getByRole('region', { name: 'Estoque baixo nos clientes' });
+    expect(within(estoque).getByText('Não foi possível carregar o estoque dos clientes.')).toBeInTheDocument();
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('sem data no horizonte, as datas dizem isso e o estoque não mostra contagens', () => {
+    vi.mocked(useSazonalidade).mockReturnValue(
+      consulta({ ...SAZONALIDADE, horizonteDias: 30, datas: [] }) as unknown as Retorno<typeof useSazonalidade>,
+    );
+    renderizarComo('GESTOR', '/painel?aba=producao');
+
+    const datas = screen.getByRole('region', { name: 'Próximas datas comemorativas' });
+    expect(within(datas).getByText('Nenhuma data comemorativa nos próximos 30 dias.')).toBeInTheDocument();
+    const estoque = screen.getByRole('region', { name: 'Estoque baixo nos clientes' });
+    expect(within(estoque).getByText('Sem data comemorativa no horizonte escolhido.')).toBeInTheDocument();
+    expect(screen.queryByText(/0 de 0/)).not.toBeInTheDocument();
   });
 
   it('época do ano lista os eventos do horizonte com a data, o prazo e os produtos sugeridos', () => {
@@ -502,10 +623,11 @@ describe('PainelPage (gestor)', () => {
 
     const bloco = screen.getByRole('region', { name: 'Época do ano' });
     const itens = within(bloco).getAllByRole('listitem');
-    expect(itens).toHaveLength(1);
-    expect(itens[0]).toHaveTextContent('Natal');
-    expect(itens[0]).toHaveTextContent('25/12/2026 · em 72 dias');
-    expect(itens[0]).toHaveTextContent('Produtos sugeridos: bombons sortidos e caixas presente.');
+    expect(itens).toHaveLength(2);
+    expect(itens[0]).toHaveTextContent('Natal 2026');
+    expect(itens[0]).toHaveTextContent('25/12/2026 · em 35 dias');
+    expect(itens[0]).toHaveTextContent('Produtos sugeridos: Bombons sortidos e Caixa presente sortida.');
+    expect(itens[1]).toHaveTextContent('Páscoa 2027');
   });
 
   it('com as vendas zeradas no período, diz "Sem vendas no período."', () => {
@@ -517,7 +639,7 @@ describe('PainelPage (gestor)', () => {
     renderizarComo('GESTOR', '/painel?aba=producao');
 
     expect(screen.getByText('Sem vendas no período.')).toBeInTheDocument();
-    expect(screen.queryByRole('figure', { name: /Vendas mensais/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('figure', { name: /Vendas por mês/ })).not.toBeInTheDocument();
   });
 
   it('com os clientes no cache e um refetch que falhou por rede, mantém a lista e mostra o aviso acima', () => {
@@ -570,10 +692,9 @@ describe('PainelPage (representante)', () => {
 
     expect(useKpis).toHaveBeenCalledWith({ dias: 30 }, undefined);
     expect(useKpisPorRepresentante).toHaveBeenCalledWith({ dias: 30 }, undefined);
-    expect(useAlertasDeProducao).toHaveBeenCalledWith(90, undefined);
-
     await userEvent.click(screen.getByRole('tab', { name: 'Produção e sazonalidade' }));
-    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, undefined);
+    expect(useSazonalidade).toHaveBeenCalledWith(90, undefined);
+    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, undefined, 90);
     expect(useClientesDaCarteira).toHaveBeenCalledWith(undefined);
   });
 
@@ -586,15 +707,19 @@ describe('PainelPage (representante)', () => {
     ).toBeInTheDocument();
   });
 
-  it('"Produção e sazonalidade": o próximo evento à frente e os mais urgentes sem o nome do representante', () => {
+  it('"Produção e sazonalidade": as datas à frente, sem "Criar campanha", e os mais urgentes sem o nome do representante', () => {
     renderizarComo('REPRESENTANTE', '/painel?aba=producao');
 
     expect(screen.getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent)).toEqual([
-      'O próximo evento está chegando e o estoque acompanha?',
+      'Próximas datas comemorativas',
+      'Vendas por mês, em R$',
+      'Estoque baixo nos clientes para Natal 2026',
       'Quais clientes estão esfriando?',
       'Época do ano',
       'Mapa de clientes por cidade',
     ]);
+    expect(screen.getByText('Nenhuma campanha para esta data.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Criar campanha' })).not.toBeInTheDocument();
     const esfriando = screen.getByRole('region', { name: 'Quais clientes estão esfriando?' });
     expect(within(esfriando).getByRole('link', { name: /Doces da Vovó/ })).not.toHaveTextContent('Eduarda');
   });

@@ -27,12 +27,19 @@ export function useKpisPorRepresentante(periodo: Periodo, representanteId?: stri
 /**
  * Os meses de vendas do período mudam pouco durante o uso: um minuto de cache
  * poupa o ERP. `keepPreviousData`, como `useKpisPorRepresentante`: trocar o
- * período mantém o gráfico anterior até o novo chegar.
+ * período mantém o gráfico anterior até o novo chegar. Com `horizonteDias`, a
+ * série vai até o mês da próxima data comemorativa do horizonte.
  */
-export function useVendasMensais(periodo: Periodo, representanteId?: string) {
+export function useVendasMensais(periodo: Periodo, representanteId?: string, horizonteDias?: number) {
   return useQuery({
-    queryKey: ['dashboard', 'vendas-mensais', chaveDoPeriodo(periodo), representanteId ?? 'todos'],
-    queryFn: () => buscarVendasMensais(periodo, representanteId),
+    queryKey: [
+      'dashboard',
+      'vendas-mensais',
+      chaveDoPeriodo(periodo),
+      representanteId ?? 'todos',
+      horizonteDias ?? 'sem-horizonte',
+    ],
+    queryFn: () => buscarVendasMensais(periodo, representanteId, horizonteDias),
     retry: false,
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,

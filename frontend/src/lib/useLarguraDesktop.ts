@@ -2,12 +2,14 @@
  * Larguras de tela que mudam o layout.
  *
  * - `useLarguraDesktop` (≥ 768 px, o `md` do Tailwind): a moldura troca a
- *   navegação inferior pelo menu lateral.
+ *   navegação inferior pelo menu lateral (`Moldura`), a ficha aberta sozinha
+ *   mostra o link de volta a "Clientes" (`ClienteDetalhePage`) e o mapa por
+ *   cidade escolhe a dica de uso (`MapaPorCidade`).
  * - `useLarguraDuasColunas` (≥ 1024 px, o `lg`): Clientes mostra a lista com
- *   a ficha ao lado e a Agenda põe Atrasadas | Hoje lado a lado.
- *   Abaixo disso, com o menu lateral de 240 px, as duas não cabem:
- *   lista e ficha ficam em telas separadas e as seções da Agenda se empilham.
- *   (O Painel faz o mesmo só com CSS: `lg:grid-cols-2`.)
+ *   a ficha ao lado (`ClientesPage` e a rota da ficha em `App`). Abaixo
+ *   disso, com o menu lateral de 240 px, as duas não cabem: lista e ficha
+ *   ficam em telas separadas. (O Painel põe os blocos lado a lado só com
+ *   CSS: `lg:grid-cols-2`.)
  *
  * Sem `window.matchMedia` (jsdom nos testes, navegadores muito antigos), vale
  * o layout de celular.

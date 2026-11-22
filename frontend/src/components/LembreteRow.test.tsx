@@ -108,7 +108,7 @@ describe('LembreteRow', () => {
     expect(await screen.findByText('Lembrete concluído')).toBeInTheDocument();
   });
 
-  it('depois de concluir, "Concluir" continua desabilitado até a linha sumir (toque duplo não dá 409)', async () => {
+  it('depois de concluir, "Concluir" fica desabilitado até a linha sumir (toque duplo não dá 409)', async () => {
     vi.mocked(concluirLembrete).mockResolvedValue({ id: 'l1', concluidoEm: '2026-10-26T12:00:00.000Z' });
     const usuario = userEvent.setup();
     renderizar({ podeConcluir: true });

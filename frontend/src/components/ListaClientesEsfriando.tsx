@@ -6,7 +6,7 @@
  * levando à ficha. Com "Todos" no seletor, mostra de quem é cada cliente. As
  * linhas vão de uma borda à outra do cartão (`-mx-5` desfaz o `p-5` dele).
  */
-import { ordenarPorUrgencia } from '../lib/ordenarPorUrgencia';
+import { clientesEsfriando } from '../lib/clientesEsfriando';
 import type { ClienteListItem } from '../services/clients';
 import { EstadoVazio } from './EstadoVazio';
 import { ItemListaCliente } from './ItemListaCliente';
@@ -19,9 +19,7 @@ type Props = {
 };
 
 export function ListaClientesEsfriando({ clientes, mostrarRepresentante }: Props) {
-  const esfriando = ordenarPorUrgencia(
-    clientes.filter((cliente) => cliente.cor === 'LARANJA' || cliente.cor === 'VERMELHO'),
-  ).slice(0, QUANTOS_MOSTRAR);
+  const esfriando = clientesEsfriando(clientes).slice(0, QUANTOS_MOSTRAR);
 
   if (esfriando.length === 0) {
     return <EstadoVazio icone="party-popper">Nenhum cliente esfriando.</EstadoVazio>;

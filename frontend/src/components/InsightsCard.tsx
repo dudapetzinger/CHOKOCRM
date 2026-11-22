@@ -2,7 +2,7 @@
  * Card "Insights e sugestões" na ficha do cliente: para cada
  * data comemorativa dentro do horizonte escolhido, compara as compras do cliente
  * na janela do mesmo evento no ano anterior com a média dele e sugere uma ação
- * (aumentar oferta, criar promoção ou ofertar desconto), com os números que
+ * (aumentar oferta, manter a oferta ou ofertar desconto), com os números que
  * sustentam a sugestão em "Como calculamos". Visível para todos os papéis
  * (representante e gestor). Visual do protótipo: cada sugestão
  * numa caixa com a ação numa etiqueta. O card não mostra aviso
@@ -19,14 +19,21 @@ import { descreverPrazo } from '../lib/descreverPrazo';
 import type { AcaoSugerida, Insights, Sugestao } from '../services/insights';
 import { FiltroHorizonte, HORIZONTE_PADRAO_DIAS } from './FiltroHorizonte';
 import { EstadoVazio } from './EstadoVazio';
+import { LinhasDeCampanha } from './LinhasDeCampanha';
 import { Aviso, Cartao, Etiqueta } from './crm/ui';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar os insights.';
 
 const ROTULO_ACAO: Record<AcaoSugerida, string> = {
   AUMENTAR_OFERTA: 'Aumentar oferta',
-  CRIAR_PROMOCAO: 'Criar promoção',
+  MANTER_OFERTA: 'Manter a oferta',
   OFERTAR_DESCONTO: 'Ofertar desconto',
+};
+
+const TOM_ACAO: Record<AcaoSugerida, 'laranja' | 'neutro'> = {
+  AUMENTAR_OFERTA: 'laranja',
+  MANTER_OFERTA: 'neutro',
+  OFERTAR_DESCONTO: 'laranja',
 };
 
 function renderizarSugestao(sugestao: Sugestao): ReactElement {
@@ -36,9 +43,10 @@ function renderizarSugestao(sugestao: Sugestao): ReactElement {
     <article key={sugestao.evento.id} className="space-y-1.5 rounded-lg border p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="font-semibold">{sugestao.titulo}</h3>
-        <Etiqueta tom="laranja">{ROTULO_ACAO[sugestao.acao]}</Etiqueta>
+        <Etiqueta tom={TOM_ACAO[sugestao.acao]}>{ROTULO_ACAO[sugestao.acao]}</Etiqueta>
       </div>
       <p className="text-muted-foreground">{sugestao.texto}</p>
+      <LinhasDeCampanha campanhas={sugestao.campanhas} />
 
       <details>
         <summary className="cursor-pointer font-medium max-md:py-3">Como calculamos</summary>
@@ -85,10 +93,13 @@ function renderizarConteudo(insights: Insights): ReactElement {
           {insights.sugestoes.map(renderizarSugestao)}
 
           {insights.eventosSemHistorico.map((evento) => (
-            <p key={evento.id} className="text-sm text-muted-foreground">
-              {evento.nome} {descreverPrazo(evento.diasAteEvento)}: sem histórico de compras no mesmo período
-              do ano passado.
-            </p>
+            <div key={evento.id} className="space-y-0.5 text-sm text-muted-foreground">
+              <p>
+                {evento.nome} {descreverPrazo(evento.diasAteEvento)}: sem histórico de compras no mesmo período
+                do ano passado.
+              </p>
+              <LinhasDeCampanha campanhas={evento.campanhas} />
+            </div>
           ))}
 
           {/* `insights.horizonteDias` (e não o estado local): enquanto o horizonte novo carrega, o
@@ -129,6 +140,7 @@ export function InsightsCard({ clienteId }: Props) {
 
   return (
     <Cartao
+      recolhivel="ficha-insights"
       titulo={
         <span className="flex items-center gap-2">
           <Sparkles aria-hidden="true" className="size-4 text-primary" />
@@ -140,7 +152,11 @@ export function InsightsCard({ clienteId }: Props) {
 
       {/* `isPlaceholderData`: o resultado do horizonte anterior segue visível, esmaecido, até o novo chegar. */}
       <div className={cn('space-y-3 transition-opacity', isPlaceholderData && 'opacity-60')} aria-busy={isPlaceholderData}>
-        {isLoading && <p className="text-sm text-muted-foreground">Carregando insights...</p>}
+        {isLoading && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Carregando insights...
+          </p>
+        )}
 
         {isError && (
           <Aviso tom="erro" role="alert">

@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { BarraProgresso } from './BarraProgresso';
 
 describe('BarraProgresso', () => {
@@ -48,35 +48,50 @@ describe('BarraProgresso', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
-  it('com balão: focar a barra abre o balão com os clientes', () => {
-    render(
-      <BarraProgresso
-        rotulo="Visitas"
-        real={6}
-        alvo={20}
-        balao={{ titulo: 'Visitas · 6 de 20', linhas: [{ nome: 'Doceria Aurora', detalhe: '4 visitas' }] }}
-      />,
-    );
+  const DETALHE = {
+    balao: { titulo: 'Visitas · 6 de 20', linhas: [{ nome: 'Doceria Aurora', detalhe: '4 visitas' }] },
+    rotuloDoBotao: 'Ver clientes de Visitas, Eduarda',
+  };
+
+  it('com detalhe: a barra continua um progressbar e o botão por cima dela abre o balão no foco', () => {
+    render(<BarraProgresso rotulo="Visitas" real={6} alvo={20} detalhe={{ ...DETALHE, aoEscolher: vi.fn() }} />);
 
     const barra = screen.getByRole('progressbar', { name: 'Progresso de Visitas' });
+    expect(barra).toHaveAttribute('aria-valuetext', '6 de 20 · 30\u00a0%');
+    expect(barra).not.toHaveAttribute('tabindex');
+    const botao = screen.getByRole('button', { name: 'Ver clientes de Visitas, Eduarda' });
+    expect(botao).not.toContainElement(barra);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-    act(() => barra.focus());
+    act(() => botao.focus());
 
     const balao = screen.getByRole('tooltip');
     expect(balao).toHaveTextContent('Visitas · 6 de 20');
     expect(within(balao).getByRole('listitem')).toHaveTextContent('Doceria Aurora · 4 visitas');
-    expect(barra).toHaveAttribute('aria-valuetext', '6 de 20 · 30 %');
   });
 
-  it('com balão, no celular a barra tem área de toque de 44 px (sem ocupar mais espaço) e o desenho fica dentro', () => {
-    render(
-      <BarraProgresso rotulo="Visitas" real={6} alvo={20} balao={{ titulo: 'Visitas · 6 de 20', linhas: [] }} />,
-    );
+  it('com detalhe, o clique no botão chama aoEscolher com ele', () => {
+    const aoEscolher = vi.fn();
+    render(<BarraProgresso rotulo="Visitas" real={6} alvo={20} detalhe={{ ...DETALHE, aoEscolher }} />);
+    const botao = screen.getByRole('button', { name: 'Ver clientes de Visitas, Eduarda' });
 
-    const gatilho = screen.getByRole('progressbar', { name: 'Progresso de Visitas' });
-    expect(gatilho).toHaveClass('relative', 'max-md:min-h-11', 'max-md:-my-[18px]');
-    expect(gatilho).not.toHaveClass('bg-muted');
-    expect(gatilho.firstElementChild).toHaveClass('h-2', 'bg-muted');
+    fireEvent.click(botao, { detail: 1 });
+
+    expect(aoEscolher).toHaveBeenCalledWith(botao);
+  });
+
+  it('com detalhe, o botão e a barra ficam juntos, com o botão do tipo "button"', () => {
+    render(<BarraProgresso rotulo="Visitas" real={6} alvo={20} detalhe={{ ...DETALHE, aoEscolher: vi.fn() }} />);
+
+    const botao = screen.getByRole('button', { name: 'Ver clientes de Visitas, Eduarda' });
+    expect(botao).toHaveAttribute('type', 'button');
+    expect(botao.parentElement).toContainElement(screen.getByRole('progressbar', { name: 'Progresso de Visitas' }));
+  });
+
+  it('alvo zero com detalhe: sem barra e sem botão', () => {
+    render(<BarraProgresso rotulo="Visitas" real={6} alvo={0} detalhe={{ ...DETALHE, aoEscolher: vi.fn() }} />);
+
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('sem balão, a barra não é focável', () => {

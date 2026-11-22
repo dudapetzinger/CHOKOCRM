@@ -118,6 +118,20 @@ function renderizar(entrada = '/clientes/c1', state?: unknown, papel: 'REPRESENT
   return { queryClient };
 }
 
+
+/** O conteúdo que o botão controla: recolher o bloco o esconde, expandir o mostra de novo. */
+async function recolherEConferir(nome: string) {
+  const usuario = userEvent.setup({ delay: null });
+  const botao = screen.getByRole('button', { name: `Recolher ${nome}` });
+  const conteudo = document.getElementById(botao.getAttribute('aria-controls')!)!;
+  expect(conteudo).toBeVisible();
+  await usuario.click(botao);
+  expect(conteudo).not.toBeVisible();
+  expect(screen.getByRole('heading', { name: new RegExp(nome) })).toBeVisible();
+  await usuario.click(screen.getByRole('button', { name: `Expandir ${nome}` }));
+  expect(conteudo).toBeVisible();
+}
+
 describe('ClienteDetalhePage', () => {
   it('sem ficha nenhuma no cache, um erro de rede mostra só o aviso', async () => {
     vi.mocked(getCliente).mockRejectedValue(new ApiError('NETWORK', 'Você está sem internet.'));
@@ -410,6 +424,27 @@ describe('ClienteDetalhePage', () => {
 
       const texto = await screen.findByText('Cliente inativo não recebe check-in novo.');
       expect(screen.getByRole('tabpanel')).not.toContainElement(texto);
+    });
+  });
+
+  describe('blocos recolhíveis', () => {
+    it('na aba ERP, Insights, Dados do ERP e Mensagem de estoque recolhem e expandem', async () => {
+      vi.mocked(getCliente).mockResolvedValue(FICHA);
+      renderizar();
+      await screen.findByRole('heading', { name: 'Mensagem de estoque' });
+
+      await recolherEConferir('Insights e sugestões');
+      await recolherEConferir('Dados do ERP');
+      await recolherEConferir('Mensagem de estoque');
+    });
+
+    it('na aba Visitas, Histórico de visitas e Recorrência de visitas recolhem e expandem', async () => {
+      vi.mocked(getCliente).mockResolvedValue(FICHA);
+      renderizar('/clientes/c1?aba=visitas');
+      await screen.findByRole('heading', { name: 'Histórico de visitas' });
+
+      await recolherEConferir('Histórico de visitas');
+      await recolherEConferir('Recorrência de visitas');
     });
   });
 });

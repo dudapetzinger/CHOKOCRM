@@ -30,7 +30,7 @@ import { Camera, ChevronDown, ChevronUp, Pencil, ShoppingBag } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { mensagemErroApi } from '../services/clients';
-import { ROTULO_RESULTADO, type ResultadoVisita } from '../services/visits';
+import { ROTULO_RESULTADO, TOM_RESULTADO, type ResultadoVisita } from '../services/visits';
 import type { Visita } from '../services/visits';
 import { SegmentadoResultado } from './SegmentadoResultado';
 import { VisitaFoto } from './VisitaFoto';
@@ -40,12 +40,6 @@ import { EstadoVazio } from './EstadoVazio';
 import { FiltroPilulas, type Opcao } from './FiltroPilulas';
 import { Aviso, Etiqueta } from './crm/ui';
 import { EtiquetaCampanha } from './crm/EtiquetaCampanha';
-
-const TOM_RESULTADO: Record<ResultadoVisita, 'verde' | 'azul' | 'vermelho'> = {
-  VENDA: 'verde',
-  NEGOCIACAO: 'azul',
-  SEM_VENDA: 'vermelho',
-};
 
 /** Quantas visitas anteriores à última aparecem na linha do tempo. */
 export type FiltroDeVisitas = 3 | 6 | 'todas';

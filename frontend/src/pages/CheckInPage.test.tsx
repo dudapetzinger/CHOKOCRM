@@ -424,6 +424,8 @@ describe('CheckInPage: passos', () => {
     expect(foto).toHaveFocus();
     expect(screen.queryByText('Passo 4 de 4')).not.toBeInTheDocument();
 
+    expect(screen.getByText('Anexar foto')).toBeInTheDocument();
+    expect(screen.getByText('Nenhuma foto selecionada')).toBeInTheDocument();
     await usuario.upload(foto, FOTO_DA_VITRINE());
     expect(screen.queryByText('Tire uma foto da visita.')).not.toBeInTheDocument();
     await continuar();

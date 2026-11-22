@@ -1,6 +1,6 @@
 /**
  * Cartão "Roteiro do dia" (visual de `Roteiro` em
- * `routes/agenda.tsx` do protótipo), acima das seções da Agenda do dia:
+ * `routes/agenda.tsx` do protótipo), dentro da aba "Hoje" da Agenda do dia:
  * "N paradas · cerca de X km", chips "1 Nome · Cidade" ligados por
  * "→ 12 km →" (ou "→ mesma cidade →") e "Abrir no Google Maps" em nova aba
  * (no celular, abre o app). O Google Maps do celular aceita só 3 paradas

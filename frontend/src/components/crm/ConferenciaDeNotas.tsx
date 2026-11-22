@@ -3,7 +3,7 @@
  * notas": o que foi lido de cada PDF, antes de gravar. Um item por arquivo, na ordem escolhida, com o andamento
  * ("Aguardando…", "Lendo…", "Importando…"), o erro de leitura (ou de
  * gravação) na linha do próprio arquivo e, lido o arquivo, as notas: número,
- * emissão e valor, destinatário (nome e CNPJ), "Cliente: …" ou "Sem cliente
+ * emissão e valor (quando a nota entra com outro dia que o da DANFE, por causa da data simulada, "Nota de dd/mm/aaaa. Entra como dd/mm/aaaa, a data simulada."), destinatário (nome e CNPJ), "Cliente: …" ou "Sem cliente
  * no CRM · será criado ao concluir" (só informativo: o fecho oferece criar o
  * cliente do CNPJ), "Já importada · será atualizada" quando a chave de acesso já
  * existe, e todos os produtos (sem recolher: é a conferência). As ignoradas
@@ -130,6 +130,11 @@ function NotaConferida({ nota }: { nota: NotaLida }) {
       <p className="font-medium">
         NF {nota.numero} · {formatarDataCalendario(nota.dataEmissao)} · {formatarMoeda(nota.valorTotal)}
       </p>
+      {nota.dataEmissaoDanfe !== nota.dataEmissao && (
+        <p className="text-muted-foreground">
+          {`Nota de ${formatarDataCalendario(nota.dataEmissaoDanfe)}. Entra como ${formatarDataCalendario(nota.dataEmissao)}, a data simulada.`}
+        </p>
+      )}
       <p className="text-muted-foreground">
         {nota.destinatarioNome} · {formatarCnpj(nota.destinatarioCnpj)}
       </p>

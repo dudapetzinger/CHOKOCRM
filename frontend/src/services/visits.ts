@@ -16,6 +16,13 @@ export const ROTULO_RESULTADO: Record<ResultadoVisita, string> = {
   SEM_VENDA: 'Sem venda',
 };
 
+/** O tom da etiqueta de cada resultado (`Etiqueta`), o mesmo na ficha e nos painéis do Painel. */
+export const TOM_RESULTADO: Record<ResultadoVisita, 'verde' | 'azul' | 'vermelho'> = {
+  VENDA: 'verde',
+  NEGOCIACAO: 'azul',
+  SEM_VENDA: 'vermelho',
+};
+
 /** Item do pedido da visita, vindo da nota fiscal vinculada: produto, quantidade e preço. */
 export type ItemPedidoVisita = {
   sku: string;

@@ -269,3 +269,16 @@ describe('FiltroPeriodo', () => {
     expect(screen.queryByLabelText('De')).not.toBeInTheDocument();
   });
 });
+
+describe('FiltroPeriodo, estrutura do período personalizado', () => {
+  it('o aviso dos 365 dias e os dois campos de data ficam no mesmo bloco, abaixo do segmentado', async () => {
+    renderizar();
+    await abrirPersonalizado();
+    mudarData('De', '2025-01-01');
+    const bloco = screen.getByRole('group', { name: 'Datas do período' });
+    expect(bloco).toContainElement(screen.getByLabelText('De'));
+    expect(bloco).toContainElement(screen.getByLabelText('Até'));
+    expect(bloco).toContainElement(screen.getByRole('status'));
+    expect(screen.getByRole('status')).toHaveTextContent(MENSAGEM_LIMITE_DO_PAINEL);
+  });
+});

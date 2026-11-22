@@ -285,6 +285,43 @@ function titulosDosCartoes(): (string | null)[] {
     .map((titulo) => titulo.textContent);
 }
 
+describe('CampanhasPage: blocos recolhíveis', () => {
+  it('cada cartão de campanha recolhe sozinho: título, situação e ações ficam, o resto some', async () => {
+    renderizar();
+    const natal = await cartao('Natal Chokolaten');
+    const pascoa = await cartao('Páscoa Chokolaten');
+
+    await usuario.click(within(natal).getByRole('button', { name: 'Recolher Natal Chokolaten' }));
+
+    const expandir = within(natal).getByRole('button', { name: 'Expandir Natal Chokolaten' });
+    expect(expandir).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById(expandir.getAttribute('aria-controls')!)).not.toBeVisible();
+    expect(within(natal).getByRole('heading', { level: 2, name: 'Natal Chokolaten' })).toBeVisible();
+    expect(within(natal).getByText('Em andamento')).toBeVisible();
+    expect(within(natal).getByRole('button', { name: 'Editar Natal Chokolaten' })).toBeVisible();
+    expect(within(pascoa).getByRole('button', { name: 'Recolher Páscoa Chokolaten' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+
+    await usuario.click(expandir);
+    expect(within(natal).getByRole('button', { name: 'Recolher Natal Chokolaten' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+  });
+
+  it('com uma campanha escolhida, o cartão com os resultados também recolhe', async () => {
+    renderizar('GESTOR', '/campanhas?campanha=cp2');
+    const natal = await cartao('Natal Chokolaten');
+    const resultados = within(natal).getByRole('heading', { name: 'Resultados por representante' });
+
+    await usuario.click(within(natal).getByRole('button', { name: 'Recolher Natal Chokolaten' }));
+
+    expect(resultados).not.toBeVisible();
+  });
+});
+
 describe('CampanhasPage: filtro por campanha', () => {
   it('o select lista "Todas as campanhas" e cada campanha com o status, na ordem da lista', async () => {
     renderizar();

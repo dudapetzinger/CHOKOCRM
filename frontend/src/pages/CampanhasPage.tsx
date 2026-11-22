@@ -32,12 +32,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { useBlocoRecolhivel } from '@/lib/blocoRecolhivel';
 import { useAuth } from '../auth/useAuth';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { Segmentado, type Opcao } from '../components/Segmentado';
 import { MetasPanel } from '../components/crm/MetasPanel';
 import { ResultadosDaCampanha } from '../components/crm/ResultadosDaCampanha';
-import { Aviso, Campo, CLASSES_BOTAO_PERIGO, CLASSES_SELECT, Etiqueta } from '../components/crm/ui';
+import { Aviso, BotaoRecolher, Campo, CLASSES_BOTAO_PERIGO, CLASSES_SELECT, Etiqueta } from '../components/crm/ui';
 import { useCampanhas } from '../hooks/useCampanhas';
 import { useProdutos } from '../hooks/useDadosErp';
 import { formatarDataCalendario } from '../lib/formatarData';
@@ -382,6 +383,8 @@ function CartaoCampanha({
   const tituloVendas = gestor ? 'Vendas vinculadas por representante' : 'Minhas vendas vinculadas';
   const idTitulo = `campanha-${campanha.id}-titulo`;
   const idVendas = `campanha-${campanha.id}-vendas`;
+  const idConteudo = `campanha-${campanha.id}-conteudo`;
+  const { aberto, alternar } = useBlocoRecolhivel(`campanha-${campanha.id}`);
 
   return (
     <li className="rounded-xl border bg-card p-5">
@@ -404,71 +407,76 @@ function CartaoCampanha({
             {formatarDataCalendario(campanha.inicio)} a {formatarDataCalendario(campanha.fim)}
           </p>
         </div>
-        {gestor && (
-          <div className="flex gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label={`Editar ${campanha.nome}`}
-              className="text-muted-foreground"
-              onClick={() => aoEditar(campanha)}
-            >
-              <Pencil aria-hidden="true" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label={`Excluir ${campanha.nome}`}
-              aria-expanded={confirmando}
-              className={CLASSES_BOTAO_PERIGO}
-              onClick={() => setConfirmando(true)}
-            >
-              <Trash2 aria-hidden="true" />
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-1">
+          {gestor && (
+            <>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Editar ${campanha.nome}`}
+                className="text-muted-foreground"
+                onClick={() => aoEditar(campanha)}
+              >
+                <Pencil aria-hidden="true" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Excluir ${campanha.nome}`}
+                aria-expanded={confirmando}
+                className={CLASSES_BOTAO_PERIGO}
+                onClick={() => setConfirmando(true)}
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </>
+          )}
+          <BotaoRecolher aberto={aberto} onAlternar={alternar} idTitulo={idTitulo} idConteudo={idConteudo} />
+        </div>
       </div>
 
       {gestor && confirmando && <ConfirmarExclusao campanha={campanha} aoFechar={() => setConfirmando(false)} />}
 
-      {campanha.descricao && <p className="mt-2 text-sm whitespace-pre-wrap break-words">{campanha.descricao}</p>}
+      <div id={idConteudo} hidden={!aberto}>
+        {campanha.descricao && <p className="mt-2 text-sm whitespace-pre-wrap break-words">{campanha.descricao}</p>}
 
-      {campanha.produtos.length > 0 && (
-        <ul aria-label="Produtos em destaque" className="mt-3 flex flex-wrap gap-2">
-          {campanha.produtos.map((produto) => (
-            <li key={produto.sku}>
-              <Etiqueta tom="laranja">{produto.nome}</Etiqueta>
-            </li>
-          ))}
-        </ul>
-      )}
+        {campanha.produtos.length > 0 && (
+          <ul aria-label="Produtos em destaque" className="mt-3 flex flex-wrap gap-2">
+            {campanha.produtos.map((produto) => (
+              <li key={produto.sku}>
+                <Etiqueta tom="laranja">{produto.nome}</Etiqueta>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      {detalhado ? (
-        <ResultadosDaCampanha campanha={campanha} gestor={gestor} />
-      ) : (
-        <div className="mt-4 border-t pt-4">
-          <h3 id={idVendas} className="mb-2 text-sm font-semibold">
-            {tituloVendas}
-          </h3>
-          {campanha.resultados.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum representante ativo.</p>
-          ) : (
-            <ul aria-labelledby={idVendas} className="divide-y">
-              {campanha.resultados.map((linha) => (
-                <li key={linha.representante.id} className="flex flex-wrap justify-between gap-x-3 gap-y-1 py-2 text-sm">
-                  <span className="min-w-0 break-words">{linha.representante.nome}</span>
-                  <span>
-                    <b className="font-semibold tabular-nums">{formatarMoeda(linha.vendas)}</b>
-                    <span className="ml-2 text-muted-foreground">{textoDasVisitas(linha.visitas)}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+        {detalhado ? (
+          <ResultadosDaCampanha campanha={campanha} gestor={gestor} />
+        ) : (
+          <div className="mt-4 border-t pt-4">
+            <h3 id={idVendas} className="mb-2 text-sm font-semibold">
+              {tituloVendas}
+            </h3>
+            {campanha.resultados.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum representante ativo.</p>
+            ) : (
+              <ul aria-labelledby={idVendas} className="divide-y">
+                {campanha.resultados.map((linha) => (
+                  <li key={linha.representante.id} className="flex flex-wrap justify-between gap-x-3 gap-y-1 py-2 text-sm">
+                    <span className="min-w-0 break-words">{linha.representante.nome}</span>
+                    <span>
+                      <b className="font-semibold tabular-nums">{formatarMoeda(linha.vendas)}</b>
+                      <span className="ml-2 text-muted-foreground">{textoDasVisitas(linha.visitas)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
-      <MetasPanel campanha={campanha} />
+        <MetasPanel campanha={campanha} />
+      </div>
     </li>
   );
 }

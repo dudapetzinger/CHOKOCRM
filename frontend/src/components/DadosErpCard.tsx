@@ -1,6 +1,6 @@
 /**
  * Card "Dados do ERP" na ficha do cliente: última venda,
- * volume de compras dos últimos 90 dias e nível de estoque, consultados via
+ * volume de compras dos últimos 90 dias (com o período somado, "de dd/mm a dd/mm") e nível de estoque, consultados via
  * `useDadosErp`. Visível para todos os papéis (representante e gestor).
  * Visual do protótipo: compras e estoque em duas colunas quando o
  * cartão tem espaço, com os itens em baixa numa lista com a quantidade numa
@@ -20,7 +20,7 @@ import { useId, type ReactElement } from 'react';
 import { Package } from 'lucide-react';
 import { useDadosErp } from '../hooks/useDadosErp';
 import { mensagemErroApi } from '../services/clients';
-import { formatarData, formatarDataCalendario } from '../lib/formatarData';
+import { formatarData, formatarDataCalendario, formatarDiaMes } from '../lib/formatarData';
 import { formatarMoeda } from '../lib/formatarMoeda';
 import type { DadosErp, NivelEstoque, VendaErp } from '../services/erp';
 import { Aviso, Cartao, Etiqueta } from './crm/ui';
@@ -32,6 +32,11 @@ const ROTULO_NIVEL_ESTOQUE: Record<NivelEstoque, string> = {
   NORMAL: 'Normal',
   ALTO: 'Alto',
 };
+
+/** "de dd/mm a dd/mm"; sem o período na resposta, "90 dias". */
+function descreverPeriodo({ inicio, fim }: { inicio?: string; fim?: string }): string {
+  return inicio && fim ? `de ${formatarDiaMes(inicio)} a ${formatarDiaMes(fim)}` : '90 dias';
+}
 
 /** "1 venda" / "N vendas": evita o plural incorreto quando há exatamente uma venda. */
 function formatarQuantidadeVendas(quantidade: number): string {
@@ -113,8 +118,7 @@ function renderizarConteudo(dadosErp: DadosErp): ReactElement {
                     : 'Nenhuma compra registrada.'}
                 </li>
                 <li>
-                  Volume de compras (90 dias): {formatarMoeda(dadosErp.volume90Dias.total)} (
-                  {formatarQuantidadeVendas(dadosErp.volume90Dias.quantidadeVendas)})
+                  {`Volume de compras (${descreverPeriodo(dadosErp.volume90Dias)}): ${formatarMoeda(dadosErp.volume90Dias.total)} (${formatarQuantidadeVendas(dadosErp.volume90Dias.quantidadeVendas)})`}
                 </li>
               </ul>
             </div>
@@ -162,8 +166,12 @@ export function DadosErpCard({ clienteId }: Props) {
   const { data: dadosErp, isLoading, isError, error } = useDadosErp(clienteId);
 
   return (
-    <Cartao titulo="Dados do ERP" className="@container">
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando dados do ERP...</p>}
+    <Cartao titulo="Dados do ERP" recolhivel="ficha-erp" className="@container">
+      {isLoading && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Carregando dados do ERP...
+        </p>
+      )}
 
       {isError && (
         <Aviso tom="erro" role="alert">

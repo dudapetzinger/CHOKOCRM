@@ -1,9 +1,9 @@
 /**
- * Legenda das situações: botão-ícone `help-circle` na
- * barra de ferramentas de Clientes, que abre um balão (Popover do protótipo)
- * com a régua da classificação, uma frase por situação, cada uma
- * com o ponto da sua cor. Os textos são os do app e os números vêm de
- * config/classificacao.ts (a régua do protótipo é outra).
+ * Legenda das situações: botão-ícone `help-circle` na barra de ferramentas
+ * de Clientes, que abre um balão organizado pelas abas da lista (Prioridade,
+ * Atenção, Em dia e, por fim, Todos, com o inativo). Cada linha tem o ponto
+ * da cor, o nome da etiqueta da lista e a regra em uma frase; os números vêm
+ * de config/classificacao.ts.
  */
 import { HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,15 +17,52 @@ import {
 import type { Cor } from '../services/clients';
 import { CLASSES_COR } from './crm/ui';
 
-/** Uma frase por situação; a do rebaixamento por falta de compra não tem cor própria. */
-const FRASES: readonly { cor: Cor | null; texto: string }[] = [
-  { cor: 'VERDE', texto: `Em dia: visitado há até ${LIMIAR_VERDE_AMARELO_DIAS} dias, com venda.` },
-  { cor: 'AMARELO', texto: `Atenção: visitado há até ${LIMIAR_VERDE_AMARELO_DIAS} dias, sem venda.` },
-  { cor: 'LARANJA', texto: `Vencendo: ${LIMIAR_VERDE_AMARELO_DIAS + 1} a ${LIMIAR_LARANJA_DIAS} dias sem visita.` },
-  { cor: 'VERMELHO', texto: `Atrasado: mais de ${LIMIAR_LARANJA_DIAS} dias ou nunca visitado.` },
-  { cor: null, texto: 'Inativo: inativado pela gestão, sem cor; aparece só na aba Todos.' },
-  { cor: null, texto: `Cliente sem compra no ERP há mais de ${LIMIAR_SEM_COMPRA_DIAS} dias cai para Vencendo.` },
+type Linha = { cor: Cor; nome: string; regra: string };
+
+/** Grupos na ordem das abas da lista. */
+const GRUPOS: readonly { titulo: string; linhas: readonly Linha[] }[] = [
+  {
+    titulo: 'Prioridade',
+    linhas: [
+      { cor: 'VERMELHO', nome: 'Atrasado', regra: `Mais de ${LIMIAR_LARANJA_DIAS} dias sem visita, ou nunca visitado.` },
+      { cor: 'LARANJA', nome: 'Vencendo', regra: `De ${LIMIAR_VERDE_AMARELO_DIAS + 1} a ${LIMIAR_LARANJA_DIAS} dias sem visita.` },
+      {
+        cor: 'LARANJA',
+        nome: 'Rebaixado',
+        regra: `Visitado há até ${LIMIAR_VERDE_AMARELO_DIAS} dias, mas sem compra há mais de ${LIMIAR_SEM_COMPRA_DIAS} dias.`,
+      },
+    ],
+  },
+  {
+    titulo: 'Atenção',
+    linhas: [
+      {
+        cor: 'AMARELO',
+        nome: 'Visitado sem venda',
+        regra: `Visitado há até ${LIMIAR_VERDE_AMARELO_DIAS} dias e a última visita não teve venda.`,
+      },
+    ],
+  },
+  {
+    titulo: 'Em dia',
+    linhas: [
+      {
+        cor: 'VERDE',
+        nome: 'Em dia',
+        regra: `Visitado há até ${LIMIAR_VERDE_AMARELO_DIAS} dias e a última visita teve venda.`,
+      },
+    ],
+  },
 ];
+
+function Ponto({ cor }: Readonly<{ cor: Cor | null }>) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn('mt-1.5 inline-block size-2.5 shrink-0 rounded-full', cor ? CLASSES_COR[cor].ponto : 'bg-transparent')}
+    />
+  );
+}
 
 export function LegendaSituacao() {
   return (
@@ -35,19 +72,38 @@ export function LegendaSituacao() {
           <HelpCircle aria-hidden="true" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(20rem,calc(100vw-2rem))] space-y-2 text-sm">
+      <PopoverContent align="end" className="w-[min(20rem,calc(100vw-2rem))] space-y-3 text-sm">
         <p className="font-semibold">Legenda das situações</p>
-        <ul className="space-y-2">
-          {FRASES.map(({ cor, texto }) => (
-            <li key={texto} className="flex items-start gap-2">
-              <span
-                aria-hidden="true"
-                className={cn('mt-1.5 inline-block size-2.5 shrink-0 rounded-full', cor ? CLASSES_COR[cor].ponto : 'bg-transparent')}
-              />
-              {texto}
-            </li>
-          ))}
-        </ul>
+        {GRUPOS.map(({ titulo, linhas }) => (
+          <section key={titulo} className="space-y-1.5">
+            <h3 className="font-semibold">{titulo}</h3>
+            <ul aria-label={titulo} className="space-y-1.5">
+              {linhas.map(({ cor, nome, regra }) => (
+                <li key={nome} className="flex items-start gap-2">
+                  <Ponto cor={cor} />
+                  <span className="min-w-0">
+                    <span className="font-medium">{nome}</span>
+                    <span className="block text-muted-foreground">{regra}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+        {/* O inativo não tem cor e só aparece na aba "Todos": fica num grupo próprio. */}
+        <section className="space-y-1.5">
+          <h3 className="font-semibold">Todos</h3>
+          <div className="flex items-start gap-2">
+            <Ponto cor={null} />
+            <span className="min-w-0">
+              <span className="font-medium">Inativo</span>
+              <span className="block text-muted-foreground">Inativado pela gestão, sem cor. Aparece só na aba Todos.</span>
+            </span>
+          </div>
+        </section>
+        <p className="border-t pt-2 text-muted-foreground">
+          A cor olha só a última visita e a última compra. Negociação conta como sem venda. Quem nunca comprou não é rebaixado.
+        </p>
       </PopoverContent>
     </Popover>
   );

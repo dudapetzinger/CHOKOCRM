@@ -99,6 +99,7 @@ export function MensagemEstoqueCard({ clienteId }: Props) {
   return (
     <Cartao
       titulo="Mensagem de estoque"
+      recolhivel="ficha-mensagem-estoque"
       acao={
         !proposta && (
           <Button size="sm" variant="outline" onClick={() => mutationProposta.mutate()} disabled={mutationProposta.isPending}>

@@ -1,11 +1,13 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import type { EventoNoGrafico, VendaDoMes } from '@/services/dashboard';
 import { VendasMensais } from './VendasMensais';
 
-const LEGENDA = 'Vendas mensais de mar/26 a jun/26 (R$ mil)';
+const LEGENDA = 'Vendas por mês, em R$, de mar/26 a jun/26';
 
 function mes(aaaaMm: string, total: number, clientes: VendaDoMes['clientes'] = []): VendaDoMes {
-  return { mes: aaaaMm, total, clientesComDados: 3, clientes };
+  return { mes: aaaaMm, total, clientesComDados: 3, clientes, futuro: false };
 }
 
 const MESES: VendaDoMes[] = [
@@ -44,7 +46,7 @@ function simularLarguraDoCartao(largura: number): void {
 /** `[início, fim]` no eixo X de cada área de toque dos meses, em ordem. */
 function intervalosDosMeses(): [number, number][] {
   return screen
-    .getAllByRole('img', { name: /^[a-z]{3}\/\d{2} / })
+    .getAllByRole('button', { name: /^Ver vendas de [a-z]{3}\/\d{2}/ })
     .map((area) => {
       const inicio = Number(area.getAttribute('x'));
       return [inicio, inicio + Number(area.getAttribute('width'))] as [number, number];
@@ -76,22 +78,22 @@ describe('VendasMensais', () => {
     const resumo = within(figura).getByRole('group').getAttribute('aria-label');
     expect(resumo).toContain('Vendas de mar/26 a jun/26');
     expect(resumo).toContain('maior em abr/26');
-    expect(resumo).toContain('eventos: Páscoa em abr/26, Dia das Mães em mai/26');
+    expect(resumo).toContain('datas comemorativas: Páscoa em abr/26, Dia das Mães em mai/26');
   });
 
   it('a legenda diz do primeiro ao último mês da série, qualquer que seja o período', () => {
     render(<VendasMensais meses={[mes('2026-09', 1000), mes('2026-10', 2000), mes('2026-11', 1500)]} eventos={[]} />);
 
-    const legenda = 'Vendas mensais de set/26 a nov/26 (R$ mil)';
+    const legenda = 'Vendas por mês, em R$, de set/26 a nov/26';
     // A legenda visível e a da tabela acessível são a mesma.
     expect(screen.getByRole('figure', { name: legenda })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: legenda })).toBeInTheDocument();
   });
 
-  it('o eixo Y parte do zero e mostra os valores em "R$ Nk"', () => {
+  it('o eixo Y parte do zero e mostra os valores em R$, a mesma unidade da legenda', () => {
     render(<VendasMensais meses={MESES} eventos={EVENTOS} />);
 
-    for (const rotulo of ['R$ 0', 'R$ 2k', 'R$ 4k', 'R$ 6k']) {
+    for (const rotulo of ['R$ 0', 'R$ 2 mil', 'R$ 4 mil', 'R$ 6 mil']) {
       expect(screen.getByText(rotulo, { selector: 'svg text' })).toBeInTheDocument();
     }
   });
@@ -107,7 +109,7 @@ describe('VendasMensais', () => {
       'Vendas',
       'Clientes',
       'Clientes com dados',
-      'Evento',
+      'Data comemorativa',
     ]);
     expect(within(linhas[2]).getByRole('rowheader')).toHaveTextContent('abr/26');
     const celulas = within(linhas[2])
@@ -167,7 +169,7 @@ describe('VendasMensais', () => {
     render(<VendasMensais meses={MESES} eventos={EVENTOS} />);
 
     // O `Intl` separa "R$" do número com espaço não separável.
-    const abril = screen.getByRole('img', { name: /^abr\/26 · R\$\s4\.000,00 · 2 clientes$/ });
+    const abril = screen.getByRole('button', { name: /^Ver vendas de abr\/26, R\$\s4\.000,00, 2 clientes$/ });
     act(() => abril.focus());
 
     const balao = screen.getByRole('tooltip');
@@ -182,7 +184,7 @@ describe('VendasMensais', () => {
   it('o balão do mês de hoje diz "(em curso)", no singular com um cliente', () => {
     render(<VendasMensais meses={MESES} eventos={EVENTOS} />);
 
-    act(() => screen.getByRole('img', { name: /^jun\/26/ }).focus());
+    act(() => screen.getByRole('button', { name: /^Ver vendas de jun\/26/ }).focus());
     expect(screen.getByRole('tooltip')).toHaveTextContent('jun/26 (em curso) · R$ 800,00 · 1 cliente');
   });
 
@@ -268,5 +270,241 @@ describe('VendasMensais', () => {
     const desenho = within(screen.getByRole('figure')).getByRole('group');
     expect(desenho).toHaveAttribute('viewBox');
     expect(desenho).toHaveAttribute('width', '100%');
+  });
+});
+
+describe('VendasMensais: painel lateral do mês', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 5, 14, 10));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('clicar no mês abre o painel com quem comprou, do maior valor ao menor, com link para a ficha', () => {
+    const meses = [
+      mes('2026-04', 4500, [
+        { id: 'c2', nomeFantasia: 'Café Central', total: 1000 },
+        { id: 'c1', nomeFantasia: 'Doceria Aurora', total: 3000 },
+        { id: 'c3', nomeFantasia: 'Empório Sul', total: 500 },
+      ]),
+      mes('2026-05', 0),
+    ];
+    render(
+      <MemoryRouter>
+        <VendasMensais meses={meses} eventos={[]} />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Ver vendas de abr\/26/ }), { detail: 1 });
+
+    const painel = screen.getByRole('dialog', { name: 'Vendas de abr/26' });
+    expect(painel).toHaveAccessibleDescription(/^3 clientes · R\$\s4\.500,00$/);
+    const linhas = within(painel).getAllByRole('listitem');
+    expect(linhas.map((linha) => linha.textContent?.replace(/\s/g, ' '))).toEqual([
+      'Doceria AuroraR$ 3.000,00',
+      'Café CentralR$ 1.000,00',
+      'Empório SulR$ 500,00',
+    ]);
+    expect(within(linhas[0]).getByRole('link', { name: /Doceria Aurora/ })).toHaveAttribute('href', '/clientes/c1');
+  });
+
+  it('o mês sem compras abre o painel com o texto do vazio', () => {
+    render(
+      <MemoryRouter>
+        <VendasMensais meses={[mes('2026-04', 1000), mes('2026-05', 0)]} eventos={[]} />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Ver vendas de mai\/26/ }), { detail: 1 });
+
+    expect(within(screen.getByRole('dialog', { name: 'Vendas de mai/26' })).getByText('Nenhum cliente comprou no mês.')).toBeInTheDocument();
+  });
+});
+
+describe('VendasMensais: o foco volta ao mês (gatilho SVG) ao fechar o painel', () => {
+  it('abre pelo clique; Esc fecha com o foco no mês; abre de novo e o clique no fundo fecha com o foco no mês', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    render(
+      <MemoryRouter>
+        <VendasMensais meses={MESES} eventos={[]} />
+      </MemoryRouter>,
+    );
+    const abril = screen.getByRole('button', { name: /^Ver vendas de abr\/26/ });
+    expect(abril.tagName.toLowerCase()).toBe('rect');
+
+    await usuario.click(abril);
+    expect(screen.getByRole('dialog', { name: 'Vendas de abr/26' })).toBeInTheDocument();
+    await usuario.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(abril).toHaveFocus();
+
+    await usuario.click(abril);
+    await usuario.click(screen.getByTestId('fundo-do-painel-lateral'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(abril).toHaveFocus();
+  });
+});
+
+describe('VendasMensais: meses por vir, legenda e campanhas', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 20, 10));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const ATE_O_NATAL: VendaDoMes[] = [
+    mes('2026-09', 2000),
+    mes('2026-10', 3000),
+    mes('2026-11', 1000),
+    { mes: '2026-12', total: null, clientesComDados: null, clientes: [], futuro: true },
+  ];
+  const NATAL: EventoNoGrafico = { chave: 'NATAL', nome: 'Natal', data: '2026-12-25' };
+
+  it('o mês por vir fica como espaço vazio, sem ponto e sem valor: não é zero', () => {
+    render(<VendasMensais meses={ATE_O_NATAL} eventos={[NATAL]} />);
+
+    expect(screen.getByRole('figure', { name: 'Vendas por mês, em R$, de set/26 a dez/26' })).toBeInTheDocument();
+    const linhas = within(screen.getByRole('table')).getAllByRole('row');
+    expect(within(linhas[4]).getByRole('rowheader')).toHaveTextContent('dez/26 (por vir)');
+    expect(within(linhas[4]).getAllByRole('cell')[0]).toHaveTextContent('Sem vendas ainda');
+    expect(screen.getAllByTestId('ponto-do-mes')).toHaveLength(3);
+    expect(screen.getByTestId('mes-por-vir')).toBeInTheDocument();
+    // O mês por vir não abre painel: só o balão com o que ele é.
+    expect(screen.queryByRole('button', { name: /dez\/26/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'dez/26 · mês por vir, sem vendas ainda' })).toBeInTheDocument();
+  });
+
+  it('o resumo e o maior e o menor mês ignoram o mês por vir', () => {
+    render(<VendasMensais meses={ATE_O_NATAL} eventos={[NATAL]} />);
+
+    const resumo = within(screen.getByRole('figure')).getByRole('group').getAttribute('aria-label')!;
+    expect(resumo.replace(/\s/g, ' ')).toContain('menor em nov/26, R$ 1.000,00');
+    expect(resumo.replace(/\s/g, ' ')).toContain('nov/26 (em curso): R$ 1.000,00');
+    expect(resumo).toContain('dez/26 por vir');
+    expect(resumo).toContain('Natal em dez/26');
+  });
+
+  it('a data comemorativa do mês por vir fica marcada', () => {
+    render(<VendasMensais meses={ATE_O_NATAL} eventos={[NATAL]} />);
+
+    expect(screen.getByText('Natal', { selector: 'svg text' })).toBeInTheDocument();
+  });
+
+  it('a legenda visível diz o que é cada marca, com o mês por vir só quando ele existe', () => {
+    const { unmount } = render(<VendasMensais meses={ATE_O_NATAL} eventos={[NATAL]} />);
+
+    const legenda = screen.getByRole('list', { name: 'Legenda do gráfico' });
+    expect(within(legenda).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Vendas do mês, em R$',
+      'Data comemorativa',
+      'Hoje',
+      'Mês por vir',
+    ]);
+    unmount();
+
+    render(<VendasMensais meses={ATE_O_NATAL.slice(0, 3)} eventos={[]} />);
+    expect(
+      within(screen.getByRole('list', { name: 'Legenda do gráfico' })).queryByText('Mês por vir'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('com o período terminado num mês anterior, a série não tem mês por vir nem marca depois dela', () => {
+    const passado = [mes('2026-06', 2000), mes('2026-07', 3000), mes('2026-08', 1000)];
+    render(<VendasMensais meses={passado} eventos={[NATAL]} />);
+
+    expect(screen.queryByTestId('mes-por-vir')).not.toBeInTheDocument();
+    expect(screen.queryByText('Natal', { selector: 'svg text' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/por vir/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Hoje', { selector: 'svg text' })).not.toBeInTheDocument();
+  });
+
+  it('a área de toque da campanha tem 44 px de altura e pelo menos 24 de largura, centrada no período', () => {
+    render(
+      <VendasMensais
+        meses={ATE_O_NATAL}
+        eventos={[]}
+        campanhas={[{ id: 'cp1', nome: 'Relâmpago', inicio: '2026-12-10', fim: '2026-12-10' }]}
+      />,
+    );
+
+    const toque = screen.getByRole('img', { name: 'Relâmpago · 10/12 a 10/12' });
+    expect(toque).toHaveAttribute('height', '44');
+    expect(Number(toque.getAttribute('width'))).toBe(24);
+    const faixa = screen.getByTestId('faixa-da-campanha');
+    const centroDaFaixa = Number(faixa.getAttribute('x')) + Number(faixa.getAttribute('width')) / 2;
+    const centroDoToque = Number(toque.getAttribute('x')) + Number(toque.getAttribute('width')) / 2;
+    expect(centroDoToque).toBeCloseTo(centroDaFaixa);
+    expect(Number(toque.getAttribute('y')) + 44).toBe(Number(toque.closest('svg')!.getAttribute('viewBox')!.split(' ')[3]));
+  });
+
+  it('a campanha de um dia só tem largura', () => {
+    render(
+      <VendasMensais
+        meses={ATE_O_NATAL}
+        eventos={[]}
+        campanhas={[{ id: 'cp1', nome: 'Relâmpago', inicio: '2026-12-10', fim: '2026-12-10' }]}
+      />,
+    );
+
+    expect(Number(screen.getByTestId('faixa-da-campanha').getAttribute('width'))).toBeGreaterThan(0);
+  });
+
+  it('campanhas sobrepostas ficam em linhas diferentes e cada uma tem a própria área de toque', () => {
+    render(
+      <VendasMensais
+        meses={ATE_O_NATAL}
+        eventos={[]}
+        campanhas={[
+          { id: 'cp1', nome: 'Natal', inicio: '2026-12-01', fim: '2026-12-24' },
+          { id: 'cp2', nome: 'Fim de ano', inicio: '2026-12-15', fim: '2026-12-31' },
+          { id: 'cp3', nome: 'Outubro', inicio: '2026-10-01', fim: '2026-10-31' },
+        ]}
+      />,
+    );
+
+    // As faixas saem na ordem do início: outubro, Natal, fim de ano.
+    const [outubro, natal, fimDeAno] = screen.getAllByTestId('faixa-da-campanha');
+    expect(natal.getAttribute('y')).not.toBe(fimDeAno.getAttribute('y'));
+    expect(outubro.getAttribute('y')).toBe(natal.getAttribute('y'));
+    const toqueNatal = screen.getByRole('img', { name: /^Natal · / });
+    const toqueFim = screen.getByRole('img', { name: /^Fim de ano · / });
+    expect(toqueNatal.getAttribute('y')).not.toBe(toqueFim.getAttribute('y'));
+  });
+
+  it('a legenda só mostra a data comemorativa e o hoje quando eles aparecem no gráfico', () => {
+    const passado = [mes('2026-06', 2000), mes('2026-07', 3000), mes('2026-08', 1000)];
+    render(<VendasMensais meses={passado} eventos={[NATAL]} />);
+
+    const legenda = screen.getByRole('list', { name: 'Legenda do gráfico' });
+    expect(within(legenda).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Vendas do mês, em R$',
+    ]);
+  });
+
+  it('marca os períodos das campanhas numa faixa na base, com o nome e as datas no balão', () => {
+    render(
+      <VendasMensais
+        meses={ATE_O_NATAL}
+        eventos={[NATAL]}
+        campanhas={[
+          { id: 'cp1', nome: 'Promoção de Natal', inicio: '2026-12-01', fim: '2026-12-24' },
+          { id: 'cp2', nome: 'Fora da série', inicio: '2026-01-01', fim: '2026-02-01' },
+        ]}
+      />,
+    );
+
+    const faixa = screen.getByRole('img', { name: 'Promoção de Natal · 01/12 a 24/12' });
+    act(() => faixa.focus());
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Promoção de Natal · 01/12 a 24/12');
+    expect(screen.queryByRole('img', { name: /Fora da série/ })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('list', { name: 'Legenda do gráfico' })).getByText('Período de campanha'),
+    ).toBeInTheDocument();
   });
 });

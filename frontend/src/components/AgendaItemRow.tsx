@@ -4,10 +4,10 @@
  * nome, etiqueta de situação e a da campanha da próxima visita,
  * "cidade · prazo da visita prevista" (`descreverPrazoDaVisita`)
  * e, para o gestor com o seletor em "Todos", "Rep.: Nome". O lembrete não
- * aparece aqui: tem data própria e a sua linha na seção "Lembretes"
+ * aparece aqui: tem data própria e a sua linha na aba "Lembretes"
  * (`LembreteRow`). Só o representante dono da carteira tem
  * o atalho "Check-in". É um `<li>`: quem usa a põe dentro de uma
- * lista (`SecaoAgenda`).
+ * lista (`ListaDeVisitas` da Agenda).
  *
  * Duas ações por linha, dois links irmãos (um `<a>` dentro de outro não
  * existe): o bloco da esquerda (avatar + textos) abre a ficha do cliente

@@ -1,13 +1,13 @@
 /**
- * Estado de servidor dos insights das datas comemorativas do cliente e dos alertas de
- * produção do gestor, como manda a arquitetura do projeto: as páginas e os
+ * Estado de servidor dos insights das datas comemorativas do cliente e das
+ * datas comemorativas do Painel, como manda a arquitetura do projeto: as páginas e os
  * componentes não chamam a API diretamente (ver
  * docs/arquitetura.md). O horizonte faz parte da chave: cada horizonte tem seu
  * próprio cache. Sem retry, como `useDadosErp`: erro de rede/indisponibilidade
  * deve aparecer de imediato, não após tentativas silenciosas.
  */
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { buscarAlertasDeProducao, buscarInsights } from '../services/insights';
+import { buscarInsights, buscarSazonalidade } from '../services/insights';
 
 /**
  * `placeholderData`: ao trocar de horizonte, o resultado do horizonte anterior
@@ -28,13 +28,14 @@ export function useInsights(clienteId: string | undefined, horizonteDias: number
 }
 
 /**
+ * As datas comemorativas do horizonte para a aba "Produção e sazonalidade".
  * `keepPreviousData` pelo mesmo motivo de `useInsights`: trocar o horizonte (ou
  * o representante escolhido pelo gestor) não esvazia o Painel.
  */
-export function useAlertasDeProducao(horizonteDias: number, representanteId?: string) {
+export function useSazonalidade(horizonteDias: number, representanteId?: string) {
   return useQuery({
-    queryKey: ['insights', 'manager-alerts', horizonteDias, representanteId ?? 'todos'],
-    queryFn: () => buscarAlertasDeProducao(horizonteDias, representanteId),
+    queryKey: ['insights', 'sazonalidade', horizonteDias, representanteId ?? 'todos'],
+    queryFn: () => buscarSazonalidade(horizonteDias, representanteId),
     retry: false,
     placeholderData: keepPreviousData,
   });

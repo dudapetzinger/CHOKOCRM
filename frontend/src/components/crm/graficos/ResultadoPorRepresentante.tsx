@@ -11,12 +11,23 @@
  * Cada segmento (no mínimo 8 px de largura, e com 44 px de toque no celular
  * por `TOQUE_NO_SEGMENTO`) abre o balão "Eduarda ·
  * Venda: 5" com os clientes daquele resultado e quantas visitas de cada um. A tabela escondida repete os números e os clientes.
+ *
+ * Com o `periodo`, o clique na fatia (ou Enter, ou o toque) abre o painel
+ * lateral "Eduarda Fischer · Venda" com as visitas daquele resultado, da mais
+ * recente para a mais antiga: cliente, data e, na Venda, o R$ (o resumo soma:
+ * "2 visitas · R$ 154,00"). O detalhe é buscado só com o painel aberto.
  */
 import { contar } from '@/lib/contar';
+import { formatarMoeda } from '@/lib/formatarMoeda';
 import { formatarPercentual } from '@/lib/formatarPercentual';
+import type { Periodo } from '@/lib/periodo';
+import { usePainelLateral } from '@/lib/usePainelLateral';
 import { cn } from '@/lib/utils';
 import type { KpiRepresentante } from '@/services/dashboard';
+import type { ResultadoVisita } from '@/services/visits';
 import { EstadoVazio } from '../../EstadoVazio';
+import { maisRecentesPrimeiro, somarValores } from '@/lib/visitasDoPainel';
+import { PainelDeVisitas, VisitasDoPainel } from '../PainelDeVisitas';
 import { AreaComBalao, GatilhoDoBalao, TOQUE_NO_SEGMENTO, type ConteudoDoBalao } from './BalaoDoGrafico';
 import { TabelaAcessivel } from './TabelaAcessivel';
 
@@ -28,6 +39,15 @@ const RESULTADOS: { campo: Resultado; rotulo: string; classe: string }[] = [
   { campo: 'negociacao', rotulo: 'Negociação', classe: 'bg-st-yellow' },
   { campo: 'semVenda', rotulo: 'Sem venda', classe: 'bg-muted-foreground/40' },
 ];
+
+const RESULTADO_DA_VISITA: Record<Resultado, ResultadoVisita> = {
+  venda: 'VENDA',
+  negociacao: 'NEGOCIACAO',
+  semVenda: 'SEM_VENDA',
+};
+
+/** A fatia aberta no painel: o representante e o resultado. */
+type FatiaEscolhida = { representanteId: string; nome: string; campo: Resultado; rotulo: string };
 
 /** A contagem de um resultado, no representante ou num cliente dele. */
 function contarResultado(
@@ -76,7 +96,17 @@ function balaoDoSegmento(representante: KpiRepresentante, campo: Resultado, rotu
   };
 }
 
-export function ResultadoPorRepresentante({ representantes }: { representantes: KpiRepresentante[] }) {
+type Props = {
+  representantes: KpiRepresentante[];
+  /** Com o período (e o representante do filtro, se há), as fatias abrem o painel lateral. */
+  periodo?: Periodo;
+  representanteId?: string;
+};
+
+export function ResultadoPorRepresentante({ representantes, periodo, representanteId }: Props) {
+  const painel = usePainelLateral<FatiaEscolhida>();
+  const escolhido = painel.escolhido;
+
   if (representantes.length === 0) {
     return <EstadoVazio icone="bar-chart">Sem dados no período.</EstadoVazio>;
   }
@@ -104,7 +134,16 @@ export function ResultadoPorRepresentante({ representantes }: { representantes: 
                   <GatilhoDoBalao
                     key={campo}
                     conteudo={balao}
-                    aria-label={balao.titulo}
+                    aria-label={periodo ? `Ver visitas: ${balao.titulo}` : balao.titulo}
+                    aoEscolher={
+                      periodo
+                        ? (gatilho) =>
+                            painel.abrir(
+                              { representanteId: representante.id, nome: representante.nome, campo, rotulo },
+                              gatilho,
+                            )
+                        : undefined
+                    }
                     // O anel por dentro, para não encostar no segmento vizinho.
                     className={cn('min-w-2 focus-visible:ring-inset', TOQUE_NO_SEGMENTO, classe)}
                     style={{ flexGrow: contarResultado(representante, campo) }}
@@ -115,6 +154,26 @@ export function ResultadoPorRepresentante({ representantes }: { representantes: 
           </li>
         ))}
       </ul>
+
+      {periodo && escolhido && (
+        <PainelDeVisitas
+          titulo={`${escolhido.nome} · ${escolhido.rotulo}`}
+          periodo={periodo}
+          representanteId={representanteId}
+          aoFechar={painel.fechar}
+          montar={({ visitas }) => {
+            const { representanteId: dono, campo } = escolhido;
+            const daFatia = maisRecentesPrimeiro(
+              visitas.filter((v) => v.representanteId === dono && v.resultado === RESULTADO_DA_VISITA[campo]),
+            );
+            const total = campo === 'venda' ? ` · ${formatarMoeda(somarValores(daFatia))}` : '';
+            return {
+              resumo: `${contar(daFatia.length, 'visita')}${total}`,
+              corpo: <VisitasDoPainel visitas={daFatia} comValor={campo === 'venda'} />,
+            };
+          }}
+        />
+      )}
 
       <TabelaAcessivel
         legenda="Resultado das visitas por representante"

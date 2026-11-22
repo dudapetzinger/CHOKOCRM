@@ -16,7 +16,10 @@
  * com o representante, a periodicidade, o período e as barras de visitas e
  * de vendas, com o realizado calculado no backend; cada barra abre o balão
  * com os clientes do realizado: as visitas de cada um e, nas
- * vendas, só os que compraram, com o valor. O formulário abre num
+ * vendas, só os que compraram, com o valor. O clique na barra (ou Enter, ou
+ * o toque) abre o painel lateral "Eduarda · Visitas" ou "Eduarda · Vendas"
+ * com esses clientes, do que mais visitou ou comprou ao que menos, cada um
+ * com link para a ficha. O formulário abre num
  * cartão acima da lista, para criar e para editar: representante (os
  * ativos; na meta nova, já vem o escolhido no Painel e, sem ele, com o gestor em
  * "Todos" e sempre na campanha, começa em "Escolha um representante", que
@@ -34,6 +37,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useBlocoRecolhivel } from '@/lib/blocoRecolhivel';
+import { usePainelLateral } from '@/lib/usePainelLateral';
 import { useAuth } from '../../auth/useAuth';
 import { contar } from '../../lib/contar';
 import { useMetas } from '../../hooks/useMetas';
@@ -58,7 +63,8 @@ import {
 import { Segmentado, type Opcao } from '../Segmentado';
 import { BarraProgresso } from './BarraProgresso';
 import type { ConteudoDoBalao } from './graficos/BalaoDoGrafico';
-import { Aviso, Campo, CLASSES_BOTAO_PERIGO, CLASSES_SELECT, Etiqueta } from './ui';
+import { ClientesDoPainel, PainelLateral } from './PainelLateral';
+import { Aviso, BotaoRecolher, Campo, CLASSES_BOTAO_PERIGO, CLASSES_SELECT, Etiqueta } from './ui';
 import { agora as agoraDoRelogio } from '@/lib/relogio';
 
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar as metas.';
@@ -364,9 +370,62 @@ function balaoDeVendas({ realizado, metaVendas }: Meta): ConteudoDoBalao {
   };
 }
 
+type BarraDaMeta = 'Visitas' | 'Vendas';
+
+/** Pelo que a barra mede, do maior ao menor (empate pelo nome). */
+function ordenarPor(clientes: Meta['realizado']['clientes'], campo: 'visitas' | 'vendas') {
+  return [...clientes].sort((a, b) => b[campo] - a[campo] || a.nomeFantasia.localeCompare(b.nomeFantasia, 'pt-BR'));
+}
+
+/**
+ * O painel de uma barra: em Visitas, os clientes visitados com as visitas e
+ * as vendas de cada um; em Vendas, só os que compraram, com o valor.
+ */
+function PainelDaMeta({ meta, barra, aoFechar }: { meta: Meta; barra: BarraDaMeta; aoFechar: () => void }) {
+  const { realizado } = meta;
+  const visitados = ordenarPor(
+    realizado.clientes.filter(({ visitas }) => visitas > 0),
+    'visitas',
+  );
+  const compraram = ordenarPor(
+    realizado.clientes.filter(({ vendas }) => vendas > 0),
+    'vendas',
+  );
+  const clientes =
+    barra === 'Visitas'
+      ? visitados.map((cliente) => ({
+          id: cliente.id,
+          nome: cliente.nomeFantasia,
+          detalhe: cliente.vendas > 0 ? `${formatarMoeda(cliente.vendas)} em vendas` : 'Sem venda',
+          valor: contar(cliente.visitas, 'visita'),
+        }))
+      : compraram.map((cliente) => ({
+          id: cliente.id,
+          nome: cliente.nomeFantasia,
+          detalhe: contar(cliente.visitas, 'visita'),
+          valor: formatarMoeda(cliente.vendas),
+        }));
+  const resumo =
+    barra === 'Visitas'
+      ? `${contar(clientes.length, 'cliente')} · ${contar(realizado.visitas, 'visita')}`
+      : `${contar(clientes.length, 'cliente')} · ${formatarMoeda(realizado.vendas)}`;
+
+  return (
+    <PainelLateral titulo={`${meta.representante.nome} · ${barra}`} resumo={resumo} aberto aoFechar={aoFechar}>
+      <ClientesDoPainel clientes={clientes} />
+    </PainelLateral>
+  );
+}
+
 function CartaoMeta({ meta, gestor, aoEditar }: { meta: Meta; gestor: boolean; aoEditar: (meta: Meta) => void }) {
   const queryClient = useQueryClient();
   const descricao = `${meta.representante.nome}, ${descreverPeriodo(meta)}`;
+  const painel = usePainelLateral<BarraDaMeta>();
+  const detalhe = (barra: BarraDaMeta, balao: ConteudoDoBalao) => ({
+    balao,
+    rotuloDoBotao: `Ver clientes de ${barra}, ${meta.representante.nome}`,
+    aoEscolher: (gatilho: Element) => painel.abrir(barra, gatilho),
+  });
 
   const excluir = useMutation({
     mutationFn: () => excluirMeta(meta.id),
@@ -415,15 +474,16 @@ function CartaoMeta({ meta, gestor, aoEditar }: { meta: Meta; gestor: boolean; a
         rotulo="Visitas"
         real={meta.realizado.visitas}
         alvo={meta.metaVisitas}
-        balao={balaoDeVisitas(meta)}
+        detalhe={detalhe('Visitas', balaoDeVisitas(meta))}
       />
       <BarraProgresso
         rotulo="Vendas"
         real={meta.realizado.vendas}
         alvo={meta.metaVendas}
         moeda
-        balao={balaoDeVendas(meta)}
+        detalhe={detalhe('Vendas', balaoDeVendas(meta))}
       />
+      {painel.escolhido && <PainelDaMeta meta={meta} barra={painel.escolhido} aoFechar={painel.fechar} />}
     </li>
   );
 }
@@ -452,6 +512,9 @@ export function MetasPanel({
   const gatilho = useRef<HTMLElement | null>(null);
   const devolverFoco = useRef(false);
   const idTitulo = useId();
+  const idConteudo = useId();
+  // Só o bloco do Painel recolhe; dentro do cartão da campanha, quem recolhe é o cartão.
+  const { aberto, alternar, expandir } = useBlocoRecolhivel(campanha ? undefined : 'painel-metas');
   const titulo = campanha ? 'Metas da campanha' : 'Metas de visitas e vendas';
   const Titulo = campanha ? 'h3' : 'h2';
   // O representante só lê: no Painel, o bloco encolhe para a largura das metas
@@ -466,6 +529,7 @@ export function MetasPanel({
 
   function abrir(meta: Meta | null): void {
     gatilho.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    expandir();
     setEmEdicao(meta);
   }
 
@@ -478,7 +542,7 @@ export function MetasPanel({
     <section
       aria-labelledby={idTitulo}
       className={cn(
-        'space-y-3',
+        aberto && 'space-y-3',
         campanha ? 'mt-4 border-t pt-4' : 'rounded-xl border bg-card p-5',
         larguraDasMetas && 'md:w-fit',
       )}
@@ -491,53 +555,64 @@ export function MetasPanel({
           <Target aria-hidden="true" className="size-4 text-primary" />
           {titulo}
         </Titulo>
-        {gestor && emEdicao === undefined && (
-          <Button ref={botaoNova} size="sm" variant="outline" className="print:hidden" onClick={() => abrir(null)}>
-            <Plus aria-hidden="true" />
-            Nova meta
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {gestor && emEdicao === undefined && (
+            <Button ref={botaoNova} size="sm" variant="outline" className="print:hidden" onClick={() => abrir(null)}>
+              <Plus aria-hidden="true" />
+              Nova meta
+            </Button>
+          )}
+          {!campanha && (
+            <BotaoRecolher aberto={aberto} onAlternar={alternar} idTitulo={idTitulo} idConteudo={idConteudo} />
+          )}
+        </div>
       </div>
 
-      {gestor && emEdicao !== undefined && (
-        <FormularioMeta
-          key={emEdicao?.id ?? 'nova'}
-          meta={emEdicao}
-          campanha={campanha}
-          representantePadrao={representanteId}
-          aoFechar={fechar}
-        />
-      )}
+      <div id={idConteudo} hidden={!aberto} className="space-y-3">
+        {gestor && emEdicao !== undefined && (
+          <FormularioMeta
+            key={emEdicao?.id ?? 'nova'}
+            meta={emEdicao}
+            campanha={campanha}
+            representantePadrao={representanteId}
+            aoFechar={fechar}
+          />
+        )}
 
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando metas...</p>}
+        {isLoading && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Carregando metas...
+          </p>
+        )}
 
-      {isError && (
-        <Aviso tom="erro" role="alert">
-          {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
-        </Aviso>
-      )}
+        {isError && (
+          <Aviso tom="erro" role="alert">
+            {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}
+          </Aviso>
+        )}
 
-      {metas && metas.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          {campanha ? 'Nenhuma meta definida para esta campanha.' : 'Nenhuma meta no período escolhido.'}
-        </p>
-      )}
+        {metas && metas.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            {campanha ? 'Nenhuma meta definida para esta campanha.' : 'Nenhuma meta no período escolhido.'}
+          </p>
+        )}
 
-      {metas && metas.length > 0 && (
-        <ul
-          aria-labelledby={idTitulo}
-          className={cn(
-            'grid gap-3',
-            // O teto de duas colunas fica na própria grade: dentro de um bloco `w-fit`, o `auto-fit` só conta
-            // mais de uma coluna quando a grade tem largura máxima definida (sem ela, fica sempre em uma).
-            larguraDasMetas ? 'md:max-w-[40.75rem] md:grid-cols-[repeat(auto-fit,20rem)]' : 'md:grid-cols-2',
-          )}
-        >
-          {metas.map((meta) => (
-            <CartaoMeta key={meta.id} meta={meta} gestor={gestor} aoEditar={abrir} />
-          ))}
-        </ul>
-      )}
+        {metas && metas.length > 0 && (
+          <ul
+            aria-labelledby={idTitulo}
+            className={cn(
+              'grid gap-3',
+              // O teto de duas colunas fica na própria grade: dentro de um bloco `w-fit`, o `auto-fit` só conta
+              // mais de uma coluna quando a grade tem largura máxima definida (sem ela, fica sempre em uma).
+              larguraDasMetas ? 'md:max-w-[40.75rem] md:grid-cols-[repeat(auto-fit,20rem)]' : 'md:grid-cols-2',
+            )}
+          >
+            {metas.map((meta) => (
+              <CartaoMeta key={meta.id} meta={meta} gestor={gestor} aoEditar={abrir} />
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

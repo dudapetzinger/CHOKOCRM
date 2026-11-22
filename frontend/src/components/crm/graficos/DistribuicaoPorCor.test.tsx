@@ -1,4 +1,6 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import type { ClienteListItem, Cor } from '@/services/clients';
 import { DistribuicaoPorCor } from './DistribuicaoPorCor';
 
@@ -63,16 +65,16 @@ describe('DistribuicaoPorCor', () => {
     }
     expect(segmentos[0].parentElement).not.toHaveClass('overflow-hidden');
     expect(segmentos.map((segmento) => segmento.getAttribute('aria-label'))).toEqual([
-      'Verde · 4 clientes',
-      'Amarelo · 2 clientes',
-      'Vermelho · 3 clientes',
+      'Ver clientes de Verde, 4 clientes',
+      'Ver clientes de Amarelo, 2 clientes',
+      'Ver clientes de Vermelho, 3 clientes',
     ]);
   });
 
   it('focar o segmento abre o balão com os clientes daquela cor, do mais urgente ao menos', () => {
     renderizar();
 
-    act(() => screen.getByRole('img', { name: 'Vermelho · 3 clientes' }).focus());
+    act(() => screen.getByRole('button', { name: 'Ver clientes de Vermelho, 3 clientes' }).focus());
 
     const balao = screen.getByRole('tooltip');
     expect(balao).toHaveTextContent('Vermelho · 3 clientes');
@@ -92,7 +94,7 @@ describe('DistribuicaoPorCor', () => {
       />,
     );
 
-    expect(screen.getByRole('img', { name: 'Verde · 1 cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver clientes de Verde, 1 cliente' })).toBeInTheDocument();
   });
 
   it('a tabela acessível tem a quantidade e a coluna Clientes de cada cor', () => {
@@ -125,5 +127,51 @@ describe('DistribuicaoPorCor', () => {
 
     expect(screen.queryByRole('group')).not.toBeInTheDocument();
     expect(screen.getByText('Nenhum cliente ativo.')).toBeInTheDocument();
+  });
+});
+
+describe('DistribuicaoPorCor: painel lateral da cor', () => {
+  it('clicar no segmento abre o painel com os clientes da cor, do mais urgente ao menos, com a cidade e a situação', () => {
+    render(
+      <MemoryRouter>
+        <DistribuicaoPorCor distribuicao={DISTRIBUICAO} clientesAtivos={9} clientes={CLIENTES} />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver clientes de Vermelho, 3 clientes' }), { detail: 1 });
+
+    const painel = screen.getByRole('dialog', { name: 'Clientes na cor Vermelho' });
+    expect(painel).toHaveAccessibleDescription('3 clientes');
+    const linhas = within(painel).getAllByRole('listitem');
+    expect(linhas.map((linha) => linha.textContent)).toEqual([
+      'Armazém NovoJoinville · Nunca visitado',
+      'Doces da VovóJoinville · Atrasado · 40 dias sem visita',
+      'Casa do CháJoinville · Atrasado · 35 dias sem visita',
+    ]);
+    expect(within(linhas[1]).getByRole('link', { name: /Doces da Vovó/ })).toHaveAttribute('href', '/clientes/c7');
+  });
+});
+
+describe('DistribuicaoPorCor: o foco volta ao segmento (gatilho div) ao fechar o painel', () => {
+  it('abre pelo clique; Esc fecha com o foco no segmento; abre de novo e o clique no fundo fecha com o foco no segmento', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    render(
+      <MemoryRouter>
+        <DistribuicaoPorCor distribuicao={DISTRIBUICAO} clientesAtivos={9} clientes={CLIENTES} />
+      </MemoryRouter>,
+    );
+    const amarelo = screen.getByRole('button', { name: 'Ver clientes de Amarelo, 2 clientes' });
+    expect(amarelo.tagName.toLowerCase()).toBe('div');
+
+    await usuario.click(amarelo);
+    expect(screen.getByRole('dialog', { name: 'Clientes na cor Amarelo' })).toBeInTheDocument();
+    await usuario.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(amarelo).toHaveFocus();
+
+    await usuario.click(amarelo);
+    await usuario.click(screen.getByTestId('fundo-do-painel-lateral'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(amarelo).toHaveFocus();
   });
 });

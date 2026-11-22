@@ -24,7 +24,13 @@ export type DadosErp =
       status: 'OK';
       simulado: boolean;
       ultimaVenda: { data: string; valor: number } | null;
-      volume90Dias: { total: number; quantidadeVendas: number };
+      volume90Dias: {
+        total: number;
+        quantidadeVendas: number;
+        /** Primeiro e último dia somados, 'AAAA-MM-DD' (inclusivos). */
+        inicio: string;
+        fim: string;
+      };
       estoque: {
         nivel: NivelEstoque;
         atualizadoEm: string;

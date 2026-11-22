@@ -8,19 +8,70 @@
  * a própria linha, só os produtos e só as vendas dele ("Meus resultados").
  * Conversão sem visitas (`percentual` nulo) aparece como "Sem dados". No celular a
  * tabela rola na horizontal dentro do cartão, sem rolagem da página.
+ * O nome de cada representante na tabela é um botão que abre o painel
+ * lateral "Eduarda · Natal" com as vendas dele na campanha, somadas por
+ * cliente, do maior valor ao menor, cada cliente com link para a ficha.
  */
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { contar } from '../../lib/contar';
 import { formatarDataCalendario } from '../../lib/formatarData';
 import { formatarMoeda } from '../../lib/formatarMoeda';
 import { formatarPercentual } from '../../lib/formatarPercentual';
-import type { Campanha } from '../../services/campaigns';
+import { usePainelLateral } from '../../lib/usePainelLateral';
+import type { Campanha, ResultadoDaCampanha } from '../../services/campaigns';
+import { ClientesDoPainel, PainelLateral } from './PainelLateral';
 
 /** Quantas vendas aparecem antes de "Mostrar todas". */
 const VENDAS_VISIVEIS = 10;
 
 const CLASSES_CABECALHO = 'px-2 py-2 text-xs font-medium text-muted-foreground';
+
+type ClienteDaCampanha = { id: string; nome: string; cidade: string; vendas: number; total: number };
+
+/** As vendas do representante na campanha, por cliente, do maior total ao menor (empate pelo nome). */
+function vendasPorCliente(campanha: Campanha, representanteId: string): ClienteDaCampanha[] {
+  const porCliente = new Map<string, ClienteDaCampanha>();
+  for (const venda of campanha.vendas) {
+    if (venda.representante.id !== representanteId) continue;
+    const { id, nomeFantasia, cidade } = venda.cliente;
+    const atual = porCliente.get(id) ?? { id, nome: nomeFantasia, cidade, vendas: 0, total: 0 };
+    porCliente.set(id, { ...atual, vendas: atual.vendas + 1, total: atual.total + venda.total });
+  }
+  return [...porCliente.values()].sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+function PainelDoRepresentante({
+  campanha,
+  linha,
+  aoFechar,
+}: {
+  campanha: Campanha;
+  linha: ResultadoDaCampanha;
+  aoFechar: () => void;
+}) {
+  const clientes = vendasPorCliente(campanha, linha.representante.id);
+  const total = clientes.reduce((soma, cliente) => soma + cliente.total, 0);
+  return (
+    <PainelLateral
+      titulo={`${linha.representante.nome} · ${campanha.nome}`}
+      resumo={`${contar(clientes.length, 'cliente')} · ${formatarMoeda(total)}`}
+      aberto
+      aoFechar={aoFechar}
+    >
+      <ClientesDoPainel
+        clientes={clientes.map((cliente) => ({
+          id: cliente.id,
+          nome: cliente.nome,
+          detalhe: `${cliente.cidade} · ${contar(cliente.vendas, 'venda')}`,
+          valor: formatarMoeda(cliente.total),
+        }))}
+        vazio="Nenhuma venda vinculada à campanha."
+      />
+    </PainelLateral>
+  );
+}
 
 export function ResultadosDaCampanha({ campanha, gestor }: { campanha: Campanha; gestor: boolean }) {
   // `key` na campanha garante que a lista de vendas volte recolhida ao trocar de
@@ -36,6 +87,7 @@ function ResultadosDeUmaCampanha({ campanha, gestor }: { campanha: Campanha; ges
   const [todasAsVendas, setTodasAsVendas] = useState<boolean>(false);
   const vendasMostradas = todasAsVendas ? campanha.vendas : campanha.vendas.slice(0, VENDAS_VISIVEIS);
   const tituloResultados = gestor ? 'Resultados por representante' : 'Meus resultados';
+  const painel = usePainelLateral<ResultadoDaCampanha>();
 
   return (
     <div className="mt-4 space-y-5 border-t pt-4">
@@ -71,7 +123,15 @@ function ResultadosDeUmaCampanha({ campanha, gestor }: { campanha: Campanha; ges
                 {campanha.resultados.map((linha) => (
                   <tr key={linha.representante.id}>
                     <td className="px-2 py-2 text-left break-words">
-                      {linha.representante.nome}
+                      {/* No celular o botão tem 44 px de altura sem afastar a linha das demais. */}
+                      <button
+                        type="button"
+                        aria-label={`Ver vendas de ${linha.representante.nome} na campanha`}
+                        className="cursor-pointer rounded-sm text-left font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:-my-3 max-md:min-h-11"
+                        onClick={(evento) => painel.abrir(linha, evento.currentTarget)}
+                      >
+                        {linha.representante.nome}
+                      </button>
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">{linha.visitas}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{linha.clientesAtendidos}</td>
@@ -159,6 +219,10 @@ function ResultadosDeUmaCampanha({ campanha, gestor }: { campanha: Campanha; ges
           </>
         )}
       </div>
+
+      {painel.escolhido && (
+        <PainelDoRepresentante campanha={campanha} linha={painel.escolhido} aoFechar={painel.fechar} />
+      )}
     </div>
   );
 }

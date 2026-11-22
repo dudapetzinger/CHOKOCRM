@@ -159,10 +159,10 @@ describe('VisitTimeline', () => {
     expect(screen.getByText(rotulo)).toHaveAttribute('data-contorno');
   });
 
-  it('a etiqueta da campanha continua preenchida (sem contorno)', () => {
+  it('a etiqueta da campanha é preenchida (sem contorno)', () => {
     renderizar([visita({ campanha: { id: 'cp2', nome: 'Natal Chokolaten' } })]);
 
-    // só a etiqueta do resultado tem contorno; a da campanha segue preenchida
+    // só a etiqueta do resultado tem contorno; a da campanha é preenchida
     expect(document.querySelectorAll('[data-contorno]')).toHaveLength(1);
     expect(document.querySelector('[data-contorno]')).toHaveTextContent('Houve venda');
   });

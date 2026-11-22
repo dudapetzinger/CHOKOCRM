@@ -1,14 +1,13 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { AuthContext, type Role } from '../auth/auth-context';
 import { RepresentanteProvider } from '../representante/RepresentanteContext';
 import { ApiError } from '../services/api';
 import { buscarAgendaDoDia, buscarCalendario, type Agenda, type AgendaItem } from '../services/agenda';
 import { listarCampanhas, type Campanha } from '../services/campaigns';
 import { concluirLembrete, type LembreteItem } from '../services/lembretes';
-import { removerSimulacaoDeLargura, simularLargura } from '../test/simularLargura';
 import { AgendaPage } from './AgendaPage';
 
 vi.mock('../services/agenda', () => ({ buscarAgendaDoDia: vi.fn(), buscarCalendario: vi.fn() }));
@@ -108,7 +107,7 @@ function prepararResposta(resposta: Resposta) {
   }
 }
 
-function renderizarComo(role: Role, resposta: Resposta) {
+function renderizarComo(role: Role, resposta: Resposta, entrada = '/agenda') {
   prepararResposta(resposta);
   const auth = {
     user: { id: 'u1', nome: 'Usuário', usuario: 'usuario', role, telefone: null, ativo: true },
@@ -121,8 +120,9 @@ function renderizarComo(role: Role, resposta: Resposta) {
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={auth}>
         <RepresentanteProvider>
-          <MemoryRouter initialEntries={['/agenda']}>
+          <MemoryRouter initialEntries={[entrada]}>
             <AgendaPage />
+            <LocalizacaoAtual />
           </MemoryRouter>
         </RepresentanteProvider>
       </AuthContext.Provider>
@@ -131,134 +131,234 @@ function renderizarComo(role: Role, resposta: Resposta) {
   return { queryClient };
 }
 
-/** Nome de um título de seção: o `aria-label` com a contagem ou, sem ele, o texto ("Roteiro do dia"). */
-function nomeDoTitulo(titulo: HTMLElement): string | null {
-  return titulo.getAttribute('aria-label') ?? titulo.textContent;
+/** A URL atual (caminho e parâmetros), para conferir o que a página guarda nela. */
+function LocalizacaoAtual() {
+  const { pathname, search } = useLocation();
+  return <output data-testid="url">{`${pathname}${search}`}</output>;
 }
 
-/** A seção pelo nome da região, que é o título com a contagem ("Atrasadas · 1"). */
-function secao(nome: string) {
-  return screen.getByRole('region', { name: nome });
+function urlAtual(): string {
+  return screen.getByTestId('url').textContent ?? '';
+}
+
+/** A aba pelo nome que o leitor de tela fala: o rótulo e a contagem ("Hoje, 1"). */
+function aba(nome: string) {
+  return screen.getByRole('tab', { name: nome });
+}
+
+/** O painel da aba marcada. */
+function painel() {
+  return screen.getByRole('tabpanel');
+}
+
+/** A lista de visitas do painel (o roteiro, na aba "Hoje", é outra lista, ordenada). */
+function listaDeVisitas() {
+  const lista = painel().querySelector<HTMLElement>('ul');
+  if (!lista) throw new Error('O painel não tem a lista de visitas.');
+  return lista;
 }
 
 beforeEach(() => {
-  simularLargura(false);
   vi.mocked(listarCampanhas).mockReset().mockResolvedValue([]);
   vi.mocked(buscarCalendario)
     .mockReset()
     .mockImplementation(async (mes) => ({ mes, itens: [] }));
 });
 
-afterEach(() => {
-  removerSimulacaoDeLargura();
-});
+describe('AgendaPage: abas', () => {
+  it('mostra as quatro abas na ordem, cada uma com a contagem no nome', async () => {
+    renderizarComo('REPRESENTANTE', {
+      atrasadas: [ATRASADA, { ...ATRASADA, id: 'c9', nomeFantasia: 'Bombons & Cia' }],
+      hoje: [HOJE],
+      proximos7Dias: [PROXIMA],
+      lembretes: [LEMBRETE_VENCIDO, LEMBRETE_DE_HOJE, { ...LEMBRETE_DE_HOJE, id: 'l3' }],
+    });
 
-describe('AgendaPage (celular)', () => {
-  it('com uma visita atrasada e uma de hoje, mostra as duas seções, cada uma com a contagem e a situação do cliente', async () => {
+    await screen.findByRole('tab', { name: 'Hoje, 1' });
+    const abas = within(screen.getByRole('tablist', { name: 'Seções da agenda' })).getAllByRole('tab');
+    expect(abas.map((item) => item.getAttribute('aria-label'))).toEqual([
+      'Hoje, 1',
+      'Atrasadas, 2',
+      'Próximos 7 dias, 1',
+      'Lembretes, 3',
+    ]);
+  });
+
+  it('a pílula de "Atrasadas" ganha destaque só quando há visitas atrasadas', async () => {
     renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE] });
+    const pilula = async (nome: string) => (await screen.findByRole('tab', { name: nome })).querySelector('[aria-hidden="true"]');
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 1' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Hoje · 1' })).toBeInTheDocument();
+    expect(await pilula('Atrasadas, 1')).toHaveAttribute('data-destaque', 'true');
+    expect(await pilula('Hoje, 1')).not.toHaveAttribute('data-destaque');
+    cleanup();
 
-    const atrasadas = within(secao('Atrasadas · 1'));
-    expect(atrasadas.getByText('Doces da Vovó')).toBeInTheDocument();
-    expect(atrasadas.getByText('Atrasado · 40 dias sem visita')).toBeInTheDocument();
-    expect(atrasadas.getByText('Joinville · Visita prevista venceu há 5 dias')).toBeInTheDocument();
+    renderizarComo('REPRESENTANTE', { hoje: [HOJE] });
+    expect(await pilula('Atrasadas, 0')).not.toHaveAttribute('data-destaque');
+  });
 
-    const hoje = within(secao('Hoje · 1'));
+  it('abre em "Hoje" e mostra só as visitas de hoje', async () => {
+    renderizarComo('REPRESENTANTE', {
+      atrasadas: [ATRASADA],
+      hoje: [HOJE],
+      proximos7Dias: [PROXIMA],
+      lembretes: [LEMBRETE_VENCIDO],
+    });
+
+    expect(await screen.findByRole('tab', { name: 'Hoje, 1' })).toHaveAttribute('aria-selected', 'true');
+    expect(aba('Atrasadas, 1')).toHaveAttribute('aria-selected', 'false');
+    const hoje = within(listaDeVisitas());
     expect(hoje.getByText('Empório Central')).toBeInTheDocument();
     expect(hoje.getByText('Vencendo · 14 dias sem visita')).toBeInTheDocument();
     expect(hoje.getByText('Blumenau · Visita prevista para hoje')).toBeInTheDocument();
-
-    expect(screen.queryByText('Nenhuma visita atrasada ou prevista para hoje.')).not.toBeInTheDocument();
+    expect(hoje.queryByText('Doces da Vovó')).not.toBeInTheDocument();
+    expect(hoje.queryByText('Armazém São Bento')).not.toBeInTheDocument();
+    expect(hoje.queryByText('Bombons & Cia')).not.toBeInTheDocument();
   });
 
-  it('a agenda do dia não traz o parágrafo explicativo de cores e prioridades', async () => {
-    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [] });
+  it('cada aba mostra só a sua lista', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('REPRESENTANTE', {
+      atrasadas: [ATRASADA],
+      hoje: [HOJE],
+      proximos7Dias: [PROXIMA],
+      lembretes: [LEMBRETE_VENCIDO],
+    });
+    await screen.findByRole('tab', { name: 'Hoje, 1' });
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 1' })).toBeInTheDocument();
-    expect(screen.queryByText(/priorizados pela cor de classificação/)).not.toBeInTheDocument();
+    await usuario.click(aba('Atrasadas, 1'));
+    expect(aba('Atrasadas, 1')).toHaveAttribute('aria-selected', 'true');
+    let lista = within(painel());
+    expect(lista.getByText('Doces da Vovó')).toBeInTheDocument();
+    expect(lista.getByText('Atrasado · 40 dias sem visita')).toBeInTheDocument();
+    expect(lista.getByText('Joinville · Visita prevista venceu há 5 dias')).toBeInTheDocument();
+    expect(lista.queryByText('Empório Central')).not.toBeInTheDocument();
+
+    await usuario.click(aba('Próximos 7 dias, 1'));
+    lista = within(painel());
+    expect(lista.getByText('Armazém São Bento')).toBeInTheDocument();
+    expect(lista.getByText('Pomerode · Prevista para 20/10')).toBeInTheDocument();
+    expect(lista.getByRole('link', { name: 'Check-in' })).toHaveAttribute('href', '/clientes/c3/check-in');
+    expect(lista.queryByText('Doces da Vovó')).not.toBeInTheDocument();
+
+    await usuario.click(aba('Lembretes, 1'));
+    lista = within(painel());
+    expect(lista.getByText('Levar amostras de Natal')).toBeInTheDocument();
+    expect(lista.queryByText('Armazém São Bento')).not.toBeInTheDocument();
   });
 
+  it('a aba marcada e o painel ficam ligados (o painel tem o nome da aba)', async () => {
+    renderizarComo('REPRESENTANTE', { hoje: [HOJE] });
+
+    await screen.findByRole('tab', { name: 'Hoje, 1' });
+    expect(screen.getByRole('tabpanel', { name: 'Hoje, 1' })).toBeInTheDocument();
+  });
+
+  it('cada aba vazia tem o seu texto', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('REPRESENTANTE', {});
+
+    await screen.findByRole('tab', { name: 'Hoje, 0' });
+    expect(within(painel()).getByText('Nenhuma visita prevista para hoje.')).toBeInTheDocument();
+    await usuario.click(aba('Atrasadas, 0'));
+    expect(within(painel()).getByText('Nenhuma visita atrasada.')).toBeInTheDocument();
+    await usuario.click(aba('Próximos 7 dias, 0'));
+    expect(within(painel()).getByText('Nenhuma visita nos próximos 7 dias.')).toBeInTheDocument();
+    await usuario.click(aba('Lembretes, 0'));
+    expect(within(painel()).getByText('Nenhum lembrete.')).toBeInTheDocument();
+  });
+
+  it('as setas trocam de aba e levam o foco junto, e Home e End vão às pontas', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('REPRESENTANTE', { hoje: [HOJE], atrasadas: [ATRASADA] });
+    const hoje = await screen.findByRole('tab', { name: 'Hoje, 1' });
+    hoje.focus();
+
+    await usuario.keyboard('{ArrowRight}');
+    expect(aba('Atrasadas, 1')).toHaveAttribute('aria-selected', 'true');
+    expect(aba('Atrasadas, 1')).toHaveFocus();
+    expect(within(painel()).getByText('Doces da Vovó')).toBeInTheDocument();
+
+    await usuario.keyboard('{End}');
+    expect(aba('Lembretes, 0')).toHaveAttribute('aria-selected', 'true');
+    await usuario.keyboard('{ArrowRight}');
+    expect(aba('Hoje, 1')).toHaveAttribute('aria-selected', 'true');
+    await usuario.keyboard('{ArrowLeft}');
+    expect(aba('Lembretes, 0')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('a aba escolhida fica na URL e "Hoje" deixa a URL limpa', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('REPRESENTANTE', { hoje: [HOJE] });
+    await screen.findByRole('tab', { name: 'Hoje, 1' });
+    expect(urlAtual()).toBe('/agenda');
+
+    await usuario.click(aba('Atrasadas, 0'));
+    expect(urlAtual()).toBe('/agenda?aba=atrasadas');
+
+    await usuario.click(aba('Hoje, 1'));
+    expect(urlAtual()).toBe('/agenda');
+  });
+
+  it('a aba é restaurada da URL', async () => {
+    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE] }, '/agenda?aba=atrasadas');
+
+    expect(await screen.findByRole('tab', { name: 'Atrasadas, 1' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(painel()).getByText('Doces da Vovó')).toBeInTheDocument();
+  });
+
+  it('uma aba desconhecida na URL cai em "Hoje"', async () => {
+    renderizarComo('REPRESENTANTE', { hoje: [HOJE] }, '/agenda?aba=qualquer');
+
+    expect(await screen.findByRole('tab', { name: 'Hoje, 1' })).toHaveAttribute('aria-selected', 'true');
+  });
+});
+
+describe('AgendaPage: linhas de visita', () => {
   it('"Visita prevista venceu há 1 dia" usa o singular', async () => {
+    const usuario = userEvent.setup();
     renderizarComo('REPRESENTANTE', { atrasadas: [{ ...ATRASADA, diasAtraso: 1 }], hoje: [] });
 
-    expect(await screen.findByText('Joinville · Visita prevista venceu há 1 dia')).toBeInTheDocument();
+    await usuario.click(await screen.findByRole('tab', { name: 'Atrasadas, 1' }));
+    expect(screen.getByText('Joinville · Visita prevista venceu há 1 dia')).toBeInTheDocument();
   });
 
-  it('cada visita é um item de lista e a contagem acompanha o número de itens', async () => {
+  it('cada visita é um item de lista e a contagem da aba acompanha o número de itens', async () => {
+    const usuario = userEvent.setup();
     renderizarComo('REPRESENTANTE', {
       atrasadas: [ATRASADA, { ...ATRASADA, id: 'c3', nomeFantasia: 'Bombons & Cia' }],
       hoje: [HOJE],
     });
 
-    const atrasadas = within(await screen.findByRole('region', { name: 'Atrasadas · 2' }));
-    expect(atrasadas.getAllByRole('listitem')).toHaveLength(2);
-    expect(within(secao('Hoje · 1')).getAllByRole('listitem')).toHaveLength(1);
+    await usuario.click(await screen.findByRole('tab', { name: 'Atrasadas, 2' }));
+    expect(within(painel()).getAllByRole('listitem')).toHaveLength(2);
+    await usuario.click(aba('Hoje, 1'));
+    expect(within(listaDeVisitas()).getAllByRole('listitem')).toHaveLength(1);
   });
 
   it('o nome do cliente leva à ficha', async () => {
+    const usuario = userEvent.setup();
     renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [] });
 
-    const ficha = await screen.findByRole('link', { name: /Doces da Vovó/ });
-    expect(ficha).toHaveAttribute('href', '/clientes/c1');
+    await usuario.click(await screen.findByRole('tab', { name: 'Atrasadas, 1' }));
+    expect(screen.getByRole('link', { name: /Doces da Vovó/ })).toHaveAttribute('href', '/clientes/c1');
   });
 
   it('o representante tem o atalho de check-in e não vê a linha "Rep.:"', async () => {
-    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [] });
+    renderizarComo('REPRESENTANTE', { hoje: [HOJE] });
 
     const checkIn = await screen.findByRole('link', { name: 'Check-in' });
-    expect(checkIn).toHaveAttribute('href', '/clientes/c1/check-in');
+    expect(checkIn).toHaveAttribute('href', '/clientes/c2/check-in');
     expect(screen.queryByText(/Rep\.:/)).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: 'Filtrar por representante' })).not.toBeInTheDocument();
   });
 
-  it('uma seção sem itens não aparece (só a que tem visitas)', async () => {
-    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [] });
-
-    expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 1' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 2, name: /^Hoje/ })).not.toBeInTheDocument();
-  });
-
-  it('mostra a seção "Próximos 7 dias" só quando há itens', async () => {
-    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], proximos7Dias: [PROXIMA] });
-
-    const proximos = within(await screen.findByRole('region', { name: 'Próximos 7 dias · 1' }));
-    expect(proximos.getByText('Armazém São Bento')).toBeInTheDocument();
-    expect(proximos.getByText('Pomerode · Prevista para 20/10')).toBeInTheDocument();
-    expect(proximos.getByRole('link', { name: 'Check-in' })).toHaveAttribute('href', '/clientes/c3/check-in');
-    // Depois de Atrasadas (sem visitas de hoje, não há roteiro)
-    const titulos = screen.getAllByRole('heading', { level: 2 });
-    expect(titulos.map(nomeDoTitulo)).toEqual(['Atrasadas · 1', 'Próximos 7 dias · 1']);
-  });
-
-  it('sem visitas nos próximos 7 dias, a seção não aparece', async () => {
-    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE], proximos7Dias: [] });
-
-    expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 1' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 2, name: /^Próximos 7 dias/ })).not.toBeInTheDocument();
-  });
-
-  it('só com visitas nos próximos 7 dias: a mensagem de hoje e a seção dos próximos', async () => {
-    renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA] });
-
-    expect(await screen.findByText('Nenhuma visita atrasada ou prevista para hoje.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Próximos 7 dias · 1' })).toBeInTheDocument();
-  });
-
-  it('agenda vazia mostra uma única mensagem e nenhuma seção', async () => {
-    renderizarComo('REPRESENTANTE', { atrasadas: [], hoje: [] });
-
-    expect(await screen.findByText('Nenhuma visita atrasada ou prevista para hoje.')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
-    expect(screen.getAllByText(/Nenhuma visita/)).toHaveLength(1);
-  });
-
   it('gestor com o seletor em "Todos" vê de qual representante é cada cliente, sem atalho de check-in', async () => {
+    const usuario = userEvent.setup();
     renderizarComo('GESTOR', { atrasadas: [ATRASADA], hoje: [HOJE] });
 
-    expect(await screen.findByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
-    expect(screen.getByText('Rep.: Rafael Schmitt')).toBeInTheDocument();
+    expect(await screen.findByText('Rep.: Rafael Schmitt')).toBeInTheDocument();
+    await usuario.click(aba('Atrasadas, 1'));
+    expect(screen.getByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Check-in' })).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Filtrar por representante' })).toHaveValue('');
   });
@@ -266,45 +366,48 @@ describe('AgendaPage (celular)', () => {
   it('gestor que escolhe um representante busca a agenda dele e deixa de ver a linha "Rep.:"', async () => {
     const usuario = userEvent.setup();
     renderizarComo('GESTOR', { atrasadas: [ATRASADA], hoje: [] });
+    await usuario.click(await screen.findByRole('tab', { name: 'Atrasadas, 1' }));
     expect(await screen.findByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
     expect(buscarAgendaDoDia).toHaveBeenLastCalledWith(undefined);
 
     await screen.findByRole('option', { name: 'Eduarda Fischer' });
     await usuario.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por representante' }), 'u1');
 
-    expect(await screen.findByRole('region', { name: 'Atrasadas · 1' })).toHaveTextContent('Doces da Vovó');
-    expect(buscarAgendaDoDia).toHaveBeenLastCalledWith('u1');
-    expect(screen.queryByText(/Rep\.:/)).not.toBeInTheDocument();
+    await waitFor(() => expect(buscarAgendaDoDia).toHaveBeenLastCalledWith('u1'));
+    await waitFor(() => expect(screen.queryByText(/Rep\.:/)).not.toBeInTheDocument());
+    expect(painel()).toHaveTextContent('Doces da Vovó');
   });
 
-  it('enquanto a agenda carrega, avisa; sem nenhuma seção ainda', () => {
+  it('enquanto a agenda carrega, avisa; sem nenhuma aba ainda', () => {
     renderizarComo('REPRESENTANTE', 'carregando');
 
-    expect(screen.getByText('Carregando agenda...')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+    // O `<output>` da URL (só do teste) também tem o papel "status": o texto escolhe o aviso da agenda.
+    expect(screen.getByText('Carregando agenda...')).toHaveAttribute('role', 'status');
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
-  it('se a agenda não carrega, mostra o erro no aviso e nenhuma seção', async () => {
+  it('se a agenda não carrega, mostra o erro no aviso e nenhuma aba', async () => {
     renderizarComo('REPRESENTANTE', new ApiError('NETWORK', 'Você está sem internet.'));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Você está sem internet.');
-    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
   it('com a agenda já carregada, um refetch que falha por rede mantém as visitas e mostra o aviso acima', async () => {
-    const { queryClient } = renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [] });
-    expect(await screen.findByRole('region', { name: 'Atrasadas · 1' })).toHaveTextContent('Doces da Vovó');
+    const { queryClient } = renderizarComo('REPRESENTANTE', { hoje: [HOJE] });
+    expect(await screen.findByRole('tabpanel')).toHaveTextContent('Empório Central');
 
     vi.mocked(buscarAgendaDoDia).mockRejectedValue(new ApiError('NETWORK', 'Você está sem internet.'));
     await act(() => queryClient.refetchQueries({ queryKey: ['agenda'] }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Você está sem internet.');
-    expect(within(secao('Atrasadas · 1')).getByText('Doces da Vovó')).toBeInTheDocument();
+    expect(within(listaDeVisitas()).getByText('Empório Central')).toBeInTheDocument();
   });
 });
 
 describe('AgendaPage: lembretes', () => {
-  it('a seção "Lembretes" traz o vencido e o de hoje, entre "Hoje" e "Próximos 7 dias"', async () => {
+  it('a aba "Lembretes" traz o vencido e o de hoje', async () => {
+    const usuario = userEvent.setup();
     renderizarComo('REPRESENTANTE', {
       atrasadas: [ATRASADA],
       hoje: [HOJE],
@@ -312,7 +415,8 @@ describe('AgendaPage: lembretes', () => {
       lembretes: [LEMBRETE_VENCIDO, LEMBRETE_DE_HOJE],
     });
 
-    const lembretes = within(await screen.findByRole('region', { name: 'Lembretes · 2' }));
+    await usuario.click(await screen.findByRole('tab', { name: 'Lembretes, 2' }));
+    const lembretes = within(painel());
     const linhas = lembretes.getAllByRole('listitem');
     expect(linhas).toHaveLength(2);
     expect(linhas[0]).toHaveTextContent('Bombons & Cia');
@@ -322,54 +426,33 @@ describe('AgendaPage: lembretes', () => {
     expect(lembretes.getByText('Blumenau · Lembrete para hoje')).toBeInTheDocument();
     expect(lembretes.getByRole('link', { name: /Bombons & Cia/ })).toHaveAttribute('href', '/clientes/c4');
     expect(lembretes.queryByText(/Rep\.:/)).not.toBeInTheDocument();
-
-    const titulos = screen.getAllByRole('heading', { level: 2 });
-    expect(titulos.map(nomeDoTitulo)).toEqual([
-      'Roteiro do dia',
-      'Atrasadas · 1',
-      'Hoje · 1',
-      'Lembretes · 2',
-      'Próximos 7 dias · 1',
-    ]);
   });
 
   it('"Concluir" conclui o lembrete e a linha some da agenda', async () => {
     const usuario = userEvent.setup();
     vi.mocked(concluirLembrete).mockReset().mockResolvedValue({ id: 'l1', concluidoEm: '2026-10-26T12:00:00.000Z' });
     renderizarComo('REPRESENTANTE', { hoje: [HOJE], lembretes: [LEMBRETE_VENCIDO, LEMBRETE_DE_HOJE] });
-    await screen.findByRole('region', { name: 'Lembretes · 2' });
+    await usuario.click(await screen.findByRole('tab', { name: 'Lembretes, 2' }));
 
     prepararResposta({ hoje: [HOJE], lembretes: [LEMBRETE_DE_HOJE] });
     await usuario.click(screen.getByRole('button', { name: 'Concluir lembrete de Bombons & Cia: Levar amostras de Natal' }));
 
     expect(concluirLembrete).toHaveBeenCalledWith('l1');
-    const lembretes = await screen.findByRole('region', { name: 'Lembretes · 1' });
-    expect(lembretes).not.toHaveTextContent('Bombons & Cia');
-    expect(lembretes).toHaveTextContent('Empório Central');
-  });
-
-  it('sem lembretes, a seção não existe', async () => {
-    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE], lembretes: [] });
-
-    expect(await screen.findByRole('region', { name: 'Hoje · 1' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 2, name: /^Lembretes/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Lembretes, 1' })).toHaveAttribute('aria-selected', 'true');
+    expect(painel()).not.toHaveTextContent('Bombons & Cia');
+    expect(painel()).toHaveTextContent('Empório Central');
   });
 
   it('o gestor também conclui e, em "Todos", vê de qual representante é o lembrete', async () => {
+    const usuario = userEvent.setup();
     renderizarComo('GESTOR', { lembretes: [LEMBRETE_VENCIDO] });
 
-    const lembretes = within(await screen.findByRole('region', { name: 'Lembretes · 1' }));
+    await usuario.click(await screen.findByRole('tab', { name: 'Lembretes, 1' }));
+    const lembretes = within(painel());
     expect(lembretes.getByText('Rep.: Eduarda Fischer')).toBeInTheDocument();
-    expect(lembretes.getByRole('button', { name: 'Concluir lembrete de Bombons & Cia: Levar amostras de Natal' })).toBeInTheDocument();
-  });
-
-  it('no desktop, "Lembretes" vem na largura toda, depois das duas colunas e antes de "Próximos 7 dias"', async () => {
-    simularLargura(true);
-    renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA], lembretes: [LEMBRETE_VENCIDO] });
-
-    const titulos = await screen.findAllByRole('heading', { level: 2 });
-    expect(titulos.map(nomeDoTitulo)).toEqual(['Atrasadas · 0', 'Hoje · 0', 'Lembretes · 1', 'Próximos 7 dias · 1']);
-    await waitFor(() => expect(secao('Lembretes · 1')).toHaveTextContent('Bombons & Cia'));
+    expect(
+      lembretes.getByRole('button', { name: 'Concluir lembrete de Bombons & Cia: Levar amostras de Natal' }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -410,70 +493,25 @@ describe('AgendaPage: campanhas em andamento', () => {
     vi.mocked(listarCampanhas).mockResolvedValue([campanha('cp3', 'Feira Sabores do Vale', 'PROGRAMADA')]);
     renderizarComo('REPRESENTANTE', { hoje: [HOJE] });
 
-    await screen.findByRole('region', { name: 'Hoje · 1' });
+    await screen.findByRole('tab', { name: 'Hoje, 1' });
     expect(screen.queryByRole('list', { name: 'Campanhas em andamento' })).not.toBeInTheDocument();
   });
 
   it('a linha do cliente traz a etiqueta da campanha da próxima visita', async () => {
+    const usuario = userEvent.setup();
     renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA] });
 
-    const proximos = await screen.findByRole('region', { name: 'Próximos 7 dias · 1' });
-    expect(within(proximos).getByText('Natal Chokolaten')).toBeInTheDocument();
-  });
-});
-
-describe('AgendaPage (tablet, de 768 a 1023 px)', () => {
-  it('as seções ficam empilhadas, como no celular: a seção sem visitas não aparece', async () => {
-    simularLargura(900);
-    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [] });
-
-    expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 1' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 2, name: /^Hoje/ })).not.toBeInTheDocument();
-    expect(screen.queryByText('Nenhuma visita prevista para hoje.')).not.toBeInTheDocument();
-  });
-});
-
-describe('AgendaPage (desktop, a partir de 1024 px)', () => {
-  it('mostra as duas colunas mesmo vazias, cada uma com a sua frase e a contagem 0', async () => {
-    simularLargura(1024);
-    renderizarComo('REPRESENTANTE', { atrasadas: [], hoje: [] });
-
-    expect(await screen.findByText('Nenhuma visita atrasada.')).toBeInTheDocument();
-    expect(screen.getByText('Nenhuma visita prevista para hoje.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Atrasadas · 0' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Hoje · 0' })).toBeInTheDocument();
-    expect(screen.queryByText('Nenhuma visita atrasada ou prevista para hoje.')).not.toBeInTheDocument();
+    await usuario.click(await screen.findByRole('tab', { name: 'Próximos 7 dias, 1' }));
+    expect(within(painel()).getByText('Natal Chokolaten')).toBeInTheDocument();
   });
 
-  it('com visitas, Atrasadas vem antes de Hoje e cada uma traz os seus clientes', async () => {
-    simularLargura(true);
-    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE] });
+  it('os chips ficam acima das abas', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([campanha('cp2', 'Natal Chokolaten', 'EM_ANDAMENTO')]);
+    renderizarComo('REPRESENTANTE', { hoje: [HOJE] });
 
-    const titulos = await screen.findAllByRole('heading', { level: 2 });
-    expect(titulos.map(nomeDoTitulo)).toEqual(['Roteiro do dia', 'Atrasadas · 1', 'Hoje · 1']);
-    expect(within(secao('Atrasadas · 1')).getByText('Doces da Vovó')).toBeInTheDocument();
-    expect(within(secao('Hoje · 1')).getByText('Empório Central')).toBeInTheDocument();
-  });
-
-  it('"Próximos 7 dias" vem depois das duas colunas, só quando há itens', async () => {
-    simularLargura(true);
-    renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA] });
-
-    const titulos = await screen.findAllByRole('heading', { level: 2 });
-    expect(titulos.map((titulo) => titulo.getAttribute('aria-label'))).toEqual([
-      'Atrasadas · 0',
-      'Hoje · 0',
-      'Próximos 7 dias · 1',
-    ]);
-    expect(within(secao('Próximos 7 dias · 1')).getByText('Armazém São Bento')).toBeInTheDocument();
-  });
-
-  it('sem itens, "Próximos 7 dias" não aparece nem vazio', async () => {
-    simularLargura(true);
-    renderizarComo('REPRESENTANTE', {});
-
-    expect(await screen.findByRole('heading', { level: 2, name: 'Atrasadas · 0' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 2, name: /^Próximos 7 dias/ })).not.toBeInTheDocument();
+    const chips = await screen.findByRole('list', { name: 'Campanhas em andamento' });
+    const abas = await screen.findByRole('tablist');
+    expect(chips.compareDocumentPosition(abas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
@@ -499,17 +537,36 @@ describe('AgendaPage: roteiro do dia', () => {
     );
   });
 
+  it('o roteiro fica dentro da aba "Hoje" e some nas outras', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('REPRESENTANTE', {
+      atrasadas: [ATRASADA],
+      hoje: [HOJE],
+      proximos7Dias: [PROXIMA],
+      lembretes: [LEMBRETE_VENCIDO],
+    });
+
+    const roteiro = await screen.findByRole('region', { name: 'Roteiro do dia' });
+    expect(painel()).toContainElement(roteiro);
+    for (const nome of ['Atrasadas, 1', 'Próximos 7 dias, 1', 'Lembretes, 1']) {
+      await usuario.click(aba(nome));
+      expect(screen.queryByRole('region', { name: 'Roteiro do dia' })).not.toBeInTheDocument();
+    }
+    await usuario.click(aba('Hoje, 1'));
+    expect(screen.getByRole('region', { name: 'Roteiro do dia' })).toBeInTheDocument();
+  });
+
   it('só com atrasadas, não há roteiro', async () => {
     renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA] });
 
-    expect(await screen.findByRole('region', { name: 'Atrasadas · 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Atrasadas, 1' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Roteiro do dia' })).not.toBeInTheDocument();
   });
 
   it('sem visitas de hoje, não há roteiro', async () => {
     renderizarComo('REPRESENTANTE', { proximos7Dias: [PROXIMA] });
 
-    expect(await screen.findByRole('region', { name: 'Próximos 7 dias · 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Próximos 7 dias, 1' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Roteiro do dia' })).not.toBeInTheDocument();
   });
 
@@ -545,7 +602,7 @@ describe('AgendaPage: roteiro do dia', () => {
   it('o gestor só vê o roteiro depois de escolher um representante', async () => {
     const usuario = userEvent.setup();
     renderizarComo('GESTOR', { hoje: [HOJE] });
-    expect(await screen.findByRole('region', { name: 'Hoje · 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Hoje, 1' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Roteiro do dia' })).not.toBeInTheDocument();
 
     await screen.findByRole('option', { name: 'Eduarda Fischer' });
@@ -556,7 +613,7 @@ describe('AgendaPage: roteiro do dia', () => {
 });
 
 describe('AgendaPage: calendário', () => {
-  it('o segmentado troca a agenda do dia pelo calendário do mês, sem o roteiro', async () => {
+  it('o segmentado troca a agenda do dia pelo calendário do mês, sem o roteiro nem as abas', async () => {
     const usuario = userEvent.setup();
     renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE] });
     expect(await screen.findByRole('region', { name: 'Roteiro do dia' })).toBeInTheDocument();
@@ -568,7 +625,20 @@ describe('AgendaPage: calendário', () => {
     expect(screen.getByRole('region', { name: 'Calendário do mês' })).toBeInTheDocument();
     expect(buscarCalendario).toHaveBeenCalledWith(expect.stringMatching(/^[0-9]{4}-[0-9]{2}$/), undefined);
     expect(screen.queryByRole('region', { name: 'Roteiro do dia' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Atrasadas · 1' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  });
+
+  it('trocar para o calendário e voltar mantém os outros parâmetros da URL', async () => {
+    const usuario = userEvent.setup();
+    renderizarComo('REPRESENTANTE', { atrasadas: [ATRASADA], hoje: [HOJE] }, '/agenda?rep=u1&aba=atrasadas');
+    await screen.findByRole('tab', { name: 'Atrasadas, 1' });
+
+    await usuario.click(screen.getByRole('radio', { name: 'Calendário' }));
+    expect(urlAtual()).toBe('/agenda?rep=u1&aba=atrasadas&visao=calendario');
+
+    await usuario.click(screen.getByRole('radio', { name: 'Agenda do dia' }));
+    expect(urlAtual()).toBe('/agenda?rep=u1&aba=atrasadas');
+    expect(await screen.findByRole('tab', { name: 'Atrasadas, 1' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('a introdução do calendário fala do que foi marcado e dos lembretes', async () => {

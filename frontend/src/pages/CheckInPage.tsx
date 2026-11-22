@@ -84,6 +84,7 @@ import { AreaTextoCrescente } from '../components/AreaTextoCrescente';
 import { SegmentadoResultado } from '../components/SegmentadoResultado';
 import { IndicadorDePasso } from '../components/crm/checkin/IndicadorDePasso';
 import { PerguntaSimNao } from '../components/crm/checkin/PerguntaSimNao';
+import { CampoDeArquivo } from '../components/crm/CampoDeArquivo';
 import { NovoContato } from '../components/crm/NovoContato';
 import { Aviso, Campo, CLASSES_SELECT } from '../components/crm/ui';
 import { agora as agoraDoRelogio } from '../lib/relogio';
@@ -500,15 +501,17 @@ export function CheckInPage() {
                     ajuda="Obrigatória: registra que você esteve no cliente."
                     erro={erros.foto}
                   >
-                    <Input
+                    <CampoDeArquivo
                       ref={campoFoto}
                       id="checkin-foto"
-                      type="file"
+                      icone="camera"
+                      rotuloDoBotao="Anexar foto"
+                      semArquivo="Nenhuma foto selecionada"
                       accept="image/*"
                       capture="environment"
-                      className="cursor-pointer file:mr-3 file:cursor-pointer max-md:py-2.5"
-                      onChange={(e) => {
-                        setFoto(e.target.files?.[0] ?? null);
+                      arquivos={foto ? [foto] : []}
+                      onChange={(arquivos) => {
+                        setFoto(arquivos[0] ?? null);
                         limparErro('foto');
                       }}
                       required

@@ -87,6 +87,7 @@ export function RecorrenciaCard({ clienteId, recorrenciaDias, historico, podeAlt
   return (
     <Cartao
       titulo="Recorrência de visitas"
+      recolhivel="ficha-recorrencia"
       acao={
         podeAlterar &&
         !editando && (

@@ -9,6 +9,7 @@ function notaLida(extra: Partial<NotaLida> = {}): NotaLida {
     numero: '2455',
     serie: '1',
     dataEmissao: '2026-11-05',
+    dataEmissaoDanfe: '2026-11-05',
     destinatarioNome: 'EMPORIO POMERODE LTDA',
     destinatarioCnpj: '12345678000190',
     cliente: { id: 'c1', nomeFantasia: 'Empório Pomerode' },
@@ -138,5 +139,22 @@ describe('ConferenciaDeNotas', () => {
 
     expect(screen.getByRole('button', { name: 'Confirmar importação' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
+  });
+
+  it('com a data da nota diferente da DANFE, diz a data da nota e a data com que entra', () => {
+    renderizar([
+      lido('a.pdf', { notas: [notaLida({ dataEmissao: '2026-11-20', dataEmissaoDanfe: '2026-11-04' })] }),
+    ]);
+
+    const item = screen.getByRole('listitem', { name: 'NF 2455' });
+    expect(within(item).getByText('Nota de 04/11/2026. Entra como 20/11/2026, a data simulada.')).toBeInTheDocument();
+  });
+
+  it('com as duas datas iguais, mostra só a data da nota, sem a frase da data simulada', () => {
+    renderizar([lido('a.pdf')]);
+
+    const item = screen.getByRole('listitem', { name: 'NF 2455' });
+    expect(within(item).getByText(/NF 2455 · 05\/11\/2026 · /)).toBeInTheDocument();
+    expect(within(item).queryByText(/a data simulada/)).not.toBeInTheDocument();
   });
 });

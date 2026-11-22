@@ -100,3 +100,76 @@ describe('Dialogo', () => {
     expect(screen.getByLabelText('Busca')).toHaveFocus();
   });
 });
+
+describe('Dialogo: trava da rolagem da página', () => {
+  const raiz = document.documentElement;
+
+  /** A janela com `janela` px de largura e a página, sem a barra de rolagem, com `pagina` px. */
+  function simularBarraDeRolagem(janela: number, pagina: number) {
+    vi.stubGlobal('innerWidth', janela);
+    Object.defineProperty(raiz, 'clientWidth', { configurable: true, value: pagina });
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(raiz, 'clientWidth');
+    raiz.style.paddingRight = '';
+    raiz.style.overflow = '';
+  });
+
+  it('aberto, o html ganha à direita a largura da barra de rolagem; fechado, o padding volta ao valor que tinha', () => {
+    simularBarraDeRolagem(1024, 1009);
+    raiz.style.paddingRight = '4px';
+    const { rerender } = render(
+      <Dialogo titulo="Importar notas" aberto aoFechar={() => {}}>
+        <p>Conteúdo</p>
+      </Dialogo>,
+    );
+
+    expect(raiz.style.overflow).toBe('hidden');
+    expect(raiz.style.paddingRight).toBe('15px');
+
+    rerender(
+      <Dialogo titulo="Importar notas" aberto={false} aoFechar={() => {}}>
+        <p>Conteúdo</p>
+      </Dialogo>,
+    );
+
+    expect(raiz.style.overflow).toBe('');
+    expect(raiz.style.paddingRight).toBe('4px');
+  });
+
+  it('com dois diálogos abertos, o padding só volta quando o último fecha', () => {
+    simularBarraDeRolagem(1024, 1009);
+    const dois = (primeiro: boolean, segundo: boolean) => (
+      <>
+        <Dialogo titulo="Primeiro" aberto={primeiro} aoFechar={() => {}}>
+          <p>Um</p>
+        </Dialogo>
+        <Dialogo titulo="Segundo" aberto={segundo} aoFechar={() => {}}>
+          <p>Dois</p>
+        </Dialogo>
+      </>
+    );
+    const { rerender } = render(dois(true, true));
+    expect(raiz.style.paddingRight).toBe('15px');
+
+    rerender(dois(true, false));
+    expect(raiz.style.paddingRight).toBe('15px');
+
+    rerender(dois(false, false));
+    expect(raiz.style.paddingRight).toBe('');
+  });
+
+  it('sem barra de rolagem na página, o padding do html não muda', () => {
+    simularBarraDeRolagem(1024, 1024);
+    render(
+      <Dialogo titulo="Importar notas" aberto aoFechar={() => {}}>
+        <p>Conteúdo</p>
+      </Dialogo>,
+    );
+
+    expect(raiz.style.overflow).toBe('hidden');
+    expect(raiz.style.paddingRight).toBe('');
+  });
+});

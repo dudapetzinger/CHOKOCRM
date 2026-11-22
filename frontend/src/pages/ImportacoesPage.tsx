@@ -38,7 +38,9 @@
  *         DANFE; as notas do CNPJ passam ao cliente novo e o item some. Serve às
  *         notas de importações anteriores (as de agora ganham o cliente no fecho);
  *       - "Ligar à visita": notas com uma visita sugerida, à espera de o gestor
- *         vincular ou deixar só no ERP; a linha avisa que os produtos e o total
+ *         vincular ou deixar só no ERP; a linha diz o motivo (última visita com
+ *         o resultado e quantos dias antes da nota), e o "?" explica a janela de
+ *         `DIAS_DA_JANELA_DO_VINCULO` dias; a linha avisa que os produtos e o total
  *         da nota passam a aparecer na visita e, se a visita não é Venda, que
  *         ela passa a ser;
  *   - "Importações anteriores": as últimas 20, cada uma com as suas notas e o
@@ -48,7 +50,7 @@
  *     (não tem volta: a nota não é vinculada de novo).
  * As regras valem no backend; as mensagens dele aparecem como vêm.
  * O dia de emissão da nota é data de calendário ('AAAA-MM-DD') e é formatado
- * por texto (`formatarDiaMes`); a data da visita é um instante ISO.
+ * por texto (`formatarDiaMes`); a data da visita também ('dia' da sugestão).
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -59,6 +61,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { contar } from '@/lib/contar';
 import { useAuth } from '../auth/useAuth';
 import { AvisoExclusivoDoGestor } from '../components/AvisoExclusivoDoGestor';
+import { CampoDeArquivo } from '../components/crm/CampoDeArquivo';
 import { ConferenciaDeNotas, type ArquivoLido } from '../components/crm/ConferenciaDeNotas';
 import { CriarClientePelaNota } from '../components/crm/CriarClientePelaNota';
 import { Dialogo } from '../components/crm/Dialogo';
@@ -80,6 +83,7 @@ import {
   type VinculoNota,
 } from '../services/importacoes';
 import { ROTULO_RESULTADO } from '../services/visits';
+import { DIAS_DA_JANELA_DO_VINCULO } from '../config/vinculo';
 
 const MENSAGEM_ERRO_LER = 'Não foi possível ler este arquivo.';
 const MENSAGEM_ERRO_IMPORTAR = 'Não foi possível importar este arquivo.';
@@ -101,9 +105,10 @@ const ROTULO_VINCULO: Record<VinculoNota, string> = {
   SEM_CLIENTE: 'Só no ERP',
 };
 
-/** Instante ISO (a data/hora da visita) como "dd/mm" no fuso local. */
-function diaMes(iso: string): string {
-  return formatarData(iso).slice(0, 5);
+/** Quanto tempo a visita veio antes da nota, para o motivo da pendência. */
+function prazoDaVisita(diasAntes: number): string {
+  if (diasAntes === 0) return 'no mesmo dia da nota';
+  return diasAntes === 1 ? '1 dia antes da nota' : `${diasAntes} dias antes da nota`;
 }
 
 export function ImportacoesPage() {
@@ -179,6 +184,9 @@ function Importacoes() {
     // Tudo do ERP (listas de baixo) e a ficha dos clientes (vendas e sugestões), para "Ver cliente" abrir atualizada.
     void queryClient.invalidateQueries({ queryKey: ['erp'] });
     void queryClient.invalidateQueries({ queryKey: ['client'] });
+    // As notas novas entram nas vendas do Painel e nas datas comemorativas.
+    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    void queryClient.invalidateQueries({ queryKey: ['insights'] });
     setConcluida({ gravados, falhas });
     setEtapa('concluida');
   }
@@ -200,32 +208,31 @@ function Importacoes() {
           Escolha os PDFs das notas fiscais (DANFE) de venda. As notas são lidas para você conferir antes de entrarem no
           CRM.
         </p>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="max-sm:w-full">
-            <label htmlFor="arquivos-de-notas" className="mb-1 block text-sm font-medium">
-              Notas fiscais (PDF)
-            </label>
-            <input
-              key={versaoDaEntrada}
-              id="arquivos-de-notas"
-              ref={entrada}
-              type="file"
-              accept=".pdf,application/pdf"
-              multiple
-              onChange={(evento) => setArquivos(Array.from(evento.target.files ?? []))}
-              className="block w-full text-sm file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-2 file:text-sm"
-            />
-          </div>
-          <Button
-            type="button"
-            onClick={() => void lerNotas()}
-            disabled={arquivos.length === 0 || etapa !== 'escolher'}
-            className="max-sm:w-full"
-          >
-            <FileUp aria-hidden="true" />
-            Ler notas
-          </Button>
-        </div>
+        <label htmlFor="arquivos-de-notas" className="mb-1 block text-sm font-medium">
+          Notas fiscais (PDF)
+        </label>
+        <CampoDeArquivo
+          key={versaoDaEntrada}
+          id="arquivos-de-notas"
+          ref={entrada}
+          rotuloDoBotao="Anexar arquivos"
+          semArquivo="Nenhum arquivo selecionado"
+          accept=".pdf,application/pdf"
+          multiple
+          arquivos={arquivos}
+          onChange={setArquivos}
+          acao={
+            <Button
+              type="button"
+              onClick={() => void lerNotas()}
+              disabled={arquivos.length === 0 || etapa !== 'escolher'}
+              className="max-sm:w-full"
+            >
+              <FileUp aria-hidden="true" />
+              Ler notas
+            </Button>
+          }
+        />
       </Cartao>
 
       <Dialogo titulo="Importar notas" aberto={etapa !== 'escolher'} aoFechar={recomecar} bloqueado={ocupado}>
@@ -315,7 +322,11 @@ function Pendencias() {
   return (
     <Cartao titulo={total === null ? 'Pendências' : `Pendências (${total})`}>
       <div className="space-y-4">
-        {carregando && <p className="text-sm text-muted-foreground">Carregando pendências...</p>}
+        {carregando && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Carregando pendências...
+          </p>
+        )}
         {semCliente.isError && (
           <Aviso tom="erro" role="alert">
             {mensagemErroApi(semCliente.error, MENSAGEM_ERRO_CARREGAR)}
@@ -342,7 +353,7 @@ function Pendencias() {
         {pendencias.data && pendencias.data.length > 0 && (
           <ParteDasPendencias
             titulo="Ligar à visita"
-            ajuda="A nota caiu em um dia diferente da última visita do cliente. A gestão decide se a venda conta para essa visita, o que pesa na conversão e nas campanhas do representante, ou se fica só como compra."
+            ajuda={`Uma nota vira pendência quando o cliente tem uma visita até ${DIAS_DA_JANELA_DO_VINCULO} dias antes do dia da nota. Sem visita nesse período, a nota conta só como compra.`}
           >
             <ul aria-label="Notas pendentes" className="divide-y">
               {pendencias.data.map((nota) => (
@@ -361,7 +372,8 @@ function Pendencias() {
  * Depois de qualquer um, tudo do ERP (`['erp']`: importações, pendências,
  * situação) é buscado de novo, e a nota aparece no estado novo sem recarregar;
  * a ficha dos clientes (`['client']`: vendas do ERP e visitas, cujos itens e
- * resultado mudaram) também.
+ * resultado mudaram) e os números do Painel (`['dashboard']`: a conversão em
+ * vendas e a receita contam o resultado e o total da visita) também.
  */
 function useAcoesDaNota(nota: Nota) {
   const queryClient = useQueryClient();
@@ -369,6 +381,7 @@ function useAcoesDaNota(nota: Nota) {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: ['erp'] }),
       queryClient.invalidateQueries({ queryKey: ['client'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
     ]);
   const aoFalhar = (erro: unknown) => toast.error(mensagemErroApi(erro, 'Não foi possível salvar. Tente novamente.'));
 
@@ -403,12 +416,17 @@ function LinhaPendente({ nota }: { nota: Nota }) {
     <li className="space-y-2 py-3 text-sm">
       <p>
         <DescricaoDaNota nota={nota} />
-        {visita?.totalPedido != null && ` · Pedido da visita: ${formatarMoeda(visita.totalPedido)}`}
+        {visita && visita.totalPedido > 0 && ` · Produtos da visita: ${formatarMoeda(visita.totalPedido)}`}
       </p>
+      {visita && (
+        <p className="text-muted-foreground">
+          {`A última visita foi em ${formatarDiaMes(visita.dia)} (${ROTULO_RESULTADO[visita.resultado]}), ${prazoDaVisita(visita.diasAntes)}. A venda conta para essa visita?`}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         {visita && (
           <Button type="button" size="sm" disabled={ocupada} onClick={() => vincular.mutate(visita.id)}>
-            {`Vincular à visita de ${diaMes(visita.dataHora)}${visita.resultado ? ` (${ROTULO_RESULTADO[visita.resultado]})` : ''}`}
+            {`Vincular à visita de ${formatarDiaMes(visita.dia)} (${ROTULO_RESULTADO[visita.resultado]})`}
           </Button>
         )}
         <Button type="button" size="sm" variant="outline" disabled={ocupada} onClick={() => desvincular.mutate()}>
@@ -418,7 +436,7 @@ function LinhaPendente({ nota }: { nota: Nota }) {
       {visita && (
         <p className="text-muted-foreground">
           {visita.resultado !== 'VENDA' &&
-            `A visita de ${diaMes(visita.dataHora)}${visita.resultado ? ` (${ROTULO_RESULTADO[visita.resultado]})` : ''} passa a contar como Venda. `}
+            `A visita de ${formatarDiaMes(visita.dia)} (${ROTULO_RESULTADO[visita.resultado]}) passa a contar como Venda. `}
           Os produtos e o total da nota passam a aparecer na visita.
         </p>
       )}
@@ -430,8 +448,12 @@ function ImportacoesAnteriores() {
   const { data: importacoes, isLoading, isError, error } = useImportacoes();
 
   return (
-    <Cartao titulo="Importações anteriores">
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando importações...</p>}
+    <Cartao titulo="Importações anteriores" recolhivel="importacoes-anteriores">
+      {isLoading && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Carregando importações...
+        </p>
+      )}
       {isError && (
         <Aviso tom="erro" role="alert">
           {mensagemErroApi(error, MENSAGEM_ERRO_CARREGAR)}

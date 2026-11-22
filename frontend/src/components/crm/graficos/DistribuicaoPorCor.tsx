@@ -9,16 +9,22 @@
  * Cada segmento (com 44 px de toque no celular, por `TOQUE_NO_SEGMENTO`)
  * abre o balão "Verde · 3 clientes" com os
  * clientes daquela cor, do mais urgente ao menos (a carteira que o Painel já
- * busca para os "Mais urgentes"). A tabela escondida repete as contagens e os
- * clientes de cada cor.
+ * busca para os "Mais urgentes"). O clique no segmento (ou Enter, ou o
+ * toque) abre o painel lateral "Clientes na cor Vermelho" com esses
+ * clientes, na mesma ordem, com a cidade e a situação de cada um e o link
+ * para a ficha. A tabela escondida repete as contagens e os clientes de cada
+ * cor.
  */
 import { contar } from '@/lib/contar';
 import { cn } from '@/lib/utils';
 import { descreverClientesAtivos } from '@/lib/descreverClientesAtivos';
+import { descreverSituacao } from '@/lib/descreverSituacao';
+import { usePainelLateral } from '@/lib/usePainelLateral';
 import { ordenarPorUrgencia } from '@/lib/ordenarPorUrgencia';
 import { CORES, ROTULO_COR, type ClienteListItem, type Cor } from '@/services/clients';
 import type { DistribuicaoPorCor as Distribuicao } from '@/services/kpis';
 import { EstadoVazio } from '../../EstadoVazio';
+import { ClientesDoPainel, PainelLateral } from '../PainelLateral';
 import { CLASSES_COR } from '../ui';
 import { AreaComBalao, GatilhoDoBalao, TOQUE_NO_SEGMENTO } from './BalaoDoGrafico';
 import { TabelaAcessivel } from './TabelaAcessivel';
@@ -40,13 +46,16 @@ function tituloDaCor(cor: Cor, quantidade: number): string {
 }
 
 export function DistribuicaoPorCor({ distribuicao, clientesAtivos, clientes }: Props) {
+  const painel = usePainelLateral<Cor>();
+
   if (clientesAtivos === 0) {
     return <EstadoVazio icone="user">Nenhum cliente ativo.</EstadoVazio>;
   }
 
   const ordenados = ordenarPorUrgencia(clientes);
-  const nomesDaCor = (cor: Cor) =>
-    ordenados.filter((cliente) => cliente.cor === cor).map((cliente) => cliente.nomeFantasia);
+  const clientesDaCor = (cor: Cor) => ordenados.filter((cliente) => cliente.cor === cor);
+  const nomesDaCor = (cor: Cor) => clientesDaCor(cor).map((cliente) => cliente.nomeFantasia);
+  const corEscolhida = painel.escolhido;
 
   return (
     <AreaComBalao>
@@ -61,7 +70,8 @@ export function DistribuicaoPorCor({ distribuicao, clientesAtivos, clientes }: P
             <GatilhoDoBalao
               key={cor}
               conteudo={{ titulo, linhas: nomesDaCor(cor).map((nome) => ({ nome })) }}
-              aria-label={titulo}
+              aoEscolher={(gatilho) => painel.abrir(cor, gatilho)}
+              aria-label={`Ver clientes de ${ROTULO_COR[cor]}, ${contar(distribuicao[cor], 'cliente')}`}
               data-testid="segmento-cor"
               // O anel por dentro, para não encostar no segmento vizinho.
               className={cn('min-w-2 focus-visible:ring-inset', TOQUE_NO_SEGMENTO, CLASSES_COR[cor].ponto)}
@@ -85,6 +95,23 @@ export function DistribuicaoPorCor({ distribuicao, clientesAtivos, clientes }: P
           </span>
         ))}
       </div>
+
+      {corEscolhida && (
+        <PainelLateral
+          titulo={`Clientes na cor ${ROTULO_COR[corEscolhida]}`}
+          resumo={contar(clientesDaCor(corEscolhida).length, 'cliente')}
+          aberto
+          aoFechar={painel.fechar}
+        >
+          <ClientesDoPainel
+            clientes={clientesDaCor(corEscolhida).map((cliente) => ({
+              id: cliente.id,
+              nome: cliente.nomeFantasia,
+              detalhe: `${cliente.cidade} · ${descreverSituacao(cliente)}`,
+            }))}
+          />
+        </PainelLateral>
+      )}
     </AreaComBalao>
   );
 }

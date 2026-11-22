@@ -501,3 +501,98 @@ describe('BalaoDoGrafico: uma parada do Tab por área, setas entre os gatilhos',
     expect(screen.getByRole('progressbar', { name: 'Progresso' })).toBeInTheDocument();
   });
 });
+
+describe('BalaoDoGrafico: aoEscolher abre o painel lateral', () => {
+  function renderizarComEscolha(as?: 'div' | 'rect') {
+    const aoEscolher = vi.fn();
+    const gatilho =
+      as === 'rect' ? (
+        <svg viewBox="0 0 10 10">
+          <GatilhoDoBalao as="rect" conteudo={conteudo} aoEscolher={aoEscolher} aria-label="Ver clientes de Verde" />
+        </svg>
+      ) : (
+        <GatilhoDoBalao conteudo={conteudo} aoEscolher={aoEscolher} aria-label="Ver clientes de Verde">
+          Verde
+        </GatilhoDoBalao>
+      );
+    render(<AreaComBalao>{gatilho}</AreaComBalao>);
+    return { aoEscolher, gatilho: screen.getByRole('button', { name: 'Ver clientes de Verde' }) };
+  }
+
+  it('o gatilho é um botão (div e SVG) e o balão continua sendo a descrição dele no foco', () => {
+    for (const as of ['div', 'rect'] as const) {
+      const { gatilho } = renderizarComEscolha(as);
+      act(() => gatilho.focus());
+      expect(gatilho).toHaveAccessibleDescription(/Doceria Aurora · há 5 dias/);
+      act(() => gatilho.blur());
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('com o mouse, o hover mostra o balão e o clique chama aoEscolher com o gatilho e fecha o balão', () => {
+    const { aoEscolher, gatilho } = renderizarComEscolha();
+
+    fireEvent.mouseEnter(gatilho);
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    fireEvent.pointerDown(gatilho, { pointerType: 'mouse' });
+    fireEvent.click(gatilho, { detail: 1 });
+
+    expect(aoEscolher).toHaveBeenCalledTimes(1);
+    expect(aoEscolher).toHaveBeenCalledWith(gatilho);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('Enter e espaço no gatilho com o foco chamam aoEscolher', async () => {
+    const { aoEscolher, gatilho } = renderizarComEscolha();
+    act(() => gatilho.focus());
+
+    await userEvent.keyboard('{Enter}');
+    expect(aoEscolher).toHaveBeenCalledTimes(1);
+    await userEvent.keyboard(' ');
+    expect(aoEscolher).toHaveBeenCalledTimes(2);
+    expect(aoEscolher).toHaveBeenLastCalledWith(gatilho);
+  });
+
+  it('Enter num SVG com o foco também chama aoEscolher', async () => {
+    const { aoEscolher, gatilho } = renderizarComEscolha('rect');
+    act(() => gatilho.focus());
+
+    await userEvent.keyboard('{Enter}');
+
+    expect(aoEscolher).toHaveBeenCalledWith(gatilho);
+  });
+
+  it('no toque, o toque chama aoEscolher direto, sem abrir o balão', () => {
+    const { aoEscolher, gatilho } = renderizarComEscolha();
+
+    fireEvent.pointerDown(gatilho, { pointerType: 'touch' });
+    fireEvent.mouseEnter(gatilho);
+    act(() => gatilho.focus());
+    fireEvent.click(gatilho, { detail: 1 });
+
+    expect(aoEscolher).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('o foco que volta ao gatilho depois de um clique do ponteiro não reabre o balão; o que volta depois do teclado reabre', async () => {
+    const { gatilho } = renderizarComEscolha();
+
+    fireEvent.pointerDown(gatilho, { pointerType: 'mouse' });
+    act(() => gatilho.focus());
+    fireEvent.click(gatilho, { detail: 1 });
+    act(() => gatilho.blur());
+    act(() => gatilho.focus());
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+    await userEvent.keyboard('{Enter}');
+    act(() => gatilho.blur());
+    act(() => gatilho.focus());
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+  });
+
+  it('sem aoEscolher, nada muda: o gatilho segue como figura', () => {
+    renderizar();
+
+    expect(screen.getByRole('img', { name: 'Fatia verde' })).toBeInTheDocument();
+  });
+});

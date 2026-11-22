@@ -64,3 +64,12 @@ beforeEach(() => {
 afterEach(() => {
   toast.dismiss()
 })
+
+/** A escolha de recolher um bloco fica no `localStorage`: cada teste começa com tudo aberto. */
+afterEach(() => {
+  try {
+    window.localStorage.clear()
+  } catch {
+    // Sem armazenamento, não há o que limpar.
+  }
+})

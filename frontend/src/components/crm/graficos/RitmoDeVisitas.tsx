@@ -11,10 +11,19 @@
  * ("Semana de 05/10 · 6 visitas, 2 com venda", " · parcial" na faixa que o
  * período cortou) e os clientes visitados, com "(venda)" nos que compraram.
  * A tabela escondida repete os números e os clientes para leitores de tela.
+ *
+ * Com o `periodo`, o clique na coluna (ou Enter, ou o toque) abre o painel
+ * lateral com as visitas da faixa ("Semana de 19/10", "3 visitas, 2 com
+ * venda"): cliente, data e o resultado de cada uma, da mais recente para a
+ * mais antiga. O detalhe é buscado só com o painel aberto.
  */
 import { contar } from '@/lib/contar';
 import { formatarDiaMes, formatarMesCurto } from '@/lib/formatarData';
+import type { Periodo } from '@/lib/periodo';
+import { usePainelLateral } from '@/lib/usePainelLateral';
 import type { FaixaDoRitmo, Ritmo } from '@/services/dashboard';
+import { maisRecentesPrimeiro } from '@/lib/visitasDoPainel';
+import { PainelDeVisitas, VisitasDoPainel } from '../PainelDeVisitas';
 import { AreaComBalao, GatilhoDoBalao, type ConteudoDoBalao } from './BalaoDoGrafico';
 import { TabelaAcessivel } from './TabelaAcessivel';
 
@@ -40,8 +49,23 @@ function balaoDaFaixa(granularidade: Ritmo['granularidade'], faixa: FaixaDoRitmo
   };
 }
 
-export function RitmoDeVisitas({ ritmo }: { ritmo: Ritmo }) {
+/** "Semana de 19/10" ou "out/26": a faixa como título do painel. */
+function tituloDaFaixa(granularidade: Ritmo['granularidade'], faixa: FaixaDoRitmo): string {
+  const rotulo = rotuloDaFaixa(granularidade, faixa);
+  return granularidade === 'SEMANA' ? `Semana de ${rotulo}` : rotulo;
+}
+
+type Props = {
+  ritmo: Ritmo;
+  /** Com o período (e o representante do filtro, se há), as colunas abrem o painel lateral. */
+  periodo?: Periodo;
+  representanteId?: string;
+};
+
+export function RitmoDeVisitas({ ritmo, periodo, representanteId }: Props) {
   const { granularidade, faixas } = ritmo;
+  const painel = usePainelLateral<FaixaDoRitmo>();
+  const escolhido = painel.escolhido;
   const maior = Math.max(1, ...faixas.map(({ visitas }) => visitas));
 
   return (
@@ -53,7 +77,8 @@ export function RitmoDeVisitas({ ritmo }: { ritmo: Ritmo }) {
             <GatilhoDoBalao
               key={faixa.inicio}
               conteudo={balao}
-              aria-label={balao.titulo}
+              aria-label={periodo ? `Ver visitas: ${balao.titulo}` : balao.titulo}
+              aoEscolher={periodo ? (gatilho) => painel.abrir(faixa, gatilho) : undefined}
               className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-md"
             >
               {/* O `pt-5` reserva o lugar do número em cima da coluna mais alta. */}
@@ -84,6 +109,23 @@ export function RitmoDeVisitas({ ritmo }: { ritmo: Ritmo }) {
           );
         })}
       </div>
+
+      {periodo && escolhido && (
+        <PainelDeVisitas
+          titulo={tituloDaFaixa(granularidade, escolhido)}
+          periodo={periodo}
+          representanteId={representanteId}
+          aoFechar={painel.fechar}
+          montar={({ visitas }) => {
+            const daFaixa = maisRecentesPrimeiro(visitas.filter((v) => v.faixaInicio === escolhido.inicio));
+            const comVenda = daFaixa.filter((v) => v.resultado === 'VENDA').length;
+            return {
+              resumo: `${contar(daFaixa.length, 'visita')}, ${comVenda} com venda`,
+              corpo: <VisitasDoPainel visitas={daFaixa} comResultado />,
+            };
+          }}
+        />
+      )}
 
       <TabelaAcessivel
         legenda={granularidade === 'SEMANA' ? 'Visitas por semana no período' : 'Visitas por mês no período'}

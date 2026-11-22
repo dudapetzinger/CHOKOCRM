@@ -17,8 +17,12 @@ export type VisitaSugerida = {
   id: string;
   /** ISO. */
   dataHora: string;
-  resultado: ResultadoVisita | null;
-  totalPedido: number | null;
+  /** Dia da visita, 'AAAA-MM-DD'. */
+  dia: string;
+  /** Dias entre a visita e o dia da nota (0 a `DIAS_DA_JANELA_DO_VINCULO`, de `config/vinculo`). */
+  diasAntes: number;
+  resultado: ResultadoVisita;
+  totalPedido: number;
 };
 
 export type ItemDaNota = {
@@ -63,8 +67,10 @@ export type NotaLida = {
   chaveAcesso: string;
   numero: string;
   serie: string;
-  /** Data de calendário 'AAAA-MM-DD'. */
+  /** Dia com que a nota entra, 'AAAA-MM-DD'. */
   dataEmissao: string;
+  /** Dia impresso na DANFE; difere de `dataEmissao` só com o relógio de demonstração deslocado. */
+  dataEmissaoDanfe: string;
   destinatarioNome: string;
   /** Só dígitos. */
   destinatarioCnpj: string;

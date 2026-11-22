@@ -36,6 +36,7 @@ function notaLida(extra: Partial<NotaLida> = {}): NotaLida {
     numero: '2455',
     serie: '1',
     dataEmissao: '2026-11-05',
+    dataEmissaoDanfe: '2026-11-05',
     destinatarioNome: 'EMPORIO POMERODE LTDA',
     destinatarioCnpj: '12345678000190',
     cliente: POMERODE,

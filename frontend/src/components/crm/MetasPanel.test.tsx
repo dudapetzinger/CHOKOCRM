@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { AuthContext, type Role } from '../../auth/auth-context';
 import { ApiError } from '../../services/api';
 import { atualizarMeta, criarMeta, excluirMeta, listarMetas, type Meta } from '../../services/goals';
@@ -96,7 +97,9 @@ function renderizar(
   render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={auth}>
-        <MetasPanel {...props} />
+        <MemoryRouter>
+          <MetasPanel {...props} />
+        </MemoryRouter>
       </AuthContext.Provider>
       <Toaster />
     </QueryClientProvider>,
@@ -150,7 +153,7 @@ describe('MetasPanel: lista', () => {
     renderizar();
     const cartao = await cartaoDe('Eduarda Fischer');
 
-    act(() => within(cartao).getByRole('progressbar', { name: 'Progresso de Visitas' }).focus());
+    act(() => within(cartao).getByRole('button', { name: 'Ver clientes de Visitas, Eduarda Fischer' }).focus());
     let balao = screen.getByRole('tooltip');
     expect(balao).toHaveTextContent('Visitas · 7 de 10');
     expect(within(balao).getAllByRole('listitem').map((linha) => linha.textContent)).toEqual([
@@ -158,12 +161,50 @@ describe('MetasPanel: lista', () => {
       'Café Central · 1 visita',
     ]);
 
-    act(() => within(cartao).getByRole('progressbar', { name: 'Progresso de Vendas' }).focus());
+    act(() => within(cartao).getByRole('button', { name: 'Ver clientes de Vendas, Eduarda Fischer' }).focus());
     balao = screen.getByRole('tooltip');
     expect(balao).toHaveTextContent('Vendas · R$ 4.200,00 de R$ 6.000,00');
     const linhas = within(balao).getAllByRole('listitem');
     expect(linhas).toHaveLength(1);
     expect(linhas[0]).toHaveTextContent('Doceria Aurora · R$ 4.200,00');
+  });
+
+  it('o clique nas barras abre o painel lateral: visitas de cada cliente e, nas vendas, só quem comprou, do maior valor ao menor', async () => {
+    vi.mocked(listarMetas).mockResolvedValue([
+      {
+        ...OUTUBRO_EDUARDA,
+        realizado: {
+          visitas: 9,
+          vendas: 5000,
+          clientes: [
+            { id: 'c2', nomeFantasia: 'Café Central', visitas: 1, vendas: 800 },
+            { id: 'c1', nomeFantasia: 'Doceria Aurora', visitas: 6, vendas: 4200 },
+            { id: 'c3', nomeFantasia: 'Empório Sul', visitas: 2, vendas: 0 },
+          ],
+        },
+      },
+    ]);
+    renderizar();
+    const cartao = await cartaoDe('Eduarda Fischer');
+
+    await usuario.click(within(cartao).getByRole('button', { name: 'Ver clientes de Visitas, Eduarda Fischer' }));
+    let painel = screen.getByRole('dialog', { name: 'Eduarda Fischer · Visitas' });
+    expect(painel).toHaveAccessibleDescription('3 clientes · 9 visitas');
+    expect(within(painel).getAllByRole('listitem').map((linha) => linha.textContent?.replace(/\s/g, ' '))).toEqual([
+      'Doceria AuroraR$ 4.200,00 em vendas6 visitas',
+      'Empório SulSem venda2 visitas',
+      'Café CentralR$ 800,00 em vendas1 visita',
+    ]);
+    expect(within(painel).getByRole('link', { name: /Doceria Aurora/ })).toHaveAttribute('href', '/clientes/c1');
+    await usuario.click(within(painel).getByRole('button', { name: 'Fechar' }));
+
+    await usuario.click(within(cartao).getByRole('button', { name: 'Ver clientes de Vendas, Eduarda Fischer' }));
+    painel = screen.getByRole('dialog', { name: 'Eduarda Fischer · Vendas' });
+    expect(painel).toHaveAccessibleDescription(/^2 clientes · R\$\s5\.000,00$/);
+    expect(within(painel).getAllByRole('listitem').map((linha) => linha.textContent?.replace(/\s/g, ' '))).toEqual([
+      'Doceria Aurora6 visitasR$ 4.200,00',
+      'Café Central1 visitaR$ 800,00',
+    ]);
   });
 
   it('gestor com representante escolhido no Painel: busca só as dele', async () => {
@@ -341,7 +382,7 @@ describe('MetasPanel: criar, editar e excluir (gestor)', () => {
     expect(criarMeta).not.toHaveBeenCalled();
   });
 
-  it('erro da API fica no formulário, que continua aberto', async () => {
+  it('erro da API fica no formulário, que fica aberto', async () => {
     vi.mocked(criarMeta).mockRejectedValue(new ApiError('VALIDATION_ERROR', 'Representante inativo.'));
     renderizar();
     await cartaoDe('Eduarda Fischer');
@@ -422,6 +463,28 @@ describe('MetasPanel: criar, editar e excluir (gestor)', () => {
 
     await waitFor(() => expect(excluirMeta).toHaveBeenCalledWith('m2'));
     expect(await screen.findByText('Meta excluída')).toBeInTheDocument();
+  });
+});
+
+describe('MetasPanel: bloco recolhível do Painel', () => {
+  it('com o bloco recolhido, "Nova meta" expande e mostra o formulário', async () => {
+    renderizar();
+    await cartaoDe('Eduarda Fischer');
+
+    await usuario.click(screen.getByRole('button', { name: 'Recolher Metas de visitas e vendas' }));
+    expect(screen.getByRole('button', { name: 'Expandir Metas de visitas e vendas' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.queryByRole('form', { name: 'Nova meta' })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: 'Nova meta' }));
+
+    expect(screen.getByRole('button', { name: 'Recolher Metas de visitas e vendas' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(screen.getByRole('form', { name: 'Nova meta' })).toBeVisible();
   });
 });
 

@@ -2,7 +2,8 @@
  * Acesso tipado aos números dos gráficos do Painel: o comparativo por
  * representante (com as contagens por resultado e o detalhe por cliente), o
  * ritmo de visitas (por semana ou por mês, conforme o período), as vendas
- * mensais da carteira (os meses inteiros do período, no mínimo três) e as
+ * mensais da carteira (os meses inteiros do período, no mínimo três, e os
+ * meses por vir até a próxima data comemorativa) e as
  * linhas do CSV. Espelha `KpisPorRepresentanteDTO` de
  * `backend/src/services/kpis.service.ts`, `KpiRepresentante`, `Ritmo` e
  * `FaixaDoRitmo` de `kpis.regras.ts`, `VendasMensaisDTO` de
@@ -62,11 +63,14 @@ export type KpisPorRepresentante = {
 export type VendaDoMes = {
   /** 'AAAA-MM'. */
   mes: string;
-  /** R$ vendidos no mês. */
-  total: number;
-  clientesComDados: number;
+  /** R$ vendidos no mês; nulo no mês por vir. */
+  total: number | null;
+  /** Nulo no mês por vir. */
+  clientesComDados: number | null;
   /** Quanto cada cliente comprou no mês. */
   clientes: { id: string; nomeFantasia: string; total: number }[];
+  /** Mês depois do mês de hoje, na série estendida até a próxima data comemorativa. */
+  futuro: boolean;
 };
 
 export type EventoNoGrafico = {
@@ -77,7 +81,10 @@ export type EventoNoGrafico = {
 };
 
 export type VendasMensais = {
-  /** Os meses inteiros do período (no mínimo três), do mais antigo ao mais recente. */
+  /**
+   * Os meses inteiros do período (no mínimo três), do mais antigo ao mais
+   * recente; com o horizonte, seguidos dos meses por vir até o da próxima data.
+   */
   meses: VendaDoMes[];
   /** Datas comemorativas que caem na janela dos meses da série. */
   eventos: EventoNoGrafico[];
@@ -87,6 +94,8 @@ export type VendasMensais = {
   clientesConsultados: number;
   /** Dos consultados, quantos o ERP não conseguiu responder. */
   clientesIndisponiveis: number;
+  /** A data até cujo mês a série foi estendida; nula sem horizonte, sem data nele ou com o período no passado. */
+  proximaData: { id: string; nome: string; chave: string; data: string } | null;
 };
 
 function comRepresentante(query: URLSearchParams, representanteId?: string): URLSearchParams {
@@ -104,8 +113,20 @@ export function buscarKpisPorRepresentante(
   return api.get<KpisPorRepresentante>(`/dashboard/kpis/por-representante?${query}`);
 }
 
-export function buscarVendasMensais(periodo: Periodo, representanteId?: string): Promise<VendasMensais> {
+/**
+ * Com `horizonteDias`, a série vai até o mês da próxima data comemorativa do
+ * horizonte (o servidor só estende quando o período termina no mês de hoje).
+ */
+export function buscarVendasMensais(
+  periodo: Periodo,
+  representanteId?: string,
+  horizonteDias?: number,
+): Promise<VendasMensais> {
   const query = comRepresentante(queryDoPeriodo(periodo), representanteId);
+  if (horizonteDias !== undefined) {
+    query.set('ateProximaData', 'true');
+    query.set('horizonteDias', String(horizonteDias));
+  }
   return api.get<VendasMensais>(`/dashboard/vendas-mensais?${query}`);
 }
 

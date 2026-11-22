@@ -1,5 +1,5 @@
 /**
- * Uma linha da seção "Lembretes" da agenda do dia, no visual de
+ * Uma linha da aba "Lembretes" da agenda do dia, no visual de
  * `AgendaItemRow`: avatar e nome do cliente (link para a ficha), o
  * texto do lembrete, "cidade · Lembrete venceu há N dias (dd/mm)" ou
  * "Lembrete para hoje" (`descreverPrazoDoLembrete`) e, para o gestor com o

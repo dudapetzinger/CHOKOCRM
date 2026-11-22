@@ -121,12 +121,12 @@ describe('ClientesPage', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Legenda das situações' }));
 
-    expect(await screen.findByText('Em dia: visitado há até 15 dias, com venda.')).toBeInTheDocument();
-    expect(screen.getByText('Atenção: visitado há até 15 dias, sem venda.')).toBeInTheDocument();
-    expect(screen.getByText('Vencendo: 16 a 30 dias sem visita.')).toBeInTheDocument();
-    expect(screen.getByText('Atrasado: mais de 30 dias ou nunca visitado.')).toBeInTheDocument();
-    expect(screen.getByText('Cliente sem compra no ERP há mais de 60 dias cai para Vencendo.')).toBeInTheDocument();
-    expect(screen.getByText('Inativo: inativado pela gestão, sem cor; aparece só na aba Todos.')).toBeInTheDocument();
+    expect(await screen.findByText('Visitado há até 15 dias e a última visita teve venda.')).toBeInTheDocument();
+    expect(screen.getByText('Visitado há até 15 dias e a última visita não teve venda.')).toBeInTheDocument();
+    expect(screen.getByText('De 16 a 30 dias sem visita.')).toBeInTheDocument();
+    expect(screen.getByText('Mais de 30 dias sem visita, ou nunca visitado.')).toBeInTheDocument();
+    expect(screen.getByText('Visitado há até 15 dias, mas sem compra há mais de 60 dias.')).toBeInTheDocument();
+    expect(screen.getByText('Inativado pela gestão, sem cor. Aparece só na aba Todos.')).toBeInTheDocument();
   });
 
   it('gestor com "Todos" vê de qual representante é cada cliente', async () => {

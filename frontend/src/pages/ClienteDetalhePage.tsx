@@ -184,7 +184,7 @@ export function ClienteDetalhePage({ embutida = false }: { embutida?: boolean })
       <PainelDaAba idBase={idDasAbas} valor={aba} className="space-y-4">
         {aba === 'visitas' && (
           <>
-            <Cartao titulo="Histórico de visitas">
+            <Cartao titulo="Histórico de visitas" recolhivel="ficha-historico-visitas">
               {fotoNaoEnviada && (
                 <Aviso tom="atencao" role="alert" className="mb-4">
                   O check-in foi salvo, mas a foto não chegou a ser enviada. Você pode anexá-la na visita mais recente,

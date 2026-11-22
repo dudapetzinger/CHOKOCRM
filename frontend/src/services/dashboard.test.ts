@@ -44,6 +44,14 @@ describe('serviços com período', () => {
     );
   });
 
+  it('buscarVendasMensais com o horizonte: pede a série até o mês da próxima data comemorativa', async () => {
+    await buscarVendasMensais({ dias: 30 }, 'u1', 180);
+
+    expect(api.get).toHaveBeenCalledWith(
+      '/dashboard/vendas-mensais?periodoDias=30&representanteId=u1&ateProximaData=true&horizonteDias=180',
+    );
+  });
+
   it('listarMetas: sem período não manda nenhum; com período, o filtro certo', async () => {
     await listarMetas({});
     await listarMetas({ campanhaId: 'cp1', periodo: { dias: 30 } });

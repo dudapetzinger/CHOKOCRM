@@ -5,7 +5,9 @@
  * laranja suave em `text-brown`).
  */
 import { cloneElement, useId, type ComponentProps, type ReactElement, type ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useBlocoRecolhivel } from '@/lib/blocoRecolhivel';
 import { iniciais } from '@/lib/iniciais';
 import type { Cor } from '@/services/clients';
 
@@ -116,35 +118,91 @@ export function Avatar({ nome, tamanho = 40 }: { nome: string; tamanho?: number 
   );
 }
 
-/** Cartão branco do protótipo (`Card`). Com título, vira uma região com o nome dele. */
+/**
+ * Botão de recolher e expandir de um bloco. O nome acessível é "Recolher" ou
+ * "Expandir" seguido do título do bloco (o elemento de `idTitulo`), e o botão
+ * tem 44 px de toque no celular.
+ */
+export function BotaoRecolher({
+  aberto,
+  onAlternar,
+  idTitulo,
+  idConteudo,
+}: {
+  aberto: boolean;
+  onAlternar: () => void;
+  idTitulo: string;
+  idConteudo: string;
+}) {
+  const idBotao = useId();
+  return (
+    <button
+      type="button"
+      id={idBotao}
+      aria-expanded={aberto}
+      aria-controls={idConteudo}
+      aria-labelledby={`${idBotao} ${idTitulo}`}
+      onClick={onAlternar}
+      className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-11 print:hidden"
+    >
+      <span className="sr-only">{aberto ? 'Recolher' : 'Expandir'}</span>
+      <ChevronDown aria-hidden="true" className={cn('size-5 transition-transform', aberto && 'rotate-180')} />
+    </button>
+  );
+}
+
+/**
+ * Cartão branco do protótipo (`Card`). Com título, vira uma região com o nome
+ * dele. Com `recolhivel` (o identificador do bloco), o cabeçalho ganha o botão
+ * de recolher e a escolha fica guardada no navegador; o título e a `acao`
+ * continuam visíveis e o conteúdo some de verdade.
+ */
 export function Cartao({
   titulo,
   acao,
+  recolhivel,
   className,
   children,
 }: {
   titulo?: ReactNode;
   acao?: ReactNode;
+  recolhivel?: string;
   className?: string;
   children: ReactNode;
 }) {
   const idTitulo = useId();
+  const idConteudo = useId();
+  const { aberto, alternar } = useBlocoRecolhivel(recolhivel);
+  const comBotao = Boolean(recolhivel && titulo);
   return (
     <section
       className={cn('rounded-xl border bg-card p-5 print:break-inside-avoid', className)}
       aria-labelledby={titulo ? idTitulo : undefined}
     >
       {(titulo || acao) && (
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className={cn('flex items-center justify-between gap-3', (aberto || !comBotao) && 'mb-4')}>
           {titulo && (
             <h2 id={idTitulo} className="text-base font-semibold">
               {titulo}
             </h2>
           )}
-          {acao}
+          {comBotao ? (
+            <div className="flex items-center gap-2">
+              {acao}
+              <BotaoRecolher aberto={aberto} onAlternar={alternar} idTitulo={idTitulo} idConteudo={idConteudo} />
+            </div>
+          ) : (
+            acao
+          )}
         </div>
       )}
-      {children}
+      {comBotao ? (
+        <div id={idConteudo} hidden={!aberto}>
+          {children}
+        </div>
+      ) : (
+        children
+      )}
     </section>
   );
 }

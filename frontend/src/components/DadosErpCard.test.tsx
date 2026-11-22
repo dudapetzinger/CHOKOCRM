@@ -14,7 +14,7 @@ function dadosOk(sobrescrever: Partial<DadosOk> = {}): DadosOk {
     status: 'OK',
     simulado: true,
     ultimaVenda: { data: '2026-10-20T13:00:00.000Z', valor: 1200 },
-    volume90Dias: { total: 3600, quantidadeVendas: 3 },
+    volume90Dias: { total: 3600, quantidadeVendas: 3, inicio: '2026-08-22', fim: '2026-11-20' },
     estoque: { nivel: 'NORMAL', atualizadoEm: '2026-10-20T13:00:00.000Z', itensBaixos: [] },
     estoqueIndisponivel: false,
     ultimasVendas: [],
@@ -36,6 +36,34 @@ function renderizar() {
 }
 
 describe('DadosErpCard', () => {
+  it('mostra o volume de compras com o período somado e a quantidade de vendas', async () => {
+    vi.mocked(buscarDadosErp).mockResolvedValue(dadosOk());
+
+    renderizar();
+
+    expect(await screen.findByText(/Volume de compras \(de 22\/08 a 20\/11\): R\$\s3\.600,00 \(3 vendas\)/)).toBeInTheDocument();
+  });
+
+  it('o volume de compras usa o singular com uma venda e o período devolvido pelo servidor', async () => {
+    vi.mocked(buscarDadosErp).mockResolvedValue(
+      dadosOk({ volume90Dias: { total: 2000, quantidadeVendas: 1, inicio: '2026-12-15', fim: '2027-03-15' } }),
+    );
+
+    renderizar();
+
+    expect(await screen.findByText(/Volume de compras \(de 15\/12 a 15\/03\): R\$\s2\.000,00 \(1 venda\)/)).toBeInTheDocument();
+  });
+
+  it('sem o período na resposta, o volume de compras diz 90 dias', async () => {
+    vi.mocked(buscarDadosErp).mockResolvedValue(
+      dadosOk({ volume90Dias: { total: 3600, quantidadeVendas: 3 } as DadosOk['volume90Dias'] }),
+    );
+
+    renderizar();
+
+    expect(await screen.findByText(/Volume de compras \(90 dias\): R\$\s3\.600,00 \(3 vendas\)/)).toBeInTheDocument();
+  });
+
   it('lista as últimas vendas com data, valor e itens', async () => {
     vi.mocked(buscarDadosErp).mockResolvedValue(
       dadosOk({

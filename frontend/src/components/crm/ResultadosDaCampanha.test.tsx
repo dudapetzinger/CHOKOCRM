@@ -228,3 +228,40 @@ describe('ResultadosDaCampanha', () => {
     });
   });
 });
+
+describe('ResultadosDaCampanha: painel lateral do representante', () => {
+  it('o nome do representante abre o painel com as vendas dele na campanha, por cliente, do maior valor ao menor', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    const vendas = [
+      ...TRES_VENDAS,
+      venda(4, { cliente: { id: 'c3', nomeFantasia: 'Mercado 3', cidade: 'Blumenau' }, total: 100 }),
+    ];
+    renderizar({ ...CAMPANHA, vendas });
+
+    const botao = screen.getByRole('button', { name: 'Ver vendas de Eduarda Fischer na campanha' });
+    expect(botao).toHaveTextContent('Eduarda Fischer');
+    await usuario.click(botao);
+
+    const painel = screen.getByRole('dialog', { name: 'Eduarda Fischer · Natal Chokolaten' });
+    expect(painel).toHaveAccessibleDescription(/^2 clientes · R\$\s334,00$/);
+    const linhas = within(painel).getAllByRole('listitem');
+    expect(linhas.map((linha) => linha.textContent?.replace(/\s/g, ' '))).toEqual([
+      'Mercado 3Blumenau · 2 vendasR$ 196,00',
+      'Mercado 1Blumenau · 1 vendaR$ 138,00',
+    ]);
+    expect(within(linhas[0]).getByRole('link', { name: /Mercado 3/ })).toHaveAttribute('href', '/clientes/c3');
+  });
+
+  it('representante sem vendas na campanha: o painel diz que não há vendas', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    renderizar({ ...CAMPANHA, vendas: TRES_VENDAS.filter((item) => item.representante.id === 'r1') });
+
+    await usuario.click(screen.getByRole('button', { name: 'Ver vendas de Rafael Schmitt na campanha' }));
+
+    expect(
+      within(screen.getByRole('dialog', { name: 'Rafael Schmitt · Natal Chokolaten' })).getByText(
+        'Nenhuma venda vinculada à campanha.',
+      ),
+    ).toBeInTheDocument();
+  });
+});

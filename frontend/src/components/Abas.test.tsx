@@ -81,3 +81,73 @@ describe('Abas', () => {
     expect(screen.getByRole('tab', { name: 'Produção' })).toHaveAttribute('aria-controls', painel.id);
   });
 });
+
+describe('Abas: contagem e destaque', () => {
+  const comContagem = [
+    { valor: 'a', rotulo: 'Hoje', contagem: 5 },
+    { valor: 'b', rotulo: 'Atrasadas', contagem: 2, destaque: true },
+    { valor: 'c', rotulo: 'Vazias', contagem: 0, destaque: true },
+    { valor: 'd', rotulo: 'Sem contagem' },
+  ] as const;
+
+  it('com contagem, o nome da aba é "Rótulo, N" e a pílula mostra o número, escondida do leitor de tela', () => {
+    render(<Abas idBase="x" ariaLabel="Seções" abas={comContagem} valor="a" onChange={vi.fn()} />);
+
+    const hoje = screen.getByRole('tab', { name: 'Hoje, 5' });
+    expect(hoje).toHaveTextContent('Hoje5');
+    expect(hoje.querySelector('[aria-hidden="true"]')).toHaveTextContent('5');
+    expect(screen.getByRole('tab', { name: 'Atrasadas, 2' })).toBeInTheDocument();
+  });
+
+  it('sem contagem, o nome é só o rótulo e não há pílula', () => {
+    render(<Abas idBase="x" ariaLabel="Seções" abas={comContagem} valor="a" onChange={vi.fn()} />);
+
+    const sem = screen.getByRole('tab', { name: 'Sem contagem' });
+    expect(sem).not.toHaveAttribute('aria-label');
+    expect(sem.querySelector('[aria-hidden="true"]')).toBeNull();
+  });
+
+  it('o destaque marca a pílula só quando a contagem é maior que zero, marcada ou não', () => {
+    const { rerender } = render(<Abas idBase="x" ariaLabel="Seções" abas={comContagem} valor="a" onChange={vi.fn()} />);
+
+    const pilula = (nome: string) => screen.getByRole('tab', { name: nome }).querySelector('[aria-hidden="true"]');
+    expect(pilula('Atrasadas, 2')).toHaveAttribute('data-destaque', 'true');
+    expect(pilula('Vazias, 0')).not.toHaveAttribute('data-destaque');
+    expect(pilula('Hoje, 5')).not.toHaveAttribute('data-destaque');
+
+    rerender(<Abas idBase="x" ariaLabel="Seções" abas={comContagem} valor="b" onChange={vi.fn()} />);
+    expect(pilula('Atrasadas, 2')).toHaveAttribute('data-destaque', 'true');
+  });
+});
+
+describe('Abas: grade de duas colunas no celular', () => {
+  const quatro = [
+    { valor: 'a', rotulo: 'Hoje', contagem: 5 },
+    { valor: 'b', rotulo: 'Atrasadas', contagem: 2 },
+    { valor: 'c', rotulo: 'Próximos 7 dias', contagem: 0 },
+    { valor: 'd', rotulo: 'Lembretes', contagem: 1 },
+  ] as const;
+
+  it('com quatro abas, a lista é marcada como grade (data-grade)', () => {
+    render(<Abas idBase="x" ariaLabel="Seções" abas={quatro} valor="a" onChange={vi.fn()} />);
+
+    expect(screen.getByRole('tablist', { name: 'Seções' })).toHaveAttribute('data-grade', 'true');
+  });
+
+  it('com até três abas, a lista fica numa linha só (sem data-grade)', () => {
+    render(<Abas idBase="x" ariaLabel="Seções" abas={abas} valor="visao" onChange={vi.fn()} />);
+
+    expect(screen.getByRole('tablist', { name: 'Seções' })).not.toHaveAttribute('data-grade');
+  });
+
+  it('na grade, as setas seguem a ordem das abas e levam o foco junto', async () => {
+    const onChange = vi.fn();
+    render(<Abas idBase="x" ariaLabel="Seções" abas={quatro} valor="b" onChange={onChange} />);
+
+    screen.getByRole('tab', { name: 'Atrasadas, 2' }).focus();
+    await userEvent.keyboard('{ArrowRight}');
+
+    expect(onChange).toHaveBeenLastCalledWith('c');
+    expect(screen.getByRole('tab', { name: 'Próximos 7 dias, 0' })).toHaveFocus();
+  });
+});

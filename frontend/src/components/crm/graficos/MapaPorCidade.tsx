@@ -33,7 +33,7 @@
  * Arrastar com o mouse ou um dedo move o mapa
  * (`touch-none` para o dedo não rolar a página); um movimento de mais de
  * `LIMIAR_DO_ARRASTO` px vira arrasto: o SVG captura o ponteiro e o clique
- * que fechar o gesto não abre ficha nem mexe no balão. A captura só começa
+ * que fechar o gesto não abre o painel nem mexe no balão. A captura só começa
  * depois do limiar porque, com ela, o navegador entrega o `click` ao SVG e
  * não à bolha: capturar já no `pointerdown` mataria o clique com o mouse.
  * Dois dedos fazem a pinça: a razão entre a distância atual e a inicial
@@ -44,14 +44,11 @@
  * enquadramento inicial é recalculado e `reenquadrar` mantém o nível.
  *
  * Cada bolha é um botão (foco pelo teclado, nome com a cidade, o número de
- * clientes e a situação mais urgente) que abre a ficha do cliente mais
- * urgente. Hover, foco e toque abrem o balão (no lugar do
- * `<title>` nativo) "Blumenau · 3 clientes" com os clientes da cidade e a
- * situação de cada um, do mais urgente ao menos. Clique com o mouse, Enter e
- * espaço abrem a ficha direto. No toque, como não há hover, o primeiro toque
- * numa bolha só abre o balão (a bolha fica "armada"); o segundo toque na
- * mesma bolha abre a ficha. Tocar outra bolha arma a outra; a bolha perder o
- * foco (toque fora) desarma. As cidades fora da tabela de municípios
+ * clientes e a situação mais urgente) que abre o painel lateral da cidade:
+ * os clientes dela, do mais urgente ao menos, com a situação de cada um e o
+ * link para a ficha. Hover e foco abrem o balão (no lugar do `<title>`
+ * nativo) "Blumenau · 3 clientes" com os mesmos clientes; clique, Enter,
+ * espaço e o toque abrem o painel. As cidades fora da tabela de municípios
  * aparecem em texto embaixo do mapa.
  *
  * Contraste do número dentro da bolha (texto pequeno, ≥ 4,5:1): branco só
@@ -64,17 +61,17 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { contar } from '@/lib/contar';
 import { CONTORNO_SC } from '@/lib/contornoSC';
+import { descreverSituacao } from '@/lib/descreverSituacao';
 import { agruparPorCidade, calcularEnquadramento, caminhoDoContorno, projetarPonto, type CidadeNoMapa } from '@/lib/mapa';
 import { normalizarCidade } from '@/lib/roteiro';
 import { useLarguraDesktop } from '@/lib/useLarguraDesktop';
 import { useLarguraDoElemento } from '@/lib/useLarguraDoElemento';
+import { usePainelLateral } from '@/lib/usePainelLateral';
 import { cn } from '@/lib/utils';
 import {
   NIVEL_MAXIMO,
@@ -93,6 +90,7 @@ import {
 import { ROTULO_COR, type ClienteListItem, type Cor } from '@/services/clients';
 import { Button } from '@/components/ui/button';
 import { EstadoVazio } from '../../EstadoVazio';
+import { ClientesDoPainel, PainelLateral } from '../PainelLateral';
 import { AreaComBalao, GatilhoDoBalao, type ConteudoDoBalao } from './BalaoDoGrafico';
 
 const LARGURA_PADRAO = 520;
@@ -120,9 +118,9 @@ const CLASSES_BOLHA: Record<Cor, { fundo: string; numero: string }> = {
 };
 
 const DICA_DESKTOP =
-  'Tamanho = nº de clientes · cor = situação mais urgente da cidade. Clique para abrir. Arraste para mover; use + e − para aproximar.';
+  'Tamanho = nº de clientes · cor = situação mais urgente da cidade. Clique para ver os clientes. Arraste para mover; use + e − para aproximar.';
 const DICA_CELULAR =
-  'Tamanho = nº de clientes · cor = situação mais urgente da cidade. Toque para abrir. Toque e arraste; use + e −.';
+  'Tamanho = nº de clientes · cor = situação mais urgente da cidade. Toque para ver os clientes. Toque e arraste; use + e −.';
 
 function raioDaBolha(clientes: number): number {
   return Math.min(RAIO_MAXIMO, 7 + 3 * clientes);
@@ -131,7 +129,7 @@ function raioDaBolha(clientes: number): number {
 function descrever(cidade: CidadeNoMapa): string {
   const quantidade = cidade.clientes.length;
   const cor = ROTULO_COR[cidade.clientes[0]!.cor].toLowerCase();
-  return `${cidade.nome}: ${contar(quantidade, 'cliente')}, situação mais urgente ${cor}`;
+  return `Ver clientes de ${cidade.nome}, ${contar(quantidade, 'cliente')}, situação mais urgente ${cor}`;
 }
 
 function balaoDaCidade({ nome, clientes }: CidadeNoMapa): ConteudoDoBalao {
@@ -173,15 +171,11 @@ function noMinimo(caixa: ViewBox, inicial: ViewBox, nivelMinimo: number, caixaDo
 }
 
 export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
-  const navigate = useNavigate();
   const desktop = useLarguraDesktop();
   const [refArea, largura] = useLarguraDoElemento<HTMLDivElement>(LARGURA_PADRAO);
   const { cidades, semCoordenadas } = useMemo(() => agruparPorCidade(clientes), [clientes]);
   const svg = useRef<SVGSVGElement>(null);
-  // O clique em andamento começou com o dedo (vale até o click que o encerra).
-  const cliqueDeToque = useRef(false);
-  // A cidade cujo balão o primeiro toque abriu: o próximo toque nela abre a ficha.
-  const cidadeArmada = useRef<string | null>(null);
+  const painel = usePainelLateral<CidadeNoMapa>();
   // Os ponteiros apertados sobre o mapa, pela posição em px da tela.
   const ponteiros = useRef(new Map<number, Ponto>());
   // Quanto o ponteiro já andou desde que apertou; passou do limiar, é arrasto.
@@ -274,41 +268,11 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
     .map((cidade, indice) => ({ cidade, ponto: pontos[indice]! }))
     .sort((a, b) => b.cidade.clientes.length - a.cidade.clientes.length);
 
-  function abrir(cidade: CidadeNoMapa): void {
-    navigate(`/clientes/${cidade.clientes[0]!.id}`);
-  }
-
-  function aoApertar(evento: PointerEvent<Element>): void {
-    cliqueDeToque.current = evento.pointerType === 'touch';
-  }
-
-  /** Mouse (ou clique sem ponteiro) abre a ficha; no toque, só a bolha já armada; depois de arrastar, nada. */
-  function aoClicar(evento: MouseEvent<Element>, cidade: CidadeNoMapa): void {
-    const deToque = cliqueDeToque.current;
-    cliqueDeToque.current = false;
+  /** O click que fecha um arrasto não conta: o `preventDefault` impede o gatilho de abrir o painel. */
+  function aoClicar(evento: MouseEvent<Element>): void {
     if (arrastou.current) {
-      // O gesto foi arrasto: nem ficha, nem o balão alterna.
       arrastou.current = false;
       evento.preventDefault();
-      return;
-    }
-    if (deToque && cidadeArmada.current !== cidade.nome) {
-      // Sem `preventDefault`: o gatilho segue e abre o balão.
-      cidadeArmada.current = cidade.nome;
-      return;
-    }
-    cidadeArmada.current = null;
-    abrir(cidade);
-  }
-
-  function aoSairDaBolha(cidade: CidadeNoMapa): void {
-    if (cidadeArmada.current === cidade.nome) cidadeArmada.current = null;
-  }
-
-  function aoTeclar(evento: KeyboardEvent<Element>, cidade: CidadeNoMapa): void {
-    if (evento.key === 'Enter' || evento.key === ' ') {
-      evento.preventDefault();
-      abrir(cidade);
     }
   }
 
@@ -445,14 +409,11 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
                     as="g"
                     key={cidade.nome}
                     conteudo={balaoDaCidade(cidade)}
-                    role="button"
+                    aoEscolher={(gatilho) => painel.abrir(cidade, gatilho)}
                     aria-label={descrever(cidade)}
                     // O foco visível é o anel desenhado abaixo, não o contorno do gatilho.
-                    className="group cursor-pointer focus:outline-none"
-                    onPointerDown={aoApertar}
-                    onClick={(evento) => aoClicar(evento, cidade)}
-                    onKeyDown={(evento) => aoTeclar(evento, cidade)}
-                    onBlur={() => aoSairDaBolha(cidade)}
+                    className="group focus:outline-none"
+                    onClick={aoClicar}
                   >
                     <circle cx={ponto.x} cy={ponto.y} r={Math.max(raio, RAIO_DO_TOQUE) * naTela} fill="transparent" />
                     <circle
@@ -543,6 +504,23 @@ export function MapaPorCidade({ clientes }: { clientes: ClienteListItem[] }) {
         <p className="mt-2 text-xs text-muted-foreground">Sem coordenadas: {semCoordenadas.join(', ')}.</p>
       )}
       <p className="mt-2 text-xs text-muted-foreground">{desktop ? DICA_DESKTOP : DICA_CELULAR}</p>
+
+      {painel.escolhido && (
+        <PainelLateral
+          titulo={painel.escolhido.nome}
+          resumo={contar(painel.escolhido.clientes.length, 'cliente')}
+          aberto
+          aoFechar={painel.fechar}
+        >
+          <ClientesDoPainel
+            clientes={painel.escolhido.clientes.map((cliente) => ({
+              id: cliente.id,
+              nome: cliente.nomeFantasia,
+              detalhe: descreverSituacao(cliente),
+            }))}
+          />
+        </PainelLateral>
+      )}
     </AreaComBalao>
   );
 }

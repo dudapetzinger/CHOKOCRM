@@ -24,6 +24,15 @@
  * é `role="img"` (a fatia, a barra, a coluna: uma figura com nome), menos o
  * `button`, que já tem o papel nativo.
  *
+ * Painel lateral: com `aoEscolher`, o gatilho é um botão (`role="button"`
+ * sem `role` do consumidor) que abre o painel lateral com os clientes. Com
+ * o mouse, o hover e o foco seguem mostrando o balão, e o clique, Enter ou
+ * espaço chamam `aoEscolher(gatilho)` e fecham o balão. No toque, o toque
+ * chama `aoEscolher` direto, sem abrir o balão. O balão segue como a
+ * descrição do gatilho focado. O foco que volta ao gatilho quando o painel
+ * fecha não reabre o balão se a escolha veio do ponteiro (o mouse já saiu
+ * dali, ou o dedo); se veio do teclado, reabre, como qualquer foco.
+ *
  * Barras finas (8 a 12 px) como gatilho ficam pequenas demais para o dedo:
  * abaixo de `md` todo controle tocável tem ao menos 44 px de altura.
  * `TOQUE_NA_BARRA` faz do gatilho um invólucro transparente dessa altura, com
@@ -289,6 +298,8 @@ type AtributosDoGatilho = Omit<
 
 type PropsDoGatilho = AtributosDoGatilho & {
   conteudo: ConteudoDoBalao;
+  /** Abre o painel lateral: o clique, Enter ou espaço (e, no toque, o toque) chamam com o gatilho. */
+  aoEscolher?: (gatilho: Element) => void;
   as?: 'div' | 'button' | 'g' | 'rect' | 'circle';
   className?: string;
   style?: CSSProperties;
@@ -312,6 +323,7 @@ const FOCO_SVG = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-v
 
 export function GatilhoDoBalao({
   conteudo,
+  aoEscolher,
   as = 'div',
   className,
   style,
@@ -339,6 +351,8 @@ export function GatilhoDoBalao({
   const abertoNoToque = useRef<boolean | null>(null);
   // O balão aberto pelo foco fica até o foco sair, mesmo que o mouse saia antes.
   const comFoco = useRef(false);
+  // A escolha veio do ponteiro: o foco que o painel devolve ao fechar não reabre o balão.
+  const pularProximoFoco = useRef(false);
 
   // Gatilho desmontado (dados mudaram, troca de aba) não deixa balão órfão.
   useEffect(() => () => fechar(chave), [fechar, chave]);
@@ -350,6 +364,13 @@ export function GatilhoDoBalao({
     abrir({ chave, conteudo, gatilho });
   }
 
+  function escolher(gatilho: Element, peloPonteiro: boolean): void {
+    if (!aoEscolher) return;
+    pularProximoFoco.current = peloPonteiro;
+    fechar(chave);
+    aoEscolher(gatilho);
+  }
+
   const descricao = [descricaoDoConsumidor, aberto ? idDoBalao : undefined].filter(Boolean).join(' ');
 
   const props: AtributosDoGatilho & {
@@ -359,7 +380,7 @@ export function GatilhoDoBalao({
     className: string;
     style?: CSSProperties;
   } = {
-    role: as === 'button' ? undefined : 'img',
+    role: as === 'button' ? undefined : aoEscolher ? 'button' : 'img',
     ...rest,
     ref: (nó) => {
       elemento.current = nó;
@@ -367,7 +388,7 @@ export function GatilhoDoBalao({
     type: as === 'button' ? 'button' : undefined,
     // Uma parada do Tab por área: só o gatilho focável tem 0 (ver o topo do arquivo).
     tabIndex: chaveFocavel === null || chaveFocavel === chave ? 0 : -1,
-    className: cn('cursor-default', ehSvg ? FOCO_SVG : FOCO_HTML, className),
+    className: cn(aoEscolher ? 'cursor-pointer' : 'cursor-default', ehSvg ? FOCO_SVG : FOCO_HTML, className),
     style,
     'aria-describedby': descricao || undefined,
     onMouseEnter: encadear(onMouseEnter, (event) => {
@@ -378,7 +399,8 @@ export function GatilhoDoBalao({
     }),
     onFocus: encadear(onFocus, (event) => {
       comFoco.current = true;
-      if (abertoNoToque.current === null) abrirEste(event.currentTarget);
+      if (pularProximoFoco.current) pularProximoFoco.current = false;
+      else if (abertoNoToque.current === null) abrirEste(event.currentTarget);
     }),
     onBlur: encadear(onBlur, () => {
       comFoco.current = false;
@@ -392,16 +414,23 @@ export function GatilhoDoBalao({
     onPointerCancel: encadear(onPointerCancel, () => {
       abertoNoToque.current = null;
     }),
-    // Toque alterna; mouse e teclado só garantem o balão aberto.
+    // Com `aoEscolher`, todo clique abre o painel (`detail` 0: Enter ou espaço num `button`).
+    // Sem ele, o toque alterna; mouse e teclado só garantem o balão aberto.
     onClick: encadear(onClick, (event) => {
       const estavaAbertoNoToque = abertoNoToque.current;
       abertoNoToque.current = null;
-      if (estavaAbertoNoToque) fechar(chave);
+      if (aoEscolher) escolher(event.currentTarget, event.detail > 0);
+      else if (estavaAbertoNoToque) fechar(chave);
       else abrirEste(event.currentTarget);
     }),
     onKeyDown: encadear(onKeyDown, (event) => {
       if (event.key === 'Escape') fechar(chave);
       else if (navegar(chave, event.key)) event.preventDefault();
+      else if (aoEscolher && as !== 'button' && (event.key === 'Enter' || event.key === ' ')) {
+        // O `button` nativo já transforma Enter e espaço em clique; os outros elementos, não.
+        event.preventDefault();
+        escolher(event.currentTarget, false);
+      }
     }),
   };
 

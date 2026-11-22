@@ -19,7 +19,7 @@ import { coordenadaDaCidade, normalizarCidade } from './roteiro';
 export type CidadeComCoordenada = { nome: string; lat: number; lng: number };
 
 export type CidadeNoMapa = CidadeComCoordenada & {
-  /** Em ordem de urgência: o primeiro dá a cor da bolha e é quem o clique abre. */
+  /** Em ordem de urgência: o primeiro dá a cor da bolha. */
   clientes: ClienteListItem[];
 };
 

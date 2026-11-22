@@ -99,10 +99,12 @@ describe('MapaPorCidade', () => {
   it('uma bolha focável por cidade, com o número de clientes e a situação mais urgente no nome', () => {
     renderizar();
 
-    const joinville = screen.getByRole('button', { name: 'Joinville: 3 clientes, situação mais urgente vermelho' });
+    const joinville = screen.getByRole('button', {
+      name: 'Ver clientes de Joinville, 3 clientes, situação mais urgente vermelho',
+    });
     expect(joinville).toHaveAttribute('tabindex', '0');
     expect(joinville).toHaveTextContent('3');
-    const blumenau = screen.getByRole('button', { name: 'Blumenau: 1 cliente, situação mais urgente laranja' });
+    const blumenau = screen.getByRole('button', { name: 'Ver clientes de Blumenau, 1 cliente, situação mais urgente laranja' });
     expect(blumenau).toHaveTextContent('1');
     // Além das bolhas, só os três botões do zoom.
     expect(bolhas()).toHaveLength(2);
@@ -130,7 +132,7 @@ describe('MapaPorCidade', () => {
   it('focar a bolha abre o balão com os clientes da cidade e a situação, do mais urgente ao menos (sem <title>)', () => {
     renderizar();
 
-    const joinville = screen.getByRole('button', { name: /^Joinville/ });
+    const joinville = screen.getByRole('button', { name: /^Ver clientes de Joinville/ });
     expect(joinville.querySelector('title')).toBeNull();
     act(() => joinville.focus());
 
@@ -144,70 +146,47 @@ describe('MapaPorCidade', () => {
     expect(joinville).toHaveAccessibleDescription(/Empório Central · Vermelho/);
   });
 
-  it('Enter abre o cliente mais urgente da cidade', async () => {
+  it('Enter abre o painel com os clientes da cidade, do mais urgente ao menos, cada um com link para a ficha', async () => {
     const usuario = userEvent.setup();
     renderizar();
 
-    act(() => screen.getByRole('button', { name: /^Joinville/ }).focus());
+    act(() => screen.getByRole('button', { name: /^Ver clientes de Joinville/ }).focus());
     await usuario.keyboard('{Enter}');
 
-    expect(screen.getByText('ficha do cliente c2')).toBeInTheDocument();
+    const painel = screen.getByRole('dialog', { name: 'Joinville' });
+    expect(painel).toHaveAccessibleDescription('3 clientes');
+    const linhas = within(painel).getAllByRole('listitem');
+    expect(linhas.map((linha) => linha.textContent)).toEqual([
+      'Empório CentralAtrasado · 40 dias sem visita',
+      'Padaria EstrelaVisitado sem venda · há 10 dias',
+      'Doces da VovóEm dia · visita há 2 dias, com venda',
+    ]);
+    expect(within(linhas[0]).getByRole('link', { name: /Empório Central/ })).toHaveAttribute('href', '/clientes/c2');
+    expect(screen.queryByText(/ficha do cliente/)).not.toBeInTheDocument();
   });
 
-  it('clique também abre o cliente mais urgente', async () => {
+  it('clique com o mouse abre o painel da cidade já no primeiro clique, e o link leva à ficha', async () => {
     const usuario = userEvent.setup();
     renderizar();
 
-    await usuario.click(screen.getByRole('button', { name: /^Blumenau/ }));
+    await usuario.click(screen.getByRole('button', { name: /^Ver clientes de Blumenau/ }));
+    const painel = screen.getByRole('dialog', { name: 'Blumenau' });
+    await usuario.click(within(painel).getByRole('link', { name: /Bombons Indaial/ }));
 
     expect(screen.getByText('ficha do cliente c4')).toBeInTheDocument();
   });
 
-  /** Um toque: o navegador emula mouseenter e foco antes do click. */
-  function tocar(bolha: HTMLElement) {
-    fireEvent.pointerDown(bolha, { pointerType: 'touch' });
-    fireEvent.mouseEnter(bolha);
-    act(() => bolha.focus());
-    fireEvent.click(bolha);
-  }
-
-  it('no toque, o primeiro toque na bolha só abre o balão, sem abrir a ficha', () => {
+  it('no toque, o toque na bolha abre o painel direto, sem o balão', () => {
     renderizar();
+    const joinville = screen.getByRole('button', { name: /^Ver clientes de Joinville/ });
 
-    tocar(screen.getByRole('button', { name: /^Joinville/ }));
+    fireEvent.pointerDown(joinville, { pointerType: 'touch' });
+    fireEvent.mouseEnter(joinville);
+    act(() => joinville.focus());
+    fireEvent.click(joinville, { detail: 1 });
 
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Joinville · 3 clientes');
-    expect(screen.queryByText(/ficha do cliente/)).not.toBeInTheDocument();
-  });
-
-  it('no toque, o segundo toque na mesma bolha abre a ficha do cliente mais urgente', () => {
-    renderizar();
-    const joinville = screen.getByRole('button', { name: /^Joinville/ });
-
-    tocar(joinville);
-    tocar(joinville);
-
-    expect(screen.getByText('ficha do cliente c2')).toBeInTheDocument();
-  });
-
-  it('no toque, tocar outra bolha arma a outra (abre o balão dela, não a ficha)', () => {
-    renderizar();
-
-    tocar(screen.getByRole('button', { name: /^Joinville/ }));
-    tocar(screen.getByRole('button', { name: /^Blumenau/ }));
-
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Blumenau · 1 cliente');
-    expect(screen.queryByText(/ficha do cliente/)).not.toBeInTheDocument();
-  });
-
-  it('clique com o mouse abre a ficha já no primeiro clique', () => {
-    renderizar();
-    const blumenau = screen.getByRole('button', { name: /^Blumenau/ });
-
-    fireEvent.pointerDown(blumenau, { pointerType: 'mouse' });
-    fireEvent.click(blumenau);
-
-    expect(screen.getByText('ficha do cliente c4')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Joinville' })).toBeInTheDocument();
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
   it('lista em texto as cidades sem coordenadas e traz a nota do mapa', () => {
@@ -216,7 +195,7 @@ describe('MapaPorCidade', () => {
     expect(screen.getByText('Sem coordenadas: Cidade Inventada.')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Tamanho = nº de clientes · cor = situação mais urgente da cidade. Toque para abrir. Toque e arraste; use + e −.',
+        'Tamanho = nº de clientes · cor = situação mais urgente da cidade. Toque para ver os clientes. Toque e arraste; use + e −.',
       ),
     ).toBeInTheDocument();
   });
@@ -227,7 +206,7 @@ describe('MapaPorCidade', () => {
 
     expect(
       screen.getByText(
-        'Tamanho = nº de clientes · cor = situação mais urgente da cidade. Clique para abrir. Arraste para mover; use + e − para aproximar.',
+        'Tamanho = nº de clientes · cor = situação mais urgente da cidade. Clique para ver os clientes. Arraste para mover; use + e − para aproximar.',
       ),
     ).toBeInTheDocument();
   });
@@ -353,7 +332,7 @@ describe('MapaPorCidade', () => {
 
     it('com zoom, bolhas, números e nomes mantêm o tamanho na tela: só as posições se afastam', () => {
       renderizar();
-      const blumenau = screen.getByRole('button', { name: /^Blumenau/ });
+      const blumenau = screen.getByRole('button', { name: /^Ver clientes de Blumenau/ });
       const raios = () => [...blumenau.querySelectorAll('circle')].map((circulo) => Number(circulo.getAttribute('r')));
       const nome = () => screen.getByText('Blumenau', { selector: 'svg text' });
       const numero = () => within(blumenau).getByText('1');
@@ -497,37 +476,37 @@ describe('MapaPorCidade', () => {
       expect(viewBox()).toBe('-10 5 520 300');
     });
 
-    it('arrastar a partir de uma bolha desloca o mapa e não abre a ficha', () => {
+    it('arrastar a partir de uma bolha desloca o mapa e não abre o painel', () => {
       renderizar();
-      const blumenau = screen.getByRole('button', { name: /^Blumenau/ });
+      const blumenau = screen.getByRole('button', { name: /^Ver clientes de Blumenau/ });
 
       arrastar(blumenau, [100, 100], [110, 100]);
       fireEvent.click(blumenau);
 
       expect(viewBox()).toBe('-10 0 520 300');
-      expect(screen.queryByText(/ficha do cliente/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('um movimento de até 4 px ainda é clique: abre a ficha', () => {
+    it('um movimento de até 4 px ainda é clique: abre o painel', () => {
       renderizar();
-      const blumenau = screen.getByRole('button', { name: /^Blumenau/ });
+      const blumenau = screen.getByRole('button', { name: /^Ver clientes de Blumenau/ });
 
       arrastar(blumenau, [100, 100], [102, 101]);
       fireEvent.click(blumenau);
 
-      expect(screen.getByText('ficha do cliente c4')).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Blumenau' })).toBeInTheDocument();
     });
 
-    it('depois de um arrasto, o clique seguinte volta a abrir a ficha', () => {
+    it('depois de um arrasto, o clique seguinte volta a abrir o painel', () => {
       renderizar();
-      const blumenau = screen.getByRole('button', { name: /^Blumenau/ });
+      const blumenau = screen.getByRole('button', { name: /^Ver clientes de Blumenau/ });
 
       arrastar(mapa(), [100, 100], [150, 100]);
       fireEvent.pointerDown(blumenau, { pointerId: 1, pointerType: 'mouse', clientX: 50, clientY: 50 });
       fireEvent.pointerUp(mapa(), { pointerId: 1, pointerType: 'mouse', clientX: 50, clientY: 50 });
       fireEvent.click(blumenau);
 
-      expect(screen.getByText('ficha do cliente c4')).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Blumenau' })).toBeInTheDocument();
     });
 
     it('mouse solto fora do SVG (sem pointerup): o movimento seguinte, sem botão apertado, não arrasta', () => {
@@ -567,7 +546,7 @@ describe('MapaPorCidade', () => {
 
     it('no toque, a bolha perder a captura implícita para o mapa não encerra o arrasto', () => {
       renderizar();
-      const bolha = screen.getByRole('button', { name: /^Joinville/ });
+      const bolha = screen.getByRole('button', { name: /^Ver clientes de Joinville/ });
 
       fireEvent.pointerDown(bolha, { pointerId: 7, pointerType: 'touch', button: 0, buttons: 1, isPrimary: true, clientX: 100, clientY: 100 });
       fireEvent.pointerMove(mapa(), { pointerId: 7, pointerType: 'touch', buttons: 1, clientX: 120, clientY: 100 });
