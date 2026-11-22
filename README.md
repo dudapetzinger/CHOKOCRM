@@ -17,6 +17,15 @@ Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Univers
 - [Testes e qualidade](#testes-e-qualidade)
 - [Organização do repositório](#organização-do-repositório)
 - [Documentação](#documentação)
+  - [Requisitos e histórias de usuário](#requisitos-e-histórias-de-usuário)
+  - [Funcionalidades e regras de negócio](#funcionalidades-e-regras-de-negócio)
+  - [Arquitetura e diagramas C4](#arquitetura-e-diagramas-c4)
+  - [Decisões técnicas](#decisões-técnicas)
+  - [Modelo de dados](#modelo-de-dados)
+  - [Instalação e publicação](#instalação-e-publicação)
+  - [Testes, integração contínua e análise de código](#testes-integração-contínua-e-análise-de-código)
+  - [Monitoramento](#monitoramento)
+  - [Privacidade, segurança e acessibilidade](#privacidade-segurança-e-acessibilidade)
 - [Autoria e licença](#autoria-e-licença)
 
 ## O problema
@@ -55,7 +64,7 @@ O sistema está publicado e pode ser usado direto pelo navegador, no celular ou 
 
 <https://app-chokocrm-api-cscvc7aserd4c4g9.canadacentral-01.azurewebsites.net>
 
-Esse ambiente usa crédito estudantil do Azure e fica ligado nos períodos de teste e de apresentação. Se o endereço não responder, ele está desligado, e o sistema pode ser instalado no computador seguindo a [próxima seção](#como-instalar-no-seu-computador).
+O ambiente fica no ar durante todo o período de avaliação do projeto. O sistema também pode ser instalado no computador, seguindo a [próxima seção](#como-instalar-no-seu-computador).
 
 ### Contas de acesso
 
@@ -142,29 +151,37 @@ O passo a passo detalhado, as variáveis de configuração, a execução sem Doc
 
 O ChokoCRM tem três partes: a interface que roda no navegador, o servidor que aplica as regras do negócio e o banco de dados que guarda as informações.
 
-```mermaid
-flowchart LR
-    rep(["Representante<br/>no celular"])
-    gestor(["Gestão<br/>no computador ou celular"])
+O desenho abaixo é o diagrama de containers do modelo C4, que mostra as partes do sistema e como elas conversam. Os outros dois níveis, o de contexto e o de componentes, estão em [docs/arquitetura.md](docs/arquitetura.md).
 
-    subgraph sistema["ChokoCRM"]
-        direction LR
-        web["Interface<br/>React"]
-        api["Servidor<br/>Node.js e Express"]
-        db[("Banco de dados<br/>PostgreSQL")]
-        fotos[("Fotos das visitas")]
-        web -- "pedidos e respostas (API REST)" --> api
-        api --> db
-        api --> fotos
+```mermaid
+flowchart TB
+    usuario["<b>Representante e Gestão</b><br/>[Pessoas]<br/><br/>Usam o sistema no celular ou no computador"]
+
+    subgraph choko["ChokoCRM [Sistema]"]
+        web["<b>Interface</b><br/>[Container: React, TypeScript, PWA]<br/><br/>Telas do sistema, no navegador ou instaladas como aplicativo"]
+        api["<b>Servidor</b><br/>[Container: Node.js, Express, TypeScript]<br/><br/>API REST que aplica as regras do negócio"]
+        db[("<b>Banco de dados</b><br/>[Container: PostgreSQL 16]<br/><br/>Clientes, visitas, notas fiscais, campanhas e metas")]
+        fotos[("<b>Fotos das visitas</b><br/>[Container: disco do servidor]<br/><br/>Imagens do check-in, guardadas por 90 dias")]
     end
 
-    notas["Notas fiscais em PDF<br/>do sistema de gestão da empresa"]
-    whats["WhatsApp"]
+    whats["<b>WhatsApp</b><br/>[Sistema externo]"]
+    maps["<b>Google Maps</b><br/>[Sistema externo]"]
+    insights["<b>Application Insights</b><br/>[Sistema externo]<br/><br/>Monitoramento no Azure"]
 
-    rep --> web
-    gestor --> web
-    notas -- "importadas pela gestão" --> web
-    web -. "abre a conversa com a mensagem pronta" .-> whats
+    usuario -- "Usa<br/>[HTTPS]" --> web
+    web -- "Pedidos e respostas em JSON<br/>[HTTPS, token JWT]" --> api
+    api -- "Lê e grava<br/>[Prisma]" --> db
+    api -- "Guarda e lê<br/>as fotos" --> fotos
+    web -- "Abre a conversa<br/>[link]" --> whats
+    web -- "Abre o trajeto<br/>[link]" --> maps
+    api -- "Envia registros<br/>e erros" --> insights
+
+    classDef pessoa fill:#08427b,stroke:#052e56,color:#ffffff
+    classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
+    classDef externo fill:#666666,stroke:#4d4d4d,color:#ffffff
+    class usuario pessoa
+    class web,api,db,fotos container
+    class whats,maps,insights externo
 ```
 
 A interface não decide nada sozinha. Ela mostra o que o servidor calcula: a cor de cada cliente, a agenda, as sugestões e os indicadores. O servidor é organizado em camadas, cada uma com uma responsabilidade, e é o único que acessa o banco de dados.
@@ -182,7 +199,7 @@ O desenho das camadas, a organização das pastas e as decisões técnicas, com 
 
 ## Testes e qualidade
 
-O projeto tem mais de 2.400 testes automatizados, cerca de 1.240 no servidor e 1.150 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
+O projeto tem mais de 2.400 testes automatizados, cerca de 1.230 no servidor e 1.170 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
 
 ```bash
 cd backend
@@ -219,13 +236,43 @@ CHOKOCRM/
 
 ## Documentação
 
-| Documento | Conteúdo |
-|-----------|----------|
-| [Funcionalidades](docs/funcionalidades.md) | O que cada perfil faz no sistema e as regras que valem |
-| [Instalação e configuração](docs/instalacao-e-configuracao.md) | Como rodar no computador, contas, variáveis e o ambiente no Azure |
-| [Arquitetura](docs/arquitetura.md) | Desenho do sistema, camadas, pastas e decisões técnicas |
-| [Modelo de dados](docs/modelo-de-dados.md) | Tabelas do banco de dados e como se relacionam |
-| [Testes](docs/testes.md) | O que é testado, como rodar e como funciona a publicação |
+A documentação fica na pasta [docs](docs), versionada junto com o código. Cada tópico abaixo traz um resumo e o link do documento completo.
+
+### Requisitos e histórias de usuário
+
+Lista os requisitos funcionais e não funcionais, as histórias de usuário de cada perfil, com os critérios de aceite, e os quatro fluxos de negócio completos do sistema. Está em [docs/requisitos.md](docs/requisitos.md).
+
+### Funcionalidades e regras de negócio
+
+Descreve o que cada perfil faz, tela por tela, e as regras que valem em cada funcionalidade, como a cor dos clientes, o check-in e a importação das notas fiscais. Está em [docs/funcionalidades.md](docs/funcionalidades.md).
+
+### Arquitetura e diagramas C4
+
+Mostra a arquitetura nos três níveis do modelo C4 (contexto, containers e componentes), as camadas do servidor, a organização da interface, a estrutura de pastas e os endereços da API. Está em [docs/arquitetura.md](docs/arquitetura.md).
+
+### Decisões técnicas
+
+Registra o que foi escolhido em cada assunto e o motivo, das tecnologias às regras de negócio, além da melhoria planejada para depois do projeto. Está na seção [Decisões técnicas](docs/arquitetura.md#5-decisões-técnicas) do documento de arquitetura.
+
+### Modelo de dados
+
+Traz o diagrama das tabelas do banco de dados, o que cada campo guarda e o que é calculado na hora da consulta em vez de gravado. Está em [docs/modelo-de-dados.md](docs/modelo-de-dados.md).
+
+### Instalação e publicação
+
+Ensina a rodar o sistema no computador, explica as contas e as variáveis de configuração e descreve o ambiente no Azure e como a publicação automática (deploy) acontece. Está em [docs/instalacao-e-configuracao.md](docs/instalacao-e-configuracao.md), e a parte do deploy fica na seção [Ambiente publicado no Azure](docs/instalacao-e-configuracao.md#9-ambiente-publicado-no-azure).
+
+### Testes, integração contínua e análise de código
+
+Explica o que é testado, como rodar os testes, como o GitHub Actions confere e publica cada envio de código e o que o SonarCloud exige do projeto. Está em [docs/testes.md](docs/testes.md).
+
+### Monitoramento
+
+Descreve como o sistema é acompanhado depois de publicado: o registro de cada pedido, o endereço de verificação de saúde e o Application Insights. Está nas seções [Publicação e monitoramento](docs/arquitetura.md#7-publicação-e-monitoramento) e [Acompanhamento](docs/instalacao-e-configuracao.md#96-acompanhamento).
+
+### Privacidade, segurança e acessibilidade
+
+Explica quais dados pessoais o sistema guarda e como a LGPD foi considerada, as medidas de segurança do código e o que foi feito de acessibilidade, seguindo as diretrizes WCAG 2.1. Está em [docs/privacidade-seguranca-e-acessibilidade.md](docs/privacidade-seguranca-e-acessibilidade.md).
 
 ## Autoria e licença
 

@@ -16,65 +16,125 @@ Este documento explica como o ChokoCRM é construído: quais são as partes do s
 
 O sistema tem três partes. A interface roda no navegador do representante ou do gestor. O servidor recebe os pedidos da interface, aplica as regras do negócio e responde. O banco de dados guarda clientes, visitas, notas fiscais e o restante das informações.
 
-```mermaid
-flowchart LR
-    rep(["Representante<br/>no celular"])
-    gestor(["Gestão<br/>no computador ou celular"])
+Os desenhos deste documento seguem o modelo C4, que mostra a arquitetura em níveis, como um mapa em que a imagem é aproximada aos poucos. O nível 1 mostra o sistema inteiro e quem se relaciona com ele. O nível 2 abre o sistema nas partes que o formam. O nível 3 abre uma dessas partes por dentro. Os níveis 1 e 2 estão nesta seção, e o nível 3 está na [seção 2](#2-camadas-do-servidor).
 
-    subgraph sistema["ChokoCRM"]
-        direction LR
-        web["Interface<br/>React"]
-        api["Servidor<br/>Node.js e Express"]
-        db[("Banco de dados<br/>PostgreSQL")]
-        fotos[("Fotos das visitas")]
-        web -- "pedidos e respostas (API REST)" --> api
-        api --> db
-        api --> fotos
+Em todos os desenhos, cada caixa traz o nome, o tipo entre colchetes e uma descrição curta. As cores seguem o padrão do C4: azul-escuro para pessoas, azul para o que faz parte do ChokoCRM e cinza para os sistemas de fora.
+
+### Nível 1: contexto
+
+O primeiro nível responde quem usa o ChokoCRM e com quais sistemas ele se relaciona.
+
+```mermaid
+flowchart TB
+    rep["<b>Representante</b><br/>[Pessoa]<br/><br/>Visita os clientes e registra cada visita pelo celular"]
+    gestor["<b>Gestão</b><br/>[Pessoa]<br/><br/>Acompanha a equipe, importa as notas fiscais e cria campanhas e metas"]
+
+    choko["<b>ChokoCRM</b><br/>[Sistema]<br/><br/>Controle de clientes, visitas, vendas, campanhas e metas"]
+
+    erp["<b>Sistema de gestão da empresa (ERP)</b><br/>[Sistema externo]<br/><br/>Emite as notas fiscais de venda em PDF"]
+    whats["<b>WhatsApp</b><br/>[Sistema externo]<br/><br/>Conversa com o contato do cliente"]
+    maps["<b>Google Maps</b><br/>[Sistema externo]<br/><br/>Mostra o trajeto das visitas do dia"]
+
+    rep -- "Consulta a carteira<br/>e registra as visitas" --> choko
+    gestor -- "Acompanha os resultados<br/>e importa as notas" --> choko
+    gestor -- "Baixa as notas<br/>fiscais em PDF" --> erp
+    choko -- "Abre a conversa com<br/>a mensagem pronta" --> whats
+    choko -- "Abre o trajeto<br/>do dia" --> maps
+
+    classDef pessoa fill:#08427b,stroke:#052e56,color:#ffffff
+    classDef sistema fill:#1168bd,stroke:#0b4884,color:#ffffff
+    classDef externo fill:#666666,stroke:#4d4d4d,color:#ffffff
+    class rep,gestor pessoa
+    class choko sistema
+    class erp,whats,maps externo
+```
+
+Três sistemas de fora aparecem no desenho. O sistema de gestão da empresa (ERP) emite as notas fiscais, que a gestão baixa em PDF e importa para alimentar o histórico de compras dos clientes. O WhatsApp é usado pela própria pessoa: o ChokoCRM monta o texto e abre a conversa com o contato escolhido, e quem envia a mensagem é ela. O Google Maps recebe, por um link, as cidades das visitas do dia e mostra o trajeto.
+
+### Nível 2: containers
+
+O segundo nível abre o ChokoCRM. No C4, container é cada parte que roda ou guarda dados por conta própria, como a interface, o servidor e o banco. Não é o mesmo que um container do Docker.
+
+```mermaid
+flowchart TB
+    usuario["<b>Representante e Gestão</b><br/>[Pessoas]<br/><br/>Usam o sistema no celular ou no computador"]
+
+    subgraph choko["ChokoCRM [Sistema]"]
+        web["<b>Interface</b><br/>[Container: React, TypeScript, PWA]<br/><br/>Telas do sistema, no navegador ou instaladas como aplicativo"]
+        api["<b>Servidor</b><br/>[Container: Node.js, Express, TypeScript]<br/><br/>API REST que aplica as regras do negócio"]
+        db[("<b>Banco de dados</b><br/>[Container: PostgreSQL 16]<br/><br/>Clientes, visitas, notas fiscais, campanhas e metas")]
+        fotos[("<b>Fotos das visitas</b><br/>[Container: disco do servidor]<br/><br/>Imagens do check-in, guardadas por 90 dias")]
     end
 
-    notas["Notas fiscais em PDF<br/>do sistema de gestão da empresa"]
-    whats["WhatsApp"]
+    whats["<b>WhatsApp</b><br/>[Sistema externo]"]
+    maps["<b>Google Maps</b><br/>[Sistema externo]"]
+    insights["<b>Application Insights</b><br/>[Sistema externo]<br/><br/>Monitoramento no Azure"]
 
-    rep --> web
-    gestor --> web
-    notas -- "importadas pela gestão" --> web
-    web -. "abre a conversa com a mensagem pronta" .-> whats
+    usuario -- "Usa<br/>[HTTPS]" --> web
+    web -- "Pedidos e respostas em JSON<br/>[HTTPS, token JWT]" --> api
+    api -- "Lê e grava<br/>[Prisma]" --> db
+    api -- "Guarda e lê<br/>as fotos" --> fotos
+    web -- "Abre a conversa<br/>[link]" --> whats
+    web -- "Abre o trajeto<br/>[link]" --> maps
+    api -- "Envia registros<br/>e erros" --> insights
+
+    classDef pessoa fill:#08427b,stroke:#052e56,color:#ffffff
+    classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
+    classDef externo fill:#666666,stroke:#4d4d4d,color:#ffffff
+    class usuario pessoa
+    class web,api,db,fotos container
+    class whats,maps,insights externo
 ```
 
 A interface conversa apenas com o servidor, por uma API REST que troca dados em JSON. Cada pedido leva o token de quem está logado. O servidor é o único que acessa o banco de dados e o único que conhece as regras: a interface mostra o que ele calcula.
 
-Dois sistemas de fora aparecem no desenho. O sistema de gestão da empresa (ERP) emite as notas fiscais, que a gestão importa em PDF para alimentar o histórico de compras dos clientes. O WhatsApp é usado pelo próprio representante: o ChokoCRM monta o texto e abre a conversa com o contato escolhido, e quem envia a mensagem é a pessoa.
+As notas fiscais não aparecem como ligação entre sistemas porque não há conexão direta com o sistema de gestão da empresa. O arquivo PDF é escolhido pela gestão na interface e enviado ao servidor como qualquer outro pedido.
 
-No computador de desenvolvimento, as três partes sobem juntas com o Docker Compose. No ambiente publicado, o servidor e a interface ficam no mesmo endereço, em um App Service do Azure, e o banco fica em um PostgreSQL gerenciado.
+No computador de desenvolvimento, as três partes sobem juntas com o Docker Compose. No ambiente publicado, o servidor e a interface ficam no mesmo endereço, em um App Service do Azure, o banco fica em um PostgreSQL gerenciado e o Application Insights recebe os registros do servidor.
 
 ## 2. Camadas do servidor
 
 O servidor é dividido em camadas. Cada camada tem uma responsabilidade e só conversa com a camada logo abaixo dela.
 
+### Nível 3: componentes do servidor
+
+O terceiro nível do C4 abre o servidor e mostra os componentes dele, que são os grupos de código com uma mesma responsabilidade. O pedido entra por cima e desce camada por camada.
+
 ```mermaid
 flowchart TB
-    web["Interface"]
+    web["<b>Interface</b><br/>[Container: React]<br/><br/>Envia os pedidos com o token de quem está logado"]
 
-    subgraph servidor["Servidor"]
-        direction TB
-        apres["Rotas e controllers<br/>recebem o pedido, conferem os dados e montam a resposta"]
-        negocio["Services<br/>regras do negócio"]
-        dados["Repositories<br/>leitura e gravação no banco"]
-        erp["Provedor de ERP<br/>vendas e estoque de cada cliente"]
-        arquivos["Armazenamento de arquivos<br/>fotos das visitas"]
-        apres --> negocio
-        negocio --> dados
-        negocio --> erp
-        negocio --> arquivos
+    subgraph api["Servidor [Container]"]
+        mw["<b>Middlewares</b><br/>[Componente: Express]<br/><br/>Conferem o login e o perfil, registram cada pedido e tratam os erros"]
+        rotas["<b>Rotas e controllers</b><br/>[Componente: Express, Zod]<br/><br/>Recebem o pedido, validam os dados e montam a resposta"]
+        services["<b>Services</b><br/>[Componente: TypeScript]<br/><br/>Regras do negócio: cor do cliente, agenda, metas, campanhas e notas fiscais"]
+        jobs["<b>Rotinas diárias</b><br/>[Componente: node-cron]<br/><br/>Resumo da agenda e limpeza das fotos antigas"]
+        repos["<b>Repositories</b><br/>[Componente: Prisma]<br/><br/>Leitura e gravação no banco de dados"]
+        erp["<b>Provedor de ERP</b><br/>[Componente: interface ErpProvider]<br/><br/>Vendas e estoque de cada cliente, das notas importadas ou da simulação"]
+        storage["<b>Armazenamento de arquivos</b><br/>[Componente: interface FileStorage]<br/><br/>Grava e lê as fotos das visitas"]
     end
 
-    db[("PostgreSQL")]
-    disco[("Disco")]
+    db[("<b>Banco de dados</b><br/>[Container: PostgreSQL 16]")]
+    disco[("<b>Fotos das visitas</b><br/>[Container: disco do servidor]")]
 
-    web --> apres
-    dados --> db
-    arquivos --> disco
+    web -- "Pedido HTTP<br/>[JSON]" --> mw
+    mw -- "Pedido liberado" --> rotas
+    rotas -- "Chamam" --> services
+    jobs -- "Executam todos<br/>os dias" --> services
+    services -- "Usam" --> repos
+    services -- "Pedem vendas<br/>e estoque" --> erp
+    services -- "Guardam e<br/>leem fotos" --> storage
+    erp -- "Lê as notas<br/>importadas" --> repos
+    repos -- "Consultas<br/>[SQL]" --> db
+    storage -- "Arquivos" --> disco
+
+    classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
+    classDef componente fill:#85bbf0,stroke:#5d82a8,color:#000000
+    class web,db,disco container
+    class mw,rotas,services,jobs,repos,erp,storage componente
 ```
+
+A tabela descreve cada camada e a pasta em que ela fica:
 
 | Camada | Pasta | O que faz | O que não faz |
 |--------|-------|-----------|---------------|
@@ -162,11 +222,15 @@ CHOKOCRM/
 
 ## 5. Decisões técnicas
 
-A tabela resume o que foi escolhido em cada assunto e o motivo.
+A tabela resume o que foi escolhido em cada assunto e o motivo. As cinco primeiras linhas tratam das tecnologias, que também estão entre as indicadas pelo curso.
 
 | Assunto | O que escolhemos | Por quê |
 |---------|------------------|---------|
-| Tecnologias | React na interface, Node.js com Express no servidor, API REST entre os dois, PostgreSQL e arquitetura em camadas | São exigências da disciplina |
+| Interface | React com TypeScript, montada com Vite e estilizada com Tailwind CSS | As telas são feitas de peças reaproveitadas, o TypeScript acusa erros de tipo antes de o código rodar e o resultado pode ser instalado como aplicativo |
+| Servidor | Node.js com Express e TypeScript | É a mesma linguagem da interface, o que facilita manter os dois lados. O Express é pequeno e deixa a organização em camadas por conta do projeto |
+| Comunicação | API REST com dados em JSON | Interface e servidor ficam independentes. Outra interface ou outro sistema pode usar os mesmos endereços no futuro |
+| Banco de dados | PostgreSQL | Os dados são muito ligados entre si (cliente, contato, visita, nota fiscal). Um banco relacional garante essas ligações com chaves e restrições |
+| Organização do servidor | Arquitetura em camadas | Cada regra fica em um lugar só, as regras são testadas sem banco de dados e a fonte dos dados de compra pode ser trocada sem mexer nas telas |
 | Repositório | Um só, público, com servidor, interface e documentação | Uma mudança que envolve os dois lados entra de uma vez, e quem avalia encontra tudo em um lugar |
 | Acesso ao banco | Prisma, com o arquivo `schema.prisma` como única descrição das tabelas | As alterações do banco ficam versionadas e os tipos do código saem do mesmo arquivo |
 | Clientes | Só a gestão cria cliente, a partir de uma nota fiscal importada. Só a gestão inativa | O cadastro oficial é o do sistema de gestão da empresa. Assim não há cliente duplicado nem inventado |

@@ -198,7 +198,7 @@ O que observar no Chrome ou no Edge: o convite "Use o ChokoCRM como app" depois 
 
 O sistema está publicado em <https://app-chokocrm-api-cscvc7aserd4c4g9.canadacentral-01.azurewebsites.net>. Interface e servidor ficam no mesmo endereço.
 
-O ambiente usa o crédito de uma assinatura Azure for Students. Para o crédito durar, ele fica ligado apenas nos períodos de teste e de apresentação. Fora deles, o endereço pode não responder.
+O ambiente usa o crédito de uma assinatura Azure for Students e fica no ar durante todo o período de avaliação do projeto. Depois dele, pode ser desligado para poupar o crédito, como descrito em [Desligar e religar](#97-desligar-e-religar).
 
 ### 9.1 Recursos
 
