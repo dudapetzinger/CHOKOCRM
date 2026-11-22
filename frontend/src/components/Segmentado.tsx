@@ -8,6 +8,10 @@
  * as opções mais estreitas no desktop; no celular todas têm 44 px de altura.
  * `larguraTotal`: abaixo de 640 px o trilho ocupa a largura toda, numa linha
  * só, e as opções dividem o espaço (o resultado do check-in em 320 px).
+ * `ultimaEmLinhaPropria`: abaixo de 640 px o trilho ocupa a largura toda, as
+ * opções dividem a linha de cima e a última fica sozinha na de baixo, na
+ * largura toda (o período do Painel: os quatro períodos fixos em cima e
+ * "Personalizado" embaixo). O trilho ganha `data-ultima-em-linha-propria`.
  */
 import { useRef, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
@@ -25,6 +29,10 @@ export const CLASSES_OPCAO_DESMARCADA = 'text-muted-foreground hover:text-foregr
 /** Abaixo de 640 px: trilho na largura toda, numa linha só, e opções dividindo o espaço. */
 export const CLASSES_TRILHO_LARGURA_TOTAL = 'max-sm:flex max-sm:w-full max-sm:flex-nowrap';
 export const CLASSES_OPCAO_LARGURA_TOTAL = 'max-sm:flex-auto max-sm:px-1';
+/** Abaixo de 640 px: trilho na largura toda; as opções dividem a linha de cima e a última ocupa a de baixo. */
+const CLASSES_TRILHO_ULTIMA_EM_LINHA_PROPRIA = 'max-sm:flex max-sm:w-full';
+const CLASSES_OPCAO_DA_LINHA_DE_CIMA = 'max-sm:flex-1 max-sm:px-1';
+const CLASSES_OPCAO_DA_LINHA_DE_BAIXO = 'max-sm:grow max-sm:basis-full max-sm:px-1';
 
 export type Opcao<V> = { valor: V; rotulo: string; rotuloAcessivel?: string };
 
@@ -35,6 +43,7 @@ type Props<V extends string | number> = {
   onChange: (valor: V) => void;
   compacto?: boolean;
   larguraTotal?: boolean;
+  ultimaEmLinhaPropria?: boolean;
 };
 
 export function Segmentado<V extends string | number>({
@@ -44,6 +53,7 @@ export function Segmentado<V extends string | number>({
   onChange,
   compacto,
   larguraTotal,
+  ultimaEmLinhaPropria,
 }: Props<V>) {
   const botoes = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -58,7 +68,12 @@ export function Segmentado<V extends string | number>({
 
   return (
     <div
-      className={cn(CLASSES_TRILHO, larguraTotal && CLASSES_TRILHO_LARGURA_TOTAL)}
+      className={cn(
+        CLASSES_TRILHO,
+        larguraTotal && CLASSES_TRILHO_LARGURA_TOTAL,
+        ultimaEmLinhaPropria && CLASSES_TRILHO_ULTIMA_EM_LINHA_PROPRIA,
+      )}
+      data-ultima-em-linha-propria={ultimaEmLinhaPropria ? 'true' : undefined}
       role="radiogroup"
       aria-label={ariaLabel}
       onKeyDown={handleKeyDown}
@@ -80,6 +95,8 @@ export function Segmentado<V extends string | number>({
               CLASSES_OPCAO,
               compacto && 'px-2.5',
               larguraTotal && CLASSES_OPCAO_LARGURA_TOTAL,
+              ultimaEmLinhaPropria &&
+                (indice === opcoes.length - 1 ? CLASSES_OPCAO_DA_LINHA_DE_BAIXO : CLASSES_OPCAO_DA_LINHA_DE_CIMA),
               marcado ? CLASSES_OPCAO_MARCADA : CLASSES_OPCAO_DESMARCADA,
             )}
             onClick={() => onChange(opcao.valor)}

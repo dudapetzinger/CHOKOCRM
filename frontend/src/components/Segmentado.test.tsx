@@ -58,4 +58,19 @@ describe('Segmentado', () => {
     expect(within(grupo).getAllByRole('radio').map((opcao) => opcao.textContent)).toEqual(['30', '90 dias', '365 dias']);
     expect(screen.getByRole('radio', { name: '90 dias' })).toHaveAttribute('aria-checked', 'true');
   });
+
+  it('ultimaEmLinhaPropria marca o trilho e mantém as opções e a marcada', () => {
+    render(<Segmentado ariaLabel="Período" opcoes={opcoes} valor={90} onChange={vi.fn()} ultimaEmLinhaPropria />);
+
+    const grupo = screen.getByRole('radiogroup', { name: 'Período' });
+    expect(grupo).toHaveAttribute('data-ultima-em-linha-propria', 'true');
+    expect(within(grupo).getAllByRole('radio').map((opcao) => opcao.textContent)).toEqual(['30', '90 dias', '365 dias']);
+    expect(screen.getByRole('radio', { name: '90 dias' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('sem ultimaEmLinhaPropria, o trilho não leva a marca', () => {
+    render(<Segmentado ariaLabel="Período" opcoes={opcoes} valor={90} onChange={vi.fn()} />);
+
+    expect(screen.getByRole('radiogroup', { name: 'Período' })).not.toHaveAttribute('data-ultima-em-linha-propria');
+  });
 });

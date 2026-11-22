@@ -18,8 +18,8 @@ Este documento explica como o ChokoCRM é testado: que tipos de teste existem, o
 | Onde | Ferramentas | Arquivos de teste | Testes |
 |------|-------------|-------------------|--------|
 | Servidor | Jest e Supertest | 70 | 1.244 |
-| Interface | Vitest e Testing Library | 106 | 1.157 |
-| Total | | 176 | 2.401 |
+| Interface | Vitest e Testing Library | 106 | 1.167 |
+| Total | | 176 | 2.411 |
 
 Os testes cobrem 92,5 % das linhas do código, segundo a medição do SonarCloud.
 

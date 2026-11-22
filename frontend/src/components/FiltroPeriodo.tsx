@@ -1,11 +1,13 @@
 /**
- * Filtro de período de análise dos indicadores do gestor:
- * controle segmentado "30 · 90 · 365 dias · Personalizado" que
- * escolhe a janela que os indicadores consideram. Controlado: quem usa guarda
- * o valor (`useState<Periodo>(PERIODO_PADRAO)`).
+ * Filtro de período de análise dos indicadores do Painel:
+ * controle segmentado "Este mês · 30 · 90 · 365 dias · Personalizado" que
+ * escolhe a janela que os indicadores consideram. "Este mês" vai do dia 1º
+ * até hoje. Controlado: quem usa guarda o valor
+ * (`useState<Periodo>(PERIODO_PADRAO)`).
  *
  * "Personalizado" mostra "De" e "Até" (datas até hoje), já preenchidos com a
- * janela que estava marcada (30 dias: de hoje-29 a hoje). `onChange` só é
+ * janela que estava marcada (30 dias: de hoje-29 a hoje; este mês: do dia 1º
+ * a hoje). `onChange` só é
  * chamado com uma faixa válida: início e fim preenchidos, `De ≤ Até ≤ hoje` e
  * no máximo 365 dias. Acima disso o Painel não mostra: a mensagem do limite
  * aparece (`role="status"`) e `onPeriodoDaPlanilha` recebe a faixa, porque a
@@ -14,8 +16,9 @@
  * período que o Painel está mostrando), para a Planilha não ficar presa numa
  * faixa acima do limite digitada antes. Os erros ficam junto do campo, na ordem:
  * data vazia ("Informe as duas datas.", só depois de a pessoa editar), data
- * depois de hoje e fim antes do início. No celular os dois campos ficam lado a
- * lado, abaixo do segmentado.
+ * depois de hoje e fim antes do início. No celular os quatro períodos fixos
+ * dividem a linha de cima do segmentado e "Personalizado" ocupa a de baixo;
+ * os dois campos de data ficam lado a lado, abaixo do segmentado.
  */
 import { useId, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -23,7 +26,9 @@ import { hojeEmSaoPaulo } from '../lib/calendario';
 import {
   chaveDoPeriodo,
   diasDaFaixa,
+  ehMesAtual,
   ehPersonalizado,
+  faixaDoMesAtual,
   LIMITE_DIAS_DO_PAINEL,
   MENSAGEM_LIMITE_DO_PAINEL,
   type Periodo,
@@ -32,9 +37,11 @@ import { Campo } from './crm/ui';
 import { FiltroPilulas } from './FiltroPilulas';
 import { Input } from './ui/input';
 
+const MES_ATUAL = 'MES_ATUAL';
 const PERSONALIZADO = 'PERSONALIZADO';
-type ValorDaOpcao = 30 | 90 | 365 | typeof PERSONALIZADO;
+type ValorDaOpcao = typeof MES_ATUAL | 30 | 90 | 365 | typeof PERSONALIZADO;
 const OPCOES_PERIODO: { valor: ValorDaOpcao; rotulo: string }[] = [
+  { valor: MES_ATUAL, rotulo: 'Este mês' },
   { valor: 30, rotulo: '30 dias' },
   { valor: 90, rotulo: '90 dias' },
   { valor: 365, rotulo: '365 dias' },
@@ -60,11 +67,20 @@ function somarDias(data: string, dias: number): string {
   return new Date(Date.UTC(ano, mes - 1, dia + dias)).toISOString().slice(0, 10);
 }
 
-/** A janela marcada como datas: de hoje-(dias-1) a hoje, ou a própria faixa. */
+/** A janela marcada como datas: do dia 1º a hoje, de hoje-(dias-1) a hoje, ou a própria faixa. */
 function datasDaJanela(valor: Periodo, hoje: string): Datas {
-  return ehPersonalizado(valor)
-    ? { de: valor.inicio, ate: valor.fim }
-    : { de: somarDias(hoje, 1 - valor.dias), ate: hoje };
+  if (ehPersonalizado(valor)) return { de: valor.inicio, ate: valor.fim };
+  if (ehMesAtual(valor)) {
+    const { inicio, fim } = faixaDoMesAtual(hoje);
+    return { de: inicio, ate: fim };
+  }
+  return { de: somarDias(hoje, 1 - valor.dias), ate: hoje };
+}
+
+/** A opção marcada no segmentado para um período fechado (sem "Personalizado" aberto). */
+function opcaoDoPeriodo(valor: Periodo): ValorDaOpcao {
+  if (ehPersonalizado(valor)) return PERSONALIZADO;
+  return ehMesAtual(valor) ? MES_ATUAL : valor.dias;
 }
 
 /**
@@ -115,7 +131,7 @@ export function FiltroPeriodo({ valor, onChange, onPeriodoDaPlanilha, className 
     }
     setRascunho(null);
     setEditou(false);
-    onChange({ dias: opcao });
+    onChange(opcao === MES_ATUAL ? { mes: 'ATUAL' } : { dias: opcao });
   }
 
   function editar(proximas: Datas): void {
@@ -142,9 +158,10 @@ export function FiltroPeriodo({ valor, onChange, onPeriodoDaPlanilha, className 
         rotulo="Período"
         ariaLabel="Período de análise dos indicadores"
         opcoes={OPCOES_PERIODO}
-        valor={datas || ehPersonalizado(valor) ? PERSONALIZADO : valor.dias}
+        valor={datas ? PERSONALIZADO : opcaoDoPeriodo(valor)}
         onChange={escolher}
         className=""
+        ultimaEmLinhaPropria
       />
 
       {datas && (

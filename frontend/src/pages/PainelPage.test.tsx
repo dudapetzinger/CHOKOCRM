@@ -215,11 +215,14 @@ describe('PainelPage (gestor)', () => {
     expect(screen.getByRole('combobox', { name: 'Filtrar por representante' })).toBeInTheDocument();
     const periodo = screen.getByRole('radiogroup', { name: 'Período de análise dos indicadores' });
     expect(within(periodo).getAllByRole('radio').map((opcao) => opcao.textContent)).toEqual([
+      'Este mês',
       '30 dias',
       '90 dias',
       '365 dias',
       'Personalizado',
     ]);
+    // O Painel abre no mês atual: o mesmo período da meta mensal.
+    expect(within(periodo).getByRole('radio', { name: 'Este mês' })).toBeChecked();
     expect(screen.queryByText(/Dados simulados/)).not.toBeInTheDocument();
     expect(screen.queryByText(/integração com o ERP/)).not.toBeInTheDocument();
   });
@@ -360,7 +363,7 @@ describe('PainelPage (gestor)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
 
     expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
-    expect(buscarRelatorio).toHaveBeenCalledWith({ dias: 30 }, 'u1');
+    expect(buscarRelatorio).toHaveBeenCalledWith({ mes: 'ATUAL' }, 'u1');
     expect(baixarCsv).toHaveBeenCalledTimes(1);
     const [conteudo, nome] = vi.mocked(baixarCsv).mock.calls[0]!;
     expect(conteudo.startsWith('\uFEFF"Cliente";"Cidade";')).toBe(true);
@@ -415,12 +418,12 @@ describe('PainelPage (gestor)', () => {
     vi.mocked(useRepresentanteSelecionado).mockReturnValue('u1');
     renderizarComo('GESTOR');
 
-    expect(useKpis).toHaveBeenCalledWith({ dias: 30 }, 'u1');
-    expect(useKpisPorRepresentante).toHaveBeenCalledWith({ dias: 30 }, 'u1');
+    expect(useKpis).toHaveBeenCalledWith({ mes: 'ATUAL' }, 'u1');
+    expect(useKpisPorRepresentante).toHaveBeenCalledWith({ mes: 'ATUAL' }, 'u1');
 
     await userEvent.click(screen.getByRole('tab', { name: 'Produção e sazonalidade' }));
     expect(useSazonalidade).toHaveBeenCalledWith(90, 'u1');
-    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, 'u1', 90);
+    expect(useVendasMensais).toHaveBeenCalledWith({ mes: 'ATUAL' }, 'u1', 90);
     expect(useClientesDaCarteira).toHaveBeenCalledWith('u1');
   });
 
@@ -462,7 +465,7 @@ describe('PainelPage (gestor)', () => {
       expect(screen.getByRole('status')).toHaveTextContent(
         'O Painel mostra até 365 dias por vez. Para um período maior, use a Planilha.',
       );
-      expect(useKpis).toHaveBeenLastCalledWith({ dias: 30 }, undefined);
+      expect(useKpis).toHaveBeenLastCalledWith({ mes: 'ATUAL' }, undefined);
       expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
       expect(buscarRelatorio).toHaveBeenCalledWith({ inicio: '2025-01-01', fim: '2026-10-25' }, undefined);
     });
@@ -478,7 +481,7 @@ describe('PainelPage (gestor)', () => {
     expect(listarMetas).toHaveBeenCalledWith({
       campanhaId: undefined,
       representanteId: undefined,
-      periodo: { dias: 30 },
+      periodo: { mes: 'ATUAL' },
     });
   });
 
@@ -490,7 +493,7 @@ describe('PainelPage (gestor)', () => {
     expect(listarMetas).toHaveBeenCalledWith({
       campanhaId: undefined,
       representanteId: 'u1',
-      periodo: { dias: 30 },
+      periodo: { mes: 'ATUAL' },
     });
   });
 
@@ -559,7 +562,7 @@ describe('PainelPage (gestor)', () => {
 
     const vendas = screen.getByRole('region', { name: 'Vendas por mês, em R$' });
     expect(within(vendas).getByRole('table', { name: 'Vendas por mês, em R$, de set/26 a out/26' })).toBeInTheDocument();
-    expect(useVendasMensais).toHaveBeenLastCalledWith({ dias: 30 }, undefined, 90);
+    expect(useVendasMensais).toHaveBeenLastCalledWith({ mes: 'ATUAL' }, undefined, 90);
   });
 
   it('trocar o horizonte refaz as datas e as vendas por mês com o horizonte novo', async () => {
@@ -569,7 +572,7 @@ describe('PainelPage (gestor)', () => {
     await userEvent.click(screen.getByRole('radio', { name: '180 dias' }));
 
     expect(useSazonalidade).toHaveBeenLastCalledWith(180, undefined);
-    expect(useVendasMensais).toHaveBeenLastCalledWith({ dias: 30 }, undefined, 180);
+    expect(useVendasMensais).toHaveBeenLastCalledWith({ mes: 'ATUAL' }, undefined, 180);
   });
 
   it('o gestor vê "Criar campanha" na data sem campanha', () => {
@@ -690,11 +693,11 @@ describe('PainelPage (representante)', () => {
   it('os blocos buscam sem representanteId (o backend prende à carteira dele)', async () => {
     renderizarComo('REPRESENTANTE');
 
-    expect(useKpis).toHaveBeenCalledWith({ dias: 30 }, undefined);
-    expect(useKpisPorRepresentante).toHaveBeenCalledWith({ dias: 30 }, undefined);
+    expect(useKpis).toHaveBeenCalledWith({ mes: 'ATUAL' }, undefined);
+    expect(useKpisPorRepresentante).toHaveBeenCalledWith({ mes: 'ATUAL' }, undefined);
     await userEvent.click(screen.getByRole('tab', { name: 'Produção e sazonalidade' }));
     expect(useSazonalidade).toHaveBeenCalledWith(90, undefined);
-    expect(useVendasMensais).toHaveBeenCalledWith({ dias: 30 }, undefined, 90);
+    expect(useVendasMensais).toHaveBeenCalledWith({ mes: 'ATUAL' }, undefined, 90);
     expect(useClientesDaCarteira).toHaveBeenCalledWith(undefined);
   });
 
@@ -734,7 +737,7 @@ describe('PainelPage (representante)', () => {
     expect(listarMetas).toHaveBeenCalledWith({
       campanhaId: undefined,
       representanteId: undefined,
-      periodo: { dias: 30 },
+      periodo: { mes: 'ATUAL' },
     });
   });
 
@@ -743,7 +746,7 @@ describe('PainelPage (representante)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Planilha' }));
     expect(await screen.findByText('Planilha gerada')).toBeInTheDocument();
-    expect(buscarRelatorio).toHaveBeenCalledWith({ dias: 30 }, undefined);
+    expect(buscarRelatorio).toHaveBeenCalledWith({ mes: 'ATUAL' }, undefined);
     expect(baixarCsv).toHaveBeenCalledTimes(1);
   });
 });

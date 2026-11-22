@@ -28,12 +28,13 @@ function mudarData(rotulo: 'De' | 'Até', valor: string): void {
 }
 
 describe('FiltroPeriodo', () => {
-  it('renderiza o segmentado "30 dias", "90 dias", "365 dias" e "Personalizado", com a atual marcada', () => {
+  it('renderiza o segmentado "Este mês", "30 dias", "90 dias", "365 dias" e "Personalizado", com a atual marcada', () => {
     renderizar();
 
     expect(screen.getByRole('radiogroup', { name: 'Período de análise dos indicadores' })).toBeInTheDocument();
     expect(screen.getByText('Período')).toBeInTheDocument();
     expect(screen.getAllByRole('radio').map((opcao) => opcao.textContent)).toEqual([
+      'Este mês',
       '30 dias',
       '90 dias',
       '365 dias',
@@ -44,12 +45,46 @@ describe('FiltroPeriodo', () => {
     expect(screen.queryByLabelText('De')).not.toBeInTheDocument();
   });
 
+  it('em tela estreita, "Personalizado" fica sozinho na linha de baixo do segmentado', () => {
+    renderizar();
+
+    expect(screen.getByRole('radiogroup', { name: 'Período de análise dos indicadores' })).toHaveAttribute(
+      'data-ultima-em-linha-propria',
+      'true',
+    );
+  });
+
   it('clicar em "90 dias" chama onChange({ dias: 90 })', async () => {
     const { onChange } = renderizar();
 
     await userEvent.click(screen.getByRole('radio', { name: '90 dias' }));
 
     expect(onChange).toHaveBeenCalledWith({ dias: 90 });
+  });
+
+  it('com o mês atual como valor, "Este mês" vem marcado, sem os campos de data', () => {
+    renderizar({ mes: 'ATUAL' });
+
+    expect(screen.getByRole('radio', { name: 'Este mês' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: '30 dias' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.queryByLabelText('De')).not.toBeInTheDocument();
+  });
+
+  it('clicar em "Este mês" chama onChange({ mes: "ATUAL" })', async () => {
+    const { onChange } = renderizar();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Este mês' }));
+
+    expect(onChange).toHaveBeenCalledWith({ mes: 'ATUAL' });
+  });
+
+  it('"Personalizado" a partir de "Este mês" vem do dia 1º do mês até hoje', async () => {
+    renderizar({ mes: 'ATUAL' });
+    await abrirPersonalizado();
+
+    expect(screen.getByRole('radio', { name: 'Personalizado' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByLabelText('De')).toHaveValue('2026-10-01');
+    expect(screen.getByLabelText('Até')).toHaveValue('2026-10-25');
   });
 
   it('com uma faixa como valor, "Personalizado" vem marcado, com as datas dela', () => {

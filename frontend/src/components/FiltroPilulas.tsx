@@ -5,7 +5,9 @@
  * o de pílulas. Controlado: quem usa guarda o valor. Cada opção
  * traz o próprio rótulo (ex.: `{ valor: 30, rotulo: '30 dias' }`) e, se o
  * rótulo for curto, o nome acessível (`rotuloAcessivel: '30 dias'`). Se não
- * couber na linha, o segmentado desce inteiro para a de baixo. Por padrão
+ * couber na linha, o segmentado desce inteiro para a de baixo.
+ * `ultimaEmLinhaPropria` repassa a regra do `Segmentado` para telas estreitas
+ * (a última opção sozinha na linha de baixo). Por padrão
  * deixa 16 px de respiro embaixo (solto num cartão, como na ficha);
  * `className` troca essa regra de layout (o Painel, numa barra com `gap`).
  */
@@ -21,6 +23,7 @@ type Props<V extends string | number> = {
   valor: V;
   onChange: (valor: V) => void;
   className?: string;
+  ultimaEmLinhaPropria?: boolean;
 };
 
 export function FiltroPilulas<V extends string | number>({
@@ -30,11 +33,19 @@ export function FiltroPilulas<V extends string | number>({
   valor,
   onChange,
   className = 'mb-4',
+  ultimaEmLinhaPropria,
 }: Props<V>) {
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       <span className="text-sm text-muted-foreground">{rotulo}</span>
-      <Segmentado compacto ariaLabel={ariaLabel} opcoes={opcoes} valor={valor} onChange={onChange} />
+      <Segmentado
+        compacto
+        ariaLabel={ariaLabel}
+        opcoes={opcoes}
+        valor={valor}
+        onChange={onChange}
+        ultimaEmLinhaPropria={ultimaEmLinhaPropria}
+      />
     </div>
   );
 }

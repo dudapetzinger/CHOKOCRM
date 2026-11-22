@@ -290,7 +290,7 @@ Em `/clients/:id/insights`, a lista `campanhas` vem em cada sugestão e em cada 
 
 Todos esses endereços exigem login e valem para os dois perfis. O representante recebe sempre a própria carteira, e o `representanteId` que ele envia é ignorado. O gestor recebe a empresa inteira ou, com `representanteId`, a carteira daquele representante. Parâmetro inválido responde 400 com o código `VALIDATION_ERROR`.
 
-Os endereços em `/dashboard` recebem o período de um de dois modos, nunca os dois juntos: `periodoDias` (30, 90 ou 365) ou `inicio` e `fim` (datas no formato AAAA-MM-DD).
+Os endereços em `/dashboard` recebem o período de um de dois modos, nunca os dois juntos: `periodoDias` (30, 90 ou 365) ou `inicio` e `fim` (datas no formato AAAA-MM-DD). A opção "Este mês" do painel vai como `inicio` e `fim`, do dia 1º do mês até hoje.
 
 #### `GET /dashboard/kpis/visitas`
 

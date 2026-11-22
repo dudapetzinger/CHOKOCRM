@@ -271,7 +271,7 @@ O envio acontece no WhatsApp, pelas mãos de quem está usando. A pessoa pode al
 
 ## 9. Painel
 
-O painel mostra os resultados de um período. O período pode ser de 30, 90 ou 365 dias, ou um intervalo de datas à escolha, de até 365 dias. No intervalo à escolha, os dois campos de data ficam em uma linha própria, abaixo dos botões de período. O representante vê os números da própria carteira. O gestor vê a equipe inteira ou um representante.
+O painel mostra os resultados de um período. O período pode ser este mês (do dia 1º até hoje), 30, 90 ou 365 dias, ou um intervalo de datas à escolha, de até 365 dias. O painel abre em "Este mês", que é o período da meta mensal: assim o número de visitas dos indicadores é o mesmo da meta. No intervalo à escolha, os dois campos de data ficam em uma linha própria, abaixo dos botões de período. O representante vê os números da própria carteira. O gestor vê a equipe inteira ou um representante.
 
 O painel tem duas abas.
 
