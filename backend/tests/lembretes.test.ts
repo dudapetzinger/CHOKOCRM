@@ -231,9 +231,8 @@ describe('POST /clients/:id/visits com lembrete', () => {
     expect(await abertosNoBanco()).toEqual([{ texto: 'Levar amostras de Natal', data: daquiA(10) }]);
   });
 
-  it('pedido recusado não cria o lembrete (mesma transação da visita)', async () => {
+  it('check-in recusado não cria o lembrete', async () => {
     const res = await checkIn({
-      resultado: 'SEM_VENDA',
       itens: [{ sku: 'BOMB-SORT', quantidade: 2 }],
       lembrete: { texto: 'Levar amostras', data: daquiA(3) },
     });

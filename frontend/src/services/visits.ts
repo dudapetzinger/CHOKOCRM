@@ -43,7 +43,7 @@ export type Visita = {
   fotoApagadaEm: string | null;
   criadoEm: string;
   editadoEm: string | null;
-  /** Vazio quando a visita não tem pedido. */
+  /** Produtos da visita, copiados da nota fiscal vinculada; vazio sem nota. */
   itens: ItemPedidoVisita[];
   /** Calculado no backend, em reais. */
   totalPedido: number;

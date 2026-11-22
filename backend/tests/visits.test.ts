@@ -2,7 +2,6 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
-import { CATALOGO } from '../src/providers/erp/mock/catalogo';
 import { dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
@@ -114,6 +113,29 @@ function payloadCheckIn(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+type ProdutoDaVisita = { sku: string; produtoNome: string; quantidade: number; precoUnitario: number };
+
+/**
+ * Check-in com VENDA e, depois, os produtos gravados direto na visita, como
+ * faz o vínculo da nota fiscal: o check-in em si não leva produtos.
+ */
+async function criarVisitaComProdutos(
+  descricao: string,
+  produtos: ProdutoDaVisita[],
+  dataHora?: string,
+): Promise<string> {
+  const res = await request(app)
+    .post(`/clients/${clienteId}/visits`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ descricao, resultado: 'VENDA', ...(dataHora ? { dataHora } : {}) });
+  await prisma.visitItem.createMany({ data: produtos.map((produto) => ({ ...produto, visitId: res.body.id })) });
+  return res.body.id;
+}
+
+const DEZ_BOMBONS: ProdutoDaVisita[] = [
+  { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
+];
 
 describe('POST /clients/:id/visits', () => {
   it('sem token responde 401', async () => {
@@ -314,138 +336,31 @@ describe('POST /clients/:id/visits', () => {
   });
 });
 
-describe('POST /clients/:id/visits com pedido', () => {
+describe('POST /clients/:id/visits não leva produtos', () => {
   function postar(corpo: Record<string, unknown>) {
     return request(app).post(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`).send(corpo);
   }
 
-  it('VENDA com itens grava nome e preço do catálogo e devolve o total do pedido', async () => {
-    const res = await postar(
-      payloadCheckIn({
-        itens: [
-          { sku: 'BOMB-SORT', quantidade: 10 },
-          { sku: 'PAO-MEL', quantidade: 3 },
-        ],
-      }),
-    );
-
-    expect(res.status).toBe(201);
-    expect(res.body.itens).toEqual([
-      { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
-      { sku: 'PAO-MEL', produtoNome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
-    ]);
-    // 10 × 42,00 + 3 × 27,90, sem o erro de ponto flutuante de 3 * 27.9
-    expect(res.body.totalPedido).toBe(503.7);
-
-    const gravados = await prisma.visitItem.findMany({ where: { visitId: res.body.id }, orderBy: { sku: 'asc' } });
-    expect(gravados.map((item) => [item.sku, item.produtoNome, item.quantidade, item.precoUnitario.toFixed(2)])).toEqual([
-      ['BOMB-SORT', 'Bombons sortidos', 10, '42.00'],
-      ['PAO-MEL', 'Pães de mel', 3, '27.90'],
-    ]);
-  });
-
-  it('o pedido gravado guarda o preço do dia: mudar o catálogo depois não muda o pedido', async () => {
-    const criada = await postar(payloadCheckIn({ itens: [{ sku: 'BOMB-SORT', quantidade: 10 }] }));
-    expect(criada.status).toBe(201);
-
-    const produto = CATALOGO.find((item) => item.sku === 'BOMB-SORT')!;
-    const precoOriginal = produto.precoUnitario;
-    try {
-      produto.precoUnitario = 99.9;
-
-      const res = await request(app).get(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`);
-
-      expect(res.body.data[0].itens).toEqual([
-        { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
-      ]);
-      expect(res.body.data[0].totalPedido).toBe(420);
-    } finally {
-      produto.precoUnitario = precoOriginal;
-    }
-  });
-
-  it('SKU repetido em duas linhas vira uma linha só, com as quantidades somadas', async () => {
-    const res = await postar(
-      payloadCheckIn({
-        itens: [
-          { sku: 'TRUF-70', quantidade: 4 },
-          { sku: 'TRUF-70', quantidade: 6 },
-        ],
-      }),
-    );
-
-    expect(res.status).toBe(201);
-    expect(res.body.itens).toEqual([
-      { sku: 'TRUF-70', produtoNome: 'Trufas 70% cacau', quantidade: 10, precoUnitario: 36 },
-    ]);
-    expect(res.body.totalPedido).toBe(360);
-  });
-
-  it('VENDA sem itens devolve itens vazio e total zero', async () => {
+  it('a visita nasce sem produtos e com total zero: eles chegam pela nota fiscal', async () => {
     const res = await postar(payloadCheckIn());
 
     expect(res.status).toBe(201);
     expect(res.body.itens).toEqual([]);
     expect(res.body.totalPedido).toBe(0);
+    expect(await prisma.visitItem.count({ where: { visitId: res.body.id } })).toBe(0);
   });
 
-  it.each(['NEGOCIACAO', 'SEM_VENDA'])('recusa itens em visita com resultado %s', async (resultado) => {
-    const res = await postar(payloadCheckIn({ resultado, itens: [{ sku: 'BOMB-SORT', quantidade: 2 }] }));
+  it.each(['VENDA', 'NEGOCIACAO', 'SEM_VENDA'])(
+    'recusa itens enviados no check-in com resultado %s, sem gravar a visita',
+    async (resultado) => {
+      const res = await postar(payloadCheckIn({ resultado, itens: [{ sku: 'BOMB-SORT', quantidade: 2 }] }));
 
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-    expect(res.body.error.message).toBe('Pedido só pode ser registrado em visita com venda.');
-    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
-  });
-
-  it('recusa SKU fora do catálogo sem gravar a visita', async () => {
-    const res = await postar(
-      payloadCheckIn({
-        itens: [
-          { sku: 'BOMB-SORT', quantidade: 2 },
-          { sku: 'NAO-EXISTE', quantidade: 1 },
-        ],
-      }),
-    );
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-    expect(res.body.error.message).toBe('Produto não encontrado no catálogo.');
-    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
-    expect(await prisma.visitItem.count()).toBe(0);
-  });
-
-  it.each([
-    ['zero', 0],
-    ['negativa', -3],
-    ['fracionada', 1.5],
-    ['em texto', '10'],
-  ])('recusa quantidade %s', async (_rotulo, quantidade) => {
-    const res = await postar(payloadCheckIn({ itens: [{ sku: 'BOMB-SORT', quantidade }] }));
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
-  });
-
-  it('recusa preço ou nome enviados no item: eles vêm do catálogo', async () => {
-    const res = await postar(
-      payloadCheckIn({ itens: [{ sku: 'BOMB-SORT', quantidade: 1, precoUnitario: 0.01, produtoNome: 'Brinde' }] }),
-    );
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-    expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
-  });
-
-  it('recusa pedido com mais de 30 linhas', async () => {
-    const itens = Array.from({ length: 31 }, () => ({ sku: 'BOMB-SORT', quantidade: 1 }));
-
-    const res = await postar(payloadCheckIn({ itens }));
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-  });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
+      expect(await prisma.visitItem.count()).toBe(0);
+    },
+  );
 });
 
 describe('POST /clients/:id/visits com a próxima visita', () => {
@@ -556,25 +471,22 @@ describe('POST /clients/:id/visits com a próxima visita', () => {
     expect(await prisma.visit.count({ where: { clientId: clienteId } })).toBe(0);
   });
 
-  it('grava visita, pedido, próxima visita e lembrete juntos', async () => {
+  it('grava visita, próxima visita e lembrete juntos', async () => {
     const res = await postar(
       payloadCheckIn({
-        itens: [{ sku: 'BOMB-SORT', quantidade: 2 }],
         proximaVisita: daquiA(15),
         lembrete: { texto: 'Repor bombons', data: daquiA(15) },
       }),
     );
 
     expect(res.status).toBe(201);
-    expect(res.body.totalPedido).toBe(84);
-    expect(await prisma.visitItem.count({ where: { visitId: res.body.id } })).toBe(1);
     expect(await proximaVisitaNoBanco()).toBe(daquiA(15));
     expect(await prisma.reminder.count({ where: { visitId: res.body.id } })).toBe(1);
   });
 
-  it('pedido recusado não grava a próxima visita', async () => {
+  it('check-in recusado por levar itens não grava a próxima visita', async () => {
     const res = await postar(
-      payloadCheckIn({ resultado: 'SEM_VENDA', itens: [{ sku: 'BOMB-SORT', quantidade: 2 }], proximaVisita: daquiA(15) }),
+      payloadCheckIn({ itens: [{ sku: 'BOMB-SORT', quantidade: 2 }], proximaVisita: daquiA(15) }),
     );
 
     expect(res.status).toBe(400);
@@ -760,35 +672,29 @@ describe('GET /clients/:id/visits', () => {
     ]);
   });
 
-  it('traz o pedido de cada visita e o total; visita sem pedido vem com itens vazio', async () => {
-    await request(app)
-      .post(`/clients/${clienteId}/visits`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        descricao: 'Visita com pedido.',
-        resultado: 'VENDA',
-        dataHora: '2026-09-18T13:00:00.000Z',
-        itens: [
-          { sku: 'TAB-LEITE', quantidade: 12 },
-          { sku: 'DRAGEE', quantidade: 5 },
-        ],
-      });
-    await criarVisita('Visita sem pedido.', '2026-09-10T13:00:00.000Z', 'NEGOCIACAO');
+  it('traz os produtos de cada visita, em ordem alfabética, e o total; visita sem produtos vem com itens vazio', async () => {
+    await criarVisitaComProdutos(
+      'Visita com produtos.',
+      [
+        { sku: 'PAO-MEL', produtoNome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
+        { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
+      ],
+      '2026-09-18T13:00:00.000Z',
+    );
+    await criarVisita('Visita sem produtos.', '2026-09-10T13:00:00.000Z', 'NEGOCIACAO');
 
     const res = await request(app).get(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    const [comPedido, semPedido] = res.body.data;
-    expect(comPedido.itens).toEqual(
-      expect.arrayContaining([
-        { sku: 'TAB-LEITE', produtoNome: 'Tablete de chocolate ao leite', quantidade: 12, precoUnitario: 9 },
-        { sku: 'DRAGEE', produtoNome: 'Dragées de chocolate', quantidade: 5, precoUnitario: 24 },
-      ]),
-    );
-    expect(comPedido.itens).toHaveLength(2);
-    expect(comPedido.totalPedido).toBe(228);
-    expect(semPedido.itens).toEqual([]);
-    expect(semPedido.totalPedido).toBe(0);
+    const [comProdutos, semProdutos] = res.body.data;
+    expect(comProdutos.itens).toEqual([
+      { sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 10, precoUnitario: 42 },
+      { sku: 'PAO-MEL', produtoNome: 'Pães de mel', quantidade: 3, precoUnitario: 27.9 },
+    ]);
+    // 10 × 42,00 + 3 × 27,90, sem o erro de ponto flutuante de 3 * 27.9
+    expect(comProdutos.totalPedido).toBe(503.7);
+    expect(semProdutos.itens).toEqual([]);
+    expect(semProdutos.totalPedido).toBe(0);
   });
 
   it('traz a nota fiscal vinculada à visita (número e valor total); sem vínculo, notaFiscal null', async () => {
@@ -799,7 +705,6 @@ describe('GET /clients/:id/visits', () => {
         descricao: 'Visita com nota.',
         resultado: 'VENDA',
         dataHora: '2026-09-18T13:00:00.000Z',
-        itens: [{ sku: 'TAB-LEITE', quantidade: 12 }],
       });
     await criarVisita('Visita sem nota.', '2026-09-10T13:00:00.000Z', 'NEGOCIACAO');
     const importacao = await prisma.erpImport.create({
@@ -831,6 +736,16 @@ describe('GET /clients/:id/visits', () => {
       },
     });
     await prisma.visit.update({ where: { id: comNota.body.id }, data: { erpSaleId: nota.id } });
+    // Os produtos que o vínculo copia da nota para a visita.
+    await prisma.visitItem.create({
+      data: {
+        visitId: comNota.body.id,
+        sku: 'TAB-LEITE',
+        produtoNome: 'Tablete de chocolate ao leite',
+        quantidade: 12,
+        precoUnitario: 9,
+      },
+    });
 
     const res = await request(app).get(`/clients/${clienteId}/visits`).set('Authorization', `Bearer ${token}`);
 
@@ -908,14 +823,11 @@ describe('PATCH /visits/:id', () => {
     expect(res.body.resultado).toBe('NEGOCIACAO');
   });
 
-  it('editar a descrição mantém o pedido da visita', async () => {
-    const criada = await request(app)
-      .post(`/clients/${clienteId}/visits`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ descricao: 'Pedido de bombons.', resultado: 'VENDA', itens: [{ sku: 'BOMB-SORT', quantidade: 10 }] });
+  it('editar a descrição mantém os produtos da visita', async () => {
+    const id = await criarVisitaComProdutos('Pedido de bombons.', DEZ_BOMBONS);
 
     const res = await request(app)
-      .patch(`/visits/${criada.body.id}`)
+      .patch(`/visits/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .send({ descricao: 'Pedido de bombons para o Natal.' });
 
@@ -926,7 +838,7 @@ describe('PATCH /visits/:id', () => {
     expect(res.body.totalPedido).toBe(420);
   });
 
-  it('recusa itens na edição: o pedido não muda depois do check-in', async () => {
+  it('recusa itens na edição: os produtos da visita só mudam pela nota fiscal', async () => {
     const id = await criarVisitaRetornandoId();
 
     const res = await request(app)
@@ -1001,12 +913,8 @@ describe('PATCH /visits/:id', () => {
   describe('sair de Venda com pedido ou nota fiscal', () => {
     const MENSAGEM = 'Esta visita tem pedido ou nota fiscal vinculada: o resultado continua Venda.';
 
-    async function criarVisitaComPedido(): Promise<string> {
-      const res = await request(app)
-        .post(`/clients/${clienteId}/visits`)
-        .set('Authorization', `Bearer ${token}`)
-        .send({ descricao: 'Pedido de bombons.', resultado: 'VENDA', itens: [{ sku: 'BOMB-SORT', quantidade: 10 }] });
-      return res.body.id;
+    function criarVisitaComPedido(): Promise<string> {
+      return criarVisitaComProdutos('Pedido de bombons.', DEZ_BOMBONS);
     }
 
     async function criarVisitaComNota(): Promise<string> {

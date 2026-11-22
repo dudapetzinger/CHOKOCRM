@@ -3,10 +3,11 @@ import { dataCalendario } from '../services/classificacao.service';
 import { agora } from '../lib/relogio';
 
 /**
- * Validação do check-in de visita, com o pedido opcional da visita
- * com venda, a próxima visita prevista, o lembrete (com data própria) e as
- * campanhas da visita e da próxima visita, e da edição
- * posterior da descrição e do resultado, que não mexe em nenhum deles. O schema
+ * Validação do check-in de visita, com a próxima visita prevista, o lembrete
+ * (com data própria) e as campanhas da visita e da próxima visita, e da edição
+ * posterior da descrição e do resultado, que não mexe em nenhum deles. O
+ * check-in não leva produtos: eles chegam pela nota fiscal vinculada à
+ * visita, e o corpo `strict` recusa um `itens` enviado. O schema
  * Prisma (`prisma/schema.prisma`) exige
  * `descricao` e `resultado` como NOT NULL, e este zod reflete a mesma
  * obrigatoriedade, conforme o dicionário de dados
@@ -38,27 +39,6 @@ const dataHoraSchema = z
   .datetime({ offset: true, message: MENSAGEM_DATA_INVALIDA })
   .transform((valor) => new Date(valor))
   .refine((data) => data.getTime() <= agora().getTime(), { message: MENSAGEM_DATA_FUTURA });
-
-const MAXIMO_ITENS_DO_PEDIDO = 30;
-const MAXIMO_QUANTIDADE_POR_ITEM = 99999;
-const MENSAGEM_QUANTIDADE = 'Quantidade do item deve ser um número inteiro maior que zero.';
-
-/**
- * Item do pedido: só o SKU e a quantidade. Nome e preço vêm do
- * catálogo do ERP no serviço, por isso o objeto é `strict`: um preço
- * mandado pelo cliente HTTP é recusado, nunca usado. Quantidade em texto
- * ("10") também é recusada, como a data solta acima.
- */
-const itemDoPedidoSchema = z
-  .object({
-    sku: z.string({ message: 'Informe o produto do item.' }).trim().min(1, 'Informe o produto do item.'),
-    quantidade: z
-      .number({ message: MENSAGEM_QUANTIDADE })
-      .int(MENSAGEM_QUANTIDADE)
-      .min(1, MENSAGEM_QUANTIDADE)
-      .max(MAXIMO_QUANTIDADE_POR_ITEM, `Quantidade do item não pode passar de ${MAXIMO_QUANTIDADE_POR_ITEM}.`),
-  })
-  .strict();
 
 export const MENSAGEM_PROXIMA_VISITA_INVALIDA = 'Data da próxima visita inválida.';
 export const MENSAGEM_PROXIMA_VISITA_PASSADA = 'A próxima visita não pode ser antes de hoje.';
@@ -128,11 +108,6 @@ export const createVisitSchema = z
     }),
     dataHora: dataHoraSchema.optional(),
     contactId: z.string().uuid('Identificador do contato inválido.').optional(),
-    /** Pedido, só com resultado VENDA (regra no serviço, com a mensagem própria). */
-    itens: z
-      .array(itemDoPedidoSchema)
-      .max(MAXIMO_ITENS_DO_PEDIDO, `O pedido pode ter no máximo ${MAXIMO_ITENS_DO_PEDIDO} itens.`)
-      .optional(),
     /**
      * Gravada no cliente junto com a visita: a visita nova substitui a data
      * marcada antes. `null` ou ausente apaga a data e a agenda volta à

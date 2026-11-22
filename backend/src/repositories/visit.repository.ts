@@ -5,10 +5,9 @@ import * as reminderRepository from './reminder.repository';
 import { agora } from '../lib/relogio';
 
 /**
- * Itens do pedido em ordem alfabética do produto: a tabela não guarda a
- * ordem das linhas do formulário, e o id (uuid) não serve de ordem. O
- * serviço junta as linhas do mesmo SKU, então o nome não se repete.
- * A nota fiscal vinculada à visita vem só com número e valor total.
+ * Produtos da visita em ordem alfabética: a tabela não guarda a ordem das
+ * linhas, e o id (uuid) não serve de ordem. Eles vêm da nota fiscal
+ * vinculada à visita, que aqui traz só o número e o valor total.
  */
 const INCLUDE_RELACOES = {
   contact: { select: { id: true, nome: true } },
@@ -23,7 +22,7 @@ const INCLUDE_RELACOES = {
 
 export type VisitComRelacoes = Prisma.VisitGetPayload<{ include: typeof INCLUDE_RELACOES }>;
 
-/** Linha do pedido já com nome e preço do catálogo (o serviço resolve). */
+/** Produto da visita, com o nome e o preço copiados da nota fiscal. */
 export type ItemDoPedidoData = {
   sku: string;
   produtoNome: string;
@@ -48,27 +47,26 @@ export type CreateVisitData = {
   dataHora: Date;
   descricao: string;
   resultado: ResultadoVisita;
-  itens: ItemDoPedidoData[];
   proximaVisitaDoCliente: ProximaVisitaDoClienteData;
   /** Lembrete novo do check-in, com `data` já como valor de coluna `@db.Date`. */
   lembrete?: { texto: string; data: Date };
 };
 
 /**
- * Visita, itens do pedido (`create` aninhado), a próxima visita do cliente e
- * o lembrete novo (criado pelo autor, ligado à visita) numa transação só: ou
- * o check-in fica inteiro, ou nada muda. Os lembretes já abertos do cliente
- * não são tocados.
+ * Visita, a próxima visita do cliente e o lembrete novo (criado pelo autor,
+ * ligado à visita) numa transação só: ou o check-in fica inteiro, ou nada
+ * muda. Os lembretes já abertos do cliente não são tocados. O check-in não
+ * grava produtos: eles chegam depois, pela nota fiscal vinculada
+ * (`substituirItensPorNota`).
  */
 export async function create({
-  itens,
   proximaVisitaDoCliente,
   lembrete,
   ...data
 }: CreateVisitData): Promise<VisitComRelacoes> {
   return prisma.$transaction(async (tx) => {
     const visita = await tx.visit.create({
-      data: { ...data, ...(itens.length > 0 ? { itens: { create: itens } } : {}) },
+      data,
       include: INCLUDE_RELACOES,
     });
 

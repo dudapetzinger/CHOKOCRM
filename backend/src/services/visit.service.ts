@@ -7,7 +7,6 @@ import { fileStorage } from '../storage';
 import * as clientRepository from '../repositories/client.repository';
 import * as visitRepository from '../repositories/visit.repository';
 import type {
-  ItemDoPedidoData,
   ProximaVisitaDoClienteData,
   VisitComCarteira,
   VisitComRelacoes,
@@ -16,14 +15,11 @@ import type { CreateVisitInput, UpdateVisitInput } from '../schemas/visit.schema
 import { exigirCampanhaNaoEncerrada } from './campaign.service';
 import { ehDeOutraCarteira, exigirClienteDaCarteira, exigirClienteVisivel, type UsuarioAutenticado } from './carteira';
 import { colunaDateDaData } from './classificacao.service';
-import { buscarProduto } from './erp.service';
 import { agora } from '../lib/relogio';
 
 const MENSAGEM_CLIENTE_NAO_ENCONTRADO = 'Cliente não encontrado.';
 const MENSAGEM_CLIENTE_INATIVO = 'Cliente inativo não recebe check-in.';
 const MENSAGEM_CONTATO_DE_OUTRO_CLIENTE = 'Contato informado não pertence a este cliente.';
-const MENSAGEM_PEDIDO_SEM_VENDA = 'Pedido só pode ser registrado em visita com venda.';
-const MENSAGEM_PRODUTO_DESCONHECIDO = 'Produto não encontrado no catálogo.';
 const MENSAGEM_VISITA_NAO_ENCONTRADA = 'Visita não encontrada.';
 const MENSAGEM_APENAS_AUTOR = 'Apenas o autor do check-in pode alterá-lo.';
 const MENSAGEM_VENDA_COM_PEDIDO_OU_NOTA =
@@ -52,7 +48,7 @@ export type VisitaDTO = {
   fotoApagadaEm: string | null;
   criadoEm: string;
   editadoEm: string | null;
-  /** Pedido da visita (vazio sem pedido), com o preço gravado no check-in. */
+  /** Produtos da visita, copiados da nota fiscal vinculada (vazio sem nota). */
   itens: ItemDoPedidoDTO[];
   /** Soma de quantidade × preço unitário dos itens, em reais com 2 casas. */
   totalPedido: number;
@@ -96,37 +92,6 @@ export function toVisitaDTO(visit: VisitComRelacoes): VisitaDTO {
       ? { numero: visit.erpSale.numero, valorTotal: visit.erpSale.valorTotal.toDecimalPlaces(2).toNumber() }
       : null,
   };
-}
-
-/**
- * Linhas do pedido com nome e preço do catálogo do ERP, nunca do corpo da
- * requisição. Pedido só em visita com venda; linhas do mesmo SKU
- * viram uma só, com as quantidades somadas. Lista vazia é "sem pedido".
- */
-async function montarItensDoPedido(
-  itens: CreateVisitInput['itens'],
-  resultado: ResultadoVisita,
-): Promise<ItemDoPedidoData[]> {
-  if (!itens || itens.length === 0) return [];
-
-  if (resultado !== 'VENDA') {
-    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_PEDIDO_SEM_VENDA, 400);
-  }
-
-  const quantidadePorSku = new Map<string, number>();
-  for (const item of itens) {
-    quantidadePorSku.set(item.sku, (quantidadePorSku.get(item.sku) ?? 0) + item.quantidade);
-  }
-
-  const produtos = await Promise.all([...quantidadePorSku.keys()].map((sku) => buscarProduto(sku)));
-
-  return [...quantidadePorSku].map(([sku, quantidade], indice) => {
-    const produto = produtos[indice];
-    if (!produto) {
-      throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_PRODUTO_DESCONHECIDO, 400);
-    }
-    return { sku, produtoNome: produto.nome, quantidade, precoUnitario: produto.precoUnitario };
-  });
 }
 
 /**
@@ -195,7 +160,6 @@ export async function createVisit(
     }
   }
 
-  const itens = await montarItensDoPedido(input.itens, input.resultado);
   const proximaVisitaDoCliente = montarProximaVisitaDoCliente(input);
   const campanhaId = input.campanhaId ?? null;
 
@@ -213,7 +177,6 @@ export async function createVisit(
     dataHora: input.dataHora ?? agora(),
     descricao: input.descricao,
     resultado: input.resultado,
-    itens,
     proximaVisitaDoCliente,
     lembrete: input.lembrete
       ? { texto: input.lembrete.texto, data: colunaDateDaData(input.lembrete.data) }
@@ -245,9 +208,10 @@ async function exigirVisitaDoAutor(visitId: string, usuario: UsuarioAutenticado)
 }
 
 /**
- * Edita a descrição e/ou o resultado. Sair de VENDA numa visita com pedido ou
- * com nota fiscal vinculada é recusado (409) antes de gravar qualquer campo:
- * o resultado dela vem do pedido ou da nota. Repetir o resultado atual não é mudança.
+ * Edita a descrição e/ou o resultado. Sair de VENDA numa visita com produtos
+ * ou com nota fiscal vinculada é recusado (409) antes de gravar qualquer
+ * campo: a venda dela está comprovada pela nota. Repetir o resultado atual
+ * não é mudança.
  */
 export async function atualizarVisita(
   visitId: string,
