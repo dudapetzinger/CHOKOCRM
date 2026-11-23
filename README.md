@@ -3,7 +3,9 @@
 [![CI](https://github.com/dudapetzinger/CHOKOCRM/actions/workflows/ci.yml/badge.svg)](https://github.com/dudapetzinger/CHOKOCRM/actions/workflows/ci.yml)
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=dudapetzinger_CHOKOCRM&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=dudapetzinger_CHOKOCRM)
 
-O ChokoCRM é um sistema de acompanhamento de clientes e visitas feito para os representantes comerciais da Chokolaten, fábrica de chocolates artesanais de Pomerode (SC). Projetado com foco no uso mobile e pode ser instalado como PWA.
+O ChokoCRM é um sistema de acompanhamento de clientes e visitas feito para os representantes comerciais da Chokolaten, fábrica de chocolates artesanais de Pomerode (SC). Foi projetado com foco no uso mobile e pode ser instalado como PWA.
+
+O diferencial do sistema é o uso do histórico de compras de cada cliente. A cada data comemorativa que se aproxima, como a Páscoa e o Natal, ele compara o que o cliente comprou no mesmo período do ano anterior com a média de compras dele e sugere ao representante o que oferecer. Para a gestão, mostra a sazonalidade das vendas, o que ajuda a fábrica a se antecipar na produção.
 
 Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Universitário Católica de Santa Catarina, desenvolvido em parceria com a empresa.
 
@@ -12,8 +14,8 @@ Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Univers
 - [O problema](#o-problema)
 - [O que o sistema faz](#o-que-o-sistema-faz)
 - [Como testar](#como-testar)
-- [Como instalar no seu computador](#como-instalar-no-seu-computador)
 - [Como o sistema é construído](#como-o-sistema-é-construído)
+- [Como executar o projeto localmente](#como-executar-o-projeto-localmente)
 - [Testes e qualidade](#testes-e-qualidade)
 - [Organização do repositório](#organização-do-repositório)
 - [Documentação](#documentação)
@@ -30,9 +32,11 @@ Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Univers
 
 ## O problema
 
-Os representantes da Chokolaten visitam confeitarias, cafés, empórios e mercados de várias cidades de Santa Catarina. O controle dessas visitas era feito em agenda de papel e em conversas de WhatsApp. Com isso, a informação se perdia, não havia um histórico de cada cliente para consultar e ninguém sabia dizer com segurança quais clientes estavam há tempo demais sem receber uma visita.
+Os representantes da Chokolaten visitam confeitarias, cafés, empórios e mercados de várias cidades de Santa Catarina. O controle dessas visitas era feito em agenda de papel e em conversas de WhatsApp. Com isso, a informação se perdia, não havia um histórico de cada cliente para consultar e não era possível saber com segurança quais clientes estavam há tempo demais sem receber uma visita.
 
-O ChokoCRM reúne esse controle em um só lugar. O representante registra cada visita no celular, na hora, e o sistema passa a mostrar quem precisa ser visitado, o que cada cliente costuma comprar e como a equipe está em relação às metas.
+A gestão também não conseguia acompanhar esse trabalho. Como nada era medido, não havia números de visitas, de vendas ou de resultado por representante, nem clareza sobre quais dados deveriam ser acompanhados.
+
+O ChokoCRM reúne esse controle em um só lugar. O representante registra cada visita no celular, na hora, e o sistema passa a mostrar quem precisa ser visitado e o que cada cliente costuma comprar. A gestão passa a contar com indicadores definidos, como o número de visitas, os clientes visitados, a conversão em vendas e os clientes esfriando, e acompanha a equipe em relação às metas.
 
 ## O que o sistema faz
 
@@ -64,7 +68,7 @@ O sistema está publicado e pode ser usado direto pelo navegador, no celular ou 
 
 <https://app-chokocrm-api-cscvc7aserd4c4g9.canadacentral-01.azurewebsites.net>
 
-O ambiente fica no ar durante todo o período de avaliação do projeto. O sistema também pode ser instalado no computador, seguindo a [próxima seção](#como-instalar-no-seu-computador).
+O ambiente permanece no ar durante todo o período de avaliação do projeto. Para avaliar o sistema não é preciso instalar nada.
 
 ### Contas de acesso
 
@@ -76,25 +80,29 @@ O acesso é feito com usuário e senha. A senha de todas as contas é `chokocrm1
 | Representante | Rafael Schmitt | `rafael` |
 | Gestor | Gestão Chokolaten | `gestao` |
 
-Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular diferentes períodos de uso. Todos os clientes e contatos já cadastrados usam o telefone da autora do projeto, então as ligações e as mensagens de teste pelo WhatsApp chegam a um número conhecido. A carteira é um modelo: cada representante tem 40 clientes ativos e 1 inativo, com a maioria em dia e alguns em Atenção e em Prioridade, e de 4 a 5 visitas por dia útil.
+Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular diferentes períodos de uso. Todos os clientes e contatos já cadastrados usam o telefone da autora do projeto, de modo que as ligações e as mensagens de teste pelo WhatsApp chegam a um número conhecido.
+
+A carteira de demonstração segue um modelo: cada representante tem a maior parte dos clientes em dia, alguns em Atenção e alguns em Prioridade, com visitas distribuídas pelos dias úteis. As quantidades variam conforme os testes feitos no ambiente, pois cada nota fiscal importada pode criar um cliente novo.
 
 ### Cuidados ao testar
 
-O ambiente publicado é um só, usado ao mesmo tempo por todas as pessoas que avaliam o projeto. O que uma pessoa muda aparece para as outras. Por isso:
+O ambiente publicado é único e é usado ao mesmo tempo por todas as pessoas que avaliam o projeto. O que uma pessoa altera aparece para as demais. Por isso:
 
-- Não troque a senha das três contas da tabela e não inative essas contas. Elas são a porta de entrada de todo mundo. Para experimentar a tela de Usuários, crie uma conta nova e faça os testes nela.
-- Registre visitas, crie campanhas, metas e lembretes à vontade. São dados de demonstração.
-- Use o Modo demonstração só para ver o sistema em outra época do ano: as sugestões de Páscoa ou de Natal, a aba Produção e sazonalidade e os gráficos de outro período. Recriar a demonstração apaga as visitas, as campanhas e as metas registradas por todos e muda a data para todos. Ao terminar, use Voltar ao real.
+- Não altere a senha das três contas da tabela e não inative essas contas. Elas são a porta de entrada de todos.
+- Para testar a tela de Usuários, entre com a conta Gestão, toque no círculo com as iniciais, no canto superior direito, e escolha Usuários. Crie uma conta em Novo usuário e faça os testes nela: editar os dados, definir uma senha provisória, entrar no sistema com essa conta, inativar e reativar.
+- A opção Transferir carteira move todos os clientes de um representante para outro. Ao testá-la, use como destino a conta nova, criada com o perfil Representante, e devolva os clientes em seguida.
+- Visitas, campanhas, metas e lembretes podem ser criados livremente, pois são dados de demonstração.
+- Use o Modo demonstração apenas para ver o sistema em outra época do ano: as sugestões de Páscoa ou de Natal, a aba Produção e sazonalidade e os gráficos de outro período. Recriar a demonstração apaga as visitas, as campanhas e as metas registradas por todos os usuários e altera a data para todos. Ao terminar, use Voltar ao real.
 - No dia da apresentação do projeto, 08/12/2026, não recrie a demonstração: ela estará preparada em uma data escolhida para a mostra.
 
-Se a carteira aparecer diferente do que o roteiro abaixo descreve, alguém a alterou em um teste. Recriar a demonstração devolve os clientes, as visitas, as campanhas e as metas ao modelo. As contas e as senhas não são recriadas.
+Se a carteira aparecer diferente do que o roteiro abaixo descreve, ela pode ter sido alterada por outro usuário durante um teste. Recriar a demonstração devolve os clientes de demonstração, as visitas, as campanhas e as metas ao modelo. As contas, as senhas e os clientes criados a partir de notas fiscais são mantidos.
 
 ### Roteiro sugerido
 
 Como representante (conta da Eduarda ou do Rafael):
 
 1. Entre no sistema. A primeira tela é a Agenda, aberta na aba Hoje. A aba Atrasadas mostra, ao lado do nome, quantas visitas estão em atraso.
-2. Abra Clientes e observe as cores e as abas Prioridade, Atenção e Em dia. Em Prioridade ficam um cliente atrasado, um vencendo, um nunca visitado e um rebaixado pela última compra.
+2. Abra Clientes e observe as cores e as abas Prioridade, Atenção e Em dia. Em Prioridade ficam os clientes com visita atrasada, os que estão com a visita vencendo, os que nunca foram visitados e os rebaixados pela última compra.
 3. Toque em um cliente para abrir a ficha. Veja as compras, as sugestões da época e o histórico de visitas.
 4. Toque em WhatsApp, no alto da ficha, e, se o cliente tiver dois contatos, escolha com quem falar. A conversa abre com a mensagem pronta.
 5. Toque em Check-in, escolha um cliente e registre uma visita. A foto é obrigatória e pode ser qualquer imagem.
@@ -109,7 +117,7 @@ Como gestor (conta Gestão Chokolaten):
 4. Abra a aba Produção e sazonalidade para ver as próximas datas comemorativas, o estoque baixo por produto e as vendas por mês.
 5. Abra Clientes para ver o mapa da carteira por cidade e clique em uma cidade para ver os clientes dela.
 6. Em Campanhas, crie uma campanha e uma meta para um representante.
-7. No menu da conta, abra Usuários, crie uma conta nova e defina uma senha provisória para ela. Não altere as três contas da tabela.
+7. Toque no círculo com as iniciais, no canto superior direito, e abra Usuários. Crie uma conta em Novo usuário e, no menu de ações dessa conta, defina uma senha provisória para ela. Faça os testes apenas na conta criada, como descrito nos [cuidados ao testar](#cuidados-ao-testar).
 
 ### Simulando outra data
 
@@ -121,7 +129,7 @@ A data simulada vale para todas as pessoas que estão usando o sistema, e a recr
 
 No Android (Google Chrome):
 1. Acesse o ChokoCRM pelo navegador e faça login.
-2. Toque nos três pontinhos (⋮) no canto superior direito.
+2. Toque no menu de três pontos (⋮), no canto superior direito.
 3. Selecione "Instalar aplicativo" ou "Adicionar à tela inicial".
 4. Confirme a instalação.
    
@@ -135,36 +143,11 @@ Depois de instalado, o ChokoCRM aparecerá na tela inicial do celular. Basta toc
 
 Importante: é necessário estar conectado à internet para registrar as visitas.
 
-## Como instalar no seu computador
-
-É preciso ter o Git, o Docker Desktop e o Node.js 22.13 ou superior.
-
-```bash
-git clone https://github.com/dudapetzinger/CHOKOCRM.git
-cd CHOKOCRM
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-docker compose up --build
-```
-
-Com o ambiente no ar, abra outro terminal para criar as tabelas e carregar os dados de demonstração:
-
-```bash
-cd backend
-npm install
-npm run db:migrate
-npm run db:seed
-```
-
-Abra <http://localhost:5173> e entre com uma das contas da tabela acima.
-
-O passo a passo detalhado, as variáveis de configuração, a execução sem Docker e a solução dos problemas mais comuns estão em [docs/instalacao-e-configuracao.md](docs/instalacao-e-configuracao.md).
-
 ## Como o sistema é construído
 
-O ChokoCRM tem três partes: a interface que roda no navegador, o servidor que aplica as regras do negócio e o banco de dados que guarda as informações.
+O ChokoCRM tem três partes: a interface que é executada no navegador, o servidor que aplica as regras do negócio e o banco de dados que guarda as informações.
 
-O desenho abaixo é o diagrama de containers do modelo C4, que mostra as partes do sistema e como elas conversam. Os outros dois níveis, o de contexto e o de componentes, estão em [docs/arquitetura.md](docs/arquitetura.md).
+O desenho abaixo é o diagrama de containers do modelo C4, que mostra as partes do sistema e como elas se comunicam. Os outros dois níveis, o de contexto e o de componentes, estão em [docs/arquitetura.md](docs/arquitetura.md).
 
 ```mermaid
 flowchart TB
@@ -197,7 +180,7 @@ flowchart TB
     class whats,maps,insights externo
 ```
 
-A interface não decide nada sozinha. Ela mostra o que o servidor calcula: a cor de cada cliente, a agenda, as sugestões e os indicadores. O servidor é organizado em camadas, cada uma com uma responsabilidade, e é o único que acessa o banco de dados.
+A interface não toma decisões de negócio. Ela exibe o que o servidor calcula: a cor de cada cliente, a agenda, as sugestões e os indicadores. O servidor é organizado em camadas, cada uma com uma responsabilidade, e é o único que acessa o banco de dados.
 
 | Parte | Tecnologias |
 |-------|-------------|
@@ -210,9 +193,40 @@ A interface não decide nada sozinha. Ela mostra o que o servidor calcula: a cor
 
 O desenho das camadas, a organização das pastas e as decisões técnicas, com o motivo de cada uma, estão em [docs/arquitetura.md](docs/arquitetura.md).
 
+## Como executar o projeto localmente
+
+Esta seção é para quem quer executar ou alterar o código no próprio computador. Para avaliar o sistema, basta o endereço publicado em [Como testar](#como-testar).
+
+É necessário ter o Git, o Docker Desktop e o Node.js 22.13 ou superior.
+
+```bash
+git clone https://github.com/dudapetzinger/CHOKOCRM.git
+cd CHOKOCRM
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+docker compose up --build
+```
+
+Com o ambiente no ar, abra outro terminal para criar as tabelas e carregar os dados de demonstração:
+
+```bash
+cd backend
+npm install
+npm run db:migrate
+npm run db:seed
+```
+
+Abra <http://localhost:5173> e entre com uma das [contas de acesso](#contas-de-acesso).
+
+O passo a passo detalhado, as variáveis de configuração, a execução sem Docker e a solução dos problemas mais comuns estão em [docs/instalacao-e-configuracao.md](docs/instalacao-e-configuracao.md).
+
 ## Testes e qualidade
 
 O projeto tem mais de 2.400 testes automatizados, cerca de 1.230 no servidor e 1.170 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
+
+A verificação é automática e não depende de quem avalia o projeto. A cada envio de código para o GitHub, o GitHub Actions executa todos os testes, o SonarCloud analisa o código e, se não houver falhas, a nova versão é publicada no Azure. Os dois selos no topo desta página mostram o resultado mais recente: o primeiro é o da verificação automática (CI) e o segundo, o da análise do SonarCloud (Quality Gate).
+
+Em uma instalação local, os testes também podem ser executados manualmente:
 
 ```bash
 cd backend
@@ -224,9 +238,7 @@ cd frontend
 npm test
 ```
 
-Os testes do servidor usam o banco de dados local e o esvaziam. Depois de rodá-los, recarregue os dados de demonstração com `npm run db:seed:reset` na pasta `backend`.
-
-A cada envio de código para o GitHub, todos os testes rodam de novo, o código passa pela análise do SonarCloud e, se tudo estiver certo, a nova versão é publicada sozinha. Os dois selos no topo desta página mostram o resultado mais recente.
+Os testes do servidor usam o banco de dados local e o esvaziam. Depois de executá-los, recarregue os dados de demonstração com `npm run db:seed:reset` na pasta `backend`.
 
 O que é testado, como os testes estão organizados e como a publicação funciona estão em [docs/testes.md](docs/testes.md).
 
@@ -273,11 +285,11 @@ Traz o diagrama das tabelas do banco de dados, o que cada campo guarda e o que �
 
 ### Instalação e publicação
 
-Ensina a rodar o sistema no computador, explica as contas e as variáveis de configuração e descreve o ambiente no Azure e como a publicação automática (deploy) acontece. Está em [docs/instalacao-e-configuracao.md](docs/instalacao-e-configuracao.md), e a parte do deploy fica na seção [Ambiente publicado no Azure](docs/instalacao-e-configuracao.md#9-ambiente-publicado-no-azure).
+Ensina a executar o sistema no computador, explica as contas e as variáveis de configuração e descreve o ambiente no Azure e como a publicação automática (deploy) acontece. Está em [docs/instalacao-e-configuracao.md](docs/instalacao-e-configuracao.md), e a parte do deploy fica na seção [Ambiente publicado no Azure](docs/instalacao-e-configuracao.md#9-ambiente-publicado-no-azure).
 
 ### Testes, integração contínua e análise de código
 
-Explica o que é testado, como rodar os testes, como o GitHub Actions confere e publica cada envio de código e o que o SonarCloud exige do projeto. Está em [docs/testes.md](docs/testes.md).
+Explica o que é testado, como executar os testes, como o GitHub Actions confere e publica cada envio de código e o que o SonarCloud exige do projeto. Está em [docs/testes.md](docs/testes.md).
 
 ### Monitoramento
 
