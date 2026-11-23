@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import {
   produtosMaisVendidos,
+  resumoDaCampanha,
   resultadosDaCampanha,
   statusDaCampanha,
   vendasDaCampanha,
@@ -372,5 +373,54 @@ describe('vendasDaCampanha (só visitas com VENDA, uma linha por visita)', () =>
       itens: [],
       total: 0,
     });
+  });
+});
+
+describe('resumoDaCampanha (totais da análise)', () => {
+  const EDUARDA = { id: 'r1', nome: 'Eduarda Fischer' };
+  const RAFAEL = { id: 'r2', nome: 'Rafael Schmitt' };
+  const item = (quantidade: number, preco: number) => ({
+    sku: 'BOMB-SORT',
+    produtoNome: 'Bombons sortidos',
+    quantidade,
+    precoUnitario: new Prisma.Decimal(preco),
+  });
+
+  it('sem visitas: tudo zerado, conversão e valor médio sem número', () => {
+    expect(resumoDaCampanha([])).toEqual({
+      visitas: 0,
+      vendasFechadas: 0,
+      clientesAtendidos: 0,
+      vendas: 0,
+      conversao: { numerador: 0, denominador: 0, percentual: null },
+      ticketMedio: null,
+    });
+  });
+
+  it('soma as visitas de todos, conta cada cliente uma vez e divide as vendas pelas visitas com venda', () => {
+    const resumo = resumoDaCampanha([
+      visitaVinculada({ autor: EDUARDA, resultado: 'VENDA', clientId: 'c1', itens: [item(2, 42)] }),
+      visitaVinculada({ autor: EDUARDA, resultado: 'SEM_VENDA', clientId: 'c1' }),
+      visitaVinculada({ autor: RAFAEL, resultado: 'VENDA', clientId: 'c2', itens: [item(1, 16.1)] }),
+      visitaVinculada({ autor: RAFAEL, resultado: 'NEGOCIACAO', clientId: 'c3', itens: [item(10, 42)] }),
+    ]);
+
+    expect(resumo).toEqual({
+      visitas: 4,
+      vendasFechadas: 2,
+      clientesAtendidos: 3,
+      vendas: 100.1,
+      conversao: { numerador: 2, denominador: 4, percentual: 50 },
+      ticketMedio: 50.05,
+    });
+  });
+
+  it('visita sem venda não tem valor médio, mesmo com pedido', () => {
+    const resumo = resumoDaCampanha([
+      visitaVinculada({ autor: EDUARDA, resultado: 'NEGOCIACAO', itens: [item(3, 42)] }),
+    ]);
+
+    expect(resumo.vendas).toBe(0);
+    expect(resumo.ticketMedio).toBeNull();
   });
 });

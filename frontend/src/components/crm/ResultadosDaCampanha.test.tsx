@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { Campanha, VendaDaCampanha } from '../../services/campaigns';
+import { RESUMO_VAZIO } from '../../test/campanhas';
 import { ResultadosDaCampanha } from './ResultadosDaCampanha';
 
 const CAMPANHA: Campanha = {
@@ -35,6 +36,7 @@ const CAMPANHA: Campanha = {
     { sku: 'BOMB-SORT', nome: 'Bombons sortidos', quantidade: 1, total: 42 },
   ],
   vendas: [],
+  resumo: RESUMO_VAZIO,
 };
 
 function venda(indice: number, extras: Partial<VendaDaCampanha> = {}): VendaDaCampanha {

@@ -1,4 +1,4 @@
-import type { Campaign, TipoCampanha } from '@prisma/client';
+import type { Campaign, Goal, TipoCampanha } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import type { VisitaVinculada } from '../services/campaign.regras';
 import { colunaDateDaData, type DataCalendario } from '../services/classificacao.service';
@@ -39,8 +39,30 @@ export async function create(data: CampanhaData): Promise<Campaign> {
   return prisma.campaign.create({ data });
 }
 
-export async function update(id: string, data: CampanhaData): Promise<Campaign> {
-  return prisma.campaign.update({ where: { id }, data });
+/** Novo período de uma meta da campanha, já como valor de coluna `@db.Date`. */
+export type PeriodoDaMetaAjustada = { id: string; inicio: Date; fim: Date };
+
+/**
+ * Grava a campanha e o novo período das metas dela numa transação só: ou
+ * tudo muda, ou nada muda. Sem isso, uma falha no meio deixaria uma meta
+ * com datas fora da campanha. As metas são lidas dentro da transação e
+ * `ajustar` (a regra, que vem do serviço) diz quais mudam de data e para
+ * quais datas. `data` pode trazer só o que mudou (ao encerrar, só o `fim`).
+ */
+export async function updateComMetas(
+  id: string,
+  data: Partial<CampanhaData>,
+  ajustar: (metas: Goal[]) => PeriodoDaMetaAjustada[],
+): Promise<Campaign> {
+  return prisma.$transaction(async (transacao) => {
+    const campanha = await transacao.campaign.update({ where: { id }, data });
+    const metas = await transacao.goal.findMany({ where: { campanhaId: id } });
+
+    for (const meta of ajustar(metas)) {
+      await transacao.goal.update({ where: { id: meta.id }, data: { inicio: meta.inicio, fim: meta.fim } });
+    }
+    return campanha;
+  });
 }
 
 /** As visitas e próximas visitas vinculadas ficam sem campanha (`onDelete: SetNull`). */

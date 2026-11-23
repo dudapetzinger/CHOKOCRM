@@ -1,5 +1,10 @@
 import { Prisma } from '@prisma/client';
-import { metaDentroDaCampanha, periodoDaMeta, realizadoDaMeta } from '../../src/services/goal.regras';
+import {
+  ajustarMetaAoPeriodo,
+  metaDentroDaCampanha,
+  periodoDaMeta,
+  realizadoDaMeta,
+} from '../../src/services/goal.regras';
 
 describe('periodoDaMeta', () => {
   it('semanal: base numa quinta (15/10/2026) → segunda 12/10 a domingo 18/10', () => {
@@ -213,5 +218,42 @@ describe('metaDentroDaCampanha', () => {
 
   it('terminar depois do fim não cabe', () => {
     expect(metaDentroDaCampanha({ inicio: '2026-11-10', fim: '2026-12-25' }, natal)).toBe(false);
+  });
+});
+
+describe('ajustarMetaAoPeriodo (a meta acompanha as datas da campanha)', () => {
+  const natal = { inicio: '2026-11-01', fim: '2026-11-21' };
+
+  it('a meta que já cabe não muda', () => {
+    expect(ajustarMetaAoPeriodo({ inicio: '2026-11-05', fim: '2026-11-10' }, natal)).toEqual({
+      inicio: '2026-11-05',
+      fim: '2026-11-10',
+    });
+  });
+
+  it('a meta que termina depois do novo fim é cortada no fim', () => {
+    expect(ajustarMetaAoPeriodo({ inicio: '2026-11-05', fim: '2026-12-24' }, natal)).toEqual({
+      inicio: '2026-11-05',
+      fim: '2026-11-21',
+    });
+  });
+
+  it('a meta que começa antes do novo início é cortada no início', () => {
+    expect(ajustarMetaAoPeriodo({ inicio: '2026-10-20', fim: '2026-11-10' }, natal)).toEqual({
+      inicio: '2026-11-01',
+      fim: '2026-11-10',
+    });
+  });
+
+  it('a meta de um dia só na ponta continua valendo', () => {
+    expect(ajustarMetaAoPeriodo({ inicio: '2026-11-21', fim: '2026-11-30' }, natal)).toEqual({
+      inicio: '2026-11-21',
+      fim: '2026-11-21',
+    });
+  });
+
+  it('a meta sem nenhum dia no novo período passa a valer a campanha inteira', () => {
+    expect(ajustarMetaAoPeriodo({ inicio: '2026-12-01', fim: '2026-12-24' }, natal)).toEqual(natal);
+    expect(ajustarMetaAoPeriodo({ inicio: '2026-10-01', fim: '2026-10-31' }, natal)).toEqual(natal);
   });
 });

@@ -1,37 +1,48 @@
-import type { Campaign, TipoCampanha } from '@prisma/client';
+import type { Campaign, Goal, TipoCampanha } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import * as campaignRepository from '../repositories/campaign.repository';
-import type { CampanhaData } from '../repositories/campaign.repository';
+import type { CampanhaData, PeriodoDaMetaAjustada } from '../repositories/campaign.repository';
 import * as userRepository from '../repositories/user.repository';
 import type { CampanhaInput } from '../schemas/campaign.schema';
 import type { UsuarioAutenticado } from './carteira';
 import {
   produtosMaisVendidos,
   resultadosDaCampanha,
+  resumoDaCampanha,
   statusDaCampanha,
   vendasDaCampanha,
   type Pessoa,
   type ProdutoVendido,
   type ResultadoDoRepresentante,
+  type ResumoDaCampanha,
   type StatusCampanha,
   type VendaDaCampanha,
   type VisitaVinculada,
 } from './campaign.regras';
-import { colunaDateDaData, dataCalendario, dataDaColunaDate } from './classificacao.service';
+import {
+  colunaDateDaData,
+  dataCalendario,
+  dataDaColunaDate,
+  somarDias,
+  type DataCalendario,
+} from './classificacao.service';
 import { buscarProduto, listarProdutos } from './erp.service';
+import { ajustarMetaAoPeriodo } from './goal.regras';
 import { agora } from '../lib/relogio';
 
 /**
  * Campanhas, promoções e eventos. Todos leem; só o gestor cria,
- * altera e exclui (barrado nas rotas). O status sai do dia de hoje em São
- * Paulo; os resultados, os produtos mais vendidos e as vendas, das visitas
- * com a campanha.
+ * altera, encerra e exclui (barrado nas rotas). O status sai do dia de hoje
+ * em São Paulo; os resultados, o resumo, os produtos mais vendidos e as
+ * vendas, das visitas com a campanha.
  */
 
 const MENSAGEM_CAMPANHA_NAO_ENCONTRADA = 'Campanha não encontrada.';
 const MENSAGEM_PRODUTO_DESCONHECIDO = 'Produto não encontrado no catálogo.';
 const MENSAGEM_CAMPANHA_ENCERRADA_OU_INEXISTENTE = 'Campanha encerrada ou inexistente.';
+const MENSAGEM_SO_EM_ANDAMENTO = 'Só uma campanha em andamento pode ser encerrada.';
+const MENSAGEM_COMECOU_HOJE = 'A campanha começou hoje. Para desistir dela, edite as datas ou exclua a campanha.';
 
 export type CampanhaDTO = {
   id: string;
@@ -62,6 +73,8 @@ export type CampanhaDTO = {
    * representante vê só as dele).
    */
   vendas: VendaDaCampanha[];
+  /** Os totais da campanha (visitas, vendas, clientes, conversão e valor médio), no escopo de quem pede. */
+  resumo: ResumoDaCampanha;
 };
 
 /** Nome de cada SKU do catálogo do ERP, para exibir os produtos das campanhas. */
@@ -92,6 +105,7 @@ function toCampanhaDTO(
     resultados: resultadosDaCampanha(visitas, base),
     produtosMaisVendidos: produtosMaisVendidos(visitas),
     vendas: vendasDaCampanha(visitas),
+    resumo: resumoDaCampanha(visitas),
   };
 }
 
@@ -172,15 +186,73 @@ export async function criarCampanha(input: CampanhaInput, usuario: UsuarioAutent
   return montarDTO(criada, usuario, agora());
 }
 
-/** Troca a campanha inteira (o `PUT` manda todos os campos). */
+/**
+ * Das metas de uma campanha, as que mudam de data para caber no novo
+ * período dela (`ajustarMetaAoPeriodo`), já com as datas novas. O
+ * repositório chama esta função dentro da transação que grava a campanha.
+ */
+function metasAjustadasAoPeriodo(
+  metas: Goal[],
+  periodo: { inicio: DataCalendario; fim: DataCalendario },
+): PeriodoDaMetaAjustada[] {
+  return metas.flatMap((meta) => {
+    const atual = { inicio: dataDaColunaDate(meta.inicio), fim: dataDaColunaDate(meta.fim) };
+    const ajustada = ajustarMetaAoPeriodo(atual, periodo);
+    const mudou = ajustada.inicio !== atual.inicio || ajustada.fim !== atual.fim;
+
+    return mudou
+      ? [{ id: meta.id, inicio: colunaDateDaData(ajustada.inicio), fim: colunaDateDaData(ajustada.fim) }]
+      : [];
+  });
+}
+
+/**
+ * Troca a campanha inteira (o `PUT` manda todos os campos). Se as datas
+ * mudaram, as metas da campanha são ajustadas para caber no novo período.
+ */
 export async function atualizarCampanha(
   id: string,
   input: CampanhaInput,
   usuario: UsuarioAutenticado,
 ): Promise<CampanhaDTO> {
   await exigirCampanha(id);
-  const atualizada = await campaignRepository.update(id, await dadosDaCampanha(input));
+  const dados = await dadosDaCampanha(input);
+  const atualizada = await campaignRepository.updateComMetas(id, dados, (metas) =>
+    metasAjustadasAoPeriodo(metas, { inicio: input.inicio, fim: input.fim }),
+  );
   return montarDTO(atualizada, usuario, agora());
+}
+
+/**
+ * Encerra agora uma campanha em andamento: a data de fim passa a ser ontem
+ * (o dia do fim ainda conta como dia de campanha, então só com o fim em
+ * ontem ela sai como encerrada hoje). As metas dela acompanham o novo fim.
+ * As visitas já vinculadas continuam na campanha, para a análise. A
+ * campanha que começou hoje não pode ser encerrada, porque o fim ficaria
+ * antes do início.
+ */
+export async function encerrarCampanha(
+  id: string,
+  usuario: UsuarioAutenticado,
+  hoje: Date = agora(),
+): Promise<CampanhaDTO> {
+  const campanha = await exigirCampanha(id);
+  const diaDeHoje = dataCalendario(hoje);
+  const inicio = dataDaColunaDate(campanha.inicio);
+  const fim = dataDaColunaDate(campanha.fim);
+
+  if (statusDaCampanha({ inicio, fim }, diaDeHoje) !== 'EM_ANDAMENTO') {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_SO_EM_ANDAMENTO, 400);
+  }
+  if (inicio === diaDeHoje) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, MENSAGEM_COMECOU_HOJE, 400);
+  }
+
+  const ontem = somarDias(diaDeHoje, -1);
+  const encerrada = await campaignRepository.updateComMetas(id, { fim: colunaDateDaData(ontem) }, (metas) =>
+    metasAjustadasAoPeriodo(metas, { inicio, fim: ontem }),
+  );
+  return montarDTO(encerrada, usuario, hoje);
 }
 
 /** Visitas e próximas visitas vinculadas ficam sem campanha; nada mais muda. */

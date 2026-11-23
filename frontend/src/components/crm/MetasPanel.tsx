@@ -1,7 +1,8 @@
 /**
  * Metas de visitas e vendas (`MetasPanel` de `crm/metas.tsx` do
  * protótipo). Sem `campanha`, é o bloco "Metas de visitas e vendas" do
- * Painel (cartão próprio, título de nível 2), com as metas sem campanha
+ * Painel (cartão próprio, título de nível 2), com as metas sem campanha e
+ * as das campanhas em andamento, que levam o nome da campanha no cartão
  * (para o gestor, filtradas pelo `representanteId` escolhido). Com `campanha`,
  * é a área "Metas da campanha" dentro do cartão da campanha (título de nível
  * 3), com as metas daquela campanha. O representante recebe do backend só
@@ -24,7 +25,7 @@
  * ativos; na meta nova, já vem o escolhido no Painel e, sem ele, com o gestor em
  * "Todos" e sempre na campanha, começa em "Escolha um representante", que
  * a validação exige trocar), periodicidade (semanal, mensal ou período personalizado; não
- * aparece na meta de campanha), início, fim (travado e calculado na semanal
+ * aparece na meta de campanha, também quando ela é editada pelo Painel), início, fim (travado e calculado na semanal
  * e na mensal), meta de visitas e meta de vendas. As regras do backend são
  * conferidas antes de enviar, com as mesmas mensagens, junto do campo. O
  * "hoje" da meta nova vem de `agora()` (`lib/relogio.ts`, relógio de
@@ -129,11 +130,15 @@ function periodoCalculado(periodo: PeriodoMeta): periodo is 'SEMANAL' | 'MENSAL'
 function FormularioMeta({
   meta,
   campanha,
+  dentroDaCampanha,
   representantePadrao,
   aoFechar,
 }: {
   meta: Meta | null;
+  /** A campanha da meta: a do cartão em que o bloco está ou, no Painel, a da meta em edição. */
   campanha?: CampanhaDaMeta;
+  /** O bloco está dentro do cartão da campanha (o título desce um nível). */
+  dentroDaCampanha: boolean;
   representantePadrao?: string;
   aoFechar: () => void;
 }) {
@@ -147,7 +152,7 @@ function FormularioMeta({
   const titulo = meta ? 'Editar meta' : 'Nova meta';
   const idTitulo = `${idBase}-titulo`;
   // Um nível abaixo do título do bloco (h2 no Painel, h3 no cartão da campanha)
-  const Titulo = campanha ? 'h4' : 'h3';
+  const Titulo = dentroDaCampanha ? 'h4' : 'h3';
 
   // Ao abrir, o foco vai para o primeiro campo
   useEffect(() => {
@@ -417,7 +422,18 @@ function PainelDaMeta({ meta, barra, aoFechar }: { meta: Meta; barra: BarraDaMet
   );
 }
 
-function CartaoMeta({ meta, gestor, aoEditar }: { meta: Meta; gestor: boolean; aoEditar: (meta: Meta) => void }) {
+function CartaoMeta({
+  meta,
+  gestor,
+  mostrarCampanha,
+  aoEditar,
+}: {
+  meta: Meta;
+  gestor: boolean;
+  /** No Painel, a meta de campanha diz de qual campanha é; dentro do cartão da campanha, não precisa. */
+  mostrarCampanha: boolean;
+  aoEditar: (meta: Meta) => void;
+}) {
   const queryClient = useQueryClient();
   const descricao = `${meta.representante.nome}, ${descreverPeriodo(meta)}`;
   const painel = usePainelLateral<BarraDaMeta>();
@@ -445,6 +461,7 @@ function CartaoMeta({ meta, gestor, aoEditar }: { meta: Meta; gestor: boolean; a
       <div className="flex flex-wrap items-center gap-2">
         <span className="min-w-0 font-medium break-words">{meta.representante.nome}</span>
         <Etiqueta>{ROTULO_PERIODO[meta.periodo]}</Etiqueta>
+        {mostrarCampanha && meta.campanha && <Etiqueta tom="laranja">{meta.campanha.nome}</Etiqueta>}
         {gestor && (
           <div className="ml-auto flex print:hidden">
             <Button
@@ -570,7 +587,9 @@ export function MetasPanel({
           <FormularioMeta
             key={emEdicao?.id ?? 'nova'}
             meta={emEdicao}
-            campanha={campanha}
+            // No Painel, a meta de campanha em edição leva a campanha dela: continua meta de campanha
+            campanha={campanha ?? emEdicao?.campanha ?? undefined}
+            dentroDaCampanha={campanha !== undefined}
             representantePadrao={representanteId}
             aoFechar={fechar}
           />
@@ -602,7 +621,7 @@ export function MetasPanel({
             className="grid grid-cols-[repeat(auto-fit,minmax(min(17rem,100%),1fr))] gap-3"
           >
             {metas.map((meta) => (
-              <CartaoMeta key={meta.id} meta={meta} gestor={gestor} aoEditar={abrir} />
+              <CartaoMeta key={meta.id} meta={meta} gestor={gestor} mostrarCampanha={!campanha} aoEditar={abrir} />
             ))}
           </ul>
         )}

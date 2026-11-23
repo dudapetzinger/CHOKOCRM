@@ -111,6 +111,27 @@ async function criarVisita(params: {
   return visita.id;
 }
 
+/** Meta de campanha da Eduarda criada pela API, no período dado. */
+async function criarMetaDaCampanha(campanhaId: string, inicio: string, fim: string): Promise<string> {
+  const res = await autenticado(request(app).post('/goals'), tokenGestor).send({
+    representanteId: eduardaId,
+    periodo: 'CAMPANHA',
+    campanhaId,
+    inicio,
+    fim,
+    metaVisitas: 10,
+    metaVendas: 5000,
+  });
+  expect(res.status).toBe(201);
+  return res.body.id as string;
+}
+
+/** O período gravado de uma meta, como datas de calendário. */
+async function periodoDaMetaGravada(id: string): Promise<{ inicio: string; fim: string }> {
+  const meta = await prisma.goal.findUniqueOrThrow({ where: { id } });
+  return { inicio: meta.inicio.toISOString().slice(0, 10), fim: meta.fim.toISOString().slice(0, 10) };
+}
+
 /** Linha de resultado sem visita vinculada: tudo zerado e conversão sem percentual. */
 function linhaZerada(representante: { id: string; nome: string }) {
   return {
@@ -179,6 +200,14 @@ describe('POST /campaigns', () => {
       ],
       produtosMaisVendidos: [],
       vendas: [],
+      resumo: {
+        visitas: 0,
+        vendasFechadas: 0,
+        clientesAtendidos: 0,
+        vendas: 0,
+        conversao: { numerador: 0, denominador: 0, percentual: null },
+        ticketMedio: null,
+      },
     });
 
     const gravada = await prisma.campaign.findUniqueOrThrow({ where: { id: res.body.id } });
@@ -396,6 +425,26 @@ describe('GET /campaigns', () => {
       },
       linhaZerada({ id: rafaelId, nome: 'Rafael Schmitt' }),
     ]);
+    // O resumo soma todos os representantes: 503,70 + 96 em 2 vendas de 4 visitas a 2 clientes
+    expect(campanhaNatal.resumo).toEqual({
+      visitas: 4,
+      vendasFechadas: 2,
+      clientesAtendidos: 2,
+      vendas: 599.7,
+      conversao: { numerador: 2, denominador: 4, percentual: 50 },
+      ticketMedio: 299.85,
+    });
+
+    // O representante recebe o resumo só das visitas dele
+    const daEduarda = await autenticado(request(app).get('/campaigns'), tokenEduarda);
+    expect(daEduarda.body.data.find((c: { id: string }) => c.id === natal).resumo).toEqual({
+      visitas: 2,
+      vendasFechadas: 1,
+      clientesAtendidos: 1,
+      vendas: 503.7,
+      conversao: { numerador: 1, denominador: 2, percentual: 50 },
+      ticketMedio: 503.7,
+    });
   });
 
   it('produtos mais vendidos: só visitas VENDA da campanha, mesmo SKU somado entre representantes, no máximo 5', async () => {
@@ -682,6 +731,148 @@ describe('PUT /campaigns/:id', () => {
     const res = await autenticado(request(app).put(`/campaigns/${ID_INEXISTENTE}`), tokenGestor).send(
       corpoDaCampanha(),
     );
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toBe('Campanha não encontrada.');
+  });
+
+  it('mudar as datas ajusta as metas da campanha: corta a que sobra e não mexe na que cabe', async () => {
+    const id = (await criarCampanha()).body.id as string;
+    const inteira = await criarMetaDaCampanha(id, daquiA(-5), daquiA(30));
+    const noMeio = await criarMetaDaCampanha(id, daquiA(2), daquiA(4));
+
+    const res = await autenticado(request(app).put(`/campaigns/${id}`), tokenGestor).send(
+      corpoDaCampanha({ inicio: daquiA(-2), fim: daquiA(10) }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await periodoDaMetaGravada(inteira)).toEqual({ inicio: daquiA(-2), fim: daquiA(10) });
+    expect(await periodoDaMetaGravada(noMeio)).toEqual({ inicio: daquiA(2), fim: daquiA(4) });
+  });
+
+  it('a meta sem nenhum dia no novo período passa a valer a campanha inteira', async () => {
+    const id = (await criarCampanha()).body.id as string;
+    const noFim = await criarMetaDaCampanha(id, daquiA(20), daquiA(30));
+
+    await autenticado(request(app).put(`/campaigns/${id}`), tokenGestor).send(
+      corpoDaCampanha({ inicio: daquiA(-5), fim: daquiA(10) }),
+    );
+
+    expect(await periodoDaMetaGravada(noFim)).toEqual({ inicio: daquiA(-5), fim: daquiA(10) });
+  });
+
+  it('as metas sem campanha e as de outra campanha não mudam', async () => {
+    const id = (await criarCampanha()).body.id as string;
+    const outra = (await criarCampanha({ nome: 'Black Friday do Cacau' })).body.id as string;
+    const daOutra = await criarMetaDaCampanha(outra, daquiA(-5), daquiA(30));
+    const semCampanha = await autenticado(request(app).post('/goals'), tokenGestor).send({
+      representanteId: eduardaId,
+      periodo: 'PERSONALIZADO',
+      inicio: daquiA(-5),
+      fim: daquiA(30),
+      metaVisitas: 10,
+      metaVendas: 5000,
+    });
+
+    await autenticado(request(app).put(`/campaigns/${id}`), tokenGestor).send(
+      corpoDaCampanha({ inicio: daquiA(-2), fim: daquiA(10) }),
+    );
+
+    expect(await periodoDaMetaGravada(daOutra)).toEqual({ inicio: daquiA(-5), fim: daquiA(30) });
+    expect(await periodoDaMetaGravada(semCampanha.body.id)).toEqual({ inicio: daquiA(-5), fim: daquiA(30) });
+  });
+});
+
+describe('POST /campaigns/:id/encerrar', () => {
+  it('sem token responde 401', async () => {
+    const res = await request(app).post(`/campaigns/${ID_INEXISTENTE}/encerrar`);
+
+    expect(res.status).toBe(401);
+  });
+
+  it('o gestor encerra a campanha em andamento: o fim passa a ser ontem e ela sai como encerrada', async () => {
+    const id = (await criarCampanha()).body.id as string;
+    await criarVisita({
+      clientId: clienteDaEduardaId,
+      userId: eduardaId,
+      campanhaId: id,
+      resultado: 'VENDA',
+      itens: [{ sku: 'BOMB-SORT', produtoNome: 'Bombons sortidos', quantidade: 2, precoUnitario: 42 }],
+    });
+
+    const res = await autenticado(request(app).post(`/campaigns/${id}/encerrar`), tokenGestor);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id,
+      nome: 'Natal Chokolaten',
+      inicio: daquiA(-5),
+      fim: daquiA(-1),
+      desconto: 15,
+      status: 'ENCERRADA',
+    });
+    // O que foi vendido até ali continua na campanha
+    expect(res.body.resumo).toMatchObject({ visitas: 1, vendasFechadas: 1, vendas: 84 });
+    const gravada = await prisma.campaign.findUniqueOrThrow({ where: { id } });
+    expect(gravada.fim.toISOString().slice(0, 10)).toBe(daquiA(-1));
+    expect(gravada.inicio.toISOString().slice(0, 10)).toBe(daquiA(-5));
+  });
+
+  it('as metas da campanha acompanham o novo fim', async () => {
+    const id = (await criarCampanha()).body.id as string;
+    const inteira = await criarMetaDaCampanha(id, daquiA(-5), daquiA(30));
+    const passada = await criarMetaDaCampanha(id, daquiA(-5), daquiA(-3));
+    const futura = await criarMetaDaCampanha(id, daquiA(10), daquiA(30));
+
+    await autenticado(request(app).post(`/campaigns/${id}/encerrar`), tokenGestor);
+
+    expect(await periodoDaMetaGravada(inteira)).toEqual({ inicio: daquiA(-5), fim: daquiA(-1) });
+    expect(await periodoDaMetaGravada(passada)).toEqual({ inicio: daquiA(-5), fim: daquiA(-3) });
+    expect(await periodoDaMetaGravada(futura)).toEqual({ inicio: daquiA(-5), fim: daquiA(-1) });
+  });
+
+  it('o representante não encerra (403) e a campanha não muda', async () => {
+    const id = (await criarCampanha()).body.id as string;
+
+    const res = await autenticado(request(app).post(`/campaigns/${id}/encerrar`), tokenEduarda);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    const gravada = await prisma.campaign.findUniqueOrThrow({ where: { id } });
+    expect(gravada.fim.toISOString().slice(0, 10)).toBe(daquiA(30));
+  });
+
+  it.each([
+    ['programada', { inicio: daquiA(3), fim: daquiA(10) }],
+    ['já encerrada', { inicio: daquiA(-10), fim: daquiA(-3) }],
+  ])('campanha %s não pode ser encerrada (400) e não muda', async (_rotulo, datas) => {
+    const id = (await criarCampanha(datas)).body.id as string;
+
+    const res = await autenticado(request(app).post(`/campaigns/${id}/encerrar`), tokenGestor);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toBe('Só uma campanha em andamento pode ser encerrada.');
+    const gravada = await prisma.campaign.findUniqueOrThrow({ where: { id } });
+    expect(gravada.fim.toISOString().slice(0, 10)).toBe(datas.fim);
+  });
+
+  it('campanha que começou hoje não pode ser encerrada (400): o fim ficaria antes do início', async () => {
+    const id = (await criarCampanha({ inicio: daquiA(0), fim: daquiA(10) })).body.id as string;
+    const meta = await criarMetaDaCampanha(id, daquiA(0), daquiA(10));
+
+    const res = await autenticado(request(app).post(`/campaigns/${id}/encerrar`), tokenGestor);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toBe(
+      'A campanha começou hoje. Para desistir dela, edite as datas ou exclua a campanha.',
+    );
+    const gravada = await prisma.campaign.findUniqueOrThrow({ where: { id } });
+    expect(gravada.fim.toISOString().slice(0, 10)).toBe(daquiA(10));
+    expect(await periodoDaMetaGravada(meta)).toEqual({ inicio: daquiA(0), fim: daquiA(10) });
+  });
+
+  it('responde 404 para campanha inexistente', async () => {
+    const res = await autenticado(request(app).post(`/campaigns/${ID_INEXISTENTE}/encerrar`), tokenGestor);
 
     expect(res.status).toBe(404);
     expect(res.body.error.message).toBe('Campanha não encontrada.');

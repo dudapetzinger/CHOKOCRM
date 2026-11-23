@@ -113,3 +113,19 @@ export function metaDentroDaCampanha(
 ): boolean {
   return meta.inicio >= campanha.inicio && meta.fim <= campanha.fim;
 }
+
+/**
+ * A meta de campanha depois que as datas da campanha mudaram (ao editar ou
+ * ao encerrar): o início e o fim são cortados para caber no novo período. A
+ * meta que não fica com nenhum dia dentro dele passa a valer a campanha
+ * inteira.
+ */
+export function ajustarMetaAoPeriodo(
+  meta: { inicio: DataCalendario; fim: DataCalendario },
+  campanha: { inicio: DataCalendario; fim: DataCalendario },
+): { inicio: DataCalendario; fim: DataCalendario } {
+  const inicio = meta.inicio > campanha.inicio ? meta.inicio : campanha.inicio;
+  const fim = meta.fim < campanha.fim ? meta.fim : campanha.fim;
+
+  return inicio <= fim ? { inicio, fim } : { inicio: campanha.inicio, fim: campanha.fim };
+}

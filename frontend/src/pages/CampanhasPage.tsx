@@ -1,41 +1,55 @@
 /**
  * Campanhas e eventos, no visual de `routes/campanhas.tsx` do
- * protótipo, até 896 px de largura (largura toda no celular). Todos veem os
- * cartões, em ordem de início: nome, tipo, status (Programada em laranja, Em
- * andamento em verde, Encerrada neutra; calculado no backend pelo dia de
- * hoje em São Paulo), desconto em vermelho, período, descrição, produtos em
- * destaque e as vendas vinculadas, resumidas: por representante para o
- * gestor, "Minhas vendas vinculadas" para o representante (o backend já
- * manda só a linha dele) e, embaixo, as "Metas da campanha"
+ * protótipo, até 896 px de largura (largura toda no celular). As campanhas
+ * ficam separadas em três abas pela situação, que o backend calcula pelo dia
+ * de hoje em São Paulo: "Em andamento" (a que abre), "Programadas" e
+ * "Encerradas", cada uma com a contagem. A aba fica na URL (`?aba=`, a de
+ * "Em andamento" deixa a URL limpa). Dentro da aba, os cartões vêm em ordem
+ * de início: nome, tipo, status (Programada em laranja, Em andamento em
+ * verde, Encerrada neutra), desconto em vermelho, período, descrição,
+ * produtos em destaque e as vendas vinculadas, resumidas: por representante
+ * para o gestor, "Minhas vendas vinculadas" para o representante (o backend
+ * já manda só a linha dele) e, embaixo, as "Metas da campanha"
  * (`MetasPanel`).
  *
- * No topo, o filtro "Campanha" (`?campanha=<id>`, `replace`; id desconhecido
- * vale "Todas as campanhas"). Com uma campanha escolhida, só o cartão dela
- * aparece e a lista resumida dá lugar a `ResultadosDaCampanha` (tabela por
- * representante e produtos mais vendidos), seguida das metas.
+ * No topo, o filtro "Campanha" lista as campanhas da aba aberta
+ * (`?campanha=<id>`, `replace`; id desconhecido vale "Todas as campanhas").
+ * Com uma campanha escolhida, só o cartão dela aparece, na aba da situação
+ * dela, e a lista resumida dá lugar a `ResultadosDaCampanha` (tabela por
+ * representante e produtos mais vendidos), seguida das metas. Trocar de aba
+ * desfaz a escolha.
  *
- * Só o gestor tem "Nova campanha ou evento", editar e excluir (o backend
- * também barra). O formulário abre num cartão no topo, para criar e para
- * editar: nome, tipo, início, fim, desconto, descrição e os produtos do
+ * Só o gestor tem "Nova campanha ou evento", editar, encerrar e excluir (o
+ * backend também barra). O formulário abre num cartão no topo, para criar e
+ * para editar: nome, tipo, início, fim, desconto, descrição e os produtos do
  * catálogo do ERP como botões que ligam e desligam (`aria-pressed`). As
  * regras do backend são conferidas antes de enviar, com as mesmas
- * mensagens, junto do campo. Excluir pede confirmação: as visitas vinculadas
- * continuam no histórico, sem a campanha. O "hoje" padrão da campanha nova
- * vem de `agora()` (`lib/relogio.ts`, relógio de demonstração).
+ * mensagens, junto do campo. "Encerrar" aparece só na campanha em andamento
+ * e pede confirmação: o backend troca a data de fim para ontem, a campanha
+ * passa para a aba "Encerradas" e as metas dela acompanham. Excluir também
+ * pede confirmação: as visitas vinculadas continuam no histórico, sem a
+ * campanha. O "hoje" padrão da campanha nova vem de `agora()`
+ * (`lib/relogio.ts`, relógio de demonstração).
+ *
+ * Na campanha encerrada, o botão "?" abre a análise de como ela foi
+ * (`AnaliseDaCampanha`), para o gestor e para o representante.
  */
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, CircleHelp, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useBlocoRecolhivel } from '@/lib/blocoRecolhivel';
+import { usePainelLateral } from '@/lib/usePainelLateral';
 import { useAuth } from '../auth/useAuth';
+import { Abas, PainelDaAba, type Aba } from '../components/Abas';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { Segmentado, type Opcao } from '../components/Segmentado';
+import { AnaliseDaCampanha } from '../components/crm/AnaliseDaCampanha';
 import { MetasPanel } from '../components/crm/MetasPanel';
 import { ResultadosDaCampanha } from '../components/crm/ResultadosDaCampanha';
 import { Aviso, BotaoRecolher, Campo, CLASSES_BOTAO_PERIGO, CLASSES_SELECT, Etiqueta } from '../components/crm/ui';
@@ -47,6 +61,7 @@ import { useFocoNoPrimeiroErro } from '../lib/useFoco';
 import {
   atualizarCampanha,
   criarCampanha,
+  encerrarCampanha,
   excluirCampanha,
   ROTULO_STATUS,
   ROTULO_TIPO,
@@ -63,8 +78,34 @@ import { agora as agoraDoRelogio } from '../lib/relogio';
 const MENSAGEM_ERRO_CARREGAR = 'Não foi possível carregar as campanhas.';
 const MENSAGEM_ERRO_SALVAR = 'Não foi possível salvar a campanha.';
 const MENSAGEM_ERRO_EXCLUIR = 'Não foi possível excluir a campanha.';
+const MENSAGEM_ERRO_ENCERRAR = 'Não foi possível encerrar a campanha.';
 const MENSAGEM_ERRO_PRODUTOS = 'Não foi possível carregar os produtos.';
 const PARAMETRO_CAMPANHA = 'campanha';
+const PARAMETRO_ABA = 'aba';
+
+/** As abas da tela, na ordem em que aparecem. A primeira é a que abre. */
+type AbaDeCampanhas = 'andamento' | 'programadas' | 'encerradas';
+const ABAS_DE_CAMPANHAS: readonly AbaDeCampanhas[] = ['andamento', 'programadas', 'encerradas'];
+const ABA_PADRAO: AbaDeCampanhas = 'andamento';
+
+/** Em que aba fica a campanha de cada situação. */
+const ABA_DO_STATUS: Record<StatusCampanha, AbaDeCampanhas> = {
+  EM_ANDAMENTO: 'andamento',
+  PROGRAMADA: 'programadas',
+  ENCERRADA: 'encerradas',
+};
+
+const ROTULO_DA_ABA: Record<AbaDeCampanhas, string> = {
+  andamento: 'Em andamento',
+  programadas: 'Programadas',
+  encerradas: 'Encerradas',
+};
+
+const VAZIO_DA_ABA: Record<AbaDeCampanhas, string> = {
+  andamento: 'Nenhuma campanha em andamento.',
+  programadas: 'Nenhuma campanha programada.',
+  encerradas: 'Nenhuma campanha encerrada.',
+};
 
 const TOM_STATUS: Record<StatusCampanha, 'laranja' | 'verde' | 'neutro'> = {
   PROGRAMADA: 'laranja',
@@ -116,7 +157,16 @@ function dadosIniciais(campanha: Campanha | null): Dados {
 }
 
 /** Cartão do formulário, para criar (`campanha` nula) ou editar. */
-function FormularioCampanha({ campanha, aoFechar }: { campanha: Campanha | null; aoFechar: () => void }) {
+function FormularioCampanha({
+  campanha,
+  aoSalvar,
+  aoFechar,
+}: {
+  campanha: Campanha | null;
+  /** Recebe a campanha como o backend a gravou (a situação pode ter mudado com as datas). */
+  aoSalvar: (salva: Campanha) => void;
+  aoFechar: () => void;
+}) {
   const queryClient = useQueryClient();
   const [dados, setDados] = useState<Dados>(() => dadosIniciais(campanha));
   const [erros, setErros] = useState<ErrosCampanha>({});
@@ -133,11 +183,12 @@ function FormularioCampanha({ campanha, aoFechar }: { campanha: Campanha | null;
 
   const salvar = useMutation({
     mutationFn: (input: CampanhaInput) => (campanha ? atualizarCampanha(campanha.id, input) : criarCampanha(input)),
-    onSuccess: () => {
+    onSuccess: (salva) => {
       void queryClient.invalidateQueries({ queryKey: ['campanhas'] });
-      // O período da campanha pode ter mudado (e com ele o realizado das metas)
+      // O período da campanha pode ter mudado (e com ele as datas e o realizado das metas)
       if (campanha) void queryClient.invalidateQueries({ queryKey: ['metas'] });
       toast.success(campanha ? 'Campanha atualizada' : 'Campanha criada. Os representantes já podem ver.');
+      aoSalvar(salva);
       aoFechar();
     },
   });
@@ -317,14 +368,74 @@ function FormularioCampanha({ campanha, aoFechar }: { campanha: Campanha | null;
   );
 }
 
-/** Confirmação de excluir, dentro do cartão; o foco começa em "Cancelar". */
-function ConfirmarExclusao({ campanha, aoFechar }: { campanha: Campanha; aoFechar: () => void }) {
-  const queryClient = useQueryClient();
+/**
+ * Caixa de confirmação dentro do cartão, usada por excluir e por encerrar:
+ * a pergunta, o botão que confirma e "Cancelar", onde o foco começa (um
+ * Enter distraído não confirma). O erro do backend aparece embaixo e a
+ * caixa continua aberta.
+ */
+function Confirmacao({
+  rotulo,
+  children,
+  acao,
+  acaoPendente,
+  perigo = false,
+  pendente,
+  erro,
+  aoConfirmar,
+  aoFechar,
+}: {
+  /** O nome do grupo para o leitor de tela: "Excluir Natal". */
+  rotulo: string;
+  /** A pergunta e o que acontece ao confirmar. */
+  children: ReactNode;
+  acao: string;
+  acaoPendente: string;
+  /** Vermelho, para o que não tem volta. */
+  perigo?: boolean;
+  pendente: boolean;
+  /** A mensagem do erro, já pronta para mostrar; `null` sem erro. */
+  erro: string | null;
+  aoConfirmar: () => void;
+  aoFechar: () => void;
+}) {
   const cancelar = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     cancelar.current?.focus();
   }, []);
+
+  return (
+    <div
+      role="group"
+      aria-label={rotulo}
+      className={cn(
+        'mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg p-3 text-sm',
+        perigo ? 'bg-st-red-soft' : 'bg-muted',
+      )}
+    >
+      {/* O texto ocupa a linha; os dois botões ficam juntos (descem juntos se faltar espaço) */}
+      <span className="min-w-0 flex-[1_1_16rem]">{children}</span>
+      <div className="flex gap-2">
+        <Button size="sm" variant={perigo ? 'destructive' : 'default'} disabled={pendente} onClick={aoConfirmar}>
+          {pendente ? acaoPendente : acao}
+        </Button>
+        <Button ref={cancelar} size="sm" variant="ghost" onClick={aoFechar}>
+          Cancelar
+        </Button>
+      </div>
+      {erro !== null && (
+        <Aviso tom="erro" role="alert" className="basis-full">
+          {erro}
+        </Aviso>
+      )}
+    </div>
+  );
+}
+
+/** Confirmação de excluir, dentro do cartão. */
+function ConfirmarExclusao({ campanha, aoFechar }: { campanha: Campanha; aoFechar: () => void }) {
+  const queryClient = useQueryClient();
 
   const excluir = useMutation({
     mutationFn: () => excluirCampanha(campanha.id),
@@ -338,48 +449,81 @@ function ConfirmarExclusao({ campanha, aoFechar }: { campanha: Campanha; aoFecha
   });
 
   return (
-    <div
-      role="group"
-      aria-label={`Excluir ${campanha.nome}`}
-      className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-st-red-soft p-3 text-sm"
+    <Confirmacao
+      rotulo={`Excluir ${campanha.nome}`}
+      acao="Excluir"
+      acaoPendente="Excluindo..."
+      perigo
+      pendente={excluir.isPending}
+      erro={excluir.isError ? mensagemErroApi(excluir.error, MENSAGEM_ERRO_EXCLUIR) : null}
+      aoConfirmar={() => excluir.mutate()}
+      aoFechar={aoFechar}
     >
-      {/* O texto ocupa a linha; os dois botões ficam juntos (descem juntos se faltar espaço) */}
-      <span className="min-w-0 flex-[1_1_16rem]">
-        Excluir “{campanha.nome}”? As visitas vinculadas continuam no histórico, sem a campanha.
-      </span>
-      <div className="flex gap-2">
-        <Button size="sm" variant="destructive" disabled={excluir.isPending} onClick={() => excluir.mutate()}>
-          {excluir.isPending ? 'Excluindo...' : 'Excluir'}
-        </Button>
-        <Button ref={cancelar} size="sm" variant="ghost" onClick={aoFechar}>
-          Cancelar
-        </Button>
-      </div>
-      {excluir.isError && (
-        <Aviso tom="erro" role="alert" className="basis-full">
-          {mensagemErroApi(excluir.error, MENSAGEM_ERRO_EXCLUIR)}
-        </Aviso>
-      )}
-    </div>
+      Excluir “{campanha.nome}”? As visitas vinculadas continuam no histórico, sem a campanha.
+    </Confirmacao>
+  );
+}
+
+/**
+ * Confirmação de encerrar uma campanha em andamento. Quem troca a data de
+ * fim e ajusta as metas é o backend; aqui a tela só pede, avisa e recarrega
+ * as campanhas e as metas. Com a lista recarregada, a campanha passa para a
+ * aba "Encerradas".
+ */
+function ConfirmarEncerramento({ campanha, aoFechar }: { campanha: Campanha; aoFechar: () => void }) {
+  const queryClient = useQueryClient();
+
+  const encerrar = useMutation({
+    mutationFn: () => encerrarCampanha(campanha.id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['campanhas'] });
+      // As metas da campanha acompanharam a nova data de fim
+      void queryClient.invalidateQueries({ queryKey: ['metas'] });
+      toast.success('Campanha encerrada. Ela está na aba Encerradas.');
+      aoFechar();
+    },
+  });
+
+  return (
+    <Confirmacao
+      rotulo={`Encerrar ${campanha.nome}`}
+      acao="Encerrar"
+      acaoPendente="Encerrando..."
+      pendente={encerrar.isPending}
+      erro={encerrar.isError ? mensagemErroApi(encerrar.error, MENSAGEM_ERRO_ENCERRAR) : null}
+      aoConfirmar={() => encerrar.mutate()}
+      aoFechar={aoFechar}
+    >
+      Encerrar “{campanha.nome}” agora? A data de fim passa a ser ontem e as metas dela acompanham. As visitas e as
+      vendas já vinculadas continuam valendo para a análise.
+    </Confirmacao>
   );
 }
 
 /**
  * `detalhado` (a campanha escolhida no filtro) troca a lista resumida de
  * vendas pelos resultados por representante e pelos produtos mais vendidos.
+ * As ações dependem da situação: "Encerrar" só na campanha em andamento (e
+ * só para o gestor) e o "?" da análise só na encerrada. Com a campanha
+ * aberta no formulário de edição (`editando`), o "Encerrar" some: salvar o
+ * formulário, que ainda tem as datas antigas, desfaria o encerramento.
  */
 function CartaoCampanha({
   campanha,
   gestor,
   detalhado,
+  editando,
   aoEditar,
 }: {
   campanha: Campanha;
   gestor: boolean;
   detalhado: boolean;
+  editando: boolean;
   aoEditar: (campanha: Campanha) => void;
 }) {
-  const [confirmando, setConfirmando] = useState(false);
+  // Qual confirmação está aberta no cartão; `null`: nenhuma
+  const [confirmando, setConfirmando] = useState<'excluir' | 'encerrar' | null>(null);
+  const analise = usePainelLateral<true>();
   const tituloVendas = gestor ? 'Vendas vinculadas por representante' : 'Minhas vendas vinculadas';
   const idTitulo = `campanha-${campanha.id}-titulo`;
   const idVendas = `campanha-${campanha.id}-vendas`;
@@ -407,7 +551,30 @@ function CartaoCampanha({
             {formatarDataCalendario(campanha.inicio)} a {formatarDataCalendario(campanha.fim)}
           </p>
         </div>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {gestor && campanha.status === 'EM_ANDAMENTO' && !editando && (
+            <Button
+              size="sm"
+              variant="outline"
+              aria-label={`Encerrar ${campanha.nome}`}
+              aria-expanded={confirmando === 'encerrar'}
+              onClick={() => setConfirmando('encerrar')}
+            >
+              Encerrar
+            </Button>
+          )}
+          {campanha.status === 'ENCERRADA' && (
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={`Ver análise de ${campanha.nome}`}
+              title="Como foi a campanha"
+              className="text-muted-foreground"
+              onClick={(evento) => analise.abrir(true, evento.currentTarget)}
+            >
+              <CircleHelp aria-hidden="true" />
+            </Button>
+          )}
           {gestor && (
             <>
               <Button
@@ -423,9 +590,9 @@ function CartaoCampanha({
                 size="icon"
                 variant="ghost"
                 aria-label={`Excluir ${campanha.nome}`}
-                aria-expanded={confirmando}
+                aria-expanded={confirmando === 'excluir'}
                 className={CLASSES_BOTAO_PERIGO}
-                onClick={() => setConfirmando(true)}
+                onClick={() => setConfirmando('excluir')}
               >
                 <Trash2 aria-hidden="true" />
               </Button>
@@ -435,7 +602,13 @@ function CartaoCampanha({
         </div>
       </div>
 
-      {gestor && confirmando && <ConfirmarExclusao campanha={campanha} aoFechar={() => setConfirmando(false)} />}
+      {gestor && confirmando === 'excluir' && (
+        <ConfirmarExclusao campanha={campanha} aoFechar={() => setConfirmando(null)} />
+      )}
+      {gestor && confirmando === 'encerrar' && !editando && (
+        <ConfirmarEncerramento campanha={campanha} aoFechar={() => setConfirmando(null)} />
+      )}
+      {analise.escolhido && <AnaliseDaCampanha campanha={campanha} gestor={gestor} aoFechar={analise.fechar} />}
 
       <div id={idConteudo} hidden={!aberto}>
         {campanha.descricao && <p className="mt-2 text-sm whitespace-pre-wrap break-words">{campanha.descricao}</p>}
@@ -486,8 +659,19 @@ export function CampanhasPage() {
   const gestor = user?.role === 'GESTOR';
   const { data: campanhas, isLoading, isError, error } = useCampanhas();
   const [busca, setBusca] = useSearchParams();
+  const idDasAbas = useId();
   // Um id que não está na lista (campanha excluída, link velho) vale como "Todas"
   const escolhida = campanhas?.find((campanha) => campanha.id === busca.get(PARAMETRO_CAMPANHA)) ?? null;
+  // A campanha escolhida manda na aba (um link `?campanha=` abre na situação dela);
+  // sem escolha, vale o `?aba=` da URL, e um valor desconhecido cai na aba padrão.
+  const abaDaUrl = ABAS_DE_CAMPANHAS.find((aba) => aba === busca.get(PARAMETRO_ABA)) ?? ABA_PADRAO;
+  const abaAtual = escolhida ? ABA_DO_STATUS[escolhida.status] : abaDaUrl;
+  const campanhasDaAba = (campanhas ?? []).filter((campanha) => ABA_DO_STATUS[campanha.status] === abaAtual);
+  const abas: readonly Aba<AbaDeCampanhas>[] = ABAS_DE_CAMPANHAS.map((aba) => ({
+    valor: aba,
+    rotulo: ROTULO_DA_ABA[aba],
+    contagem: (campanhas ?? []).filter((campanha) => ABA_DO_STATUS[campanha.status] === aba).length,
+  }));
   // `undefined`: fechado; `null`: campanha nova; uma campanha: editando
   const [emEdicao, setEmEdicao] = useState<Campanha | null | undefined>(undefined);
   const botaoNova = useRef<HTMLButtonElement>(null);
@@ -512,17 +696,39 @@ export function CampanhasPage() {
     setEmEdicao(undefined);
   }
 
-  // Preserva os outros parâmetros e não enche o histórico; "Todas" tira o parâmetro
-  function escolher(id: string): void {
+  /**
+   * Escreve a aba e a campanha escolhida na URL de uma vez só. Preserva os
+   * outros parâmetros e não enche o histórico; a aba padrão e "Todas as
+   * campanhas" tiram o parâmetro, para a URL limpa continuar sendo a da
+   * primeira aba.
+   */
+  function irPara(aba: AbaDeCampanhas, campanhaId: string): void {
     setBusca(
       (anterior) => {
         const proxima = new URLSearchParams(anterior);
-        if (id === '') proxima.delete(PARAMETRO_CAMPANHA);
-        else proxima.set(PARAMETRO_CAMPANHA, id);
+        if (aba === ABA_PADRAO) proxima.delete(PARAMETRO_ABA);
+        else proxima.set(PARAMETRO_ABA, aba);
+        if (campanhaId === '') proxima.delete(PARAMETRO_CAMPANHA);
+        else proxima.set(PARAMETRO_CAMPANHA, campanhaId);
         return proxima;
       },
       { replace: true },
     );
+  }
+
+  // O filtro lista as campanhas da aba aberta: a escolha não muda de aba
+  function escolher(id: string): void {
+    irPara(abaAtual, id);
+  }
+
+  // Trocar de aba desfaz a escolha: a campanha escolhida é de outra situação
+  function trocarAba(aba: AbaDeCampanhas): void {
+    irPara(aba, '');
+  }
+
+  // A campanha criada ou editada pode ter outra situação (as datas mandam): a tela vai para a aba dela
+  function mostrarSalva(salva: Campanha): void {
+    irPara(ABA_DO_STATUS[salva.status], escolhida ? salva.id : '');
   }
 
   const mostrarNova = gestor && emEdicao === undefined;
@@ -543,9 +749,9 @@ export function CampanhasPage() {
                 className={cn(CLASSES_SELECT, 'w-full min-w-0')}
               >
                 <option value="">Todas as campanhas</option>
-                {campanhas.map((campanha) => (
+                {campanhasDaAba.map((campanha) => (
                   <option key={campanha.id} value={campanha.id}>
-                    {campanha.nome} · {ROTULO_STATUS[campanha.status]}
+                    {campanha.nome}
                   </option>
                 ))}
               </select>
@@ -561,7 +767,12 @@ export function CampanhasPage() {
       )}
 
       {gestor && emEdicao !== undefined && (
-        <FormularioCampanha key={emEdicao?.id ?? 'nova'} campanha={emEdicao} aoFechar={fechar} />
+        <FormularioCampanha
+          key={emEdicao?.id ?? 'nova'}
+          campanha={emEdicao}
+          aoSalvar={mostrarSalva}
+          aoFechar={fechar}
+        />
       )}
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando campanhas...</p>}
@@ -577,17 +788,33 @@ export function CampanhasPage() {
       )}
 
       {campanhas && campanhas.length > 0 && (
-        <ul aria-label="Campanhas e eventos" className="space-y-3">
-          {(escolhida ? [escolhida] : campanhas).map((campanha) => (
-            <CartaoCampanha
-              key={campanha.id}
-              campanha={campanha}
-              gestor={gestor}
-              detalhado={escolhida !== null}
-              aoEditar={abrir}
-            />
-          ))}
-        </ul>
+        <>
+          <Abas
+            idBase={idDasAbas}
+            ariaLabel="Situação das campanhas"
+            abas={abas}
+            valor={abaAtual}
+            onChange={trocarAba}
+          />
+          <PainelDaAba idBase={idDasAbas} valor={abaAtual}>
+            {campanhasDaAba.length === 0 ? (
+              <EstadoVazio icone="megaphone">{VAZIO_DA_ABA[abaAtual]}</EstadoVazio>
+            ) : (
+              <ul aria-label="Campanhas e eventos" className="space-y-3">
+                {(escolhida ? [escolhida] : campanhasDaAba).map((campanha) => (
+                  <CartaoCampanha
+                    key={campanha.id}
+                    campanha={campanha}
+                    gestor={gestor}
+                    detalhado={escolhida !== null}
+                    editando={emEdicao?.id === campanha.id}
+                    aoEditar={abrir}
+                  />
+                ))}
+              </ul>
+            )}
+          </PainelDaAba>
+        </>
       )}
     </div>
   );

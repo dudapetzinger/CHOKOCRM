@@ -31,6 +31,8 @@ export type Meta = {
   /** Em reais. */
   metaVendas: number;
   campanhaId: string | null;
+  /** A campanha da meta, com o período dela (`AAAA-MM-DD`); `null` na meta sem campanha. */
+  campanha: { id: string; nome: string; inicio: string; fim: string } | null;
   /** Visitas do representante no período (na campanha, se for de campanha) e vendas (R$) das com VENDA. */
   realizado: {
     visitas: number;
@@ -53,7 +55,10 @@ export type MetaInput = {
 
 export type FiltroMetas = { campanhaId?: string; representanteId?: string; periodo?: Periodo };
 
-/** Sem `campanhaId`, só as metas sem campanha; com ele, só as daquela campanha. */
+/**
+ * Sem `campanhaId` (o Painel), as metas sem campanha e as das campanhas em
+ * andamento; com ele, só as daquela campanha.
+ */
 export async function listarMetas(filtro: FiltroMetas = {}): Promise<Meta[]> {
   const parametros = new URLSearchParams();
   if (filtro.campanhaId) parametros.set('campanhaId', filtro.campanhaId);

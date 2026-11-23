@@ -68,7 +68,8 @@ export const metaSchema = z
 export type MetaInput = z.infer<typeof metaSchema>;
 
 /**
- * Query da lista: `?campanhaId=` (sem ele, só as metas sem campanha),
+ * Query da lista: `?campanhaId=` (sem ele, as metas sem campanha e as das
+ * campanhas em andamento),
  * `?representanteId=` (o representante sempre recebe só as próprias) e,
  * opcionalmente, um período (`?periodoDias=` ou `?inicio=&fim=`, as mesmas
  * regras do Painel) para listar só as metas que cruzam a janela. Parâmetros

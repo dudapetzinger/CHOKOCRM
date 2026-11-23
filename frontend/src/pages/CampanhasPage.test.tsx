@@ -8,6 +8,7 @@ import { ApiError } from '../services/api';
 import {
   atualizarCampanha,
   criarCampanha,
+  encerrarCampanha,
   excluirCampanha,
   listarCampanhas,
   type Campanha,
@@ -15,6 +16,7 @@ import {
 } from '../services/campaigns';
 import { listarProdutos, type Produto } from '../services/erp';
 import { listarMetas, type Meta } from '../services/goals';
+import { RESUMO_VAZIO } from '../test/campanhas';
 import { CampanhasPage } from './CampanhasPage';
 
 vi.mock('../services/campaigns', async (importOriginal) => ({
@@ -22,6 +24,7 @@ vi.mock('../services/campaigns', async (importOriginal) => ({
   listarCampanhas: vi.fn(),
   criarCampanha: vi.fn(),
   atualizarCampanha: vi.fn(),
+  encerrarCampanha: vi.fn(),
   excluirCampanha: vi.fn(),
 }));
 vi.mock('../services/goals', async (importOriginal) => ({
@@ -68,6 +71,7 @@ const PASCOA: Campanha = {
   resultados: [resultado('r1', 'Eduarda Fischer', 0, 0)],
   produtosMaisVendidos: [],
   vendas: [],
+  resumo: RESUMO_VAZIO,
 };
 
 const NATAL: Campanha = {
@@ -89,6 +93,7 @@ const NATAL: Campanha = {
     { sku: 'BOMB-SORT', nome: 'Bombons sortidos', quantidade: 3, total: 126 },
   ],
   vendas: [],
+  resumo: RESUMO_VAZIO,
 };
 
 const FEIRA: Campanha = {
@@ -104,7 +109,11 @@ const FEIRA: Campanha = {
   resultados: [],
   produtosMaisVendidos: [],
   vendas: [],
+  resumo: RESUMO_VAZIO,
 };
+
+/** Uma segunda campanha em andamento, para os casos que precisam de dois cartões na mesma aba. */
+const BLACK_FRIDAY: Campanha = { ...NATAL, id: 'cp4', nome: 'Black Friday do Cacau' };
 
 const META_DO_NATAL: Meta = {
   id: 'm1',
@@ -115,6 +124,7 @@ const META_DO_NATAL: Meta = {
   metaVisitas: 4,
   metaVendas: 1000,
   campanhaId: 'cp2',
+  campanha: { id: 'cp2', nome: 'Natal Chokolaten', inicio: '2026-10-10', fim: '2026-12-24' },
   realizado: { visitas: 2, vendas: 503.7, clientes: [] },
 };
 
@@ -140,6 +150,9 @@ beforeEach(() => {
     id,
     produtos: [],
   }));
+  vi.mocked(encerrarCampanha)
+    .mockReset()
+    .mockImplementation(async (id) => ({ ...NATAL, id, fim: '2026-11-21', status: 'ENCERRADA' }));
   vi.mocked(excluirCampanha).mockReset().mockResolvedValue(undefined);
   vi.mocked(listarProdutos).mockReset().mockResolvedValue(PRODUTOS);
   vi.mocked(listarMetas)
@@ -186,21 +199,88 @@ async function cartao(nome: string) {
   return titulo.closest('li') as HTMLElement;
 }
 
-describe('CampanhasPage: cartões', () => {
-  it('lista as campanhas na ordem da API, com o status de cada uma', async () => {
-    renderizar();
+/** Os nomes das campanhas na lista da aba aberta, na ordem da tela. */
+function titulosDosCartoes(): (string | null)[] {
+  return within(screen.getByRole('list', { name: 'Campanhas e eventos' }))
+    .getAllByRole('heading', { level: 2 })
+    .map((titulo) => titulo.textContent);
+}
 
-    await screen.findByRole('heading', { level: 2, name: 'Natal Chokolaten' });
-    const lista = screen.getByRole('list', { name: 'Campanhas e eventos' });
-    const titulos = within(lista)
-      .getAllByRole('heading', { level: 2 })
-      .map((titulo) => titulo.textContent);
-    expect(titulos).toEqual(['Páscoa Chokolaten', 'Natal Chokolaten', 'Feira Sabores do Vale']);
-    expect(within(await cartao('Páscoa Chokolaten')).getByText('Encerrada')).toBeInTheDocument();
-    expect(within(await cartao('Natal Chokolaten')).getByText('Em andamento')).toBeInTheDocument();
-    expect(within(await cartao('Feira Sabores do Vale')).getByText('Programada')).toBeInTheDocument();
+describe('CampanhasPage: abas por situação', () => {
+  it('abre em "Em andamento", com as três abas e a contagem de cada uma', async () => {
+    renderizar();
+    await cartao('Natal Chokolaten');
+
+    const abas = within(screen.getByRole('tablist', { name: 'Situação das campanhas' })).getAllByRole('tab');
+    expect(abas.map((aba) => aba.getAttribute('aria-label'))).toEqual([
+      'Em andamento, 1',
+      'Programadas, 1',
+      'Encerradas, 1',
+    ]);
+    expect(abas[0]).toHaveAttribute('aria-selected', 'true');
+    expect(titulosDosCartoes()).toEqual(['Natal Chokolaten']);
+    expect(screen.getByTestId('busca')).toHaveTextContent('');
   });
 
+  it('trocar de aba mostra só as campanhas daquela situação e guarda a aba na URL', async () => {
+    renderizar();
+    await cartao('Natal Chokolaten');
+
+    await usuario.click(screen.getByRole('tab', { name: 'Programadas, 1' }));
+    expect(titulosDosCartoes()).toEqual(['Feira Sabores do Vale']);
+    expect(within(await cartao('Feira Sabores do Vale')).getByText('Programada')).toBeInTheDocument();
+    expect(screen.getByTestId('busca')).toHaveTextContent('?aba=programadas');
+
+    await usuario.click(screen.getByRole('tab', { name: 'Encerradas, 1' }));
+    expect(titulosDosCartoes()).toEqual(['Páscoa Chokolaten']);
+    expect(within(await cartao('Páscoa Chokolaten')).getByText('Encerrada')).toBeInTheDocument();
+    expect(screen.getByTestId('busca')).toHaveTextContent('?aba=encerradas');
+
+    await usuario.click(screen.getByRole('tab', { name: 'Em andamento, 1' }));
+    expect(titulosDosCartoes()).toEqual(['Natal Chokolaten']);
+    expect(screen.getByTestId('busca')).toHaveTextContent('');
+  });
+
+  it('?aba= inicial abre direto na aba', async () => {
+    renderizar('GESTOR', '/campanhas?aba=encerradas');
+    await cartao('Páscoa Chokolaten');
+    expect(screen.getByRole('tab', { name: 'Encerradas, 1' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('um valor desconhecido em ?aba= cai em "Em andamento"', async () => {
+    renderizar('GESTOR', '/campanhas?aba=canceladas');
+    await cartao('Natal Chokolaten');
+    expect(screen.getByRole('tab', { name: 'Em andamento, 1' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('aba sem campanha diz que não há nenhuma naquela situação', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([PASCOA]);
+    renderizar();
+
+    expect(await screen.findByText('Nenhuma campanha em andamento.')).toBeInTheDocument();
+    await usuario.click(screen.getByRole('tab', { name: 'Programadas, 0' }));
+    expect(screen.getByText('Nenhuma campanha programada.')).toBeInTheDocument();
+    await usuario.click(screen.getByRole('tab', { name: 'Encerradas, 1' }));
+    expect(titulosDosCartoes()).toEqual(['Páscoa Chokolaten']);
+  });
+
+  it('dentro da aba, as campanhas ficam na ordem da API', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([PASCOA, NATAL, FEIRA, BLACK_FRIDAY]);
+    renderizar();
+    await cartao('Natal Chokolaten');
+
+    expect(titulosDosCartoes()).toEqual(['Natal Chokolaten', 'Black Friday do Cacau']);
+  });
+
+  it('o representante vê as mesmas abas', async () => {
+    renderizar('REPRESENTANTE');
+    await cartao('Natal Chokolaten');
+
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+  });
+});
+
+describe('CampanhasPage: cartões', () => {
   it('o cartão mostra tipo, status, "−15%", período, descrição, produtos e as vendas vinculadas por representante', async () => {
     renderizar();
     const natal = await cartao('Natal Chokolaten');
@@ -229,7 +309,7 @@ describe('CampanhasPage: cartões', () => {
   });
 
   it('sem desconto, sem descrição e sem produtos: só o essencial', async () => {
-    renderizar();
+    renderizar('GESTOR', '/campanhas?aba=encerradas');
     const pascoa = await cartao('Páscoa Chokolaten');
 
     expect(within(pascoa).getByText('Promoção')).toBeInTheDocument();
@@ -240,19 +320,24 @@ describe('CampanhasPage: cartões', () => {
   it('cada cartão tem "Metas da campanha" abaixo das vendas vinculadas, com as metas daquela campanha', async () => {
     renderizar();
     const natal = await cartao('Natal Chokolaten');
-    const pascoa = await cartao('Páscoa Chokolaten');
 
     const metasDoNatal = within(natal).getByRole('region', { name: 'Metas da campanha' });
     expect(await within(metasDoNatal).findByText('R$ 503,70 de R$ 1.000,00 · 50 %')).toBeInTheDocument();
     expect(within(metasDoNatal).getByText('2 de 4 · 50 %')).toBeInTheDocument();
     expect(within(metasDoNatal).getByText('Por campanha')).toBeInTheDocument();
-    const metasDaPascoa = within(pascoa).getByRole('region', { name: 'Metas da campanha' });
-    expect(await within(metasDaPascoa).findByText('Nenhuma meta definida para esta campanha.')).toBeInTheDocument();
     expect(listarMetas).toHaveBeenCalledWith({ campanhaId: 'cp2', representanteId: undefined });
 
     // Abaixo das vendas vinculadas
     const vendas = within(natal).getByRole('heading', { name: 'Vendas vinculadas por representante' });
     expect(vendas.compareDocumentPosition(metasDoNatal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('a campanha sem meta diz que não tem nenhuma', async () => {
+    renderizar('GESTOR', '/campanhas?aba=encerradas');
+    const pascoa = await cartao('Páscoa Chokolaten');
+
+    const metasDaPascoa = within(pascoa).getByRole('region', { name: 'Metas da campanha' });
+    expect(await within(metasDaPascoa).findByText('Nenhuma meta definida para esta campanha.')).toBeInTheDocument();
   });
 
   it('o representante vê as metas da campanha sem "Nova meta"', async () => {
@@ -279,17 +364,12 @@ describe('CampanhasPage: cartões', () => {
   });
 });
 
-function titulosDosCartoes(): (string | null)[] {
-  return within(screen.getByRole('list', { name: 'Campanhas e eventos' }))
-    .getAllByRole('heading', { level: 2 })
-    .map((titulo) => titulo.textContent);
-}
-
 describe('CampanhasPage: blocos recolhíveis', () => {
   it('cada cartão de campanha recolhe sozinho: título, situação e ações ficam, o resto some', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([NATAL, BLACK_FRIDAY]);
     renderizar();
     const natal = await cartao('Natal Chokolaten');
-    const pascoa = await cartao('Páscoa Chokolaten');
+    const blackFriday = await cartao('Black Friday do Cacau');
 
     await usuario.click(within(natal).getByRole('button', { name: 'Recolher Natal Chokolaten' }));
 
@@ -299,7 +379,7 @@ describe('CampanhasPage: blocos recolhíveis', () => {
     expect(within(natal).getByRole('heading', { level: 2, name: 'Natal Chokolaten' })).toBeVisible();
     expect(within(natal).getByText('Em andamento')).toBeVisible();
     expect(within(natal).getByRole('button', { name: 'Editar Natal Chokolaten' })).toBeVisible();
-    expect(within(pascoa).getByRole('button', { name: 'Recolher Páscoa Chokolaten' })).toHaveAttribute(
+    expect(within(blackFriday).getByRole('button', { name: 'Recolher Black Friday do Cacau' })).toHaveAttribute(
       'aria-expanded',
       'true',
     );
@@ -323,25 +403,32 @@ describe('CampanhasPage: blocos recolhíveis', () => {
 });
 
 describe('CampanhasPage: filtro por campanha', () => {
-  it('o select lista "Todas as campanhas" e cada campanha com o status, na ordem da lista', async () => {
+  it('o select lista "Todas as campanhas" e as campanhas da aba aberta, na ordem da lista', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([PASCOA, NATAL, FEIRA, BLACK_FRIDAY]);
     renderizar();
 
     const filtro = await screen.findByLabelText('Campanha');
     expect(filtro).toHaveAttribute('id', 'campanhas-filtro');
     expect(within(filtro).getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
       'Todas as campanhas',
-      'Páscoa Chokolaten · Encerrada',
-      'Natal Chokolaten · Em andamento',
-      'Feira Sabores do Vale · Programada',
+      'Natal Chokolaten',
+      'Black Friday do Cacau',
     ]);
     expect(filtro).toHaveValue('');
-    // "Todas": os três cartões, com a lista resumida de vendas
+    // "Todas": os cartões da aba, com a lista resumida de vendas
     await cartao('Natal Chokolaten');
-    expect(titulosDosCartoes()).toHaveLength(3);
+    expect(titulosDosCartoes()).toHaveLength(2);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('tab', { name: 'Encerradas, 1' }));
+    expect(within(screen.getByLabelText('Campanha')).getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
+      'Todas as campanhas',
+      'Páscoa Chokolaten',
+    ]);
   });
 
   it('escolher uma campanha deixa só o cartão dela, com resultados, produtos e metas, e escreve ?campanha=', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([PASCOA, NATAL, FEIRA, BLACK_FRIDAY]);
     renderizar();
     await usuario.selectOptions(await screen.findByLabelText('Campanha'), 'cp2');
 
@@ -366,6 +453,7 @@ describe('CampanhasPage: filtro por campanha', () => {
   });
 
   it('voltar para "Todas as campanhas" tira o parâmetro e preserva os outros', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([PASCOA, NATAL, FEIRA, BLACK_FRIDAY]);
     renderizar('GESTOR', '/campanhas?campanha=cp2&outro=1');
     const filtro = await screen.findByLabelText('Campanha');
     expect(filtro).toHaveValue('cp2');
@@ -373,15 +461,37 @@ describe('CampanhasPage: filtro por campanha', () => {
     await usuario.selectOptions(filtro, '');
 
     expect(screen.getByTestId('busca')).toHaveTextContent('?outro=1');
-    expect(titulosDosCartoes()).toHaveLength(3);
+    expect(titulosDosCartoes()).toHaveLength(2);
   });
 
-  it('?campanha=<id> inicial abre direto na campanha', async () => {
+  it('?campanha=<id> inicial abre direto na campanha, na aba da situação dela', async () => {
     renderizar('GESTOR', '/campanhas?campanha=cp3');
 
     await cartao('Feira Sabores do Vale');
     expect(screen.getByLabelText('Campanha')).toHaveValue('cp3');
     expect(titulosDosCartoes()).toEqual(['Feira Sabores do Vale']);
+    expect(screen.getByRole('tab', { name: 'Programadas, 1' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('voltar para "Todas" a partir de uma campanha de outra aba continua na aba dela', async () => {
+    renderizar('GESTOR', '/campanhas?campanha=cp3');
+    await cartao('Feira Sabores do Vale');
+
+    await usuario.selectOptions(screen.getByLabelText('Campanha'), '');
+
+    expect(screen.getByTestId('busca')).toHaveTextContent('?aba=programadas');
+    expect(titulosDosCartoes()).toEqual(['Feira Sabores do Vale']);
+  });
+
+  it('trocar de aba com uma campanha escolhida tira o ?campanha=', async () => {
+    renderizar('GESTOR', '/campanhas?campanha=cp2');
+    await cartao('Natal Chokolaten');
+
+    await usuario.click(screen.getByRole('tab', { name: 'Encerradas, 1' }));
+
+    expect(screen.getByTestId('busca')).toHaveTextContent('?aba=encerradas');
+    expect(screen.getByLabelText('Campanha')).toHaveValue('');
+    expect(titulosDosCartoes()).toEqual(['Páscoa Chokolaten']);
   });
 
   it('um id que não existe na lista cai em "Todas as campanhas"', async () => {
@@ -389,7 +499,7 @@ describe('CampanhasPage: filtro por campanha', () => {
 
     await cartao('Natal Chokolaten');
     expect(screen.getByLabelText('Campanha')).toHaveValue('');
-    expect(titulosDosCartoes()).toHaveLength(3);
+    expect(titulosDosCartoes()).toEqual(['Natal Chokolaten']);
   });
 
   it('o representante, na campanha escolhida, vê "Meus resultados"', async () => {
@@ -479,6 +589,11 @@ describe('CampanhasPage: formulário do gestor', () => {
     expect(await screen.findByText('Campanha criada. Os representantes já podem ver.')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('form', { name: 'Nova campanha' })).not.toBeInTheDocument());
     expect(listarCampanhas).toHaveBeenCalledTimes(2);
+    // A campanha criada é programada: a tela vai para a aba dela
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: /^Programadas/ })).toHaveAttribute('aria-selected', 'true'),
+    );
+    expect(screen.getByTestId('busca')).toHaveTextContent('?aba=programadas');
   });
 
   it('desconto em branco vai como null; clicar de novo no produto tira o destaque', async () => {
@@ -587,5 +702,108 @@ describe('CampanhasPage: formulário do gestor', () => {
 
     expect(excluirCampanha).toHaveBeenCalledWith('cp2');
     expect(await screen.findByText('Campanha excluída')).toBeInTheDocument();
+  });
+});
+
+describe('CampanhasPage: encerrar', () => {
+  it('o gestor vê "Encerrar" só na campanha em andamento', async () => {
+    renderizar();
+    await cartao('Natal Chokolaten');
+    expect(screen.getByRole('button', { name: 'Encerrar Natal Chokolaten' })).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('tab', { name: 'Programadas, 1' }));
+    await cartao('Feira Sabores do Vale');
+    expect(screen.queryByRole('button', { name: /^Encerrar/ })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('tab', { name: 'Encerradas, 1' }));
+    await cartao('Páscoa Chokolaten');
+    expect(screen.queryByRole('button', { name: /^Encerrar/ })).not.toBeInTheDocument();
+  });
+
+  it('encerrar pede confirmação: Cancelar não encerra; Encerrar encerra, avisa e atualiza a lista', async () => {
+    renderizar();
+    await usuario.click(await screen.findByRole('button', { name: 'Encerrar Natal Chokolaten' }));
+
+    let confirmacao = screen.getByRole('group', { name: 'Encerrar Natal Chokolaten' });
+    expect(confirmacao).toHaveTextContent('A data de fim passa a ser ontem');
+    expect(confirmacao).toHaveTextContent('continuam valendo para a análise');
+    expect(within(confirmacao).getByRole('button', { name: 'Cancelar' })).toHaveFocus();
+    await usuario.click(within(confirmacao).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('group', { name: 'Encerrar Natal Chokolaten' })).not.toBeInTheDocument();
+    expect(encerrarCampanha).not.toHaveBeenCalled();
+
+    await usuario.click(screen.getByRole('button', { name: 'Encerrar Natal Chokolaten' }));
+    confirmacao = screen.getByRole('group', { name: 'Encerrar Natal Chokolaten' });
+    await usuario.click(within(confirmacao).getByRole('button', { name: 'Encerrar' }));
+
+    expect(encerrarCampanha).toHaveBeenCalledWith('cp2');
+    expect(await screen.findByText('Campanha encerrada. Ela está na aba Encerradas.')).toBeInTheDocument();
+    await waitFor(() => expect(listarCampanhas).toHaveBeenCalledTimes(2));
+  });
+
+  it('o erro do servidor aparece na confirmação, que continua aberta', async () => {
+    vi.mocked(encerrarCampanha).mockRejectedValue(
+      new ApiError('VALIDATION_ERROR', 'A campanha começou hoje. Para desistir dela, edite as datas ou exclua a campanha.'),
+    );
+    renderizar();
+    await usuario.click(await screen.findByRole('button', { name: 'Encerrar Natal Chokolaten' }));
+    const confirmacao = screen.getByRole('group', { name: 'Encerrar Natal Chokolaten' });
+
+    await usuario.click(within(confirmacao).getByRole('button', { name: 'Encerrar' }));
+
+    expect(await within(confirmacao).findByRole('alert')).toHaveTextContent('A campanha começou hoje.');
+  });
+
+  it('com a campanha aberta no formulário de edição, o "Encerrar" dela some', async () => {
+    vi.mocked(listarCampanhas).mockResolvedValue([NATAL, BLACK_FRIDAY]);
+    renderizar();
+    await usuario.click(await screen.findByRole('button', { name: 'Editar Natal Chokolaten' }));
+
+    // Salvar o formulário aberto, com as datas antigas, desfaria o encerramento
+    expect(screen.queryByRole('button', { name: 'Encerrar Natal Chokolaten' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Encerrar Black Friday do Cacau' })).toBeInTheDocument();
+
+    const formulario = screen.getByRole('form', { name: 'Editar campanha' });
+    await usuario.click(within(formulario).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.getByRole('button', { name: 'Encerrar Natal Chokolaten' })).toBeInTheDocument();
+  });
+
+  it('o representante não vê "Encerrar"', async () => {
+    renderizar('REPRESENTANTE');
+    await cartao('Natal Chokolaten');
+
+    expect(screen.queryByRole('button', { name: /^Encerrar/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('CampanhasPage: análise da campanha encerrada', () => {
+  it('o "?" aparece só na campanha encerrada e abre o painel da análise', async () => {
+    renderizar();
+    await cartao('Natal Chokolaten');
+    expect(screen.queryByRole('button', { name: /^Ver análise/ })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('tab', { name: 'Programadas, 1' }));
+    expect(screen.queryByRole('button', { name: /^Ver análise/ })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('tab', { name: 'Encerradas, 1' }));
+    const botao = await screen.findByRole('button', { name: 'Ver análise de Páscoa Chokolaten' });
+    await usuario.click(botao);
+
+    const painel = screen.getByRole('dialog', { name: 'Análise · Páscoa Chokolaten' });
+    expect(painel).toHaveAccessibleDescription('01/03/2026 a 05/04/2026 · 36 dias');
+    expect(within(painel).getByText('Total vendido')).toBeInTheDocument();
+
+    await usuario.click(within(painel).getByRole('button', { name: 'Fechar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(botao).toHaveFocus();
+  });
+
+  it('o representante também abre a análise, com os números dele', async () => {
+    renderizar('REPRESENTANTE', '/campanhas?aba=encerradas');
+
+    await usuario.click(await screen.findByRole('button', { name: 'Ver análise de Páscoa Chokolaten' }));
+
+    const painel = screen.getByRole('dialog', { name: 'Análise · Páscoa Chokolaten' });
+    expect(within(painel).queryByRole('region', { name: 'Quem mais vendeu' })).not.toBeInTheDocument();
   });
 });

@@ -44,6 +44,8 @@ O perfil Gestor é usado pela gestão da empresa, por meio de uma conta comparti
 | Abrir a conversa com o cliente no WhatsApp | Sim | Sim |
 | Concluir lembrete | Sim | Sim |
 | Criar campanhas e metas | Não | Sim |
+| Encerrar uma campanha em andamento | Não | Sim |
+| Ver a análise de uma campanha encerrada | Sim, com os próprios números | Sim |
 | Importar notas fiscais | Não | Sim |
 | Gerenciar usuários | Não | Sim |
 
@@ -293,7 +295,7 @@ O painel tem duas abas. A primeira responde como andam as visitas e as vendas da
 | Conversão em vendas | Parte das visitas que terminou em venda |
 | Clientes esfriando | Clientes em laranja ou vermelho, com a distribuição da carteira pelas quatro cores |
 
-Abaixo dos indicadores ficam as metas com o realizado, o resultado das visitas por representante, o ritmo de visitas ao longo do período (por semana em períodos de até 91 dias, por mês nos maiores), o bloco dos clientes esfriando (a distribuição da carteira por cor e os cinco clientes mais urgentes) e, para o gestor, o ranking dos representantes em visitas, conversão e receita.
+Abaixo dos indicadores ficam as metas com o realizado (as metas comuns e as das campanhas em andamento), o resultado das visitas por representante, o ritmo de visitas ao longo do período (por semana em períodos de até 91 dias, por mês nos maiores), o bloco dos clientes esfriando (a distribuição da carteira por cor e os cinco clientes mais urgentes) e, para o gestor, o ranking dos representantes em visitas, conversão e receita.
 
 ### Produção e sazonalidade
 
@@ -357,13 +359,44 @@ O gestor cria campanhas, promoções e eventos com nome, período, descrição, 
 | Em andamento | Do primeiro ao último dia |
 | Encerrada | Depois do último dia |
 
+A tela de Campanhas separa as campanhas em três abas, uma para cada situação: "Em andamento", que é a aba que abre, "Programadas" e "Encerradas". Cada aba mostra quantas campanhas tem. O filtro "Campanha", no alto, lista as campanhas da aba aberta.
+
 No check-in, o representante pode indicar a campanha trabalhada na visita. Com isso, a tela de Campanhas mostra o resultado de cada uma por representante: visitas, clientes atendidos, vendas, conversão e os produtos mais vendidos.
+
+#### Encerrar uma campanha
+
+O gestor pode encerrar uma campanha em andamento antes da data prevista, por exemplo quando acaba o estoque do produto principal. O botão "Encerrar" aparece somente nas campanhas em andamento e pede confirmação. Ao confirmar:
+
+- a data de fim da campanha passa a ser o dia anterior. Como o último dia ainda conta como dia de campanha, é essa data que faz a campanha aparecer como encerrada imediatamente;
+- a campanha passa para a aba "Encerradas" e deixa de ser oferecida no check-in;
+- as visitas e as vendas já ligadas à campanha continuam valendo, para a análise do que ela rendeu até ali;
+- as metas da campanha acompanham a nova data de fim, como descrito em [Metas](#metas).
+
+A campanha programada não tem o botão, porque ainda não começou: o gestor pode editar as datas ou excluí-la. A campanha que começou no próprio dia também não pode ser encerrada, porque a data de fim ficaria antes do início. Nesse caso, o sistema orienta a editar as datas ou excluir a campanha.
+
+#### Análise da campanha encerrada
+
+Cada campanha encerrada tem um botão "?" que abre a análise de como ela foi:
+
+| Bloco | O que mostra |
+|-------|--------------|
+| Período | As datas de início e de fim e a duração em dias |
+| Resumo | Total vendido, número de vendas, visitas vinculadas, clientes atendidos, conversão e valor médio por venda |
+| Metas da campanha | As metas dos representantes somadas, com o realizado de visitas e de vendas |
+| Quem mais vendeu | O representante com o maior valor vendido na campanha (somente para o gestor) |
+| Produtos mais vendidos | Os cinco produtos mais vendidos nas visitas da campanha, com a quantidade e o valor |
+
+O gestor vê os números da equipe inteira. O representante vê a análise com os próprios números.
 
 Excluir uma campanha apaga as metas dela. As visitas ligadas a ela continuam existindo, sem a ligação.
 
 ### Metas
 
 O gestor define metas de quantidade de visitas e de valor de vendas para cada representante. A meta pode ser semanal (de segunda a domingo), mensal, de um período livre ou de uma campanha. A meta de campanha precisa caber dentro do período da campanha.
+
+Quando as datas de uma campanha mudam, porque o gestor a editou ou a encerrou, as metas dela são ajustadas automaticamente para caber no novo período: a meta que passava da nova data de fim termina nela, e a que começava antes do novo início começa nele. A meta que ficaria sem nenhum dia dentro do novo período passa a valer a campanha inteira.
+
+O bloco de metas do painel mostra as metas semanais, mensais e de período livre e também as metas das campanhas em andamento, com o nome da campanha. As metas de campanhas programadas ou encerradas aparecem somente na tela de Campanhas, no cartão de cada campanha.
 
 O realizado de visitas é contado das visitas feitas pelo representante no período. O realizado de vendas soma o valor das visitas com venda, que vem da nota fiscal vinculada. Na meta de campanha, contam apenas as visitas ligadas àquela campanha.
 

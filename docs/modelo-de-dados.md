@@ -190,7 +190,7 @@ As datas do ano que movimentam as vendas: Páscoa, Dia das Mães, Dia dos Namora
 
 ### 3.9 Campanha (`campaigns`)
 
-Campanhas, promoções e eventos comerciais criados pela gestão. A situação da campanha (programada, em andamento ou encerrada) não é gravada: sai das datas.
+Campanhas, promoções e eventos comerciais criados pela gestão. A situação da campanha (programada, em andamento ou encerrada) não é gravada: sai das datas. Por isso, encerrar uma campanha em andamento não usa um campo próprio: o sistema grava em `fim` o dia anterior e ajusta as datas das metas dela.
 
 | Campo | Tipo | Obrigatório | Descrição |
 |-------|------|-------------|-----------|

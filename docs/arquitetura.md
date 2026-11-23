@@ -178,7 +178,7 @@ Três peças são compartilhadas por várias telas:
 | Bloco recolhível | `Cartao` com a opção `recolhivel`, em `components/crm/ui.tsx` | Põe no título do cartão um botão que recolhe e expande o conteúdo. O estado fica no `localStorage` do navegador, por identificador de bloco (`lib/blocoRecolhivel.ts`). Sem armazenamento disponível, o bloco fica aberto |
 | Campo de arquivo | `components/crm/CampoDeArquivo.tsx` | Mostra um botão e um texto próprios ("Anexar arquivos", "Nenhum arquivo selecionado") no lugar do texto nativo do navegador, que sai no idioma dele. O campo nativo continua na página, invisível sobre o botão, e é ele que o teclado e o leitor de tela alcançam |
 
-As abas da agenda, do painel e da ficha guardam a aba aberta no endereço da página (`?aba=`).
+As abas da agenda, do painel, da ficha e da tela de Campanhas guardam a aba aberta no endereço da página (`?aba=`).
 
 ## 4. Estrutura de pastas
 
@@ -432,9 +432,10 @@ Sem nenhuma data no horizonte, `datas` vem vazia e a fonte de vendas não é con
 |--------|----------|------|-----------|
 | GET | `/campaigns` | R e G | Campanhas com situação e resultados |
 | POST | `/campaigns` | G | Cria uma campanha |
-| PUT | `/campaigns/:id` | G | Edita uma campanha |
+| PUT | `/campaigns/:id` | G | Edita uma campanha e ajusta as metas dela ao novo período |
+| POST | `/campaigns/:id/encerrar` | G | Encerra uma campanha em andamento: a data de fim passa a ser o dia anterior |
 | DELETE | `/campaigns/:id` | G | Exclui uma campanha e as metas dela |
-| GET | `/goals` | R e G | Metas com o realizado. O representante vê as próprias |
+| GET | `/goals` | R e G | Metas com o realizado: as comuns e as das campanhas em andamento ou, com `campanhaId`, as daquela campanha. O representante vê as próprias |
 | POST | `/goals` | G | Cria uma meta |
 | PUT | `/goals/:id` | G | Edita uma meta |
 | DELETE | `/goals/:id` | G | Exclui uma meta |

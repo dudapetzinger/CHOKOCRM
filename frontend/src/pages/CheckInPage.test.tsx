@@ -6,6 +6,7 @@ import { Toaster } from '../components/ui/sonner';
 import { comprimirImagem } from '../lib/comprimirImagem';
 import { ApiError } from '../services/api';
 import { listarCampanhas, type Campanha } from '../services/campaigns';
+import { RESUMO_VAZIO } from '../test/campanhas';
 import { createContato, getCliente, type ClienteCompleto, type Contato } from '../services/clients';
 import { enviarFoto, registrarCheckIn, type Visita } from '../services/visits';
 import { CheckInPage } from './CheckInPage';
@@ -40,6 +41,7 @@ function campanha(id: string, nome: string, status: Campanha['status']): Campanh
     resultados: [],
     produtosMaisVendidos: [],
     vendas: [],
+    resumo: RESUMO_VAZIO,
   };
 }
 

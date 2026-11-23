@@ -14,12 +14,20 @@ export type MetaData = {
   campanhaId: string | null;
 };
 
-const COM_REPRESENTANTE = { representante: { select: { id: true, nome: true } } } satisfies Prisma.GoalInclude;
+const COM_REPRESENTANTE = {
+  representante: { select: { id: true, nome: true } },
+  campanha: { select: { id: true, nome: true, inicio: true, fim: true } },
+} satisfies Prisma.GoalInclude;
 
-export type MetaComRepresentante = Goal & { representante: { id: string; nome: string } };
+export type MetaComRepresentante = Goal & {
+  representante: { id: string; nome: string };
+  campanha: { id: string; nome: string; inicio: Date; fim: Date } | null;
+};
 
 /**
- * Metas com campanha `campanhaId` (`null` = só as sem campanha), com
+ * Metas com campanha `campanhaId`. Com `null`, as sem campanha e, se
+ * `emAndamentoEm` vier, também as das campanhas em andamento naquele dia
+ * (`inicio <= dia && fim >= dia`): é a lista do Painel. Com
  * `representanteId`, só as dele e, com `janela`, só as que cruzam a janela
  * (`inicio <= janela.fim && fim >= janela.inicio`; `Date` de coluna
  * `@db.Date`). Do período mais recente para o mais antigo; no mesmo início,
@@ -27,12 +35,23 @@ export type MetaComRepresentante = Goal & { representante: { id: string; nome: s
  */
 export async function listar(filtro: {
   campanhaId: string | null;
+  emAndamentoEm?: Date;
   representanteId?: string;
   janela?: { inicio: Date; fim: Date };
 }): Promise<MetaComRepresentante[]> {
+  const daCampanha: Prisma.GoalWhereInput =
+    filtro.campanhaId === null && filtro.emAndamentoEm
+      ? {
+          OR: [
+            { campanhaId: null },
+            { campanha: { inicio: { lte: filtro.emAndamentoEm }, fim: { gte: filtro.emAndamentoEm } } },
+          ],
+        }
+      : { campanhaId: filtro.campanhaId };
+
   return prisma.goal.findMany({
     where: {
-      campanhaId: filtro.campanhaId,
+      ...daCampanha,
       ...(filtro.representanteId ? { representanteId: filtro.representanteId } : {}),
       ...(filtro.janela ? { inicio: { lte: filtro.janela.fim }, fim: { gte: filtro.janela.inicio } } : {}),
     },

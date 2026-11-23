@@ -78,9 +78,9 @@ Cada requisito tem um código, usado nas histórias de usuário da [seção 4](#
 
 | Código | O sistema deve | Regras em |
 |--------|----------------|-----------|
-| RF28 | Permitir que o gestor crie campanhas com período, desconto e produtos em destaque | [Campanhas](funcionalidades.md#campanhas) |
+| RF28 | Permitir que o gestor crie campanhas com período, desconto e produtos em destaque, e encerre uma campanha em andamento | [Campanhas](funcionalidades.md#campanhas) |
 | RF29 | Permitir que o gestor defina metas de visitas e de vendas por representante, e calcular o realizado | [Metas](funcionalidades.md#metas) |
-| RF30 | Mostrar o resultado de cada campanha por representante | [Campanhas](funcionalidades.md#campanhas) |
+| RF30 | Mostrar as campanhas separadas por situação, o resultado de cada uma por representante e a análise das encerradas | [Campanhas](funcionalidades.md#campanhas) |
 
 ### Notas fiscais
 
@@ -229,6 +229,9 @@ Como gestor, quero criar campanhas e metas e acompanhar o resultado, para direci
 - A campanha tem nome, período, desconto e produtos em destaque.
 - A meta pode ser semanal, mensal, de um período livre ou de uma campanha.
 - A tela de Campanhas mostra, por representante, as visitas, as vendas e a conversão de cada campanha.
+- As campanhas ficam separadas em abas: em andamento, programadas e encerradas.
+- O gestor pode encerrar uma campanha em andamento, e as metas dela acompanham a nova data de fim.
+- A campanha encerrada tem uma análise com os totais de vendas e de visitas, as metas e os produtos mais vendidos.
 
 Requisitos: RF28, RF29, RF30.
 
@@ -277,7 +280,8 @@ Um fluxo completo começa em uma necessidade de quem usa e termina em um resulta
 1. O gestor cria a campanha, com período, desconto e produtos em destaque.
 2. Ele define, para cada representante, uma meta ligada à campanha.
 3. O representante indica a campanha no check-in das visitas em que a trabalhou.
-4. A tela de Campanhas mostra o resultado por representante, e o painel mostra a meta com o realizado.
+4. A tela de Campanhas mostra o resultado por representante, e o painel mostra a meta com o realizado enquanto a campanha está em andamento.
+5. Quando a campanha termina, ou quando o gestor a encerra antes da data, a análise reúne o que ela rendeu.
 
 ### 5.4 Do cliente esfriando ao contato
 

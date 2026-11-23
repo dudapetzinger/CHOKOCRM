@@ -1,9 +1,9 @@
 /**
  * Acesso tipado às campanhas, promoções e eventos. Espelha o
  * `CampanhaDTO` de `backend/src/services/campaign.service.ts`: o status, os
- * resultados por representante, os produtos mais vendidos e as vendas
- * vinculadas vêm calculados do backend (o front não recalcula regra).
- * Todos leem; criar, alterar e excluir é só do gestor no backend.
+ * resultados por representante, o resumo, os produtos mais vendidos e as
+ * vendas vinculadas vêm calculados do backend (o front não recalcula regra).
+ * Todos leem; criar, alterar, encerrar e excluir é só do gestor no backend.
  */
 import { api } from './api';
 
@@ -51,6 +51,23 @@ export type VendaDaCampanha = {
   total: number;
 };
 
+/**
+ * Os totais da campanha, somando os representantes que quem pede pode ver:
+ * a base da análise das campanhas encerradas.
+ */
+export type ResumoDaCampanha = {
+  /** Visitas vinculadas, com ou sem venda. */
+  visitas: number;
+  /** Visitas vinculadas com Venda. */
+  vendasFechadas: number;
+  clientesAtendidos: number;
+  /** Em reais. */
+  vendas: number;
+  conversao: { numerador: number; denominador: number; percentual: number | null };
+  /** Valor médio por venda, em reais; `null` sem venda. */
+  ticketMedio: number | null;
+};
+
 export type Campanha = {
   id: string;
   nome: string;
@@ -73,6 +90,7 @@ export type Campanha = {
    * no escopo de quem pede.
    */
   vendas: VendaDaCampanha[];
+  resumo: ResumoDaCampanha;
 };
 
 /** Corpo de criar e de alterar (o `PUT` troca a campanha inteira). */
@@ -99,6 +117,14 @@ export function criarCampanha(input: CampanhaInput): Promise<Campanha> {
 
 export function atualizarCampanha(id: string, input: CampanhaInput): Promise<Campanha> {
   return api.put<Campanha>(`/campaigns/${id}`, input);
+}
+
+/**
+ * Encerra agora uma campanha em andamento: o backend troca a data de fim
+ * para ontem e ajusta as metas dela. Devolve a campanha já encerrada.
+ */
+export function encerrarCampanha(id: string): Promise<Campanha> {
+  return api.post<Campanha>(`/campaigns/${id}/encerrar`, {});
 }
 
 /** Visitas e próximas visitas vinculadas ficam sem a campanha. */

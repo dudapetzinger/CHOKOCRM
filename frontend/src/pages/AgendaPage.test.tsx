@@ -7,6 +7,7 @@ import { RepresentanteProvider } from '../representante/RepresentanteContext';
 import { ApiError } from '../services/api';
 import { buscarAgendaDoDia, buscarCalendario, type Agenda, type AgendaItem } from '../services/agenda';
 import { listarCampanhas, type Campanha } from '../services/campaigns';
+import { RESUMO_VAZIO } from '../test/campanhas';
 import { concluirLembrete, type LembreteItem } from '../services/lembretes';
 import { AgendaPage } from './AgendaPage';
 
@@ -471,6 +472,7 @@ describe('AgendaPage: campanhas em andamento', () => {
       resultados: [],
       produtosMaisVendidos: [],
       vendas: [],
+      resumo: RESUMO_VAZIO,
     };
   }
 

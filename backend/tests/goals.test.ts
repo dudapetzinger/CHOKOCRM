@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { app } from '../src/app';
 import { prisma } from '../src/lib/prisma';
+import { dataCalendario, somarDias } from '../src/services/classificacao.service';
 import { truncateAllTables } from './helpers/db';
 
 const SENHA_PADRAO = 'chokocrm123';
@@ -60,6 +61,11 @@ async function criarCliente(representanteId: string, nomeFantasia: string): Prom
     },
   });
   return cliente.id;
+}
+
+/** Hoje + `dias`, como data de calendário em São Paulo (o "hoje" do servidor). */
+function daquiA(dias: number): string {
+  return somarDias(dataCalendario(new Date()), dias);
 }
 
 /** Campanha gravada direto no banco (`@db.Date` = meia-noite UTC). */
@@ -139,6 +145,7 @@ function dtoDaMeta(id: string, overrides: Record<string, unknown> = {}) {
     metaVisitas: 12,
     metaVendas: 6000,
     campanhaId: null,
+    campanha: null,
     realizado: { visitas: 0, vendas: 0, clientes: [] },
     ...overrides,
   };
@@ -318,6 +325,7 @@ describe('POST /goals', () => {
         dtoDaMeta(await idDaUnicaMeta(), {
           periodo: 'CAMPANHA',
           campanhaId: natalId,
+          campanha: { id: natalId, nome: 'Natal Chokolaten', inicio: '2026-11-01', fim: '2026-12-24' },
           inicio: '2026-11-01',
           fim: '2026-12-24',
         }),
@@ -493,20 +501,68 @@ describe('GET /goals', () => {
     ]);
   });
 
-  it('sem campanhaId, só as metas sem campanha; com ele, só as daquela campanha', async () => {
-    const natalId = await criarCampanha('2026-11-01', '2026-12-24');
-    const pascoaId = await criarCampanha('2027-03-01', '2027-04-05', 'Páscoa');
-    const semCampanha = (await criarMeta()).body;
+  it('sem campanhaId: as metas sem campanha e as das campanhas em andamento hoje; com ele, só as daquela campanha', async () => {
+    const natalId = await criarCampanha(daquiA(-5), daquiA(30));
+    const terminaHojeId = await criarCampanha(daquiA(-10), daquiA(0), 'Feira de hoje');
+    const programadaId = await criarCampanha(daquiA(3), daquiA(10), 'Páscoa');
+    const encerradaId = await criarCampanha(daquiA(-20), daquiA(-1), 'Dia das Mães');
+    const semCampanha = (await criarMeta({ inicio: daquiA(-40), fim: daquiA(-30) })).body;
     const doNatal = (
-      await criarMeta({ periodo: 'CAMPANHA', campanhaId: natalId, inicio: '2026-11-01', fim: '2026-12-24' })
+      await criarMeta({ periodo: 'CAMPANHA', campanhaId: natalId, inicio: daquiA(-5), fim: daquiA(30) })
     ).body;
-    await criarMeta({ periodo: 'CAMPANHA', campanhaId: pascoaId, inicio: '2027-03-01', fim: '2027-04-05' });
+    const daQueTerminaHoje = (
+      await criarMeta({ periodo: 'CAMPANHA', campanhaId: terminaHojeId, inicio: daquiA(-10), fim: daquiA(0) })
+    ).body;
+    const daProgramada = (
+      await criarMeta({ periodo: 'CAMPANHA', campanhaId: programadaId, inicio: daquiA(3), fim: daquiA(10) })
+    ).body;
+    const daEncerrada = (
+      await criarMeta({ periodo: 'CAMPANHA', campanhaId: encerradaId, inicio: daquiA(-20), fim: daquiA(-1) })
+    ).body;
+    const ids = (res: request.Response) => res.body.data.map((meta: { id: string }) => meta.id);
 
     const geral = await autenticado(request(app).get('/goals'), tokenGestor);
     const natal = await autenticado(request(app).get(`/goals?campanhaId=${natalId}`), tokenGestor);
+    const encerrada = await autenticado(request(app).get(`/goals?campanhaId=${encerradaId}`), tokenGestor);
+    const programada = await autenticado(request(app).get(`/goals?campanhaId=${programadaId}`), tokenGestor);
 
-    expect(geral.body.data.map((meta: { id: string }) => meta.id)).toEqual([semCampanha.id]);
-    expect(natal.body.data.map((meta: { id: string }) => meta.id)).toEqual([doNatal.id]);
+    // Do início mais recente para o mais antigo; a campanha que termina hoje ainda está em andamento
+    expect(ids(geral)).toEqual([doNatal.id, daQueTerminaHoje.id, semCampanha.id]);
+    expect(geral.body.data[0].campanha).toEqual({
+      id: natalId,
+      nome: 'Natal Chokolaten',
+      inicio: daquiA(-5),
+      fim: daquiA(30),
+    });
+    expect(geral.body.data[2].campanha).toBeNull();
+    // Na tela de Campanhas, cada campanha continua com as metas dela, qualquer que seja a situação
+    expect(ids(natal)).toEqual([doNatal.id]);
+    expect(ids(encerrada)).toEqual([daEncerrada.id]);
+    expect(ids(programada)).toEqual([daProgramada.id]);
+  });
+
+  it('as metas de campanha da lista geral também respeitam o período pedido e o representante', async () => {
+    const natalId = await criarCampanha(daquiA(-5), daquiA(30));
+    const daEduarda = (
+      await criarMeta({ periodo: 'CAMPANHA', campanhaId: natalId, inicio: daquiA(-5), fim: daquiA(30) })
+    ).body;
+    await criarMeta({
+      representanteId: rafaelId,
+      periodo: 'CAMPANHA',
+      campanhaId: natalId,
+      inicio: daquiA(-5),
+      fim: daquiA(30),
+    });
+    const ids = (res: request.Response) => res.body.data.map((meta: { id: string }) => meta.id);
+
+    const foraDaJanela = await autenticado(
+      request(app).get(`/goals?inicio=${daquiA(-30)}&fim=${daquiA(-10)}`),
+      tokenGestor,
+    );
+    const daRepresentante = await autenticado(request(app).get('/goals'), tokenEduarda);
+
+    expect(ids(foraDaJanela)).toEqual([]);
+    expect(ids(daRepresentante)).toEqual([daEduarda.id]);
   });
 
   it('com ?inicio&fim lista só as metas que cruzam a janela (pontas inclusivas); sem período, todas', async () => {
@@ -634,6 +690,7 @@ describe('PUT /goals/:id', () => {
       metaVisitas: 5,
       metaVendas: 900,
       campanhaId: null,
+      campanha: null,
       realizado: {
         visitas: 1,
         vendas: 96,

@@ -193,3 +193,39 @@ export function vendasDaCampanha(visitas: VisitaVinculada[]): VendaDaCampanha[] 
       total: somarItens(visita.itens).toDecimalPlaces(2).toNumber(),
     }));
 }
+
+/** Totais de uma campanha, somando todos os representantes do escopo de quem pede. */
+export type ResumoDaCampanha = {
+  /** Visitas vinculadas, com ou sem venda. */
+  visitas: number;
+  /** Visitas vinculadas com VENDA. */
+  vendasFechadas: number;
+  /** Clientes distintos visitados (duas visitas ao mesmo cliente contam um). */
+  clientesAtendidos: number;
+  /** Soma dos pedidos das visitas com VENDA, em reais com 2 casas. */
+  vendas: number;
+  /** Visitas com VENDA ÷ visitas vinculadas; `percentual` nulo sem visitas. */
+  conversao: Proporcao;
+  /** Valor médio por venda (vendas ÷ visitas com VENDA), em reais com 2 casas; nulo sem venda. */
+  ticketMedio: number | null;
+};
+
+/**
+ * Os totais que a análise da campanha mostra. Segue as mesmas regras dos
+ * resultados por representante: toda visita vinculada conta como visita e só
+ * a visita com VENDA soma o pedido. A soma e a divisão são feitas em
+ * `Decimal`, como o total do pedido.
+ */
+export function resumoDaCampanha(visitas: VisitaVinculada[]): ResumoDaCampanha {
+  const comVenda = visitas.filter((visita) => visita.resultado === 'VENDA');
+  const vendas = comVenda.reduce((soma, visita) => somarItens(visita.itens, soma), new Prisma.Decimal(0));
+
+  return {
+    visitas: visitas.length,
+    vendasFechadas: comVenda.length,
+    clientesAtendidos: new Set(visitas.map((visita) => visita.clientId)).size,
+    vendas: vendas.toDecimalPlaces(2).toNumber(),
+    conversao: proporcao(comVenda.length, visitas.length),
+    ticketMedio: comVenda.length === 0 ? null : vendas.dividedBy(comVenda.length).toDecimalPlaces(2).toNumber(),
+  };
+}

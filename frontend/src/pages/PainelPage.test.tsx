@@ -66,6 +66,7 @@ const META_DA_EDUARDA: Meta = {
   metaVisitas: 10,
   metaVendas: 6000,
   campanhaId: null,
+  campanha: null,
   realizado: { visitas: 7, vendas: 4200, clientes: [] },
 };
 

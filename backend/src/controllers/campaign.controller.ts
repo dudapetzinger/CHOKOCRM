@@ -36,6 +36,16 @@ export async function putCampaign(req: Request, res: Response, next: NextFunctio
   }
 }
 
+export async function postEncerrarCampaign(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = idParamSchema.parse(req.params.id);
+    const campanha = await campaignService.encerrarCampanha(id, usuarioAutenticado(req));
+    res.status(200).json(campanha);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function deleteCampaign(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const id = idParamSchema.parse(req.params.id);

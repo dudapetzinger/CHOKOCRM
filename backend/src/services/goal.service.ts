@@ -7,7 +7,7 @@ import type { MetaComRepresentante, MetaData } from '../repositories/goal.reposi
 import * as userRepository from '../repositories/user.repository';
 import type { ListarMetasQuery, MetaInput } from '../schemas/goal.schema';
 import { representanteEfetivo, type UsuarioAutenticado } from './carteira';
-import { colunaDateDaData, dataDaColunaDate, fimDoDia, inicioDoDia } from './classificacao.service';
+import { colunaDateDaData, dataCalendario, dataDaColunaDate, fimDoDia, inicioDoDia } from './classificacao.service';
 import { metaDentroDaCampanha, periodoDaMeta, realizadoDaMeta, type Realizado } from './goal.regras';
 import { resolverPeriodo } from './periodo';
 import { agora } from '../lib/relogio';
@@ -36,6 +36,8 @@ export type MetaDTO = {
   /** Em reais, com 2 casas. */
   metaVendas: number;
   campanhaId: string | null;
+  /** A campanha da meta, com o período dela (`AAAA-MM-DD`); `null` na meta sem campanha. */
+  campanha: { id: string; nome: string; inicio: string; fim: string } | null;
   realizado: Realizado;
 };
 
@@ -68,6 +70,12 @@ async function montarDTOs(metas: MetaComRepresentante[]): Promise<MetaDTO[]> {
       metaVisitas: meta.metaVisitas,
       metaVendas: meta.metaVendas.toDecimalPlaces(2).toNumber(),
       campanhaId: meta.campanhaId,
+      campanha: meta.campanha && {
+        id: meta.campanha.id,
+        nome: meta.campanha.nome,
+        inicio: dataDaColunaDate(meta.campanha.inicio),
+        fim: dataDaColunaDate(meta.campanha.fim),
+      },
       realizado: realizadoDaMeta(visitas, {
         representanteId: meta.representanteId,
         inicio,
@@ -135,18 +143,22 @@ async function exigirMeta(id: string): Promise<Goal> {
 }
 
 /**
- * Sem `campanhaId`, só as metas sem campanha; com ele, só as daquela
- * campanha. O representante recebe só as próprias (o `representanteId`
- * pedido é ignorado); o gestor, as do representante pedido ou todas. Com
- * período na query (dias ou datas, sem teto), só as metas que cruzam a
- * janela; sem período, todas.
+ * Sem `campanhaId` (a lista do Painel), as metas sem campanha e as das
+ * campanhas em andamento hoje em São Paulo: a meta de campanha programada
+ * ou encerrada fica só na tela de Campanhas. Com `campanhaId`, só as
+ * daquela campanha, em qualquer situação. O representante recebe só as
+ * próprias (o `representanteId` pedido é ignorado); o gestor, as do
+ * representante pedido ou todas. Com período na query (dias ou datas, sem
+ * teto), só as metas que cruzam a janela; sem período, todas.
  */
 export async function listarMetas(usuario: UsuarioAutenticado, filtro: ListarMetasQuery): Promise<MetaDTO[]> {
+  const hoje = agora();
   const pediuPeriodo = filtro.periodoDias !== undefined || filtro.inicio !== undefined || filtro.fim !== undefined;
-  const janela = pediuPeriodo ? resolverPeriodo(filtro, agora()) : undefined;
+  const janela = pediuPeriodo ? resolverPeriodo(filtro, hoje) : undefined;
 
   const metas = await goalRepository.listar({
     campanhaId: filtro.campanhaId ?? null,
+    emAndamentoEm: colunaDateDaData(dataCalendario(hoje)),
     representanteId: representanteEfetivo(usuario, filtro.representanteId),
     ...(janela ? { janela: { inicio: colunaDateDaData(janela.inicio), fim: colunaDateDaData(janela.fim) } } : {}),
   });

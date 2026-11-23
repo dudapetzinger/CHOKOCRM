@@ -30,6 +30,7 @@ const OUTUBRO_EDUARDA: Meta = {
   metaVisitas: 10,
   metaVendas: 6000,
   campanhaId: null,
+  campanha: null,
   realizado: { visitas: 7, vendas: 4200, clientes: [] },
 };
 
@@ -42,6 +43,7 @@ const SEMANA_RAFAEL: Meta = {
   metaVisitas: 5,
   metaVendas: 0,
   campanhaId: null,
+  campanha: null,
   realizado: { visitas: 5, vendas: 320, clientes: [] },
 };
 
@@ -533,5 +535,73 @@ describe('MetasPanel: campanha', () => {
 
     const area = screen.getByRole('region', { name: 'Metas da campanha' });
     expect(await within(area).findByRole('list', { name: /Metas/ })).toBeInTheDocument();
+  });
+});
+
+describe('MetasPanel: metas de campanha no Painel', () => {
+  const DO_NATAL: Meta = {
+    id: 'm3',
+    representante: { id: 'r1', nome: 'Eduarda Fischer' },
+    periodo: 'CAMPANHA',
+    inicio: '2026-11-01',
+    fim: '2026-12-24',
+    metaVisitas: 8,
+    metaVendas: 5000,
+    campanhaId: 'cp1',
+    campanha: { id: 'cp1', nome: 'Natal Chokolaten', inicio: '2026-11-01', fim: '2026-12-24' },
+    realizado: { visitas: 2, vendas: 900, clientes: [] },
+  };
+
+  it('a meta de campanha mostra o nome da campanha no cartão; a meta comum, não', async () => {
+    vi.mocked(listarMetas).mockResolvedValue([DO_NATAL, OUTUBRO_EDUARDA]);
+    renderizar();
+
+    const cartoes = within(await screen.findByRole('list', { name: 'Metas de visitas e vendas' })).getAllByRole(
+      'listitem',
+    );
+    expect(within(cartoes[0]).getByText('Por campanha')).toBeInTheDocument();
+    expect(within(cartoes[0]).getByText('Natal Chokolaten')).toBeInTheDocument();
+    expect(within(cartoes[1]).queryByText('Natal Chokolaten')).not.toBeInTheDocument();
+  });
+
+  it('editar a meta de campanha pelo Painel mantém a campanha: sem periodicidade e dentro do período dela', async () => {
+    vi.mocked(listarMetas).mockResolvedValue([DO_NATAL]);
+    renderizar();
+
+    await usuario.click(
+      await screen.findByRole('button', { name: 'Editar meta de Eduarda Fischer, 01/11/2026 a 24/12/2026' }),
+    );
+    const formulario = screen.getByRole('form', { name: 'Editar meta' });
+    expect(within(formulario).queryByRole('radiogroup', { name: 'Periodicidade' })).not.toBeInTheDocument();
+
+    preencher(within(formulario).getByLabelText('Fim'), '2026-12-31');
+    await usuario.click(within(formulario).getByRole('button', { name: 'Salvar meta' }));
+    expect(within(formulario).getByText('A meta deve ficar dentro do período da campanha.')).toBeInTheDocument();
+    expect(atualizarMeta).not.toHaveBeenCalled();
+
+    preencher(within(formulario).getByLabelText('Fim'), '2026-12-20');
+    preencher(within(formulario).getByLabelText('Meta de visitas'), '9');
+    await usuario.click(within(formulario).getByRole('button', { name: 'Salvar meta' }));
+
+    await waitFor(() =>
+      expect(atualizarMeta).toHaveBeenCalledWith('m3', {
+        representanteId: 'r1',
+        periodo: 'CAMPANHA',
+        inicio: '2026-11-01',
+        fim: '2026-12-20',
+        metaVisitas: 9,
+        metaVendas: 5000,
+        campanhaId: 'cp1',
+      }),
+    );
+  });
+
+  it('dentro do cartão da campanha, o nome dela não se repete em cada meta', async () => {
+    vi.mocked(listarMetas).mockResolvedValue([DO_NATAL]);
+    renderizar({ campanha: NATAL });
+
+    const area = screen.getByRole('region', { name: 'Metas da campanha' });
+    expect(await within(area).findByText('Por campanha')).toBeInTheDocument();
+    expect(within(area).queryByText('Natal Chokolaten')).not.toBeInTheDocument();
   });
 });
