@@ -97,6 +97,8 @@ Cada requisito tem um código, usado nas histórias de usuário da [seção 4](#
 | RF34 | Simular outra data e recriar os dados de demonstração em volta dela | [Modo demonstração](funcionalidades.md#13-modo-demonstração) |
 | RF35 | Poder ser instalado como aplicativo, avisar quando há versão nova e quando falta internet | [Uso como aplicativo](funcionalidades.md#14-uso-como-aplicativo) |
 
+O RF34 é um recurso de apresentação e avaliação do projeto: permite mostrar as sugestões e a sazonalidade de qualquer época do ano. Ele não corresponde a uma necessidade dos usuários da empresa e, por isso, não tem história de usuário.
+
 ## 3. Requisitos não funcionais
 
 | Código | Qualidade | Como é atendida |
@@ -249,16 +251,6 @@ Como gestor, quero criar as contas dos representantes e transferir clientes entr
 - Todos os clientes de um representante podem ser transferidos para outro de uma vez.
 
 Requisitos: RF03, RF10.
-
-**H14. Apresentar o sistema em outra data**
-
-Como gestor, quero simular outro dia do ano, para mostrar o sistema em épocas como a Páscoa ou o Natal.
-
-- O modo demonstração pede uma data e a senha da conta Gestão.
-- Os dados de demonstração são recriados em volta da data escolhida.
-- Os clientes criados a partir de notas fiscais e as contas de usuário são mantidos.
-
-Requisitos: RF34.
 
 ## 5. Fluxos de negócio completos
 
