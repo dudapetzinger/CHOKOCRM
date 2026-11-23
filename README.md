@@ -15,7 +15,6 @@ Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Univers
 - [O que o sistema faz](#o-que-o-sistema-faz)
 - [Como testar](#como-testar)
 - [Como o sistema é construído](#como-o-sistema-é-construído)
-- [Como executar o projeto localmente](#como-executar-o-projeto-localmente)
 - [Testes e qualidade](#testes-e-qualidade)
 - [Organização do repositório](#organização-do-repositório)
 - [Documentação](#documentação)
@@ -193,54 +192,13 @@ A interface não toma decisões de negócio. Ela exibe o que o servidor calcula:
 
 O desenho das camadas, a organização das pastas e as decisões técnicas, com o motivo de cada uma, estão em [docs/arquitetura.md](docs/arquitetura.md).
 
-## Como executar o projeto localmente
-
-Esta seção é para quem quer executar ou alterar o código no próprio computador. Para avaliar o sistema, basta o endereço publicado em [Como testar](#como-testar).
-
-É necessário ter o Git, o Docker Desktop e o Node.js 22.13 ou superior.
-
-```bash
-git clone https://github.com/dudapetzinger/CHOKOCRM.git
-cd CHOKOCRM
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-docker compose up --build
-```
-
-Com o ambiente no ar, abra outro terminal para criar as tabelas e carregar os dados de demonstração:
-
-```bash
-cd backend
-npm install
-npm run db:migrate
-npm run db:seed
-```
-
-Abra <http://localhost:5173> e entre com uma das [contas de acesso](#contas-de-acesso).
-
-O passo a passo detalhado, as variáveis de configuração, a execução sem Docker e a solução dos problemas mais comuns estão em [docs/instalacao-e-configuracao.md](docs/instalacao-e-configuracao.md).
-
 ## Testes e qualidade
 
 O projeto tem mais de 2.400 testes automatizados, cerca de 1.230 no servidor e 1.170 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
 
 A verificação é automática e não depende de quem avalia o projeto. A cada envio de código para o GitHub, o GitHub Actions executa todos os testes, o SonarCloud analisa o código e, se não houver falhas, a nova versão é publicada no Azure. Os dois selos no topo desta página mostram o resultado mais recente: o primeiro é o da verificação automática (CI) e o segundo, o da análise do SonarCloud (Quality Gate).
 
-Em uma instalação local, os testes também podem ser executados manualmente:
-
-```bash
-cd backend
-npm test
-```
-
-```bash
-cd frontend
-npm test
-```
-
-Os testes do servidor usam o banco de dados local e o esvaziam. Depois de executá-los, recarregue os dados de demonstração com `npm run db:seed:reset` na pasta `backend`.
-
-O que é testado, como os testes estão organizados e como a publicação funciona estão em [docs/testes.md](docs/testes.md).
+O que é testado, como os testes estão organizados, como executá-los e como a publicação funciona estão em [docs/testes.md](docs/testes.md).
 
 ## Organização do repositório
 
