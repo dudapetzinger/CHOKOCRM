@@ -251,7 +251,7 @@ Explica o que é testado, como executar os testes, como o GitHub Actions confere
 
 ### Monitoramento
 
-Descreve como o sistema é acompanhado depois de publicado: o registro de cada pedido, o endereço de verificação de saúde e o Application Insights. Está nas seções [Publicação e monitoramento](docs/arquitetura.md#7-publicação-e-monitoramento) e [Acompanhamento](docs/instalacao-e-configuracao.md#96-acompanhamento).
+Descreve como o sistema é acompanhado depois de publicado: o registro de cada pedido, o endereço que informa se o servidor e o banco de dados estão respondendo (`/health`) e o Application Insights. Está nas seções [Publicação e monitoramento](docs/arquitetura.md#7-publicação-e-monitoramento) e [Acompanhamento](docs/instalacao-e-configuracao.md#96-acompanhamento).
 
 ### Privacidade, segurança e acessibilidade
 
