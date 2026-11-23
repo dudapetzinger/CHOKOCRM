@@ -78,6 +78,17 @@ O acesso é feito com usuário e senha. A senha de todas as contas é `chokocrm1
 
 Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular diferentes períodos de uso. Todos os clientes e contatos já cadastrados usam o telefone da autora do projeto, então as ligações e as mensagens de teste pelo WhatsApp chegam a um número conhecido. A carteira é um modelo: cada representante tem 40 clientes ativos e 1 inativo, com a maioria em dia e alguns em Atenção e em Prioridade, e de 4 a 5 visitas por dia útil.
 
+### Cuidados ao testar
+
+O ambiente publicado é um só, usado ao mesmo tempo por todas as pessoas que avaliam o projeto. O que uma pessoa muda aparece para as outras. Por isso:
+
+- Não troque a senha das três contas da tabela e não inative essas contas. Elas são a porta de entrada de todo mundo. Para experimentar a tela de Usuários, crie uma conta nova e faça os testes nela.
+- Registre visitas, crie campanhas, metas e lembretes à vontade. São dados de demonstração.
+- Use o Modo demonstração só para ver o sistema em outra época do ano: as sugestões de Páscoa ou de Natal, a aba Produção e sazonalidade e os gráficos de outro período. Recriar a demonstração apaga as visitas, as campanhas e as metas registradas por todos e muda a data para todos. Ao terminar, use Voltar ao real.
+- No dia da apresentação do projeto, 08/12/2026, não recrie a demonstração: ela estará preparada em uma data escolhida para a mostra.
+
+Se a carteira aparecer diferente do que o roteiro abaixo descreve, alguém a alterou em um teste. Recriar a demonstração devolve os clientes, as visitas, as campanhas e as metas ao modelo. As contas e as senhas não são recriadas.
+
 ### Roteiro sugerido
 
 Como representante (conta da Eduarda ou do Rafael):
@@ -98,11 +109,13 @@ Como gestor (conta Gestão Chokolaten):
 4. Abra a aba Produção e sazonalidade para ver as próximas datas comemorativas, o estoque baixo por produto e as vendas por mês.
 5. Abra Clientes para ver o mapa da carteira por cidade e clique em uma cidade para ver os clientes dela.
 6. Em Campanhas, crie uma campanha e uma meta para um representante.
-7. No menu da conta, abra Usuários para criar uma conta ou definir uma senha provisória.
+7. No menu da conta, abra Usuários, crie uma conta nova e defina uma senha provisória para ela. Não altere as três contas da tabela.
 
 ### Simulando outra data
 
 A tela de login tem o botão Modo demonstração. Ele pede uma data e a senha da conta Gestão e faz o sistema se comportar como se aquele fosse o dia de hoje, recriando os dados de demonstração em volta da data. É a forma de ver, por exemplo, as sugestões de Páscoa fora da época. A opção Voltar ao real desfaz a simulação.
+
+A data simulada vale para todas as pessoas que estão usando o sistema, e a recriação apaga o que foi registrado antes. Leia os [cuidados ao testar](#cuidados-ao-testar) antes de usar.
 
 ### Usando como aplicativo
 
