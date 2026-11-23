@@ -14,11 +14,11 @@ Este documento explica como o ChokoCRM é construído: quais são as partes do s
 
 ## 1. Visão geral
 
-O sistema tem três partes. A interface roda no navegador do representante ou do gestor. O servidor recebe os pedidos da interface, aplica as regras do negócio e responde. O banco de dados guarda clientes, visitas, notas fiscais e o restante das informações.
+O sistema tem três partes. A interface é executada no navegador do representante ou do gestor. O servidor recebe os pedidos da interface, aplica as regras do negócio e responde. O banco de dados guarda clientes, visitas, notas fiscais e o restante das informações.
 
 Os desenhos deste documento seguem o modelo C4, que mostra a arquitetura em níveis, como um mapa em que a imagem é aproximada aos poucos. O nível 1 mostra o sistema inteiro e quem se relaciona com ele. O nível 2 abre o sistema nas partes que o formam. O nível 3 abre uma dessas partes por dentro. Os níveis 1 e 2 estão nesta seção, e o nível 3 está na [seção 2](#2-camadas-do-servidor).
 
-Em todos os desenhos, cada caixa traz o nome, o tipo entre colchetes e uma descrição curta. As cores seguem o padrão do C4: azul-escuro para pessoas, azul para o que faz parte do ChokoCRM e cinza para os sistemas de fora.
+Em todos os desenhos, cada caixa traz o nome, o tipo entre colchetes e uma descrição curta. As cores seguem o padrão do C4: azul-escuro para pessoas, azul para o que faz parte do ChokoCRM e cinza para os sistemas externos.
 
 ### Nível 1: contexto
 
@@ -49,11 +49,11 @@ flowchart TB
     class erp,whats,maps externo
 ```
 
-Três sistemas de fora aparecem no desenho. O sistema de gestão da empresa (ERP) emite as notas fiscais, que a gestão baixa em PDF e importa para alimentar o histórico de compras dos clientes. O WhatsApp é usado pela própria pessoa: o ChokoCRM monta o texto e abre a conversa com o contato escolhido, e quem envia a mensagem é ela. O Google Maps recebe, por um link, as cidades das visitas do dia e mostra o trajeto.
+Três sistemas externos aparecem no desenho. O sistema de gestão da empresa (ERP) emite as notas fiscais, que a gestão baixa em PDF e importa para alimentar o histórico de compras dos clientes. O WhatsApp é usado pela própria pessoa: o ChokoCRM monta o texto e abre a conversa com o contato escolhido, e quem envia a mensagem é ela. O Google Maps recebe, por um link, as cidades das visitas do dia e mostra o trajeto.
 
 ### Nível 2: containers
 
-O segundo nível abre o ChokoCRM. No C4, container é cada parte que roda ou guarda dados por conta própria, como a interface, o servidor e o banco. Não é o mesmo que um container do Docker.
+O segundo nível abre o ChokoCRM. No C4, container é cada parte que é executada ou guarda dados de forma independente, como a interface, o servidor e o banco. Não é o mesmo que um container do Docker.
 
 ```mermaid
 flowchart TB
@@ -94,7 +94,7 @@ No computador de desenvolvimento, as três partes sobem juntas com o Docker Comp
 
 ## 2. Camadas do servidor
 
-O servidor é dividido em camadas. Cada camada tem uma responsabilidade e só conversa com a camada logo abaixo dela.
+O servidor é dividido em camadas. Cada camada tem uma responsabilidade e só se comunica com a camada imediatamente abaixo dela.
 
 ### Nível 3: componentes do servidor
 
@@ -145,9 +145,9 @@ A tabela descreve cada camada e a pasta em que ela fica:
 
 Ao redor das camadas ficam as peças de apoio: os `middlewares` (login, permissão por perfil, tratamento de erros e registro de cada pedido), os `jobs` (rotinas diárias), a pasta `config` (variáveis de ambiente e os limites usados nas regras) e a pasta `lib` (conexão com o banco, registro de logs e o relógio do sistema).
 
-Dentro da camada de negócio, as regras que só fazem contas ficam em arquivos separados dos que buscam dados. Os arquivos terminados em `.regras.ts` não acessam banco nem ERP: recebem dados e devolvem o resultado. Isso permite testar cada regra sem subir nada.
+Dentro da camada de negócio, as regras que só fazem contas ficam em arquivos separados dos que buscam dados. Os arquivos terminados em `.regras.ts` não acessam banco nem ERP: recebem dados e devolvem o resultado. Isso permite testar cada regra sem iniciar o servidor nem o banco de dados.
 
-Duas rotinas rodam todos os dias. A primeira percorre a carteira de cada representante e registra em log as visitas atrasadas e as previstas para o dia. A segunda apaga do disco as fotos de visitas com mais de 90 dias.
+Duas rotinas são executadas todos os dias. A primeira percorre a carteira de cada representante e registra em log as visitas atrasadas e as previstas para o dia. A segunda apaga do disco as fotos de visitas com mais de 90 dias.
 
 ## 3. Organização da interface
 
@@ -226,11 +226,11 @@ A tabela resume o que foi escolhido em cada assunto e o motivo. As cinco primeir
 
 | Assunto | O que escolhemos | Por quê |
 |---------|------------------|---------|
-| Interface | React com TypeScript, montada com Vite e estilizada com Tailwind CSS | As telas são feitas de peças reaproveitadas, o TypeScript acusa erros de tipo antes de o código rodar e o resultado pode ser instalado como aplicativo |
+| Interface | React com TypeScript, montada com Vite e estilizada com Tailwind CSS | As telas são feitas de peças reaproveitadas, o TypeScript acusa erros de tipo antes de o código ser executado e o resultado pode ser instalado como aplicativo |
 | Servidor | Node.js com Express e TypeScript | É a mesma linguagem da interface, o que facilita manter os dois lados. O Express é pequeno e deixa a organização em camadas por conta do projeto |
 | Comunicação | API REST com dados em JSON | Interface e servidor ficam independentes. Outra interface ou outro sistema pode usar os mesmos endereços no futuro |
 | Banco de dados | PostgreSQL | Os dados são muito ligados entre si (cliente, contato, visita, nota fiscal). Um banco relacional garante essas ligações com chaves e restrições |
-| Organização do servidor | Arquitetura em camadas | Cada regra fica em um lugar só, as regras são testadas sem banco de dados e a fonte dos dados de compra pode ser trocada sem mexer nas telas |
+| Organização do servidor | Arquitetura em camadas | Cada regra fica em um único lugar, as regras são testadas sem banco de dados e a fonte dos dados de compra pode ser trocada sem alterar as telas |
 | Repositório | Um só, público, com servidor, interface e documentação | Uma mudança que envolve os dois lados entra de uma vez, e quem avalia encontra tudo em um lugar |
 | Acesso ao banco | Prisma, com o arquivo `schema.prisma` como única descrição das tabelas | As alterações do banco ficam versionadas e os tipos do código saem do mesmo arquivo |
 | Clientes | Só a gestão cria cliente, a partir de uma nota fiscal importada. Só a gestão inativa | O cadastro oficial é o do sistema de gestão da empresa. Assim não há cliente duplicado nem inventado |
@@ -244,13 +244,13 @@ A tabela resume o que foi escolhido em cada assunto e o motivo. As cinco primeir
 | Senha esquecida | O gestor define uma senha provisória e a pessoa troca depois, no próprio perfil | Dispensa um serviço de envio de e-mails |
 | WhatsApp | O sistema monta o texto e abre a conversa com o contato escolhido. Nada é registrado | Não usa a API paga do WhatsApp. Quem envia é o representante, que pode alterar o texto antes |
 | Fotos das visitas | Gravadas no disco do servidor e apagadas depois de 90 dias | Comprovam a visita sem acumular arquivos. Só usuários com acesso ao cliente veem a foto |
-| Lembretes | Cada lembrete é uma tarefa com data, aberta até alguém concluir | Um lembrete não pode sumir só porque houve uma visita nova |
+| Lembretes | Cada lembrete é uma tarefa com data, aberta até ser concluída | Um lembrete não pode desaparecer apenas porque houve uma visita nova |
 | Aplicativo | Instalável no celular (PWA), sem gravação offline | Evita publicar em loja de aplicativos. Gravar offline exigiria resolver conflitos de sincronização |
 | Visual | Protótipo aprovado pela empresa, com Tailwind CSS e componentes shadcn | O visual já estava validado com quem vai usar |
 | Painel | A mesma tela para os dois perfis, com os dados limitados pelo servidor | O representante acompanha a própria carteira com os mesmos indicadores da gestão |
 | Mapa e roteiro | Coordenadas dos 295 municípios de Santa Catarina guardadas no código. O trajeto abre no Google Maps por link | Não depende de chave de API nem tem custo por uso |
 | Data do sistema | Um único módulo (`lib/relogio.ts`) responde que dia é hoje, no servidor e na interface | Permite o modo demonstração, que simula outra data. Um teste impede o uso direto do relógio do computador |
-| Ambientes | Docker Compose no computador de desenvolvimento e Azure na publicação | Qualquer pessoa roda o sistema com poucos comandos. No Azure, servidor e interface ficam no mesmo endereço |
+| Ambientes | Docker Compose no computador de desenvolvimento e Azure na publicação | Qualquer pessoa executa o sistema com poucos comandos. No Azure, servidor e interface ficam no mesmo endereço |
 | Qualidade | SonarCloud a cada envio de código e Application Insights no ambiente publicado | Defeitos e trechos sem teste aparecem antes da publicação, e falhas em uso geram aviso |
 
 ### De onde vêm os dados de compra
@@ -270,7 +270,7 @@ No código, as duas fontes ficam atrás de uma mesma interface, `ErpProvider`. A
 
 A evolução planejada para depois deste projeto é ligar o ChokoCRM diretamente ao sistema de gestão da empresa. Com a integração:
 
-- os clientes cadastrados pela gestão no sistema de gestão chegam ao ChokoCRM sozinhos, sem importação de notas;
+- os clientes cadastrados pela gestão no sistema de gestão chegam ao ChokoCRM automaticamente, sem importação de notas;
 - as vendas e o estoque passam a ser sempre os reais;
 - o modo demonstração e os dados fictícios deixam de existir. O sistema começa zerado, e cada representante inicia o próprio controle com clientes reais.
 
@@ -373,7 +373,7 @@ A resposta tem:
 | `naoVisitados` | Clientes ativos da carteira sem visita no período, do que está há mais tempo sem visita ao que está há menos. Cada um tem `id`, `nomeFantasia`, `cidade`, `representanteId`, `representanteNome`, `ultimaVisita` e `diasSemVisita`, os dois últimos nulos para quem nunca foi visitado |
 | `simulado` | Verdadeiro quando a fonte de vendas é a simulação |
 
-Os números batem com os dos indicadores para os mesmos parâmetros: a quantidade de `visitas` é o número de visitas, as que têm resultado `VENDA` são as da conversão, e os clientes ativos distintos são os clientes visitados.
+Os números coincidem com os dos indicadores para os mesmos parâmetros: a quantidade de `visitas` é o número de visitas, as que têm resultado `VENDA` são as da conversão, e os clientes ativos distintos são os clientes visitados.
 
 #### `GET /dashboard/vendas-mensais`
 
@@ -459,7 +459,7 @@ Sem nenhuma data no horizonte, `datas` vem vazia e a fonte de vendas não é con
 
 ## 7. Publicação e monitoramento
 
-A cada envio de código para a branch `main`, o GitHub Actions roda a análise de estilo, os testes e a compilação do servidor e da interface, e envia o resultado ao SonarCloud. Se tudo passar, a nova versão é publicada no Azure e conferida automaticamente. As alterações do banco são aplicadas na inicialização do servidor.
+A cada envio de código para a branch `main`, o GitHub Actions executa a análise de estilo, os testes e a compilação do servidor e da interface, e envia o resultado ao SonarCloud. Se não houver falhas, a nova versão é publicada no Azure e conferida automaticamente. As alterações do banco são aplicadas na inicialização do servidor.
 
 O servidor registra cada pedido em log estruturado, com um identificador por pedido e sem expor o token. O endereço `/health` é usado pela conferência da publicação e pelo teste de disponibilidade do Application Insights, que avisa por e-mail quando o servidor para de responder.
 

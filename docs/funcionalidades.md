@@ -69,7 +69,7 @@ O passo a passo está na seção [Importação de notas fiscais](#11-importaçã
 
 ### Como a cor é definida
 
-A cor depende de duas coisas: há quanto tempo o cliente foi visitado e se a última visita terminou em venda.
+A cor depende de dois fatores: há quanto tempo o cliente foi visitado e se a última visita terminou em venda.
 
 | Última visita | Cor |
 |---------------|-----|
@@ -82,7 +82,7 @@ Há um ajuste pela última compra. Se o cliente está verde ou amarelo, mas a ú
 
 Os dias são contados pelo calendário de São Paulo, e não em períodos de 24 horas.
 
-A cor nunca é gravada. Ela é calculada toda vez que a lista é aberta, então uma visita registrada agora muda a cor na mesma hora.
+A cor nunca é gravada. Ela é calculada toda vez que a lista é aberta, então uma visita registrada agora muda a cor no mesmo instante.
 
 ### Abas
 
@@ -137,7 +137,7 @@ No alto da ficha ficam as ações do dia a dia: iniciar o check-in, abrir a conv
 
 ### Recolher e expandir blocos
 
-Os blocos maiores das telas têm, no título, um botão que recolhe e expande o conteúdo. O título continua visível com o bloco recolhido. A escolha fica guardada no navegador, por bloco, então a tela abre do mesmo jeito na próxima vez naquele aparelho.
+Os blocos maiores das telas têm, no título, um botão que recolhe e expande o conteúdo. O título continua visível com o bloco recolhido. A escolha fica guardada no navegador, por bloco, então a tela abre da mesma forma na próxima vez naquele aparelho.
 
 | Tela | Blocos que recolhem |
 |------|---------------------|
@@ -235,7 +235,7 @@ Na legenda e no detalhe de cada dia, as datas aparecem como "Data comemorativa" 
 
 ### Roteiro
 
-O roteiro do dia fica na aba Hoje da agenda. Ele pega as visitas de hoje, ordena pela distância entre as cidades e abre o trajeto no Google Maps. As distâncias são estimadas a partir das coordenadas dos municípios de Santa Catarina.
+O roteiro do dia fica na aba Hoje da agenda. Ele reúne as visitas de hoje, ordena pela distância entre as cidades e abre o trajeto no Google Maps. As distâncias são estimadas a partir das coordenadas dos municípios de Santa Catarina.
 
 ## 7. Compras, estoque e sugestões
 
@@ -387,9 +387,9 @@ Chave de acesso, número, série, data de emissão, natureza da operação, dado
 
 ### Notas ignoradas
 
-Uma nota é deixada de fora quando não é de venda (devolução, bonificação e remessa), quando não tem chave de acesso, protocolo de autorização, CNPJ do comprador, data ou itens, ou quando a soma dos itens não bate com o total.
+Uma nota é deixada de fora quando não é de venda (devolução, bonificação e remessa), quando não tem chave de acesso, protocolo de autorização, CNPJ do comprador, data ou itens, ou quando a soma dos itens não coincide com o total.
 
-Importar a mesma nota de novo não a duplica: ela é reconhecida pela chave de acesso e apenas atualizada.
+Importar a mesma nota novamente não a duplica: ela é reconhecida pela chave de acesso e apenas atualizada.
 
 ### Criar o cliente a partir da nota
 
@@ -403,13 +403,13 @@ A nota encontra o cliente pelo CNPJ. Depois disso, o sistema procura a visita ca
 
 | Situação | O que acontece |
 |----------|----------------|
-| A visita candidata é do mesmo dia da nota | Na importação, a nota é ligada à visita sozinha, e os produtos e o total da nota aparecem na visita. Se a visita do mesmo dia é registrada depois da importação, a nota vira pendência |
+| A visita candidata é do mesmo dia da nota | Na importação, a nota é ligada à visita automaticamente, e os produtos e o total da nota aparecem na visita. Se a visita do mesmo dia é registrada depois da importação, a nota passa a ser uma pendência |
 | A visita candidata é de 1 a 15 dias antes da nota | A nota fica pendente, e a gestão decide se liga àquela visita ou se deixa só como compra do cliente |
 | O cliente não tem visita nesse período | A nota fica registrada como compra do cliente, sem pendência |
 
 Em todos os casos a nota entra no histórico de compras do cliente e alimenta as sugestões e os gráficos de vendas.
 
-A visita candidata não é gravada. Ela é calculada a cada consulta, com as visitas que existem naquele momento, e por isso a lista de pendências acompanha as visitas: a nota cuja visita candidata deixa de existir sai das pendências, e a nota registrada só como compra vira pendência quando o cliente ganha uma visita dentro dos 15 dias.
+A visita candidata não é gravada. Ela é calculada a cada consulta, com as visitas que existem naquele momento, e por isso a lista de pendências acompanha as visitas: a nota cuja visita candidata deixa de existir sai das pendências, e a nota registrada só como compra passa a ser uma pendência quando o cliente recebe uma visita dentro dos 15 dias.
 
 O que fica gravado na nota são as ligações a uma visita (a automática do mesmo dia e a feita pela gestão) e a recusa ("Deixar só no ERP"), junto com a visita recusada. Uma nota recusada não volta às pendências. Enquanto a nota está pendente, os produtos já registrados na visita candidata ficam fora da soma de compras do cliente, para a mesma venda não contar duas vezes. O mesmo vale para a visita recusada.
 
@@ -417,7 +417,7 @@ O que fica gravado na nota são as ligações a uma visita (a automática do mes
 
 Com o modo demonstração ativo, o sistema trabalha em outra data, e as visitas são gravadas nela. Para a nota acompanhar as visitas, o dia de emissão é guardado deslocado pelo mesmo número de dias que separa a data simulada da data real. A nota emitida hoje entra no hoje simulado, e a nota de 16 dias atrás entra 16 dias antes dele.
 
-Com isso, a nota importada durante a simulação entra no volume de compras dos últimos 90 dias da ficha do cliente. A conferência mostra as duas datas, a impressa na nota e a de entrada, sempre que elas são diferentes. Importar a mesma nota de novo grava o dia outra vez, com o deslocamento daquele momento.
+Com isso, a nota importada durante a simulação entra no volume de compras dos últimos 90 dias da ficha do cliente. A conferência mostra as duas datas, a impressa na nota e a de entrada, sempre que elas são diferentes. Importar a mesma nota novamente grava o dia outra vez, com o deslocamento daquele momento.
 
 Sem simulação, o dia guardado é o da própria nota.
 
@@ -439,9 +439,9 @@ Hoje o sistema trabalha com dados de demonstração: clientes, visitas e vendas 
 
 O modo demonstração permite apresentar o sistema como se fosse outro dia do ano. Ele fica na tela de login e exige a senha da conta Gestão.
 
-Ao escolher uma data, duas coisas acontecem. O sistema passa a tratar aquela data como o dia de hoje em tudo: cores, agenda, campanhas, metas e sugestões. E os dados de demonstração são recriados em volta dela, simulando três meses de uso até aquele dia.
+Ao escolher uma data, há dois efeitos. O sistema passa a tratar aquela data como o dia de hoje em tudo: cores, agenda, campanhas, metas e sugestões. Além disso, os dados de demonstração são recriados em volta dela, simulando três meses de uso até aquele dia.
 
-A carteira recriada é um modelo. Cada representante tem 40 clientes ativos, em rotas por dia da semana com visitas a cada 7 ou 14 dias, e 1 inativo. Na lista de clientes, cerca de 31 estão em dia, 5 em Atenção e 4 em Prioridade: um atrasado, um vencendo, um nunca visitado e um rebaixado pela última compra. São 4 a 5 visitas por dia útil para cada representante.
+A carteira recriada segue um modelo. Os clientes de demonstração de cada representante ficam em rotas por dia da semana, com visitas a cada 7 ou 14 dias. Na lista de clientes, a maior parte fica em dia, alguns em Atenção e alguns em Prioridade, onde há clientes com visita atrasada, com visita vencendo, nunca visitados e rebaixados pela última compra. As quantidades do ambiente variam com o uso, pois os clientes criados a partir de notas fiscais se somam aos de demonstração.
 
 Uma faixa com a data aparece em todas as telas enquanto a simulação está ativa. A data simulada avança um dia a cada dia real. A opção Voltar ao real encerra a simulação.
 
@@ -466,8 +466,8 @@ Sem internet, o aplicativo abre e avisa que está sem conexão. Os dados mostrad
 ## 15. O que o sistema não faz
 
 - Não funciona offline para registrar visitas.
-- Não envia mensagens sozinho pelo WhatsApp. Ele prepara o texto e quem envia é a pessoa.
+- Não envia mensagens automaticamente pelo WhatsApp. Ele prepara o texto e quem envia é o usuário.
 - Não recupera senha por e-mail.
 - Não se conecta diretamente ao sistema de gestão da empresa. Os clientes e as vendas entram pela importação das notas fiscais.
 
-Esse último ponto é a melhoria planejada para depois deste projeto. Com a integração direta, os clientes cadastrados no sistema de gestão chegam sozinhos, o modo demonstração e os dados fictícios deixam de existir, e cada representante começa o próprio controle em um sistema zerado, só com clientes reais. Os detalhes estão em [Arquitetura](arquitetura.md#melhoria-futura-integração-com-o-sistema-de-gestão).
+Esse último ponto é a melhoria planejada para depois deste projeto. Com a integração direta, os clientes cadastrados no sistema de gestão chegam automaticamente, o modo demonstração e os dados fictícios deixam de existir, e cada representante começa o próprio controle em um sistema sem dados de demonstração, apenas com clientes reais. Os detalhes estão em [Arquitetura](arquitetura.md#melhoria-futura-integração-com-o-sistema-de-gestão).

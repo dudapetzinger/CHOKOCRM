@@ -1,11 +1,11 @@
 # Testes
 
-Este documento explica como o ChokoCRM é testado: que tipos de teste existem, o que cada um confere, como rodar tudo no computador e o que acontece automaticamente a cada envio de código.
+Este documento explica como o ChokoCRM é testado: que tipos de teste existem, o que cada um confere, como executar tudo no computador e o que acontece automaticamente a cada envio de código.
 
 ## Sumário
 
 1. [Visão geral](#1-visão-geral)
-2. [Como rodar](#2-como-rodar)
+2. [Como executar](#2-como-executar)
 3. [Testes do servidor](#3-testes-do-servidor)
 4. [Testes da interface](#4-testes-da-interface)
 5. [Testes que protegem o projeto como um todo](#5-testes-que-protegem-o-projeto-como-um-todo)
@@ -28,29 +28,29 @@ Há três tipos de teste:
 | Tipo | O que confere | Como funciona |
 |------|---------------|---------------|
 | Unitário | Uma regra isolada, como o cálculo da cor de um cliente | Chama a função com dados prontos e compara o resultado. Não usa banco de dados |
-| Integração | Um endereço da API do início ao fim | Faz o pedido HTTP ao servidor, que grava e lê em um PostgreSQL de verdade, e confere a resposta |
+| Integração | Um endereço da API do início ao fim | Faz o pedido HTTP ao servidor, que grava e lê em um PostgreSQL real, e confere a resposta |
 | Interface | Uma tela ou um componente | Monta a tela em um navegador simulado, clica e digita como um usuário, e confere o que aparece |
 
 Cada funcionalidade entra no repositório junto com os testes dela.
 
-## 2. Como rodar
+## 2. Como executar
 
 ### Servidor
 
-É preciso estar com o banco de dados no ar (`docker compose up db`) e com as tabelas criadas (`npm run db:migrate`).
+É preciso estar com o banco de dados em execução (`docker compose up db`) e com as tabelas criadas (`npm run db:migrate`).
 
 ```bash
 cd backend
 npm test
 ```
 
-Os testes do servidor usam o banco de dados local e esvaziam as tabelas antes de cada caso. Depois de rodá-los, recarregue os dados de demonstração para voltar a usar o sistema:
+Os testes do servidor usam o banco de dados local e esvaziam as tabelas antes de cada caso. Depois de executá-los, recarregue os dados de demonstração para voltar a usar o sistema:
 
 ```bash
 npm run db:seed:reset
 ```
 
-Para rodar somente os testes unitários, que não tocam no banco:
+Para executar somente os testes unitários, que não tocam no banco:
 
 ```bash
 npx jest tests/unit
@@ -65,7 +65,7 @@ cd frontend
 npm test
 ```
 
-O comando `npm run test:watch` deixa os testes rodando e repete os afetados a cada alteração de arquivo.
+O comando `npm run test:watch` deixa os testes em execução e repete os afetados a cada alteração de arquivo.
 
 ### Análise de estilo e de tipos
 
@@ -89,7 +89,7 @@ Os testes ficam em `backend/tests`. Os unitários estão na subpasta `unit`.
 
 ### Configuração
 
-Os arquivos rodam um de cada vez, para não disputarem o mesmo banco. Antes de cada caso, todas as tabelas são esvaziadas, de modo que um teste nunca depende do que outro deixou.
+Os arquivos são executados um de cada vez, para não disputarem o mesmo banco. Antes de cada caso, todas as tabelas são esvaziadas, de modo que um teste nunca depende do que outro deixou.
 
 A fonte de dados de vendas é fixada na simulação, para o resultado não depender da configuração do computador. Os testes das outras duas fontes trocam esse valor apenas dentro do próprio arquivo.
 
@@ -145,7 +145,7 @@ Os testes ficam ao lado do código que testam, em arquivos terminados em `.test.
 
 ### Configuração
 
-Os testes rodam em um navegador simulado (jsdom). As chamadas ao servidor são substituídas por respostas prontas em cada teste, então nada depende de rede.
+Os testes são executados em um navegador simulado (jsdom). As chamadas ao servidor são substituídas por respostas prontas em cada teste, então nada depende de rede.
 
 Os testes procuram os elementos como um usuário faria: pelo texto, pelo papel do elemento (botão, campo, aba) e pelos rótulos de acessibilidade. Eles não dependem de classes de estilo, o que permite mudar o visual sem quebrar os testes.
 
@@ -178,16 +178,16 @@ Um teste da interface (`frontend/src/arquitetura-relogio.test.ts`) falha se enco
 
 O gerador dos dados de demonstração é testado por propriedades, e não por valores fixos. Para vários dias diferentes, os testes conferem, entre outras coisas, que:
 
-- as visitas caem apenas em dias úteis, entre 8h e 17h, e nunca no futuro;
+- as visitas ocorrem apenas em dias úteis, entre 8h e 17h, e nunca no futuro;
 - cada representante tem de 4 a 5 visitas por dia útil;
 - o intervalo entre as visitas de um cliente respeita o intervalo cadastrado;
-- rodar o gerador duas vezes para o mesmo dia produz exatamente os mesmos dados;
+- executar o gerador duas vezes para o mesmo dia produz exatamente os mesmos dados;
 - há pelo menos duas visitas marcadas por representante em cada dia útil das semanas seguintes;
 - os clientes reais e as contas de usuário sobrevivem à recriação.
 
 ### Proteção contra apagar dados por engano
 
-Um teste garante que o comando que recria os dados de demonstração se recusa a rodar contra um banco que não seja o local, a menos que receba uma confirmação explícita.
+Um teste garante que o comando que recria os dados de demonstração se recusa a ser executado contra um banco que não seja o local, a menos que receba uma confirmação explícita.
 
 ## 6. Verificação automática a cada envio
 
@@ -195,18 +195,18 @@ O repositório usa o GitHub Actions. Os arquivos ficam em `.github/workflows`.
 
 ### Verificação
 
-A cada envio de código para a branch `main` e a cada pull request, quatro tarefas rodam:
+A cada envio de código para a branch `main` e a cada pull request, quatro tarefas são executadas:
 
 | Tarefa | O que faz |
 |--------|-----------|
-| Servidor | Sobe um PostgreSQL, cria as tabelas, roda a análise de estilo, todos os testes com cobertura e a compilação |
-| Interface | Roda a análise de estilo, todos os testes com cobertura e a compilação |
+| Servidor | Inicia um PostgreSQL, cria as tabelas, executa a análise de estilo, todos os testes com cobertura e a compilação |
+| Interface | Executa a análise de estilo, todos os testes com cobertura e a compilação |
 | SonarCloud | Recebe o código e os dois relatórios de cobertura e faz a análise de qualidade |
 | Arquivos de automação | Confere se os próprios arquivos do GitHub Actions estão corretos |
 
 ### Publicação
 
-Quando a verificação de um envio para a `main` termina sem erros, a publicação começa sozinha:
+Quando a verificação de um envio para a `main` termina sem erros, a publicação começa automaticamente:
 
 1. compila o servidor e a interface;
 2. junta os dois em um pacote e envia ao Azure;

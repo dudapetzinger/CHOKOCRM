@@ -54,7 +54,7 @@ Cada requisito tem um código, usado nas histórias de usuário da [seção 4](#
 | RF16 | Mostrar a agenda nas abas Hoje, Atrasadas, Próximos 7 dias e Lembretes | [Agenda do dia](funcionalidades.md#agenda-do-dia) |
 | RF17 | Mostrar o calendário do mês com visitas marcadas, lembretes, datas comemorativas e campanhas | [Calendário](funcionalidades.md#calendário) |
 | RF18 | Montar o roteiro do dia pela distância entre as cidades e abrir o trajeto no Google Maps | [Roteiro](funcionalidades.md#roteiro) |
-| RF19 | Manter o lembrete aberto até alguém marcar como concluído | [Lembretes](funcionalidades.md#lembretes) |
+| RF19 | Manter o lembrete aberto até ser marcado como concluído | [Lembretes](funcionalidades.md#lembretes) |
 
 ### Compras, sugestões e mensagens
 
@@ -88,7 +88,7 @@ Cada requisito tem um código, usado nas histórias de usuário da [seção 4](#
 |--------|----------------|-----------|
 | RF31 | Importar notas fiscais de venda em PDF, com conferência antes de gravar | [Importação de notas fiscais](funcionalidades.md#11-importação-de-notas-fiscais) |
 | RF32 | Criar o cliente a partir dos dados da nota, com o representante escolhido pela gestão | [Criar o cliente a partir da nota](funcionalidades.md#criar-o-cliente-a-partir-da-nota) |
-| RF33 | Ligar a nota à visita do mesmo dia sozinho e deixar como pendência a visita de até 15 dias antes | [Ligação da nota com a visita](funcionalidades.md#ligação-da-nota-com-a-visita) |
+| RF33 | Ligar automaticamente a nota à visita do mesmo dia e deixar como pendência a visita de até 15 dias antes | [Ligação da nota com a visita](funcionalidades.md#ligação-da-nota-com-a-visita) |
 
 ### Demonstração e aplicativo
 
@@ -109,7 +109,7 @@ Cada requisito tem um código, usado nas histórias de usuário da [seção 4](#
 | RNF06 | Qualidade do código | Testes automatizados com cobertura mínima de 75 % no servidor e 25 % na interface, e análise do SonarCloud a cada envio. Ver [Testes](testes.md) |
 | RNF07 | Publicação automática | Cada envio para a branch `main` passa pelos testes e, se tudo estiver certo, é publicado sem passos manuais. Ver [Instalação e configuração](instalacao-e-configuracao.md#9-ambiente-publicado-no-azure) |
 | RNF08 | Acompanhamento em produção | O servidor registra cada pedido, responde em um endereço de verificação de saúde e envia registros e erros ao Application Insights. Ver [Arquitetura](arquitetura.md#7-publicação-e-monitoramento) |
-| RNF09 | Instalação simples | O ambiente local sobe com o Docker Compose e poucos comandos. Ver [Instalação e configuração](instalacao-e-configuracao.md) |
+| RNF09 | Instalação simples | O ambiente local é iniciado com o Docker Compose e poucos comandos. Ver [Instalação e configuração](instalacao-e-configuracao.md) |
 
 ## 4. Histórias de usuário
 
@@ -159,11 +159,11 @@ Requisitos: RF08, RF20, RF21.
 
 **H05. Falar com o cliente pelo WhatsApp**
 
-Como representante, quero abrir a conversa com o contato do cliente já com uma mensagem escrita, para perguntar sobre o estoque sem digitar tudo de novo.
+Como representante, quero abrir a conversa com o contato do cliente já com uma mensagem escrita, para perguntar sobre o estoque sem precisar digitar o texto a cada vez.
 
 - O botão WhatsApp abre a conversa com um texto que pode ser alterado antes do envio.
 - Se o cliente tem mais de um contato com telefone, o sistema pergunta com quem falar.
-- O sistema não envia nada sozinho e não guarda a mensagem.
+- O sistema não envia nada automaticamente e não guarda a mensagem.
 
 Requisitos: RF22.
 
@@ -215,8 +215,8 @@ Como gestor, quero importar as notas fiscais emitidas pelo sistema de gestão da
 
 - O sistema lê um ou mais arquivos PDF e mostra as notas para conferência antes de gravar.
 - Quando o CNPJ da nota ainda não é cliente, o cadastro é criado a partir dela, com o representante escolhido.
-- A nota do mesmo dia de uma visita é ligada a ela sozinha, e o valor entra nas metas e no painel.
-- Importar a mesma nota de novo não a duplica.
+- A nota do mesmo dia de uma visita é ligada a ela automaticamente, e o valor entra nas metas e no painel.
+- Importar a mesma nota novamente não a duplica.
 
 Requisitos: RF31, RF32, RF33.
 

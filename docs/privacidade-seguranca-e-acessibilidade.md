@@ -43,7 +43,7 @@ A tabela mostra o que foi feito para cada princípio do art. 6º da lei.
 | Tempo de guarda | Não guardar além do necessário | As fotos são apagadas depois de 90 dias por uma rotina diária. Um contato pode ser excluído da ficha |
 | Transparência | Explicar o tratamento | Este documento e o [Modelo de dados](modelo-de-dados.md) descrevem tudo o que é guardado |
 
-Três serviços de fora aparecem no caminho dos dados:
+Três serviços externos aparecem no caminho dos dados:
 
 | Serviço | O que recebe |
 |---------|--------------|
@@ -88,7 +88,7 @@ A interface foi construída seguindo as diretrizes WCAG 2.1. O que foi aplicado:
 | Tamanho da tela | O layout se adapta do celular ao computador |
 | Movimento | As animações são reduzidas para quem pede menos movimento nas configurações do aparelho |
 
-Os testes da interface ajudam a manter isso. Eles procuram cada elemento pelo papel (botão, campo, aba) e pelo rótulo, do jeito que um leitor de tela faz.
+Os testes da interface ajudam a manter isso. Eles procuram cada elemento pelo papel (botão, campo, aba) e pelo rótulo, da mesma forma que um leitor de tela.
 
 O sistema não passou por uma auditoria externa de acessibilidade nem por testes com pessoas com deficiência.
 
@@ -100,7 +100,7 @@ O código do ChokoCRM é distribuído sob a licença MIT, cujo texto está no ar
 
 O projeto foi entregue com dados de demonstração. Antes de a empresa usar o sistema com os dados reais de clientes e contatos, estes pontos precisam ser resolvidos:
 
-- ligar o ChokoCRM ao sistema de gestão da empresa por uma API, para que ao menos os clientes cadastrados lá cheguem sozinhos, sem depender da importação das notas fiscais. É a melhoria futura descrita em [Arquitetura](arquitetura.md#melhoria-futura-integração-com-o-sistema-de-gestão);
+- ligar o ChokoCRM ao sistema de gestão da empresa por uma API, para que ao menos os clientes cadastrados lá cheguem automaticamente, sem depender da importação das notas fiscais. É a melhoria futura descrita em [Arquitetura](arquitetura.md#melhoria-futura-integração-com-o-sistema-de-gestão);
 - publicar uma política de privacidade e indicar na empresa quem responde pelos pedidos das pessoas sobre os próprios dados;
 - trocar as senhas de demonstração, que são públicas, por senhas individuais;
 - mover o ambiente do Azure para uma região no Brasil. Hoje ele fica no Canadá, por causa do crédito estudantil;

@@ -264,7 +264,7 @@ Valores de `vinculo_status`:
 
 | Valor | Significado |
 |-------|-------------|
-| `AUTOMATICO` | Ligada sozinha à visita do mesmo dia |
+| `AUTOMATICO` | Ligada automaticamente à visita do mesmo dia |
 | `VINCULADA` | Ligada a uma visita pela gestão |
 | `RECUSADA` | A gestão decidiu não ligar a nenhuma visita. A visita recusada fica em `visita_recusada_id` |
 | `PENDENTE` | Sem decisão da gestão |

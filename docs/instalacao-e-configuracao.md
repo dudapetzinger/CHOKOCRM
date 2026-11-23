@@ -1,6 +1,6 @@
 # Instalação e configuração
 
-Este guia mostra como colocar o ChokoCRM para rodar em um computador, quais contas usar para entrar, o que cada configuração faz e como o ambiente publicado no Azure é mantido.
+Este guia mostra como executar o ChokoCRM em um computador, quais contas usar para entrar, o que cada configuração faz e como o ambiente publicado no Azure é mantido.
 
 Para apenas experimentar o sistema, sem instalar nada, use o endereço publicado e as contas descritas no [README](../README.md#como-testar).
 
@@ -10,7 +10,7 @@ Para apenas experimentar o sistema, sem instalar nada, use o endereço publicado
 2. [Passo a passo](#2-passo-a-passo)
 3. [Contas de acesso](#3-contas-de-acesso)
 4. [Dados de demonstração](#4-dados-de-demonstração)
-5. [Rodando sem Docker](#5-rodando-sem-docker)
+5. [Execução sem Docker](#5-execução-sem-docker)
 6. [Variáveis de ambiente](#6-variáveis-de-ambiente)
 7. [Testando o aplicativo instalável](#7-testando-o-aplicativo-instalável)
 8. [Problemas comuns](#8-problemas-comuns)
@@ -22,7 +22,7 @@ Para apenas experimentar o sistema, sem instalar nada, use o endereço publicado
 |------------|--------|----------|
 | Git | qualquer versão recente | Baixar o repositório |
 | Docker Desktop | com Compose v2 | Subir o banco de dados, o servidor e a interface de uma vez |
-| Node.js | 22.13 ou superior | Criar as tabelas, carregar os dados de demonstração e rodar os testes |
+| Node.js | 22.13 ou superior | Criar as tabelas, carregar os dados de demonstração e executar os testes |
 
 O npm vem junto com o Node. Versões do Node anteriores à 22.13 não servem: a instalação das dependências do servidor é recusada.
 
@@ -86,9 +86,9 @@ A conta Gestão é tratada como conta real. O carregamento dos dados só define 
 
 ## 4. Dados de demonstração
 
-Os dados de demonstração simulam três meses de uso do sistema: 40 clientes ativos e 1 inativo por representante, distribuídos em rotas por dia da semana e visitados a cada 7 ou 14 dias, com 4 a 5 visitas por dia útil, vendas, lembretes, campanhas, metas e visitas marcadas para as próximas semanas. Na lista de clientes, cerca de 31 ficam em dia, 5 em Atenção e 4 em Prioridade (um atrasado, um vencendo, um nunca visitado e um rebaixado pela última compra). Todos os clientes e contatos já cadastrados, inclusive os reais, usam o mesmo telefone, o da autora do projeto. Eles são gerados a partir do dia em que o comando roda, então a agenda e as cores dos clientes fazem sentido na data de hoje.
+Os dados de demonstração simulam três meses de uso do sistema: uma carteira de clientes para cada representante, distribuída em rotas por dia da semana e visitada a cada 7 ou 14 dias, com vendas, lembretes, campanhas, metas e visitas marcadas para as próximas semanas. Na lista de clientes, a maior parte fica em dia, alguns em Atenção e alguns em Prioridade (com visita atrasada, com visita vencendo, nunca visitados e rebaixados pela última compra). Todos os clientes e contatos já cadastrados, inclusive os reais, usam o mesmo telefone, o da autora do projeto. Os dados são gerados a partir do dia em que o comando é executado, então a agenda e as cores dos clientes fazem sentido na data de hoje.
 
-Com o passar dos dias, as visitas geradas ficam antigas e os clientes mudam de cor, como aconteceria de verdade. Para renovar os dados há dois caminhos.
+Com o passar dos dias, as visitas geradas ficam antigas e os clientes mudam de cor, como aconteceria em uso real. Para renovar os dados há dois caminhos.
 
 O primeiro é o botão Modo demonstração, na tela de login. Ele pede uma data e a senha da conta Gestão, recria os dados em volta da data escolhida e faz o sistema inteiro se comportar como se aquele fosse o dia de hoje. Serve para mostrar, por exemplo, as sugestões de Páscoa em pleno novembro. A opção Voltar ao real desfaz a simulação. Enquanto a simulação está ativa, uma faixa com a data aparece em todas as telas.
 
@@ -102,7 +102,7 @@ Nos dois caminhos, só os clientes de demonstração são apagados e recriados. 
 
 O comando `npm run db:seed`, sem o `reset`, apenas acrescenta o que falta e nunca apaga nada.
 
-## 5. Rodando sem Docker
+## 5. Execução sem Docker
 
 É útil para depurar o servidor ou a interface pelo editor. O banco de dados continua vindo do Docker:
 
@@ -166,11 +166,11 @@ A variável `ERP_PROVIDER` aceita três valores:
 | Variável | Valor padrão | Para quê |
 |----------|--------------|----------|
 | `VITE_API_URL` | `http://localhost:3000` | Endereço do servidor que a interface consulta |
-| `VITE_TELEFONE_DE_TESTE` | vazio (desligado) | Telefone de teste. Definido, os botões Ligar e WhatsApp de qualquer cliente vão para esse número, sem aviso na tela. Vale para os cadastros criados depois, como um cliente criado a partir de uma nota fiscal, para os testes com pessoas de fora não chegarem aos clientes de verdade |
+| `VITE_TELEFONE_DE_TESTE` | vazio (desligado) | Telefone de teste. Definido, os botões Ligar e WhatsApp de qualquer cliente vão para esse número, sem aviso na tela. Vale para os cadastros criados depois, como um cliente criado a partir de uma nota fiscal, para os testes com pessoas externas não chegarem aos clientes reais |
 
 ## 7. Testando o aplicativo instalável
 
-A interface pode ser instalada no celular ou no computador como aplicativo. Essa parte só existe na versão compilada, então o `npm run dev` não a mostra. Para testar no computador, com o servidor rodando:
+A interface pode ser instalada no celular ou no computador como aplicativo. Essa parte só existe na versão compilada, então o `npm run dev` não a mostra. Para testar no computador, com o servidor em execução:
 
 ```bash
 cd frontend
@@ -184,13 +184,13 @@ O que observar no Chrome ou no Edge: o convite "Use o ChokoCRM como app" depois 
 
 ## 8. Problemas comuns
 
-**A porta 5432 já está em uso.** Há outro PostgreSQL rodando no computador. Pare esse serviço ou troque a porta do serviço `db` no `docker-compose.yml`.
+**A porta 5432 já está em uso.** Há outro PostgreSQL em execução no computador. Pare esse serviço ou troque a porta do serviço `db` no `docker-compose.yml`.
 
-**O servidor sobe e cai em seguida.** Quase sempre é a `DATABASE_URL` com o endereço errado ou a `JWT_SECRET` ausente. A mensagem de erro do servidor diz qual variável falhou.
+**O servidor inicia e encerra em seguida.** Na maioria dos casos, a causa é a `DATABASE_URL` com o endereço errado ou a `JWT_SECRET` ausente. A mensagem de erro do servidor diz qual variável falhou.
 
 **O sistema abre sem nenhum cliente.** Os dados de demonstração não foram carregados, ou os testes automatizados do servidor foram executados, já que eles esvaziam o banco local. Rode `npm run db:seed:reset` na pasta `backend`.
 
-**O comando de migração reclama de divergência.** O histórico do banco local não bate com o do repositório. Apague o banco local com `docker compose down -v`, suba de novo e repita os comandos do passo a passo. Faça isso apenas com o banco do seu computador.
+**O comando de migração acusa divergência.** O histórico do banco local não coincide com o do repositório. Apague o banco local com `docker compose down -v`, inicie o ambiente novamente e repita os comandos do passo a passo. Faça isso apenas com o banco do seu computador.
 
 **A instalação falha por causa da versão do Node.** Confira com `node -v` se a versão é 22.13 ou superior.
 
@@ -219,7 +219,7 @@ A publicação é automática e não tem etapa manual.
 3. Ao iniciar, o servidor aplica as alterações pendentes no banco de dados e só então começa a atender.
 4. Por fim, a publicação confere se o servidor responde em `/health` e se a interface abre. Se algo falhar, o resultado aparece em vermelho na aba Actions do GitHub.
 
-A publicação também pode ser disparada à mão, pela aba Actions ou com `gh workflow run deploy.yml`. É o caminho para religar o ambiente depois de uma pausa.
+A publicação também pode ser disparada manualmente, pela aba Actions ou com `gh workflow run deploy.yml`. É o caminho para religar o ambiente depois de uma pausa.
 
 O repositório precisa destes valores em Settings, Secrets and variables, Actions:
 
@@ -252,13 +252,13 @@ Os segredos da aplicação existem apenas no portal do Azure. Eles não estão n
 
 ### 9.4 Criando o ambiente do zero
 
-Os recursos do Azure, o projeto no SonarCloud e os segredos do GitHub são criados à mão, uma única vez. O roteiro `scripts/wizard-azure.sh` conduz esse trabalho passo a passo: abre a página certa do portal, diz o que preencher e confere cada valor informado.
+Os recursos do Azure, o projeto no SonarCloud e os segredos do GitHub são criados manualmente, uma única vez. O roteiro `scripts/wizard-azure.sh` conduz esse trabalho passo a passo: abre a página certa do portal, diz o que preencher e confere cada valor informado.
 
 ```bash
 bash scripts/wizard-azure.sh
 ```
 
-Com `--dry-run`, o roteiro apenas mostra os passos, sem abrir páginas nem gravar nada. Ele roda no Git Bash e guarda somente os valores que não são segredo, em arquivos locais que o Git ignora.
+Com `--dry-run`, o roteiro apenas mostra os passos, sem abrir páginas nem gravar nada. Ele é executado no Git Bash e guarda somente os valores que não são segredo, em arquivos locais que o Git ignora.
 
 ### 9.5 Dados de demonstração no ambiente publicado
 
@@ -266,7 +266,7 @@ Use o botão Modo demonstração da tela de login, com a senha da conta Gestão,
 
 Prefira recriar a demonstração depois das 9h. Feita de madrugada, o último dia da janela de visitas marcadas pode ficar com menos visitas.
 
-Com a simulação ativa, uma nota fiscal importada entra com o dia de emissão deslocado pelo mesmo número de dias do relógio, para acompanhar as visitas. Para uma nota real ficar no dia impresso nela, importe com a simulação desligada (Voltar ao real). Importar de novo a mesma nota grava o dia outra vez.
+Com a simulação ativa, uma nota fiscal importada entra com o dia de emissão deslocado pelo mesmo número de dias do relógio, para acompanhar as visitas. Para uma nota real ficar no dia impresso nela, importe com a simulação desligada (Voltar ao real). Importar novamente a mesma nota grava o dia outra vez.
 
 Depois de uma publicação que muda a interface, quem tem o aplicativo instalado vê o aviso "Nova versão disponível" e precisa tocar em Atualizar.
 
@@ -280,14 +280,14 @@ Para desligar e parar de consumir crédito:
 
 1. No Application Insights, desabilite o teste de disponibilidade, para não receber alertas.
 2. Mude o plano `plan-chokocrm` para F1 (gratuito). Parar apenas a aplicação não basta, porque a cobrança é do plano.
-3. Pare o servidor de banco `pg-chokocrm`. O Azure o religa sozinho depois de sete dias, então pare de novo se a pausa for maior.
+3. Pare o servidor de banco `pg-chokocrm`. O Azure o religa automaticamente depois de sete dias, então pare novamente se a pausa for maior.
 
 Para religar:
 
 1. Inicie o `pg-chokocrm` e espere ficar pronto.
 2. Volte o plano `plan-chokocrm` para B1 e confira se a opção Always On está ligada.
 3. Dispare a publicação pela aba Actions do GitHub e espere terminar em verde.
-4. Habilite de novo o teste de disponibilidade.
+4. Habilite novamente o teste de disponibilidade.
 5. Recrie a demonstração pela tela de login e entre com a conta Gestão para conferir o Painel e a agenda.
 
 Não use parar e iniciar na aplicação para resolver travamentos. Mudar o plano de B1 para B2 e de volta para B1 troca a máquina e resolve.
