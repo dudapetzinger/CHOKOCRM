@@ -187,7 +187,7 @@ Regras:
 
 ### Venda e nota fiscal
 
-No check-in, o representante informa apenas que houve venda. A tela não tem campo de produtos nem de valores. Como proteção, o servidor também recusa um check-in que traga uma lista de produtos, caso ela seja enviada sem passar pela tela.
+No check-in, o representante informa apenas que houve venda. A tela não tem campo de produtos nem de valores.
 
 Os produtos e o valor chegam depois, quando a gestão importa a nota fiscal daquela venda (nos dados de demonstração, já vêm gravados na visita). O sistema liga a nota à visita pela data, seguindo as regras da seção [Importação de notas fiscais](#11-importação-de-notas-fiscais). A partir daí, a visita passa a mostrar os produtos e o total da nota, e a venda entra nas metas, nas campanhas e no ranking.
 
