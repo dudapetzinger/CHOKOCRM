@@ -39,7 +39,7 @@ O ChokoCRM reúne esse controle em um só lugar. O representante registra cada v
 
 ## O que o sistema faz
 
-Há dois perfis de uso. O representante trabalha com a própria carteira de clientes. A gestão enxerga todas as carteiras e cuida das configurações.
+Há dois perfis de uso: Representante e Gestor. O representante trabalha com a própria carteira de clientes. A gestão, que usa o perfil Gestor, enxerga todas as carteiras e cuida das configurações.
 
 O representante:
 
@@ -78,6 +78,8 @@ O acesso é feito com usuário e senha. A senha de todas as contas é `chokocrm1
 | Representante | Eduarda Fischer | `eduarda` |
 | Representante | Rafael Schmitt | `rafael` |
 | Gestor | Gestão Chokolaten | `gestao` |
+
+Gestor é o nome do perfil, como aparece na tela. Gestão Chokolaten é o nome da conta compartilhada desse perfil, e `gestao` é o usuário para entrar.
 
 Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular diferentes períodos de uso. Todos os clientes e contatos já cadastrados usam o telefone da autora do projeto, de modo que as ligações e as mensagens de teste pelo WhatsApp chegam a um número conhecido.
 

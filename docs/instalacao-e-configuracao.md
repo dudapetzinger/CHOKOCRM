@@ -78,6 +78,8 @@ O carregamento dos dados de demonstração cria três contas. O acesso é feito 
 | Representante | Rafael Schmitt | `rafael` |
 | Gestor | Gestão Chokolaten | `gestao` |
 
+Gestor é o nome do perfil, como aparece na tela. Gestão Chokolaten é o nome da conta compartilhada desse perfil, e `gestao` é o usuário para entrar.
+
 Cada representante enxerga apenas a própria carteira de clientes. A conta Gestão enxerga as duas carteiras e é a única que importa notas fiscais e cria clientes, usuários, campanhas e metas.
 
 Outras contas são criadas pela conta Gestão, no menu da conta, em Usuários, Novo usuário. Não existe recuperação de senha por e-mail: quem esquece a senha pede ao gestor, que define uma senha provisória na mesma tela. A pessoa entra com ela e depois a troca no próprio perfil, em Alterar senha.

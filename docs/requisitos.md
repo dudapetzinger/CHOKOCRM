@@ -16,7 +16,7 @@ Este documento lista o que o ChokoCRM precisa fazer (requisitos funcionais), as 
 | Perfil | Quem é | O que precisa |
 |--------|--------|---------------|
 | Representante | Vendedor externo da Chokolaten, que visita confeitarias, cafés, empórios e mercados. Usa o sistema no celular, entre uma visita e outra | Saber quem visitar primeiro, lembrar o que cada cliente compra e registrar a visita em poucos toques |
-| Gestão | Quem coordena a equipe de representantes na fábrica. Usa mais o computador | Enxergar todas as carteiras, saber quais clientes estão esfriando e planejar campanhas e a produção para as datas comemorativas |
+| Gestor | A gestão da empresa, que coordena a equipe de representantes na fábrica. Usa mais o computador e entra pela conta compartilhada Gestão Chokolaten | Enxergar todas as carteiras, saber quais clientes estão esfriando e planejar campanhas e a produção para as datas comemorativas |
 
 ## 2. Requisitos funcionais
 
@@ -199,7 +199,7 @@ Como representante, quero instalar o sistema no celular, para abrir com um toque
 
 Requisitos: RF35.
 
-### Gestão
+### Gestor
 
 **H09. Enxergar a equipe inteira**
 

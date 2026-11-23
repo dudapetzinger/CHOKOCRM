@@ -22,11 +22,13 @@ Este documento descreve o que o ChokoCRM faz, tela por tela, e as regras que val
 
 ## 1. Perfis de uso
 
-O sistema tem dois perfis.
+O sistema tem dois perfis: Representante e Gestor.
 
 O representante cuida de uma carteira de clientes. Ele só vê e altera os clientes da própria carteira. É quem registra as visitas e fala com os clientes.
 
 O gestor enxerga todas as carteiras. Nas telas de clientes, agenda e painel, um seletor permite ver a equipe inteira ou um representante por vez. É quem importa as notas fiscais, cria os clientes, as campanhas, as metas e os usuários.
+
+O perfil Gestor é usado pela gestão da empresa, por meio de uma conta compartilhada chamada Gestão Chokolaten, com o usuário `gestao`. Neste documento, "o gestor" é quem está usando o sistema com esse perfil, e "a conta Gestão" é essa conta compartilhada.
 
 | Ação | Representante | Gestor |
 |------|:-------------:|:------:|
