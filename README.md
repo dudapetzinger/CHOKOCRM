@@ -196,7 +196,7 @@ O desenho das camadas, a organização das pastas e as decisões técnicas, com 
 
 ## Testes e qualidade
 
-O projeto tem mais de 2.400 testes automatizados, cerca de 1.230 no servidor e 1.170 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
+O projeto tem mais de 2.400 testes automatizados, cerca de 1.250 no servidor e 1.200 na interface. Eles conferem as regras do negócio, cada endereço da API e o comportamento das telas.
 
 A verificação é automática e não depende de quem avalia o projeto. A cada envio de código para o GitHub, o GitHub Actions executa todos os testes, o SonarCloud analisa o código e, se não houver falhas, a nova versão é publicada no Azure. Os dois selos no topo desta página mostram o resultado mais recente: o primeiro é o da verificação automática (CI) e o segundo, o da análise do SonarCloud (Quality Gate).
 
