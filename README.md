@@ -94,7 +94,7 @@ O ambiente publicado é único e é usado ao mesmo tempo por todas as pessoas qu
 - Use o Modo demonstração apenas para ver o sistema em outra época do ano: as sugestões de Páscoa ou de Natal, a aba Produção e sazonalidade e os gráficos de outro período. Recriar a demonstração apaga as visitas, as campanhas e as metas registradas por todos os usuários e altera a data para todos. Ao terminar, use Voltar ao real.
 - No dia da apresentação do projeto, 08/12/2026, não recrie a demonstração: ela estará preparada em uma data escolhida para a mostra.
 
-Se a carteira aparecer diferente do que o roteiro abaixo descreve, ela pode ter sido alterada por outro usuário durante um teste. Recriar a demonstração devolve os clientes de demonstração, as visitas, as campanhas e as metas ao modelo. As contas, as senhas e os clientes criados a partir de notas fiscais são mantidos.
+Se a carteira aparecer diferente do que o roteiro abaixo descreve, ela pode ter sido alterada por outro usuário durante um teste. Recriar a demonstração devolve os clientes de demonstração, as visitas, as campanhas e as metas ao modelo. As contas e os clientes criados a partir de notas fiscais são mantidos, e as duas contas de representante da tabela voltam à senha padrão.
 
 ### Roteiro sugerido
 
@@ -121,7 +121,7 @@ A importação de notas fiscais não faz parte do roteiro, porque usa documentos
 
 ### Simulando outra data
 
-A tela de login tem o botão Modo demonstração. Ele pede uma data e a senha da conta Gestão e faz o sistema se comportar como se aquele fosse o dia de hoje, recriando os dados de demonstração em volta da data. É a forma de ver, por exemplo, as sugestões de Páscoa fora da época. A opção Voltar ao real desfaz a simulação.
+A tela de login tem o botão Modo demonstração. Ele pede uma data e a senha da conta Gestão e faz o sistema se comportar como se aquele fosse o dia de hoje, recriando os dados de demonstração em volta da data. É a forma de ver, por exemplo, as sugestões de Páscoa fora da época. A opção Voltar ao real desfaz a simulação. Ela também pede a senha da conta Gestão e recria os dados de demonstração, na data real.
 
 A data simulada vale para todas as pessoas que estão usando o sistema, e a recriação apaga o que foi registrado antes. Leia os [cuidados ao testar](#cuidados-ao-testar) antes de usar.
 

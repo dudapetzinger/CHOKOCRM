@@ -21,7 +21,7 @@ Este documento explica como o ChokoCRM é testado: que tipos de teste existem, o
 | Interface | Vitest e Testing Library | 107 | 1.201 |
 | Total | | 177 | 2.455 |
 
-Os testes cobrem 92,5 % das linhas do código, segundo a medição do SonarCloud.
+Os testes cobrem 92,5 % das linhas do código, segundo a medição do SonarCloud. A meta do regulamento do curso é de pelo menos 75 % no servidor e 25 % na interface.
 
 Há três tipos de teste:
 

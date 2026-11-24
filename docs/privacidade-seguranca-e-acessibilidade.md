@@ -84,7 +84,7 @@ A interface foi construída seguindo as diretrizes WCAG 2.1. O que foi aplicado:
 | Teclado | Botões, abas, campos e menus são alcançados e acionados pelo teclado, com o foco sempre visível |
 | Janelas e painéis | Cada diálogo prende o foco enquanto está aberto, fecha com a tecla Esc e devolve o foco a quem o abriu |
 | Leitores de tela | Os botões só com ícone têm rótulo escrito, os erros de formulário são ligados ao campo, e a página declara o idioma português do Brasil |
-| Gráficos | Cada gráfico do painel tem uma tabela equivalente, lida pelos leitores de tela |
+| Gráficos | Os quatro gráficos do painel (resultado das visitas, ritmo de visitas, distribuição por cor e vendas por mês) têm uma tabela equivalente, lida pelos leitores de tela. O ranking é uma lista numerada e, no mapa, cada cidade é um botão com nome descritivo |
 | Tamanho da tela | O layout se adapta do celular ao computador |
 | Movimento | As animações são reduzidas para quem pede menos movimento nas configurações do aparelho |
 

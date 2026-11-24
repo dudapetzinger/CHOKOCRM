@@ -57,17 +57,17 @@ O acesso é feito com usuário e senha. O usuário é um nome curto, como `eduar
 
 Qualquer pessoa pode trocar a própria senha no menu da conta, em Alterar senha, informando a senha atual.
 
-Quem esquece a senha pede ao gestor, que define uma senha provisória na tela de Usuários. A pessoa entra com a senha provisória e depois a troca por uma só dela, no próprio perfil, em Alterar senha. Não há recuperação de senha por e-mail.
+Quem esquece a senha pede ao gestor, que define uma senha provisória na tela de Usuários. A pessoa entra com a senha provisória e depois a troca por uma só dela, no menu da conta, em Alterar senha. Não há recuperação de senha por e-mail.
 
 Uma conta inativada pelo gestor não consegue mais entrar. Os clientes dela continuam na carteira até serem transferidos.
 
 ## 3. Carteira de clientes e cores
 
-A tela Clientes lista a carteira com busca por nome, filtro por cidade e abas por situação. Cada cliente aparece com uma cor e uma frase curta que explica a cor, como "Atrasado · 42 dias sem visita".
+A tela Clientes lista a carteira com busca por nome ou por cidade (o campo "Nome ou cidade"), filtro por cidade e abas por situação. Cada cliente aparece com uma cor e uma frase curta que explica a cor, como "Atrasado · 42 dias sem visita".
 
 ### Como o cliente entra no sistema
 
-O cliente é criado pela gestão, a partir de uma nota fiscal importada. O sistema lê na nota a razão social, o CNPJ, o endereço, a cidade e o telefone, e a gestão escolhe o representante que vai atender. O representante não cadastra clientes. Ele completa os dados que a nota não traz, como os contatos.
+O cliente é criado pela gestão, a partir de uma nota fiscal importada. O sistema lê na nota a razão social, o CNPJ, o endereço, a cidade e o telefone, e a gestão escolhe o representante que vai atender e pode ajustar o nome fantasia e o intervalo entre visitas. O representante não cadastra clientes. Ele completa os dados que a nota não traz, como os contatos.
 
 O passo a passo está na seção [Importação de notas fiscais](#11-importação-de-notas-fiscais).
 
@@ -123,7 +123,7 @@ Só a gestão inativa e reativa um cliente. O cliente inativo:
 
 - aparece apenas na aba Todos, no fim da lista, com a etiqueta "Inativo";
 - não tem cor, porque não está mais sendo visitado;
-- sai da agenda, do roteiro e dos indicadores do painel;
+- sai da agenda, do roteiro e da contagem de clientes do painel (as visitas que ele já recebeu continuam contando no número de visitas e nas metas);
 - não recebe novas visitas;
 - mantém todo o histórico, que continua disponível na ficha.
 
@@ -131,13 +131,15 @@ Só a gestão inativa e reativa um cliente. O cliente inativo:
 
 A ficha reúne tudo sobre o cliente em três abas.
 
-A aba ERP e sugestões mostra a última compra, o volume de compras dos últimos 90 dias (com o período somado escrito ao lado, "de dd/mm a dd/mm"), o histórico de compras (cada compra indica a origem: "NF" com o número da nota ou "Venda registrada na visita"), o estoque informado e as sugestões do que oferecer na época do ano. Para o representante, com o cliente ativo, ela traz também o cartão Mensagem de estoque: um texto sugerido que pode ser editado, a escolha do contato e o botão Abrir no WhatsApp. Nada do que é escrito ali fica guardado.
+A aba ERP e sugestões mostra a última compra, o volume de compras dos últimos 90 dias (com o período somado escrito ao lado, "de dd/mm a dd/mm"), o estoque estimado e as sugestões do que oferecer na época do ano. Para o cliente que tem nota fiscal importada, mostra também o bloco "Últimas vendas", com as cinco compras mais recentes; cada uma indica a origem: "NF" com o número da nota ou "Venda registrada na visita". Para o representante, com o cliente ativo, ela traz também o cartão Mensagem de estoque: o botão "Gerar mensagem" abre um texto sugerido que pode ser editado, a escolha do contato e o botão Abrir no WhatsApp. Nada do que é escrito ali fica guardado.
 
-A aba Visitas mostra a última visita em destaque e as anteriores, com o resultado, a descrição e a foto de cada uma. Quando a visita tem produtos, vindos de uma nota fiscal vinculada ou dos dados de demonstração, aparecem também os produtos e o total ("Produtos · total"), com o botão "Ver produtos", e, quando há nota, o título "Produtos da NF" com o número dela.
+A aba Visitas mostra a última visita em destaque e as anteriores (três de início, com a opção de ver seis ou todas), com o resultado, a descrição e a foto de cada uma. Quando a visita tem produtos, vindos de uma nota fiscal vinculada ou dos dados de demonstração, aparecem também os produtos e o total ("Produtos · total"), com o botão "Ver produtos", e, quando há nota, o título "Produtos da NF" com o número dela.
 
 A aba Cadastro mostra os dados do cliente e os contatos. Um dos contatos é o principal.
 
-No alto da ficha ficam as ações do dia a dia: iniciar o check-in, abrir a conversa no WhatsApp e ver ou alterar a data da próxima visita.
+No alto da ficha ficam as ações do dia a dia: ligar para o cliente, abrir a conversa no WhatsApp, iniciar o check-in, adicionar um contato e ver ou alterar a data da próxima visita.
+
+Para o gestor, o nome do representante no alto da ficha é um seletor: escolher outro representante transfere aquele cliente para a carteira dele.
 
 ### Recolher e expandir blocos
 
@@ -155,17 +157,17 @@ Os quatro indicadores do alto do Painel ficam sempre abertos.
 
 ### Intervalo entre visitas
 
-Cada cliente tem um intervalo previsto entre visitas, em dias. O padrão é 15, e o valor aceito vai de 1 a 365. O representante pode alterar o intervalo, mas precisa escrever uma justificativa. Cada alteração fica registrada com data, autor, valor antigo, valor novo e motivo.
+Cada cliente tem um intervalo previsto entre visitas, em dias. Na ficha, ele fica no bloco "Recorrência de visitas", na aba Visitas. O padrão é 15, e o valor aceito vai de 1 a 365. O representante pode alterar o intervalo, mas precisa escrever uma justificativa. A faixa sugerida é de 15 a 30 dias; fora dela, a tela avisa e pede confirmação. O intervalo só pode ser alterado em cliente ativo. Cada alteração fica registrada com data, autor, valor antigo, valor novo e motivo.
 
 ### Próxima visita
 
 A data da próxima visita vem de uma destas fontes, nesta ordem:
 
-1. a data marcada pelo representante no check-in ou na ficha;
+1. a data marcada no check-in, pelo representante, ou na ficha, pelo representante ou pelo gestor;
 2. a data da última visita mais o intervalo do cliente;
 3. para quem nunca foi visitado, a data de criação do cliente mais o intervalo.
 
-Uma data marcada vale até o cliente receber uma visita naquele dia ou depois. A partir daí ela é considerada cumprida e o cliente volta a seguir o intervalo.
+Uma data marcada vale até o cliente receber uma visita naquele dia ou depois. A partir daí ela é considerada cumprida e o cliente volta a seguir o intervalo. Cada novo check-in substitui a data marcada antes: o último passo já traz a data existente, e o representante pode mantê-la, trocá-la ou deixar o cliente sem data. Alterar o intervalo entre visitas também apaga a data marcada.
 
 ## 5. Check-in de visita
 
@@ -176,13 +178,13 @@ O check-in é o registro da visita, feito pelo representante, de preferência na
 | A visita | Data e hora, pessoa atendida e, se houver, a campanha trabalhada |
 | Resultado | Venda, negociação ou sem venda |
 | O que aconteceu | Descrição da visita e foto |
-| Próximos passos | Data da próxima visita e lembrete, os dois opcionais |
+| Próximos passos | Data da próxima visita, com a campanha dela se houver, e lembrete, todos opcionais |
 
 Regras:
 
 - A descrição é obrigatória e precisa ter pelo menos três caracteres.
 - A data da visita não pode estar no futuro.
-- A foto é obrigatória no aplicativo. São aceitas imagens JPEG, PNG ou WebP de até 5 MB, uma por visita. O campo da foto tem os textos do próprio sistema ("Anexar foto" e, sem foto escolhida, "Nenhuma foto selecionada"), e não os do navegador.
+- A foto é obrigatória no aplicativo, uma por visita. O aplicativo reduz a imagem antes de enviar, de modo que a foto tirada no celular fica bem abaixo do limite de 5 MB do servidor. O campo da foto tem os textos do próprio sistema ("Anexar foto" e, sem foto escolhida, "Nenhuma foto selecionada"), e não os do navegador.
 - A data da próxima visita, quando informada, precisa ser de hoje em diante.
 - O lembrete tem um texto de até 200 caracteres e uma data, de hoje em diante.
 - Não é possível registrar visita em cliente inativo nem vincular a visita a uma campanha encerrada.
@@ -191,11 +193,11 @@ Regras:
 
 No check-in, o representante informa apenas que houve venda. A tela não tem campo de produtos nem de valores.
 
-Os produtos e o valor chegam depois, quando a gestão importa a nota fiscal daquela venda (nos dados de demonstração, já vêm gravados na visita). O sistema liga a nota à visita pela data, seguindo as regras da seção [Importação de notas fiscais](#11-importação-de-notas-fiscais). A partir daí, a visita passa a mostrar os produtos e o total da nota, e a venda entra nas metas, nas campanhas e no ranking.
+Os produtos e o valor chegam depois, quando a gestão importa a nota fiscal daquela venda (nos dados de demonstração, já vêm gravados na visita). O sistema liga a nota à visita pela data, seguindo as regras da seção [Importação de notas fiscais](#11-importação-de-notas-fiscais). A partir daí, a visita passa a mostrar os produtos e o total da nota, e a venda entra nas metas, nas campanhas e no ranking. Se a visita tinha sido registrada como negociação ou sem venda, o resultado dela passa a ser Venda.
 
 ### Corrigir uma visita
 
-Depois de registrada, a visita pode ser corrigida pelo representante que a fez. Ele pode alterar a descrição e o resultado. Há uma exceção: uma visita que já tem produtos ou uma nota fiscal vinculada continua como venda, e o sistema recusa a troca do resultado.
+Depois de registrada, a visita pode ser corrigida pelo representante que a fez. Pelo botão "Editar visita", ele pode alterar a descrição e o resultado. Há uma exceção: uma visita que já tem produtos ou uma nota fiscal vinculada continua como venda, e o sistema recusa a troca do resultado. Se a foto não foi enviada no check-in, ele pode anexá-la depois, na própria visita.
 
 ### Retenção das fotos
 
@@ -239,7 +241,7 @@ Na legenda e no detalhe de cada dia, as datas aparecem como "Data comemorativa" 
 
 ### Roteiro
 
-O roteiro do dia fica na aba Hoje da agenda. Ele reúne as visitas de hoje, ordena pela distância entre as cidades e abre o trajeto no Google Maps. As distâncias são estimadas a partir das coordenadas dos municípios de Santa Catarina.
+O roteiro do dia fica na aba Hoje da agenda. Ele reúne até dez visitas de hoje, começa pela mais urgente e segue sempre para a cidade mais próxima da anterior. As visitas além da décima aparecem como fora do roteiro. O trajeto abre no Google Maps; com mais de cinco paradas, o roteiro é dividido em trechos, com um botão para cada trecho. As distâncias são estimativas, calculadas a partir das coordenadas dos municípios de Santa Catarina. Para o gestor, o roteiro aparece quando um representante está escolhido no seletor.
 
 ## 7. Compras, estoque e sugestões
 
@@ -260,11 +262,11 @@ A informação de estoque existe apenas na simulação, porque as notas fiscais 
 
 O sistema conhece cinco datas comemorativas: Páscoa, Dia das Mães, Dia dos Namorados, Dia dos Pais e Natal. As datas móveis são calculadas para cada ano. O período de vendas de cada data são os 30 dias anteriores a ela.
 
-Para cada data que cai nos próximos 90 dias (o prazo pode ser ajustado de 30 a 180 dias), a ficha compara o que o cliente comprou nesse mesmo período do ano anterior com a média de compras dele ao longo de um ano:
+Para cada data que cai nos próximos 90 dias (o prazo pode ser trocado para 30, 60 ou 180 dias), a ficha compara o que o cliente comprou nesse mesmo período do ano anterior com a média de compras dele ao longo de um ano:
 
 | Comparação com a média | Sugestão |
 |------------------------|----------|
-| Comprou pelo menos 20 % acima | Aumentar a oferta |
+| Comprou pelo menos 20 % acima | Aumentar oferta |
 | Comprou pelo menos 20 % abaixo | Ofertar desconto |
 | Ficou perto da média | Manter a oferta |
 
@@ -274,15 +276,15 @@ Cada sugestão mostra também as campanhas, promoções e eventos que têm algum
 
 ## 8. Mensagem pelo WhatsApp
 
-O botão WhatsApp, no alto da ficha, abre a conversa com o cliente. Para o representante, com o cliente ativo, a conversa abre já com uma mensagem escrita, perguntando como está o estoque. Quando há uma data comemorativa próxima, a mensagem cita os produtos indicados para ela. Para o gestor e para um cliente inativo, o link leva só o número, sem texto.
+O botão WhatsApp, no alto da ficha, abre a conversa com o cliente. Para o representante, com o cliente ativo, a conversa abre já com uma mensagem escrita, perguntando como está o estoque. Nos 30 dias que antecedem uma data comemorativa, a mensagem cita os produtos indicados para ela. Para o gestor e para um cliente inativo, o link leva só o número, sem texto.
 
-Se o cliente tem dois ou mais contatos com telefone válido, o botão mostra a lista para a pessoa escolher com quem quer falar. O contato principal aparece primeiro. Se há um contato só, a conversa abre direto.
+Se o cliente tem dois ou mais contatos com telefone válido, o botão mostra a lista para a pessoa escolher com quem quer falar. O contato principal aparece primeiro. Se há um contato só, a conversa abre direto. Quando nenhum telefone do cliente serve para o WhatsApp, o botão não aparece.
 
 O envio acontece no WhatsApp, pelas mãos de quem está usando. A pessoa pode alterar o texto antes de enviar. Por isso o sistema não guarda registro dessas mensagens: ele não teria como saber o que foi realmente enviado.
 
 ## 9. Painel
 
-O painel mostra os resultados de um período. O período pode ser este mês (do dia 1º até hoje), 30, 90 ou 365 dias, ou um intervalo de datas à escolha, de até 365 dias. O painel abre em "Este mês", que é o período da meta mensal: assim o número de visitas dos indicadores é o mesmo da meta. No intervalo à escolha, os dois campos de data ficam em uma linha própria, abaixo dos botões de período. O representante vê os números da própria carteira. O gestor vê a equipe inteira ou um representante.
+O painel mostra os resultados de um período. O período pode ser este mês (do dia 1º até hoje), 30, 90 ou 365 dias, ou um intervalo de datas à escolha, de até 365 dias, no botão "Personalizado". O painel abre em "Este mês", que é o período da meta mensal: assim o número de visitas dos indicadores é o mesmo da meta. Em "Personalizado", os dois campos de data ficam em uma linha própria, abaixo dos botões de período. O representante vê os números da própria carteira. O gestor vê a equipe inteira ou um representante.
 
 O painel tem duas abas. A primeira responde como andam as visitas e as vendas da carteira; a segunda, o que oferecer nas próximas datas comemorativas. Em telas largas os blocos de cada aba se dividem em duas colunas; no celular ficam um abaixo do outro.
 
@@ -293,9 +295,9 @@ O painel tem duas abas. A primeira responde como andam as visitas e as vendas da
 | Número de visitas | Total de visitas no período e média por cliente ativo |
 | Clientes visitados | Parte dos clientes ativos que recebeu ao menos uma visita no período (cada cliente conta uma vez) |
 | Conversão em vendas | Parte das visitas que terminou em venda |
-| Clientes esfriando | Clientes em laranja ou vermelho, com a distribuição da carteira pelas quatro cores |
+| Clientes esfriando | Clientes em laranja ou vermelho hoje, sem depender do período |
 
-Abaixo dos indicadores ficam as metas com o realizado (as metas comuns e as das campanhas em andamento), o resultado das visitas por representante, o ritmo de visitas ao longo do período (por semana em períodos de até 91 dias, por mês nos maiores), o bloco dos clientes esfriando (a distribuição da carteira por cor e os cinco clientes mais urgentes) e, para o gestor, o ranking dos representantes em visitas, conversão e receita.
+Abaixo dos indicadores ficam as metas com o realizado (as metas comuns e as das campanhas em andamento), o resultado das visitas por representante, o ritmo de visitas ao longo do período (por semana em períodos de até 91 dias, por mês nos maiores), o bloco dos clientes esfriando (a distribuição da carteira por cor e os cinco clientes mais urgentes) e, para o gestor, o ranking dos representantes em visitas, conversão e receita. O ranking aparece com "Todos os representantes" no seletor.
 
 ### Produção e sazonalidade
 
@@ -305,7 +307,7 @@ Esta aba serve para acompanhar as vendas e o estoque em volta das datas comemora
 |-------|--------------|
 | Próximas datas comemorativas | Um cartão por data do horizonte, da mais próxima à mais distante |
 | Estoque baixo nos clientes | Os produtos indicados para a data escolhida e quantos clientes estão com pouco estoque de cada um |
-| Vendas por mês, em R$ | As vendas mês a mês no período do painel, com as datas comemorativas e os períodos das campanhas marcados |
+| Vendas por mês, em R$ | As vendas mês a mês no período do painel, em pelo menos três meses, com as datas comemorativas e os períodos das campanhas marcados |
 
 Cada cartão de data comemorativa traz:
 
@@ -318,7 +320,7 @@ Cada cartão de data comemorativa traz:
 
 Clicar em um cartão escolhe a data do bloco de estoque. A data mais próxima vem escolhida.
 
-O gráfico de vendas por mês segue o período do painel. Quando o período termina no mês atual, a série continua com os meses seguintes até o mês da próxima data comemorativa do horizonte. O mês que ainda não chegou aparece como um espaço vazio, sem valor, para não ser lido como venda zero. Com um intervalo de datas que termina em um mês anterior, o gráfico mostra só os meses pedidos.
+O gráfico de vendas por mês segue o período do painel e mostra sempre pelo menos três meses: em um período curto, como "Este mês", entram também os meses anteriores até completar três. Quando o período termina no mês atual, a série continua com os meses seguintes até o mês da próxima data comemorativa do horizonte. O mês que ainda não chegou aparece como um espaço vazio, sem valor, para não ser lido como venda zero. Com um intervalo de datas que termina em um mês anterior, o gráfico mostra os meses do intervalo, sem os meses seguintes.
 
 No bloco de estoque, cada produto indicado para a data tem uma linha com a contagem de clientes com menos de 10 unidades em estoque. O estoque é uma estimativa por cliente, do ponto de venda. Os clientes com nota fiscal importada não têm estimativa e ficam fora da contagem, e o bloco diz quantos clientes da carteira entram na conta.
 
@@ -341,11 +343,11 @@ Em todos os gráficos, passar o mouse sobre uma barra, uma fatia ou um ponto mos
 | Cidade do mapa, na página de clientes | Os clientes da cidade |
 | Produto do estoque baixo | Os clientes com pouco estoque do produto e a quantidade de cada um |
 
-Na tela de Campanhas, o nome do representante na tabela de resultados abre as vendas dele na campanha.
+Na tela de Campanhas, com uma campanha escolhida no filtro "Campanha", o nome do representante na tabela de resultados abre as vendas dele na campanha.
 
 ### Planilha
 
-O botão Planilha exporta os dados do período em um arquivo CSV, com uma linha por cliente.
+O botão Planilha exporta os dados do período em um arquivo CSV, com uma linha por cliente ativo. Em "Personalizado", um intervalo maior que 365 dias não muda o painel, mas vale para a Planilha.
 
 ## 10. Campanhas e metas
 
@@ -361,7 +363,7 @@ O gestor cria campanhas, promoções e eventos com nome, período, descrição, 
 
 A tela de Campanhas separa as campanhas em três abas, uma para cada situação: "Em andamento", que é a aba que abre, "Programadas" e "Encerradas". Cada aba mostra quantas campanhas tem. O filtro "Campanha", no alto, lista as campanhas da aba aberta.
 
-No check-in, o representante pode indicar a campanha trabalhada na visita. Com isso, a tela de Campanhas mostra o resultado de cada uma por representante: visitas, clientes atendidos, vendas, conversão e os produtos mais vendidos.
+No check-in, o representante pode indicar a campanha trabalhada na visita. Com isso, o cartão de cada campanha mostra o valor vendido e as visitas vinculadas de cada representante. Ao escolher uma campanha no filtro "Campanha", a tela mostra só ela, com a tabela de resultados por representante (visitas, clientes atendidos, vendas e conversão), os produtos mais vendidos e a lista das vendas.
 
 #### Encerrar uma campanha
 
@@ -392,11 +394,11 @@ Excluir uma campanha apaga as metas dela. As visitas ligadas a ela continuam exi
 
 ### Metas
 
-O gestor define metas de quantidade de visitas e de valor de vendas para cada representante. A meta pode ser semanal (de segunda a domingo), mensal, de um período livre ou de uma campanha. A meta de campanha precisa caber dentro do período da campanha.
+O gestor define metas de quantidade de visitas e de valor de vendas para cada representante. A meta pode ser semanal (de segunda a domingo), mensal, de um período à escolha (a opção "Personalizado") ou de uma campanha. A meta de campanha precisa caber dentro do período da campanha.
 
 Quando as datas de uma campanha mudam, porque o gestor a editou ou a encerrou, as metas dela são ajustadas automaticamente para caber no novo período: a meta que passava da nova data de fim termina nela, e a que começava antes do novo início começa nele. A meta que ficaria sem nenhum dia dentro do novo período passa a valer a campanha inteira.
 
-O bloco de metas do painel mostra as metas semanais, mensais e de período livre e também as metas das campanhas em andamento, com o nome da campanha. As metas de campanhas programadas ou encerradas aparecem somente na tela de Campanhas, no cartão de cada campanha.
+O bloco de metas do painel mostra as metas semanais, mensais e de período personalizado e também as metas das campanhas em andamento, com o nome da campanha. O bloco segue o período escolhido no Painel: aparecem as metas que têm pelo menos um dia dentro dele. Uma meta do mês seguinte, por exemplo, só aparece quando o período a alcança. As metas de campanhas programadas ou encerradas aparecem somente na tela de Campanhas, no cartão de cada campanha.
 
 O realizado de visitas é contado das visitas feitas pelo representante no período. O realizado de vendas soma o valor das visitas com venda, que vem da nota fiscal vinculada. Na meta de campanha, contam apenas as visitas ligadas àquela campanha.
 
@@ -428,7 +430,7 @@ Importar a mesma nota novamente não a duplica: ela é reconhecida pela chave de
 
 ### Criar o cliente a partir da nota
 
-Quando o CNPJ da nota ainda não é cliente, a gestão cria o cadastro direto da tela de importação. Ela escolhe o representante que vai atender, e o cliente nasce com razão social, CNPJ, endereço, cidade e telefone lidos da nota. Todas as notas daquele CNPJ passam a ser dele.
+Quando o CNPJ da nota ainda não é cliente, a gestão cria o cadastro direto da tela de importação. Ela escolhe o representante que vai atender e pode ajustar o nome fantasia e o intervalo entre visitas. O cliente nasce com razão social, CNPJ, endereço, cidade e telefone lidos da nota. Todas as notas daquele CNPJ passam a ser dele.
 
 É a única forma de criar um cliente.
 
@@ -444,9 +446,13 @@ A nota encontra o cliente pelo CNPJ. Depois disso, o sistema procura a visita ca
 
 Em todos os casos a nota entra no histórico de compras do cliente e alimenta as sugestões e os gráficos de vendas.
 
+Quando a nota é ligada a uma visita registrada como negociação ou sem venda, o resultado da visita passa a ser Venda, e a cor do cliente acompanha. Na pendência, a tela avisa dessa mudança antes de a gestão confirmar.
+
 A visita candidata não é gravada. Ela é calculada a cada consulta, com as visitas que existem naquele momento, e por isso a lista de pendências acompanha as visitas: a nota cuja visita candidata deixa de existir sai das pendências, e a nota registrada só como compra passa a ser uma pendência quando o cliente recebe uma visita dentro dos 15 dias.
 
 O que fica gravado na nota são as ligações a uma visita (a automática do mesmo dia e a feita pela gestão) e a recusa ("Deixar só no ERP"), junto com a visita recusada. Uma nota recusada não volta às pendências. Enquanto a nota está pendente, os produtos já registrados na visita candidata ficam fora da soma de compras do cliente, para a mesma venda não contar duas vezes. O mesmo vale para a visita recusada.
+
+O bloco "Importações anteriores" lista as últimas importações com a situação de cada nota ("Vinculada à visita", "Pendente" ou "Só no ERP"). A nota vinculada tem o botão "Desvincular", que pede confirmação: a visita fica sem os produtos, a nota passa a "Só no ERP" e não volta a ser vinculada.
 
 ### Dia da nota no modo demonstração
 
@@ -466,7 +472,11 @@ A tela de Usuários fica no menu da conta e só aparece para o gestor. Nela é p
 - definir uma senha provisória para quem esqueceu a senha;
 - transferir todos os clientes de um representante para outro.
 
+Para transferir um único cliente, o gestor usa o seletor de representante no alto da ficha, descrito em [Ficha do cliente](#4-ficha-do-cliente).
+
 O usuário tem de 3 a 30 caracteres e aceita letras minúsculas, números, ponto, hífen e sublinhado. Não pode haver dois iguais.
+
+O gestor não inativa a própria conta nem muda o próprio perfil. Um representante com clientes ativos na carteira só muda de perfil depois de a carteira ser transferida. A conta inativada não entra mais, mas a sessão que ela já tinha aberta continua até o acesso expirar.
 
 ## 13. Modo demonstração
 
@@ -478,13 +488,15 @@ Ao escolher uma data, há dois efeitos. O sistema passa a tratar aquela data com
 
 A carteira recriada segue um modelo. Os clientes de demonstração de cada representante ficam em rotas por dia da semana, com visitas a cada 7 ou 14 dias. Na lista de clientes, a maior parte fica em dia, alguns em Atenção e alguns em Prioridade, onde há clientes com visita atrasada, com visita vencendo, nunca visitados e rebaixados pela última compra. As quantidades do ambiente variam com o uso, pois os clientes criados a partir de notas fiscais se somam aos de demonstração.
 
-Uma faixa com a data aparece em todas as telas enquanto a simulação está ativa. A data simulada avança um dia a cada dia real. A opção Voltar ao real encerra a simulação.
+Uma faixa aparece em todas as telas enquanto a simulação está ativa, com a data escolhida ao ligar o modo. O dia simulado avança um dia a cada dia real; a faixa continua mostrando a data escolhida. A opção Voltar ao real encerra a simulação. Ela também pede a senha da conta Gestão e recria os dados de demonstração, agora em volta da data real.
 
 A recriação apaga os clientes de demonstração, com as visitas e os lembretes deles, e também as campanhas e as metas. Ela preserva:
 
-- os clientes criados a partir de notas fiscais, com todo o histórico;
-- as contas de usuário e as senhas;
+- os clientes criados a partir de notas fiscais, com as visitas, os lembretes e as notas (as visitas perdem apenas a ligação com as campanhas apagadas);
+- as contas criadas pelo gestor e a conta Gestão, com as senhas;
 - as notas fiscais importadas.
+
+As contas dos representantes de demonstração voltam à senha de demonstração e ficam ativas.
 
 As visitas de venda da demonstração já trazem produtos e valores, como se a nota fiscal tivesse sido importada. Uma nota fiscal importada com a simulação ativa entra na data simulada, como descrito em [Dia da nota no modo demonstração](#dia-da-nota-no-modo-demonstração).
 
