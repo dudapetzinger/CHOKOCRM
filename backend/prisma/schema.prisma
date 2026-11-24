@@ -162,9 +162,9 @@ model Reminder {
   @@map("lembretes")
 }
 
-/// Item do pedido registrado no check-in com resultado VENDA. Nome e preço
-/// são copiados do catálogo do ERP no momento do check-in: o pedido não muda
-/// se o catálogo mudar depois.
+/// Produto de uma visita com resultado VENDA. Chega pela nota fiscal vinculada
+/// à visita ou, nos dados de demonstração, é gravado direto. Nome e preço
+/// ficam copiados na visita: não mudam se o catálogo mudar depois.
 model VisitItem {
   id            String  @id @default(uuid())
   visitId       String  @map("visit_id")

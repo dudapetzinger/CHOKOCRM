@@ -1233,7 +1233,8 @@ async function seedProdutos(prisma: Banco): Promise<void> {
 }
 
 /**
- * Nome e preço do catálogo de demonstração, como o check-in grava. Lido de
+ * Nome e preço do catálogo de demonstração, gravados na visita como se a
+ * nota fiscal tivesse sido importada. Lido de
  * `CATALOGO` direto (não de `erp.service`), seja qual for o provedor.
  */
 function itensDoPedido(visitId: string, itens: readonly ItemGerado[]): Prisma.VisitItemCreateManyInput[] {

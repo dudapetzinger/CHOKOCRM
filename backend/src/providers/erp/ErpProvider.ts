@@ -2,7 +2,7 @@
  * Contrato do provedor de ERP (Adapter). Três implementações:
  * `MockErpProvider` simula um ERP para demonstração (chave = `erpId` do
  * cliente), `ImportadoErpProvider` lê as notas fiscais
- * importadas e os pedidos dos check-ins sem nota (chave = CNPJ do
+ * importadas e os produtos das visitas de venda sem nota (chave = CNPJ do
  * cliente) e `HibridoErpProvider` compõe os dois por cliente (chave =
  * `cnpj|erpId`, ver `chave-hibrida.ts`: notas se há nota do CNPJ, senão o
  * simulado). Quem escolhe a chave é `erp.service.chaveDoCliente`; services e

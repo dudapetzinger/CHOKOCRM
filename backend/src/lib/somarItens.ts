@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 
-/** Linha de pedido com o que a soma usa: a quantidade e o preço gravado no check-in. */
+/** Produto da visita com o que a soma usa: a quantidade e o preço gravado na visita (vindo da nota fiscal ou, na demonstração, do catálogo). */
 export type ItemSomavel = { quantidade: number; precoUnitario: Prisma.Decimal };
 
 /**

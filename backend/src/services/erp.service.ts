@@ -33,7 +33,7 @@ const QUANTIDADE_DE_ULTIMAS_VENDAS = 5;
  * provedores (`ERP_PROVIDER`): `mock`, que identifica o cliente pelo `erpId`
  * e tem o catálogo fixo de demonstração; `importado`, que
  * identifica o cliente pelo CNPJ, lê as notas fiscais importadas mais os
- * pedidos dos check-ins sem nota e o catálogo aprendido das notas
+ * produtos das visitas de venda sem nota e o catálogo aprendido das notas
  * (`ErpProduct`), sem estoque; e `hibrido` (o padrão), com chave composta
  * `cnpj|erpId`: o cliente com nota do CNPJ usa as notas, o sem nota e com
  * `erpId` usa o simulado, e o catálogo é o `ErpProduct`. A fonte de cada
@@ -80,7 +80,7 @@ export type ClienteDoErp = { erpId: string | null; cnpj: string };
 
 /**
  * De onde vêm os dados de venda de um cliente: as notas importadas do CNPJ
- * (mais os pedidos dos check-ins sem nota), o ERP simulado pelo `erpId`, ou
+ * (mais os produtos das visitas de venda sem nota), o ERP simulado pelo `erpId`, ou
  * nenhuma fonte (sem nota e sem `erpId`: `SEM_ERP_ID`).
  */
 export type FonteDoCliente = 'notas' | 'simulado' | 'nenhuma';

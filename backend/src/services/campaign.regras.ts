@@ -158,7 +158,7 @@ export type VendaDaCampanha = {
   cliente: { id: string; nomeFantasia: string; cidade: string };
   /** O autor da visita. */
   representante: Pessoa;
-  /** Pedido da visita, com o nome e o preço gravados no check-in (reais, 2 casas). */
+  /** Produtos da visita, com o nome e o preço gravados nela (reais, 2 casas). */
   itens: { sku: string; nome: string; quantidade: number; precoUnitario: number }[];
   /** Soma de quantidade × preço dos itens, em reais com 2 casas; zero sem itens. */
   total: number;

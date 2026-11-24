@@ -16,7 +16,8 @@ import type { ErpProvider, Period, Sale, StockSnapshot, Volume } from './ErpProv
  * Provedor de ERP das notas importadas: as vendas do cliente são as notas
  * fiscais (DANFEs em PDF) que o gestor importa (`ErpSale`), lidas pelo CNPJ
  * do destinatário (a chave do cliente neste provedor, ver
- * `erp.service.chaveDoCliente`), mais os pedidos dos check-ins sem nota:
+ * `erp.service.chaveDoCliente`), mais os produtos gravados nas visitas sem
+ * nota (hoje, os dos dados de demonstração):
  * visitas VENDA com itens e sem `erpSaleId` do cliente com esse CNPJ. A
  * visita já vinculada a uma nota não entra (os itens dela são os da nota),
  * nem a VENDA sem itens, nem a visita candidata de uma nota do CNPJ sem

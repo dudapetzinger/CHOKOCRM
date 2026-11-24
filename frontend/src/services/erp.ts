@@ -2,13 +2,13 @@
  * Acesso tipado aos dados de venda/estoque do cliente no ERP.
  * Espelha o shape de `DadosErpDTO` de `backend/src/services/erp.service.ts`,
  * com as últimas notas importadas, a marca de estoque indisponível e a
- * origem de cada venda (nota ou pedido do check-in).
+ * origem de cada venda (nota ou produtos gravados na visita).
  */
 import { api } from './api';
 
 export type NivelEstoque = 'BAIXO' | 'NORMAL' | 'ALTO';
 
-/** De onde veio a venda: nota importada (número da NF) ou pedido do check-in; ausente no mock. */
+/** De onde veio a venda: nota importada (número da NF) ou produtos gravados na visita, sem nota; ausente no mock. */
 export type OrigemVendaErp = { tipo: 'nota'; numero: string } | { tipo: 'pedido'; visitaId: string };
 
 /** Venda do ERP na ficha: data de calendário 'AAAA-MM-DD' (nunca vira `Date`), valor, itens e origem. */

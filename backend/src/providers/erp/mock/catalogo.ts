@@ -1,9 +1,9 @@
 /**
  * Catálogo fixo de produtos do ERP simulado: alimenta o gerador mock de
- * histórico de vendas e estoque e o pedido do check-in (`GET /erp/produtos`).
+ * histórico de vendas e estoque e o catálogo de produtos (`GET /erp/produtos`).
  * `precoUnitario` em reais, com no máximo 2 casas (cabe em `Decimal(10,2)`):
- * o check-in grava o preço do dia em cada item, então mudar um preço aqui não
- * muda pedido já registrado.
+ * a visita guarda o nome e o preço em cada item, então mudar um preço aqui não
+ * muda venda já registrada.
  */
 export const CATALOGO: readonly { sku: string; nome: string; precoUnitario: number }[] = [
   { sku: 'TRUF-70', nome: 'Trufas 70% cacau', precoUnitario: 36 },

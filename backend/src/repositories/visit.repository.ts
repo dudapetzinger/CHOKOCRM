@@ -315,7 +315,7 @@ export async function substituirItensPorNota(
   await banco.visit.update({ where: { id: visitId }, data: { erpSaleId, resultado: 'VENDA' } });
 }
 
-/** Desfaz o vínculo: a visita perde a nota e fica sem itens (o que foi digitado no check-in não é guardado). */
+/** Desfaz o vínculo: a visita perde a nota e fica sem itens, porque os produtos dela eram os da nota. */
 export async function desvincularNota(visitId: string, banco: Banco = prisma): Promise<void> {
   await banco.visitItem.deleteMany({ where: { visitId } });
   await banco.visit.update({ where: { id: visitId }, data: { erpSaleId: null } });
