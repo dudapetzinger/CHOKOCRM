@@ -170,7 +170,7 @@ flowchart TB
     api -- "Guarda e lê<br/>as fotos" --> fotos
     web -- "Abre a conversa<br/>[link]" --> whats
     web -- "Abre o trajeto<br/>[link]" --> maps
-    api -- "Envia registros<br/>e erros" --> insights
+    api -- "Envia requisições,<br/>consultas ao banco e erros" --> insights
 
     classDef pessoa fill:#08427b,stroke:#052e56,color:#ffffff
     classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff

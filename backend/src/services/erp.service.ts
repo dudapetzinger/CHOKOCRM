@@ -218,10 +218,12 @@ export function estoqueDisponivel(): boolean {
 export type ProdutoDTO = { sku: string; nome: string; precoUnitario: number };
 
 /**
- * Produtos que o check-in oferece no pedido, com o preço do dia:
- * no mock, o catálogo fixo de demonstração, na ordem dele; no importado e no
- * híbrido, o catálogo das notas (`ErpProduct`, que o seed também preenche),
- * por nome.
+ * Catálogo de produtos, com o preço do dia, usado nos produtos em destaque
+ * das campanhas e nos nomes dos produtos do Painel. O check-in não leva
+ * produtos: eles chegam pela nota fiscal vinculada à visita. Origem do
+ * catálogo: no mock, o catálogo fixo de demonstração, na ordem dele; no
+ * importado e no híbrido, o catálogo das notas (`ErpProduct`, que o seed
+ * também preenche), por nome.
  */
 export async function listarProdutos(): Promise<ProdutoDTO[]> {
   if (usaCatalogoDasNotas()) {
@@ -238,9 +240,9 @@ export async function listarProdutos(): Promise<ProdutoDTO[]> {
 
 /**
  * Um produto do catálogo pelo SKU (no importado e no híbrido, o código do
- * produto na nota), com o preço do dia; `null` se o SKU não existe. É por aqui que o
- * pedido do check-in e as campanhas validam os SKUs: nenhum outro módulo lê
- * o catálogo do ERP direto.
+ * produto na nota), com o preço do dia; `null` se o SKU não existe. É por aqui que
+ * as campanhas validam os SKUs: nenhum outro módulo lê o catálogo do ERP
+ * direto.
  */
 export async function buscarProduto(sku: string): Promise<ProdutoDTO | null> {
   if (usaCatalogoDasNotas()) {

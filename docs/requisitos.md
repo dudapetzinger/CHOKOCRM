@@ -110,7 +110,7 @@ O RF34 é um recurso de apresentação e avaliação do projeto: permite mostrar
 | RNF05 | Dados sempre atuais | A cor do cliente, a agenda, os indicadores e o realizado das metas são calculados a cada consulta e nunca gravados |
 | RNF06 | Qualidade do código | Testes automatizados com cobertura mínima de 75 % no servidor e 25 % na interface, e análise do SonarCloud a cada envio. Ver [Testes](testes.md) |
 | RNF07 | Publicação automática | Cada envio para a branch `main` passa pelos testes e, se tudo estiver certo, é publicado sem passos manuais. Ver [Instalação e configuração](instalacao-e-configuracao.md#9-ambiente-publicado-no-azure) |
-| RNF08 | Acompanhamento em produção | O servidor registra cada pedido, responde em um endereço de verificação de saúde e envia registros e erros ao Application Insights. Ver [Arquitetura](arquitetura.md#7-publicação-e-monitoramento) |
+| RNF08 | Acompanhamento em produção | O servidor registra cada pedido, responde em um endereço de verificação de saúde e envia as requisições, as consultas ao banco e os erros ao Application Insights. Ver [Arquitetura](arquitetura.md#7-publicação-e-monitoramento) |
 | RNF09 | Instalação simples | O ambiente local é iniciado com o Docker Compose e poucos comandos. Ver [Instalação e configuração](instalacao-e-configuracao.md) |
 
 ## 4. Histórias de usuário

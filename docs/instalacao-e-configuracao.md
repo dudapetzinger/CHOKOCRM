@@ -24,7 +24,7 @@ Para apenas experimentar o sistema, sem instalar nada, use o endereço publicado
 | Docker Desktop | com Compose v2 | Subir o banco de dados, o servidor e a interface de uma vez |
 | Node.js | 22.13 ou superior | Criar as tabelas, carregar os dados de demonstração e executar os testes |
 
-O npm vem junto com o Node. Versões do Node anteriores à 22.13 não servem: a instalação das dependências do servidor é recusada.
+O npm vem junto com o Node. Versões do Node anteriores à 22.13 não são suportadas: o npm exibe um aviso de versão incompatível e, nas versões mais antigas, a instalação das dependências do servidor é recusada.
 
 ## 2. Passo a passo
 
@@ -42,19 +42,21 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-Suba o ambiente. Na primeira vez o Docker baixa as imagens e instala as dependências, o que leva alguns minutos.
+Inicie o ambiente. Na primeira vez o Docker baixa as imagens e instala as dependências, o que leva alguns minutos.
 
 ```bash
 docker compose up --build
 ```
 
-Com o ambiente no ar, abra outro terminal para criar as tabelas do banco e carregar os dados de demonstração:
+Com o ambiente no ar, abra outro terminal para criar as tabelas do banco e carregar os dados de demonstração. Na primeira vez, o servidor ainda não responde nesse momento, porque ele só inicia depois que as tabelas existem. A mensagem "Falha ao carregar o relógio do banco" no terminal do Docker é esperada. Por isso, o último comando reinicia o servidor:
 
 ```bash
 cd backend
 npm install
 npm run db:migrate
 npm run db:seed
+cd ..
+docker compose restart api
 ```
 
 Pronto. O sistema responde nestes endereços:
@@ -100,13 +102,13 @@ O segundo é o comando abaixo, a partir da pasta `backend`:
 npm run db:seed:reset
 ```
 
-Nos dois caminhos, só os clientes de demonstração são apagados e recriados. Os clientes criados a partir de uma nota fiscal continuam no banco com tudo o que têm, assim como as contas de usuário e as notas importadas.
+Nos dois caminhos, são apagados e recriados os clientes de demonstração, com os contatos, as visitas e os lembretes deles, e também todas as campanhas e metas, inclusive as criadas pela conta Gestão. Os clientes criados a partir de uma nota fiscal continuam no banco com tudo o que têm, assim como as contas de usuário e as notas importadas. As contas dos dois representantes de demonstração voltam à senha `chokocrm123`.
 
-O comando `npm run db:seed`, sem o `reset`, apenas acrescenta o que falta e nunca apaga nada.
+O comando `npm run db:seed`, sem o `reset`, acrescenta o que falta, devolve as contas dos representantes e os cadastros de demonstração aos valores originais e nunca apaga nada.
 
 ## 5. Execução sem Docker
 
-É útil para depurar o servidor ou a interface pelo editor. O banco de dados continua vindo do Docker:
+É útil para depurar o servidor ou a interface pelo editor. Antes, conclua o passo a passo da [seção 2](#2-passo-a-passo) pelo menos uma vez e encerre o ambiente completo com `docker compose down`, para liberar as portas 3000 e 5173. O banco de dados continua vindo do Docker:
 
 ```bash
 docker compose up db
@@ -140,7 +142,7 @@ Nenhum arquivo `.env` vai para o repositório. Os arquivos `backend/.env.example
 |----------|--------------|----------|
 | `NODE_ENV` | `development` | Ambiente de execução: `development`, `test` ou `production` |
 | `PORT` | `3000` | Porta do servidor |
-| `DATABASE_URL` | banco local do Docker | Endereço de conexão com o PostgreSQL |
+| `DATABASE_URL` | sem padrão, obrigatória | Endereço de conexão com o PostgreSQL. O arquivo de exemplo aponta para o banco local do Docker |
 | `JWT_SECRET` | sem padrão, obrigatória | Segredo que assina os tokens de login. Use um valor longo e aleatório |
 | `JWT_EXPIRES_IN` | `8h` | Tempo de validade do login |
 | `FRONTEND_URL` | `http://localhost:5173` | Único endereço de interface que o servidor aceita |
@@ -168,7 +170,7 @@ A variável `ERP_PROVIDER` aceita três valores:
 | Variável | Valor padrão | Para quê |
 |----------|--------------|----------|
 | `VITE_API_URL` | `http://localhost:3000` | Endereço do servidor que a interface consulta |
-| `VITE_TELEFONE_DE_TESTE` | vazio (desligado) | Telefone de teste. Definido, os botões Ligar e WhatsApp de qualquer cliente vão para esse número, sem aviso na tela. Vale para os cadastros criados depois, como um cliente criado a partir de uma nota fiscal, para os testes com pessoas externas não chegarem aos clientes reais |
+| `VITE_TELEFONE_DE_TESTE` | vazio (desligado) | Telefone de teste. Definido, os botões Ligar e WhatsApp de qualquer cliente vão para esse número, sem aviso na tela. É útil principalmente para os cadastros criados depois, como um cliente criado a partir de uma nota fiscal, que não usam o telefone da autora, para os testes com pessoas externas não chegarem aos clientes reais |
 
 ## 7. Testando o aplicativo instalável
 
@@ -176,11 +178,12 @@ A interface pode ser instalada no celular ou no computador como aplicativo. Essa
 
 ```bash
 cd frontend
+npm install
 npm run build
 npm run preview
 ```
 
-A versão compilada abre em http://localhost:4173. Como o servidor só aceita um endereço de interface, troque a `FRONTEND_URL` do `backend/.env` para `http://localhost:4173` enquanto testa, reinicie o servidor e volte ao valor original depois.
+A versão compilada abre em http://localhost:4173. Como o servidor só aceita um endereço de interface, troque a `FRONTEND_URL` do `backend/.env` para `http://localhost:4173` enquanto testa e volte ao valor original depois. Para o servidor ler o novo valor, encerre o ambiente com `Ctrl+C` e execute `docker compose up` novamente.
 
 O que observar no Chrome ou no Edge: o convite "Use o ChokoCRM como app" depois do login, o aviso de falta de internet ao desligar a rede e o aviso "Nova versão disponível" quando uma compilação nova é publicada. Sem internet o aplicativo abre, mas não grava nada: os dados sempre vêm do servidor.
 
@@ -188,9 +191,9 @@ O que observar no Chrome ou no Edge: o convite "Use o ChokoCRM como app" depois 
 
 **A porta 5432 já está em uso.** Há outro PostgreSQL em execução no computador. Pare esse serviço ou troque a porta do serviço `db` no `docker-compose.yml`.
 
-**O servidor inicia e encerra em seguida.** Na maioria dos casos, a causa é a `DATABASE_URL` com o endereço errado ou a `JWT_SECRET` ausente. A mensagem de erro do servidor diz qual variável falhou.
+**O servidor inicia e encerra em seguida.** As causas mais comuns são três: uma variável obrigatória ausente (`DATABASE_URL` ou `JWT_SECRET`), caso em que a mensagem de erro cita a variável; a `DATABASE_URL` com o endereço errado; ou as tabelas do banco ainda não criadas. Nos dois últimos casos, a mensagem é "Falha ao carregar o relógio do banco". Confira a `DATABASE_URL`, execute `npm run db:migrate` na pasta `backend` e reinicie o servidor com `docker compose restart api`.
 
-**O sistema abre sem nenhum cliente.** Os dados de demonstração não foram carregados, ou os testes automatizados do servidor foram executados, já que eles esvaziam o banco local. Rode `npm run db:seed:reset` na pasta `backend`.
+**O sistema abre sem nenhum cliente.** Os dados de demonstração não foram carregados, ou os testes automatizados do servidor foram executados, já que eles esvaziam o banco local. Execute `npm run db:seed:reset` na pasta `backend`.
 
 **O comando de migração acusa divergência.** O histórico do banco local não coincide com o do repositório. Apague o banco local com `docker compose down -v`, inicie o ambiente novamente e repita os comandos do passo a passo. Faça isso apenas com o banco do seu computador.
 
@@ -260,11 +263,11 @@ Os recursos do Azure, o projeto no SonarCloud e os segredos do GitHub são criad
 bash scripts/wizard-azure.sh
 ```
 
-Com `--dry-run`, o roteiro apenas mostra os passos, sem abrir páginas nem gravar nada. Ele é executado no Git Bash e guarda somente os valores que não são segredo, em arquivos locais que o Git ignora.
+Com `--dry-run`, o roteiro faz um ensaio: percorre os mesmos passos e pede os mesmos valores, mas não abre páginas, não envia nada ao GitHub e não grava nada no repositório. Ele é executado no Git Bash e guarda somente os valores que não são segredo, em arquivos locais que o Git ignora.
 
 ### 9.5 Dados de demonstração no ambiente publicado
 
-Use o botão Modo demonstração da tela de login, com a senha da conta Gestão, como descrito na [seção 4](#4-dados-de-demonstração). Não é preciso acessar o servidor.
+Use o botão Modo demonstração da tela de login, com a senha da conta Gestão, como descrito na [seção 4](#4-dados-de-demonstração). Não é preciso acessar o servidor. Em um ambiente recém-criado, a primeira carga é feita uma única vez pelo roteiro da seção 9.4, que executa `npm run db:seed` no servidor. A partir daí, o botão é suficiente.
 
 Prefira recriar a demonstração depois das 9h. Feita de madrugada, o último dia da janela de visitas marcadas pode ficar com menos visitas.
 
@@ -274,7 +277,7 @@ Depois de uma publicação que muda a interface, quem tem o aplicativo instalado
 
 ### 9.6 Acompanhamento
 
-O fluxo de log do App Service mostra a saída do servidor e é o primeiro lugar a olhar quando uma publicação falha. O Application Insights registra as requisições, as consultas ao banco e os erros, e testa o endereço `/health` a cada cinco minutos, avisando por e-mail quando o servidor não responde.
+O fluxo de log do App Service mostra a saída do servidor e é o primeiro lugar a olhar quando uma publicação falha. O Application Insights registra as requisições, as consultas ao banco e os erros. Ele também tem um teste de disponibilidade, que consulta o endereço `/health` a cada cinco minutos e avisa por e-mail quando o servidor não responde. Esse teste é o item de maior custo do ambiente e, por isso, fica pausado quando não é necessário. Para religá-lo, use o botão de iniciar na tela Disponibilidade do recurso `ai-chokocrm`.
 
 ### 9.7 Desligar e religar
 
@@ -296,4 +299,4 @@ Não use parar e iniciar na aplicação para resolver travamentos. Mudar o plano
 
 ### 9.8 Custos
 
-Com tudo ligado, o gasto fica perto de 30 dólares por mês, vindo do plano B1 e do banco B1ms. A assinatura de estudante não cobra cartão: se o crédito acabar, a assinatura é desativada e o ambiente sai do ar. Há um orçamento de 100 dólares configurado no portal, com alertas por e-mail em 40 % e 70 % do gasto.
+Com tudo ligado, os dois gastos são o teste de disponibilidade, que é o maior, e o plano B1 do servidor. O banco B1ms e o volume de registros do projeto ficaram, até aqui, dentro da faixa gratuita da assinatura de estudante. A assinatura de estudante não cobra cartão: se o crédito acabar, a assinatura é desativada e o ambiente sai do ar. Há um orçamento de 100 dólares configurado no portal, com alertas por e-mail em 40 % e 70 % do gasto.
