@@ -89,9 +89,7 @@ A carteira de demonstração segue um modelo: cada representante tem a maior par
 
 O ambiente publicado é único e é usado ao mesmo tempo por todas as pessoas que avaliam o projeto. O que uma pessoa altera aparece para as demais. Por isso:
 
-- Não altere a senha das três contas da tabela e não inative essas contas. Elas são a porta de entrada de todos.
-- Para testar a tela de Usuários, entre com a conta Gestão, toque no círculo com as iniciais, no canto superior direito, e escolha Usuários. Crie uma conta em Novo usuário e faça os testes nela: editar os dados, definir uma senha provisória, entrar no sistema com essa conta, inativar e reativar.
-- A opção Transferir carteira move todos os clientes de um representante para outro. Ao testá-la, use como destino a conta nova, criada com o perfil Representante, e devolva os clientes em seguida.
+- Não altere a senha das três contas da tabela, não inative essas contas e não transfira a carteira delas. Elas são a porta de entrada de todos.
 - Visitas, campanhas, metas e lembretes podem ser criados livremente, pois são dados de demonstração.
 - Use o Modo demonstração apenas para ver o sistema em outra época do ano: as sugestões de Páscoa ou de Natal, a aba Produção e sazonalidade e os gráficos de outro período. Recriar a demonstração apaga as visitas, as campanhas e as metas registradas por todos os usuários e altera a data para todos. Ao terminar, use Voltar ao real.
 - No dia da apresentação do projeto, 08/12/2026, não recrie a demonstração: ela estará preparada em uma data escolhida para a mostra.
@@ -118,7 +116,8 @@ Como gestor (conta Gestão Chokolaten):
 4. Abra a aba Produção e sazonalidade para ver as próximas datas comemorativas, o estoque baixo por produto e as vendas por mês.
 5. Abra Clientes para ver o mapa da carteira por cidade e clique em uma cidade para ver os clientes dela.
 6. Em Campanhas, crie uma campanha e uma meta para um representante.
-7. Toque no círculo com as iniciais, no canto superior direito, e abra Usuários. Crie uma conta em Novo usuário e, no menu de ações dessa conta, defina uma senha provisória para ela. Faça os testes apenas na conta criada, como descrito nos [cuidados ao testar](#cuidados-ao-testar).
+
+A importação de notas fiscais não faz parte do roteiro, porque usa documentos fiscais reais da empresa. No ambiente de demonstração, as visitas com venda já trazem os produtos e o valor, como se a nota tivesse sido importada. As regras da importação estão em [Importação de notas fiscais](docs/funcionalidades.md#11-importação-de-notas-fiscais).
 
 ### Simulando outra data
 
