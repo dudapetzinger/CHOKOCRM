@@ -21,7 +21,7 @@ Este documento explica como o ChokoCRM é testado: que tipos de teste existem, o
 | Interface | Vitest e Testing Library | 107 | 1.201 |
 | Total | | 177 | 2.455 |
 
-Os testes cobrem 92,5 % das linhas do código, segundo a medição do SonarCloud. A meta do regulamento do curso é de pelo menos 75 % no servidor e 25 % na interface.
+A cobertura dos testes, consultada no SonarCloud em 23/11/2026, é de 92,9 % no total: 94,5 % no servidor e 91,6 % na interface. A meta do regulamento do curso é de pelo menos 75 % no servidor e 25 % na interface.
 
 Há três tipos de teste:
 
@@ -91,7 +91,7 @@ Os testes ficam em `backend/tests`. Os unitários estão na subpasta `unit`.
 
 Os arquivos são executados um de cada vez, para não disputarem o mesmo banco. Antes de cada caso, todas as tabelas são esvaziadas, de modo que um teste nunca depende do que outro deixou.
 
-A fonte de dados de vendas é fixada na simulação, para o resultado não depender da configuração do computador. Os testes das outras duas fontes trocam esse valor apenas dentro do próprio arquivo.
+A fonte de dados de vendas é fixada na fonte simulada (`ERP_PROVIDER=mock`), para o resultado não depender da configuração do computador. Os testes dos outros dois valores de `ERP_PROVIDER` trocam esse valor apenas dentro do próprio arquivo.
 
 Alguns testes congelam a data do sistema. Isso evita falhas que só apareceriam em certos horários, como perto da meia-noite, quando o dia em São Paulo e o dia no horário universal são diferentes.
 
@@ -102,19 +102,19 @@ Alguns testes congelam a data do sistema. Isso evita falhas que só apareceriam 
 | Login e senhas | Entrada com usuário e senha, recusa de conta inativa, troca de senha e bloqueio de quem não tem o perfil exigido |
 | Usuários | Criação e edição de contas pelo gestor, senha provisória e transferência de carteira |
 | Clientes e contatos | Edição, listagem com filtros, regra de carteira, data da próxima visita e inativação só pela gestão |
-| Intervalo de visitas | Alteração com justificativa obrigatória e registro no histórico |
+| Intervalo entre visitas | Alteração com justificativa obrigatória e registro no histórico |
 | Visitas | Check-in com resultado, próxima visita, lembrete e campanha, histórico e correção da descrição e do resultado |
 | Fotos | Envio, leitura, tipos aceitos e a limpeza depois de 90 dias |
 | Lembretes | Criação no check-in, listagem e conclusão |
 | Agenda e calendário | Visitas atrasadas, de hoje e da semana, ordem por cor, filtro do gestor e a rotina diária |
-| Vendas e estoque | Dados do cliente em cada uma das três fontes: simulada, notas importadas e híbrida, com o período do volume de compras dos últimos 90 dias |
+| Vendas e estoque | Dados do cliente em cada um dos três valores de `ERP_PROVIDER`: simulado, notas importadas e híbrido, com o período do volume de compras dos últimos 90 dias |
 | Importação de notas | Leitura do PDF, conferência sem gravar, gravação, ligação com a visita do mesmo dia, pendências calculadas na consulta pela visita de até 15 dias antes, recusa e criação do cliente pela nota |
 | Painel | Indicadores por período, resultado por representante, visitas do período uma a uma com os mesmos totais dos indicadores, vendas mensais com os meses até a próxima data comemorativa e planilha |
 | Sugestões e datas comemorativas | Sugestões por época do ano com as campanhas do período, estoque baixo antes das datas comemorativas e, para o painel, as vendas da carteira no período de cada data, com a regra de carteira |
 | Campanhas e metas | Criação, edição, exclusão, situação pelas datas e realizado |
 | Mensagem de estoque | Texto sugerido e contatos do cliente |
-| Modo demonstração | Troca de data com a senha da Gestão, recriação dos dados, sistema inteiro seguindo a data simulada e nota importada entrando no dia deslocado |
-| Dados de demonstração | Geração repetível, preservação dos clientes reais e das contas, e completude do que é criado |
+| Modo demonstração | Troca de data com a senha da conta Gestão, recriação dos dados, sistema inteiro seguindo a data simulada e nota importada entrando no dia deslocado |
+| Dados de demonstração | Geração repetível, preservação dos clientes criados a partir de notas fiscais e das contas, e completude do que é criado |
 | Infraestrutura | Endereço de saúde, regra de origem aceita, entrega da interface pelo servidor, validação das variáveis de ambiente e restrições do banco |
 
 Em todas as áreas, os testes conferem também que o representante não lê nem altera clientes de outra carteira.
@@ -155,7 +155,7 @@ Um utilitário simula a largura da tela, para conferir o comportamento no celula
 
 | Área | O que é conferido |
 |------|-------------------|
-| Telas | Login, clientes, ficha, check-in em quatro passos, agenda em abas, painel, campanhas, importação de notas, usuários e troca de senha |
+| Telas | Login, clientes, ficha, check-in em quatro passos, agenda em abas, painel, campanhas, importação de notas, usuários, cadastro de usuário e troca de senha |
 | Navegação | Tela inicial de cada perfil, menus, botão central e troca de usuário |
 | Componentes do sistema | Calendário com os filtros, metas, escolha do contato no WhatsApp, aviso de próxima visita, lembretes, conferência das notas, criação do cliente pela nota, legenda das situações, campo de arquivo, blocos recolhíveis, painel lateral, datas comemorativas e estoque baixo por produto |
 | Gráficos e mapa | Valores exibidos, tabela equivalente para leitor de tela, balão ao passar o mouse, painel lateral ao clicar, com o foco devolvido ao fechar, meses por vir nas vendas por mês e zoom do mapa |
@@ -183,7 +183,7 @@ O gerador dos dados de demonstração é testado por propriedades, e não por va
 - o intervalo entre as visitas de um cliente respeita o intervalo cadastrado;
 - executar o gerador duas vezes para o mesmo dia produz exatamente os mesmos dados;
 - há pelo menos duas visitas marcadas por representante em cada dia útil das semanas seguintes;
-- os clientes reais e as contas de usuário sobrevivem à recriação.
+- os clientes criados a partir de notas fiscais e as contas de usuário sobrevivem à recriação.
 
 ### Proteção contra apagar dados por engano
 
@@ -217,7 +217,7 @@ Se a verificação falha, nada é publicado. Se o teste final falha, o problema 
 
 ## 7. Análise de código
 
-O SonarCloud analisa o projeto a cada envio e avalia o código novo em seis critérios. O projeto precisa atender a todos:
+O SonarCloud analisa o projeto a cada envio e avalia o código novo em seis critérios. Para o Quality Gate ser aprovado, o projeto precisa atender a todos:
 
 | Critério | Exigência |
 |----------|-----------|
@@ -228,7 +228,7 @@ O SonarCloud analisa o projeto a cada envio e avalia o código novo em seis crit
 | Duplicação de código | No máximo 3 % |
 | Pontos sensíveis de segurança | Todos revisados |
 
-O resultado atual pode ser visto no selo Quality Gate do [README](../README.md) e no [painel do projeto no SonarCloud](https://sonarcloud.io/summary/new_code?id=dudapetzinger_CHOKOCRM).
+O resultado atual pode ser visto no selo Quality Gate do [README](../README.md) e no [painel do projeto no SonarCloud](https://sonarcloud.io/summary/new_code?id=dudapetzinger_CHOKOCRM). Um Quality Gate reprovado aparece no selo e no painel, mas não impede a publicação: ela depende apenas das tarefas da [verificação automática](#6-verificação-automática-a-cada-envio).
 
 ## 8. Teste manual
 

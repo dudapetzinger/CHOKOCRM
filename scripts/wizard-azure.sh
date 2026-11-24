@@ -3,7 +3,7 @@
 #
 # ChokoCRM: wizard dos passos manuais do deploy no Azure.
 # Guia, um passo por vez, tudo o que só pode ser feito à mão: portal do Azure,
-# SonarCloud e secrets/variables do GitHub. Não cria nada no Azure sozinho.
+# SonarCloud e secrets/variables do GitHub. Não cria nada no Azure automaticamente.
 #
 # Uso (no Git Bash, de qualquer pasta do repositório):
 #   bash scripts/wizard-azure.sh             # execução real
@@ -16,7 +16,7 @@
 set -euo pipefail
 
 # ──────────────────────────────────────────────────────────────────────────
-# Wizard library: delightful, consistent UX. Identical across every wizard.
+# Biblioteca do wizard: funções de apresentação e de leitura usadas pelos passos.
 # ──────────────────────────────────────────────────────────────────────────
 
 if [[ -t 1 ]] && command -v tput >/dev/null 2>&1 && [[ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]]; then
@@ -26,7 +26,7 @@ else
   BOLD=""; DIM=""; RESET=""; BLUE=""; GREEN=""; YELLOW=""; RED=""
 fi
 
-# Author sets this at the top of the stages section.
+# O valor real é definido no início da seção dos passos (marcador "STAGES").
 TOTAL_STAGES=0
 
 _STAGE_INDEX=0
@@ -187,8 +187,8 @@ finish() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────
-# STAGES: author this section. One stage() per step the human takes.
-# Replace the example below. Set TOTAL_STAGES to match the stages you write.
+# STAGES: os passos do deploy. Um stage() para cada passo feito à mão.
+# TOTAL_STAGES precisa ser igual ao número de passos escritos abaixo.
 # ──────────────────────────────────────────────────────────────────────────
 
 TOTAL_STAGES=11
@@ -275,7 +275,7 @@ _anterior() {
 # _desistir "motivo": encerra com erro (em vermelho).
 _desistir() {
   printf '\n  %s✗ %s%s\n' "$RED" "$1" "$RESET"
-  note "Rode o wizard de novo quando tiver o valor certo (os valores não secretos ficam lembrados)."
+  note "Execute o wizard de novo quando tiver o valor certo (os valores não secretos ficam lembrados)."
   exit 1
 }
 
@@ -458,7 +458,7 @@ _checklist_desligar() {
     "- [ ] Application Insights: $AI → Disponibilidade → teste health-api → Desabilitar (Disable), para não receber alertas com a produção desligada (o nome pode variar)." \
     "- [ ] App Service: escalar o plano $PLAN para F1 (Gratuito): mantém o app, as configurações e o endereço; desligue o Always On antes, se o portal exigir. Parar só o app não zera o custo: quem cobra é o plano." \
     "- [ ] Alternativa: deletar o plano $PLAN. O portal pode exigir apagar o $APP junto, o que apaga também /home/uploads e as fotos de check-in; nesse caso, religar = refazer o passo 4 e atualizar VITE_API_URL e o publish profile no GitHub." \
-    "- [ ] PostgreSQL: $PG → Visão geral → Parar. Atenção: o Azure religa sozinho um servidor parado após 7 dias; se a pausa for maior, pare de novo." \
+    "- [ ] PostgreSQL: $PG → Visão geral → Parar. Atenção: o Azure religa automaticamente um servidor parado após 7 dias; se a pausa for maior, pare de novo." \
     "- [ ] Conferir o gasto em Gerenciamento de Custos (alertas de 40 % e 70 % do orçamento de US\$ 100)."
 }
 
@@ -560,7 +560,7 @@ if (( ! DRY_RUN )); then
 fi
 printf '\n'
 say "Sufixo opcional para os nomes (ex.: -pac8). Os nomes do PostgreSQL são globais no Azure:"
-say "se algum estiver ocupado, interrompa (Ctrl-C) e rode de novo com um sufixo."
+say "se algum estiver ocupado, interrompa (Ctrl-C) e execute de novo com um sufixo."
 note "Enter = sem sufixo; digite 'nenhum' para remover um sufixo lembrado."
 _pedir_texto SUFIXO "Sufixo:" '^(nenhum|(-?[a-z0-9]+(-[a-z0-9]+)*)?)$' \
   "só letras minúsculas, números e hífens, sem hífen no fim" ""
@@ -760,7 +760,7 @@ else
 fi
 printf '\n'
 warn "O SONAR_TOKEN precisa existir no GitHub ANTES do primeiro push que leve o ci.yml novo;"
-warn "senão o job sonarcloud falha, o CI fica vermelho e o deploy automático não roda."
+warn "senão o job sonarcloud falha, o CI fica vermelho e o deploy automático não é executado."
 printf '\n'
 say "Definindo secrets e variables em $REPO_GITHUB:"
 set_secret AZURE_WEBAPP_PUBLISH_PROFILE "$(cat "$PUBLISH_PROFILE_PATH")"
@@ -779,12 +779,12 @@ pause "Enter para continuar"
 
 # ── 9. Primeiro deploy ────────────────────────────────────────────────────
 stage "Primeiro deploy"
-say "O deploy roda no GitHub Actions: CI verde na main → workflow Deploy (api → smoke)."
+say "O deploy é executado no GitHub Actions: CI verde na main → workflow Deploy (api → smoke)."
 step "Se o $SONAR_PROPS mudou no passo 8, commite-o."
 step "Envie a main: git push origin main (os commits locais vão junto e disparam o CI)."
-note "Se o CI já estiver verde no GitHub e o Deploy não tiver rodado, dispare à mão: gh workflow run deploy.yml"
+note "Se o CI já estiver verde no GitHub e o Deploy não tiver sido executado, dispare à mão: gh workflow run deploy.yml"
 open_url "$URL_GITHUB/actions"
-step "Acompanhe CI → Deploy até o job smoke ficar verde (o primeiro start roda as migrations)."
+step "Acompanhe CI → Deploy até o job smoke ficar verde (o primeiro start executa as migrations)."
 pause "Enter quando o Deploy terminar"
 if (( DRY_RUN )); then
   note "(dry-run) pularia a espera por $VITE_API_URL/health e a checagem do frontend em $VITE_API_URL/"
@@ -810,7 +810,7 @@ else
   else
     warn "A API não respondeu \"status\":\"ok\" em 2 minutos."
     note "Veja os logs em $APP → Monitoramento → Fluxo de log (Log stream) e os jobs em $URL_GITHUB/actions."
-    confirm "Continuar para o seed mesmo assim?" || _desistir "Corrija o deploy e rode o wizard de novo."
+    confirm "Continuar para o seed mesmo assim?" || _desistir "Corrija o deploy e execute o wizard de novo."
   fi
 fi
 
@@ -822,10 +822,10 @@ say "Popula o banco de produção com os dados de demonstração (uma vez só)."
 open_url "$SCM_URL"
 note "Endereço do SSH do Kudu (pode variar). Alternativa: portal → $APP → Ferramentas de"
 note "Desenvolvimento → SSH → Ir. (o nome do menu pode variar)"
-step "No terminal SSH, rode:  cd /home/site/wwwroot && npm run db:seed"
-note "Se o seed disser que DATABASE_URL ou JWT_SECRET não está definida, rode antes:"
+step "No terminal SSH, execute:  cd /home/site/wwwroot && npm run db:seed"
+note "Se o seed disser que DATABASE_URL ou JWT_SECRET não está definida, execute antes:"
 note "  export DATABASE_URL='<a do passo 2>' JWT_SECRET='<qualquer valor não vazio; para o seed, serve>'"
-warn "Basta rodar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção."
+warn "Basta executar o seed uma vez: repetir não duplica registros, mas devolve aos valores do seed os usuários, clientes e contatos de demonstração alterados na produção."
 note "Para renovar a demonstração depois (datas de hoje, campanhas e metas novas), o caminho normal é o botão Modo demonstração da tela de login (data + senha da conta Gestão), sem SSH; o plano B é npm run db:seed:reset -- --confirmar. Os dois apagam também os dados lançados pelos representantes; só as contas ficam."
 pause "Enter quando o seed terminar"
 

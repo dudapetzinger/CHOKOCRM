@@ -82,19 +82,19 @@ O carregamento dos dados de demonstração cria três contas. O acesso é feito 
 
 Gestor é o nome do perfil, como aparece na tela. Gestão Chokolaten é o nome da conta compartilhada desse perfil, e `gestao` é o usuário para entrar.
 
-Cada representante enxerga apenas a própria carteira de clientes. A conta Gestão enxerga as duas carteiras e é a única que importa notas fiscais e cria clientes, usuários, campanhas e metas.
+Cada representante enxerga apenas a própria carteira de clientes. A conta Gestão, de perfil Gestor, enxerga as duas carteiras. Só o perfil Gestor importa notas fiscais e cria clientes, usuários, campanhas e metas.
 
-Outras contas são criadas pela conta Gestão, no menu da conta, em Usuários, Novo usuário. Não existe recuperação de senha por e-mail: quem esquece a senha pede ao gestor, que define uma senha provisória na mesma tela. A pessoa entra com ela e depois a troca no próprio perfil, em Alterar senha.
+Outras contas são criadas pelo gestor, no menu da conta, em Usuários, Novo usuário. Não existe recuperação de senha por e-mail: quem esquece a senha pede ao gestor, que define uma senha provisória na mesma tela. A pessoa entra com ela e depois a troca no menu da conta, em Alterar senha.
 
 A conta Gestão é tratada como conta real. O carregamento dos dados só define a senha dela quando a conta ainda não existe. Depois disso, a senha escolhida é sempre mantida.
 
 ## 4. Dados de demonstração
 
-Os dados de demonstração simulam três meses de uso do sistema: uma carteira de clientes para cada representante, distribuída em rotas por dia da semana e visitada a cada 7 ou 14 dias, com vendas, lembretes, campanhas, metas e visitas marcadas para as próximas semanas. Na lista de clientes, a maior parte fica em dia, alguns em Atenção e alguns em Prioridade (com visita atrasada, com visita vencendo, nunca visitados e rebaixados pela última compra). Todos os clientes e contatos já cadastrados, inclusive os reais, usam o mesmo telefone, o da autora do projeto. Os dados são gerados a partir do dia em que o comando é executado, então a agenda e as cores dos clientes fazem sentido na data de hoje.
+Os dados de demonstração representam três meses de uso do sistema: uma carteira de clientes para cada representante, distribuída em rotas por dia da semana e visitada a cada 7 ou 14 dias, com vendas, lembretes, campanhas, metas e visitas marcadas para as próximas semanas. Na lista de clientes, a maior parte fica em dia, alguns em Atenção e alguns em Prioridade (com visita atrasada, com visita vencendo, nunca visitados e rebaixados pela última compra). Todos os clientes e contatos já cadastrados usam o mesmo telefone, o da autora do projeto. Os dados são gerados a partir do dia em que o comando é executado, então a agenda e as cores dos clientes fazem sentido na data de hoje.
 
 Com o passar dos dias, as visitas geradas ficam antigas e os clientes mudam de cor, como aconteceria em uso real. Para renovar os dados há dois caminhos.
 
-O primeiro é o botão Modo demonstração, na tela de login. Ele pede uma data e a senha da conta Gestão, recria os dados em volta da data escolhida e faz o sistema inteiro se comportar como se aquele fosse o dia de hoje. Serve para mostrar, por exemplo, as sugestões de Páscoa em pleno novembro. A opção Voltar ao real desfaz a simulação. Enquanto a simulação está ativa, uma faixa com a data aparece em todas as telas.
+O primeiro é o botão Modo demonstração, na tela de login. Ele pede uma data e a senha da conta Gestão, recria os dados em volta da data escolhida e faz o sistema inteiro se comportar como se aquele fosse o dia de hoje. Serve para mostrar, por exemplo, as sugestões de Páscoa em pleno novembro. A opção Voltar ao real desliga a data simulada. Enquanto a data simulada está ativa, uma faixa com a data aparece em todas as telas.
 
 O segundo é o comando abaixo, a partir da pasta `backend`:
 
@@ -102,7 +102,7 @@ O segundo é o comando abaixo, a partir da pasta `backend`:
 npm run db:seed:reset
 ```
 
-Nos dois caminhos, são apagados e recriados os clientes de demonstração, com os contatos, as visitas e os lembretes deles, e também todas as campanhas e metas, inclusive as criadas pela conta Gestão. Os clientes criados a partir de uma nota fiscal continuam no banco com tudo o que têm, assim como as contas de usuário e as notas importadas. As contas dos dois representantes de demonstração voltam à senha `chokocrm123`.
+Nos dois caminhos, são apagados e recriados os clientes de demonstração, com os contatos, as visitas e os lembretes deles, e são apagadas também todas as campanhas e metas, inclusive as criadas pelo gestor. Os clientes criados a partir de notas fiscais continuam no banco com os contatos, as visitas, os lembretes e as notas (as visitas perdem apenas a ligação com as campanhas apagadas), assim como as contas de usuário e as notas fiscais importadas. As contas dos dois representantes de demonstração voltam à senha `chokocrm123` e ficam ativas.
 
 O comando `npm run db:seed`, sem o `reset`, acrescenta o que falta, devolve as contas dos representantes e os cadastros de demonstração aos valores originais e nunca apaga nada.
 
@@ -170,7 +170,7 @@ A variável `ERP_PROVIDER` aceita três valores:
 | Variável | Valor padrão | Para quê |
 |----------|--------------|----------|
 | `VITE_API_URL` | `http://localhost:3000` | Endereço do servidor que a interface consulta |
-| `VITE_TELEFONE_DE_TESTE` | vazio (desligado) | Telefone de teste. Definido, os botões Ligar e WhatsApp de qualquer cliente vão para esse número, sem aviso na tela. É útil principalmente para os cadastros criados depois, como um cliente criado a partir de uma nota fiscal, que não usam o telefone da autora, para os testes com pessoas externas não chegarem aos clientes reais |
+| `VITE_TELEFONE_DE_TESTE` | vazio (desligado) | Telefone de teste. Definido, os botões Ligar e WhatsApp de qualquer cliente vão para esse número, sem aviso na tela. É útil principalmente para os cadastros criados depois, como um cliente criado a partir de uma nota fiscal, que não usam o telefone da autora: assim os testes feitos por pessoas externas não chegam ao telefone impresso na nota |
 
 ## 7. Testando o aplicativo instalável
 
@@ -271,7 +271,7 @@ Use o botão Modo demonstração da tela de login, com a senha da conta Gestão,
 
 Prefira recriar a demonstração depois das 9h. Feita de madrugada, o último dia da janela de visitas marcadas pode ficar com menos visitas.
 
-Com a simulação ativa, uma nota fiscal importada entra com o dia de emissão deslocado pelo mesmo número de dias do relógio, para acompanhar as visitas. Para uma nota real ficar no dia impresso nela, importe com a simulação desligada (Voltar ao real). Importar novamente a mesma nota grava o dia outra vez.
+Com o modo demonstração ativo, uma nota fiscal importada entra com o dia de emissão deslocado pelo mesmo número de dias do relógio, para acompanhar as visitas. Para uma nota real ficar no dia impresso nela, importe com o modo demonstração desligado (Voltar ao real). Importar novamente a mesma nota grava o dia outra vez.
 
 Depois de uma publicação que muda a interface, quem tem o aplicativo instalado vê o aviso "Nova versão disponível" e precisa tocar em Atualizar.
 

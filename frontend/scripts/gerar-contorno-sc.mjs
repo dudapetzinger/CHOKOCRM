@@ -1,7 +1,7 @@
 /**
  * Gera `src/lib/contornoSC.ts`, o contorno de Santa Catarina (limite do
- * estado e dos 295 municípios) que o mapa de clientes do Painel desenha
- * atrás das bolhas. Rodado uma vez, com internet
+ * estado e dos 295 municípios) que o mapa da página de Clientes desenha
+ * atrás das bolhas. Executado uma vez, com internet
  * (e de novo só se a malha do IBGE mudar ou a simplificação precisar de
  * ajuste):
  *
@@ -144,7 +144,7 @@ function gerarConteudo({ estado, municipios, tolerancia, data, tamanho }) {
     .join('\n');
   return `/**
  * Contorno de Santa Catarina (limite do estado e dos ${municipios.size} municípios) como
- * anéis de \`[lng, lat]\`, para o mapa de clientes do Painel.
+ * anéis de \`[lng, lat]\`, para o mapa da página de Clientes.
  * ARQUIVO GERADO por \`scripts/gerar-contorno-sc.mjs\`: não editar à mão.
  *
  * Fonte: API de malhas do IBGE (v3), GeoJSON com \`qualidade=minima\`:

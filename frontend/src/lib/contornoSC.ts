@@ -1,6 +1,6 @@
 /**
  * Contorno de Santa Catarina (limite do estado e dos 295 municípios) como
- * anéis de `[lng, lat]`, para o mapa de clientes do Painel.
+ * anéis de `[lng, lat]`, para o mapa da página de Clientes.
  * ARQUIVO GERADO por `scripts/gerar-contorno-sc.mjs`: não editar à mão.
  *
  * Fonte: API de malhas do IBGE (v3), GeoJSON com `qualidade=minima`:

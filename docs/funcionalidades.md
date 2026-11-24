@@ -131,7 +131,7 @@ Só a gestão inativa e reativa um cliente. O cliente inativo:
 
 A ficha reúne tudo sobre o cliente em três abas.
 
-A aba ERP e sugestões mostra a última compra, o volume de compras dos últimos 90 dias (com o período somado escrito ao lado, "de dd/mm a dd/mm"), o estoque estimado e as sugestões do que oferecer na época do ano. Para o cliente que tem nota fiscal importada, mostra também o bloco "Últimas vendas", com as cinco compras mais recentes; cada uma indica a origem: "NF" com o número da nota ou "Venda registrada na visita". Para o representante, com o cliente ativo, ela traz também o cartão Mensagem de estoque: o botão "Gerar mensagem" abre um texto sugerido que pode ser editado, a escolha do contato e o botão Abrir no WhatsApp. Nada do que é escrito ali fica guardado.
+A aba ERP e sugestões (ERP é a sigla do sistema de gestão da empresa, de onde saem as notas fiscais) mostra a última compra, o volume de compras dos últimos 90 dias (com o período somado escrito ao lado, "de dd/mm a dd/mm"), o estoque estimado e as sugestões do que oferecer na época do ano. Para o cliente que tem nota fiscal importada, mostra também o bloco "Últimas vendas", com as cinco compras mais recentes; cada uma indica a origem: "NF" com o número da nota ou "Venda registrada na visita". Para o representante, com o cliente ativo, ela traz também o cartão Mensagem de estoque: o botão "Gerar mensagem" abre um texto sugerido que pode ser editado, a escolha do contato e o botão Abrir no WhatsApp. Nada do que é escrito ali fica guardado.
 
 A aba Visitas mostra a última visita em destaque e as anteriores (três de início, com a opção de ver seis ou todas), com o resultado, a descrição e a foto de cada uma. Quando a visita tem produtos, vindos de uma nota fiscal vinculada ou dos dados de demonstração, aparecem também os produtos e o total ("Produtos · total"), com o botão "Ver produtos", e, quando há nota, o título "Produtos da NF" com o número dela.
 
@@ -252,15 +252,15 @@ As compras de cada cliente vêm de uma de duas fontes:
 | Fonte | Quando vale |
 |-------|-------------|
 | Notas fiscais importadas pela gestão | Para o cliente que tem nota importada |
-| Simulação | Para o cliente de demonstração, que não tem nota |
+| Fonte simulada | Para o cliente de demonstração, que não tem nota |
 
-O sistema usa uma fonte por cliente e nunca soma as duas. Na simulação, os números são gerados a partir do código do cliente e são sempre os mesmos para o mesmo código.
+O sistema usa uma fonte por cliente e nunca soma as duas. Na fonte simulada, os números são gerados a partir do código do cliente e são sempre os mesmos para o mesmo código.
 
-A informação de estoque existe apenas na simulação, porque as notas fiscais não trazem o estoque do cliente.
+A informação de estoque existe apenas na fonte simulada, porque as notas fiscais não trazem o estoque do cliente.
 
 ### Sugestões por época do ano
 
-O sistema conhece cinco datas comemorativas: Páscoa, Dia das Mães, Dia dos Namorados, Dia dos Pais e Natal. As datas móveis são calculadas para cada ano. O período de vendas de cada data são os 30 dias anteriores a ela.
+O sistema conhece cinco datas comemorativas: Páscoa, Dia das Mães, Dia dos Namorados, Dia dos Pais e Natal. As datas móveis são calculadas para cada ano. O período de vendas de cada data vai dos 30 dias anteriores até o dia dela.
 
 Para cada data que cai nos próximos 90 dias (o prazo pode ser trocado para 30, 60 ou 180 dias), a ficha compara o que o cliente comprou nesse mesmo período do ano anterior com a média de compras dele ao longo de um ano:
 
@@ -312,7 +312,7 @@ Esta aba serve para acompanhar as vendas e o estoque em volta das datas comemora
 Cada cartão de data comemorativa traz:
 
 - o prazo e o dia da data;
-- o período de vendas, que são os 30 dias até a data;
+- o período de vendas, que vai dos 30 dias anteriores até o dia da data;
 - quanto a carteira vendeu no mesmo período do ano anterior;
 - quanto vendeu no período deste ano até hoje ou, se o período ainda não começou, o dia em que ele começa;
 - as campanhas em andamento ou programadas que têm algum dia no período. Sem nenhuma, o gestor vê um atalho para criar uma campanha;
@@ -326,7 +326,7 @@ No bloco de estoque, cada produto indicado para a data tem uma linha com a conta
 
 ### Detalhe de cada número
 
-Em todos os gráficos, passar o mouse sobre uma barra, uma fatia ou um ponto mostra um balão com o resumo. Clicar, ou tocar no celular, abre um painel lateral com os clientes ou as visitas por trás daquele número. Cada cliente do painel leva à ficha. O painel fecha no botão Fechar, com a tecla Esc ou com um clique fora dele. No celular ele ocupa a tela inteira.
+Em todos os gráficos, passar o mouse sobre uma barra, um trecho de barra ou um ponto mostra um balão com o resumo. Clicar, ou tocar no celular, abre um painel lateral com os clientes ou as visitas por trás daquele número. Cada cliente do painel leva à ficha. O painel fecha no botão Fechar, com a tecla Esc ou com um clique fora dele. No celular ele ocupa a tela inteira.
 
 | Onde se clica | O que o painel lateral mostra |
 |---------------|-------------------------------|
@@ -335,7 +335,7 @@ Em todos os gráficos, passar o mouse sobre uma barra, uma fatia ou um ponto mos
 | Indicador Conversão em vendas | As visitas que terminaram em venda, com o valor |
 | Indicador Clientes esfriando | Os clientes em laranja e vermelho |
 | Barra de uma meta | Os clientes por trás do realizado de visitas ou de vendas |
-| Fatia do resultado das visitas | As visitas daquele representante com aquele resultado |
+| Trecho da barra do resultado das visitas | As visitas daquele representante com aquele resultado |
 | Semana ou mês do ritmo de visitas | As visitas daquela faixa |
 | Linha do ranking | As visitas do representante, agrupadas por cliente |
 | Mês das vendas por mês | Quem comprou no mês e quanto |
@@ -404,7 +404,7 @@ O realizado de visitas é contado das visitas feitas pelo representante no perí
 
 ## 11. Importação de notas fiscais
 
-A gestão importa as notas fiscais de venda em PDF (DANFE) emitidas pelo sistema de gestão da empresa. É por elas que os clientes e as vendas reais chegam ao ChokoCRM.
+A gestão importa as notas fiscais de venda em PDF (DANFE) emitidas pelo sistema de gestão da empresa (ERP). É por elas que os clientes e as vendas reais chegam ao ChokoCRM.
 
 O processo tem três momentos:
 
@@ -458,9 +458,9 @@ O bloco "Importações anteriores" lista as últimas importações com a situaç
 
 Com o modo demonstração ativo, o sistema trabalha em outra data, e as visitas são gravadas nela. Para a nota acompanhar as visitas, o dia de emissão é guardado deslocado pelo mesmo número de dias que separa a data simulada da data real. A nota emitida hoje entra no hoje simulado, e a nota de 16 dias atrás entra 16 dias antes dele.
 
-Com isso, a nota importada durante a simulação entra no volume de compras dos últimos 90 dias da ficha do cliente. A conferência mostra as duas datas, a impressa na nota e a de entrada, sempre que elas são diferentes. Importar a mesma nota novamente grava o dia outra vez, com o deslocamento daquele momento.
+Com isso, a nota importada com o modo demonstração ativo entra no volume de compras dos últimos 90 dias da ficha do cliente. A conferência mostra as duas datas, a impressa na nota e a de entrada, sempre que elas são diferentes. Importar a mesma nota novamente grava o dia outra vez, com o deslocamento daquele momento.
 
-Sem simulação, o dia guardado é o da própria nota.
+Sem data simulada, o dia guardado é o da própria nota.
 
 ## 12. Usuários
 
@@ -484,21 +484,21 @@ Hoje o sistema trabalha com dados de demonstração: clientes, visitas e vendas 
 
 O modo demonstração permite apresentar o sistema como se fosse outro dia do ano. Ele fica na tela de login e exige a senha da conta Gestão.
 
-Ao escolher uma data, há dois efeitos. O sistema passa a tratar aquela data como o dia de hoje em tudo: cores, agenda, campanhas, metas e sugestões. Além disso, os dados de demonstração são recriados em volta dela, simulando três meses de uso até aquele dia.
+Ao escolher uma data, há dois efeitos. O sistema passa a tratar aquela data como o dia de hoje em tudo: cores, agenda, campanhas, metas e sugestões. Além disso, os dados de demonstração são recriados em volta dela, representando três meses de uso até aquele dia.
 
 A carteira recriada segue um modelo. Os clientes de demonstração de cada representante ficam em rotas por dia da semana, com visitas a cada 7 ou 14 dias. Na lista de clientes, a maior parte fica em dia, alguns em Atenção e alguns em Prioridade, onde há clientes com visita atrasada, com visita vencendo, nunca visitados e rebaixados pela última compra. As quantidades do ambiente variam com o uso, pois os clientes criados a partir de notas fiscais se somam aos de demonstração.
 
-Uma faixa aparece em todas as telas enquanto a simulação está ativa, com a data escolhida ao ligar o modo. O dia simulado avança um dia a cada dia real; a faixa continua mostrando a data escolhida. A opção Voltar ao real encerra a simulação. Ela também pede a senha da conta Gestão e recria os dados de demonstração, agora em volta da data real.
+Uma faixa aparece em todas as telas enquanto a data simulada está ativa, com a data escolhida ao ligar o modo. O dia simulado avança um dia a cada dia real; a faixa continua mostrando a data escolhida. A opção Voltar ao real desliga a data simulada. Ela também pede a senha da conta Gestão e recria os dados de demonstração, agora em volta da data real.
 
-A recriação apaga os clientes de demonstração, com as visitas e os lembretes deles, e também as campanhas e as metas. Ela preserva:
+A recriação apaga e recria os clientes de demonstração, com os contatos, as visitas e os lembretes deles, e apaga também todas as campanhas e metas. Ela preserva:
 
-- os clientes criados a partir de notas fiscais, com as visitas, os lembretes e as notas (as visitas perdem apenas a ligação com as campanhas apagadas);
+- os clientes criados a partir de notas fiscais, com os contatos, as visitas, os lembretes e as notas (as visitas perdem apenas a ligação com as campanhas apagadas);
 - as contas criadas pelo gestor e a conta Gestão, com as senhas;
 - as notas fiscais importadas.
 
 As contas dos representantes de demonstração voltam à senha de demonstração e ficam ativas.
 
-As visitas de venda da demonstração já trazem produtos e valores, como se a nota fiscal tivesse sido importada. Uma nota fiscal importada com a simulação ativa entra na data simulada, como descrito em [Dia da nota no modo demonstração](#dia-da-nota-no-modo-demonstração).
+As visitas de venda da demonstração já trazem produtos e valores, como se a nota fiscal tivesse sido importada. Uma nota fiscal importada com o modo demonstração ativo entra na data simulada, como descrito em [Dia da nota no modo demonstração](#dia-da-nota-no-modo-demonstração).
 
 Todos os contatos dos clientes de demonstração usam o mesmo telefone, o da autora do projeto, para que as mensagens de teste pelo WhatsApp cheguem a um número conhecido. Os clientes e contatos já cadastrados no banco usam esse mesmo número. Para os cadastros criados depois, como um cliente criado a partir de uma nota fiscal, o telefone de teste (`VITE_TELEFONE_DE_TESTE`) leva os botões Ligar e WhatsApp de qualquer cliente para esse número, sem aviso na tela.
 

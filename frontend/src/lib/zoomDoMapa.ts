@@ -1,5 +1,5 @@
 /**
- * Zoom e deslocamento do mapa de clientes do Painel, como funções puras
+ * Zoom e deslocamento do mapa da página de Clientes, como funções puras
  * sobre o `viewBox` do SVG. O enquadramento
  * `inicial` é `{0, 0, largura, altura}` (o das cidades da carteira com
  * margem); o nível de zoom é a razão entre a largura inicial e a atual (1 =

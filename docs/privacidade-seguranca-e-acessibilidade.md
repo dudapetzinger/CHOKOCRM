@@ -48,7 +48,7 @@ Três serviços externos aparecem no caminho dos dados:
 | Serviço | O que recebe |
 |---------|--------------|
 | WhatsApp | O número do contato e o texto sugerido, quando a pessoa clica no botão. A conversa abre no aparelho de quem está usando, e é ela quem decide enviar |
-| Google Maps | As cidades das visitas do dia, quando a pessoa abre o roteiro |
+| Google Maps | Os endereços dos clientes das visitas do dia, quando a pessoa abre o roteiro |
 | Microsoft Azure | Hospeda o servidor, o banco de dados e os registros técnicos de funcionamento (Application Insights) |
 
 ## 3. Segurança
@@ -94,13 +94,13 @@ O sistema não passou por uma auditoria externa de acessibilidade nem por testes
 
 ## 5. Licenças
 
-O código do ChokoCRM é distribuído sob a licença MIT, cujo texto está no arquivo [LICENSE](../LICENSE). As bibliotecas usadas são de código aberto, com licenças que permitem o uso neste projeto, e estão listadas nos arquivos `backend/package.json` e `frontend/package.json`. O contorno de Santa Catarina e as coordenadas dos municípios vêm de dados públicos do IBGE.
+O código do ChokoCRM é distribuído sob a licença MIT, cujo texto está no arquivo [LICENSE](../LICENSE). As bibliotecas usadas são de código aberto, com licenças que permitem o uso neste projeto, e estão listadas nos arquivos `backend/package.json` e `frontend/package.json`. O contorno de Santa Catarina e dos municípios vem da API de malhas do IBGE, que é de dados públicos. As coordenadas dos municípios vêm do projeto de código aberto municipios-brasileiros, de Kelvin S. do Prado, distribuído sob a licença MIT. O aviso de licença desse projeto está mantido no arquivo `frontend/src/lib/municipiosSC.ts`.
 
 ## 6. O que falta para o uso com dados reais
 
 O projeto foi entregue com dados de demonstração. Antes de a empresa usar o sistema com os dados reais de clientes e contatos, estes pontos precisam ser resolvidos:
 
-- ligar o ChokoCRM ao sistema de gestão da empresa por uma API, para que ao menos os clientes cadastrados lá cheguem automaticamente, sem depender da importação das notas fiscais. É a melhoria futura descrita em [Arquitetura](arquitetura.md#melhoria-futura-integração-com-o-sistema-de-gestão);
+- ligar o ChokoCRM ao sistema de gestão da empresa (ERP) por uma API, para que ao menos os clientes cadastrados lá cheguem automaticamente, sem depender da importação das notas fiscais. É a melhoria futura descrita em [Arquitetura](arquitetura.md#melhoria-futura-integração-com-o-sistema-de-gestão);
 - publicar uma política de privacidade e indicar na empresa quem responde pelos pedidos das pessoas sobre os próprios dados;
 - trocar as senhas de demonstração, que são públicas, por senhas individuais;
 - mover o ambiente do Azure para uma região no Brasil. Hoje ele fica no Canadá, por causa do crédito estudantil;

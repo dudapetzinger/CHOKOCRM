@@ -62,7 +62,7 @@ jobs:
         with:
           name: cobertura-backend
           path: backend/coverage
-      # O jest grava `SF:src/...` (relativo a backend/); o scanner roda na raiz do repositório.
+      # O jest grava `SF:src/...` (relativo a backend/); o scanner é executado na raiz do repositório.
       - name: Reescrever caminhos do lcov relativos à raiz
         run: sed -i 's#^SF:#SF:backend/#' backend/coverage/lcov.info
       - uses: actions/download-artifact@v4

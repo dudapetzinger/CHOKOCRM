@@ -16,7 +16,7 @@ O banco é um PostgreSQL com 15 tabelas, que podem ser lidas em quatro grupos:
 | Grupo | Tabelas | O que guardam |
 |-------|---------|---------------|
 | Pessoas e carteira | `users`, `clients`, `contacts` | Quem usa o sistema, os clientes de cada representante e as pessoas de contato em cada cliente |
-| Visitas | `visits`, `visit_items`, `lembretes`, `visit_schedule_changes` | Cada visita registrada, os produtos vendidos nela, os lembretes e as mudanças no intervalo de visitas |
+| Visitas | `visits`, `visit_items`, `lembretes`, `visit_schedule_changes` | Cada visita registrada, os produtos vendidos nela, os lembretes e as mudanças no intervalo entre visitas |
 | Planejamento comercial | `campaigns`, `goals`, `seasonal_events` | Campanhas, metas dos representantes e as datas comemorativas do ano |
 | Notas fiscais | `erp_imports`, `erp_sales`, `erp_sale_items`, `erp_products` | Os arquivos importados, as notas lidas, os itens de cada nota e o catálogo de produtos |
 
@@ -91,7 +91,7 @@ Os estabelecimentos atendidos. Cada cliente pertence à carteira de um represent
 | `endereco` | Texto | Sim | Endereço |
 | `telefone` | Texto | Sim | Telefone |
 | `email` | Texto | Não | E-mail. O cliente criado a partir de uma nota fiscal nasce sem ele |
-| `erp_id` | Texto | Não | Código do cliente no sistema de gestão da empresa |
+| `erp_id` | Texto | Não | Código do cliente no sistema de gestão da empresa (ERP) |
 | `recorrencia_dias` | Inteiro | Sim | Intervalo previsto entre visitas, em dias. O padrão é 15 |
 | `proxima_visita` | Data | Não | Data marcada para a próxima visita. Vazia, a data é calculada pelo intervalo |
 | `proxima_campanha_id` | UUID | Não | Campanha a trabalhar na próxima visita |
@@ -161,9 +161,9 @@ Tarefas anotadas pelo representante, com data. Um cliente pode ter vários lembr
 | `concluido_em` | Data e hora | Não | Quando foi concluído. Vazio, o lembrete está aberto |
 | `criado_em` | Data e hora | Sim | Quando foi criado |
 
-### 3.7 Mudança de recorrência (`visit_schedule_changes`)
+### 3.7 Mudança do intervalo entre visitas (`visit_schedule_changes`)
 
-Histórico das alterações no intervalo de visitas de um cliente. Toda alteração exige uma justificativa.
+Histórico das alterações no intervalo entre visitas de um cliente. Toda alteração exige uma justificativa.
 
 | Campo | Tipo | Obrigatório | Descrição |
 |-------|------|-------------|-----------|
@@ -325,6 +325,6 @@ Algumas informações que aparecem nas telas não existem em nenhuma tabela, por
 | Indicadores e gráficos do painel | Visitas e vendas do período |
 | Sugestões por época do ano | Compras do cliente no mesmo período do ano anterior, e as campanhas do período |
 | Pendências da importação de notas | Visita candidata de cada nota sem decisão: a mais recente do cliente, sem nota ligada, no dia da nota ou até 15 dias antes |
-| Vendas e estoque baixo por data comemorativa | Vendas da carteira no período de cada data e estoque informado pelos clientes |
+| Vendas e estoque baixo por data comemorativa | Vendas da carteira no período de cada data e estoque estimado da fonte simulada |
 
 As vendas e o estoque da fonte simulada também não ficam no banco: são gerados a partir do código do cliente toda vez que são consultados. As regras de cada cálculo estão em [Funcionalidades](funcionalidades.md).

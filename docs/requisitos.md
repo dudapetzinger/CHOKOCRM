@@ -108,7 +108,7 @@ O RF34 é um recurso de apresentação e avaliação do projeto: permite mostrar
 | RNF03 | Privacidade | Só são guardados os dados necessários ao atendimento. As fotos são apagadas em 90 dias e as mensagens do WhatsApp não são registradas. Ver [Privacidade, segurança e acessibilidade](privacidade-seguranca-e-acessibilidade.md) |
 | RNF04 | Acessibilidade | Navegação por teclado, rótulos para leitores de tela, contraste de texto de pelo menos 4,5 para 1 e tabela equivalente, lida pelos leitores de tela, nos quatro gráficos do painel (resultado das visitas, ritmo de visitas, distribuição por cor e vendas por mês). O ranking é uma lista numerada e, no mapa, cada cidade é um botão com nome descritivo. Ver [Privacidade, segurança e acessibilidade](privacidade-seguranca-e-acessibilidade.md#4-acessibilidade) |
 | RNF05 | Dados sempre atuais | A cor do cliente, a agenda, os indicadores e o realizado das metas são calculados a cada consulta e nunca gravados |
-| RNF06 | Qualidade do código | Testes automatizados no servidor e na interface. A meta do regulamento do curso é cobertura de pelo menos 75 % no servidor e 25 % na interface, e o projeto está acima dela: 92,5 % das linhas, segundo o SonarCloud, que analisa o código a cada envio e exige pelo menos 80 % de cobertura no código novo. Ver [Testes](testes.md) |
+| RNF06 | Qualidade do código | Testes automatizados no servidor e na interface. A meta do regulamento do curso é cobertura de pelo menos 75 % no servidor e 25 % na interface, e o projeto está acima dela: 94,5 % no servidor e 91,6 % na interface, segundo o SonarCloud, que analisa o código a cada envio e exige pelo menos 80 % de cobertura no código novo. Ver [Testes](testes.md) |
 | RNF07 | Publicação automática | Cada envio para a branch `main` passa pelos testes e, se tudo estiver certo, é publicado sem passos manuais. Ver [Instalação e configuração](instalacao-e-configuracao.md#9-ambiente-publicado-no-azure) |
 | RNF08 | Acompanhamento em produção | O servidor registra cada pedido, responde em um endereço de verificação de saúde e envia as requisições, as consultas ao banco e os erros ao Application Insights. Ver [Arquitetura](arquitetura.md#7-publicação-e-monitoramento) |
 | RNF09 | Instalação simples | O ambiente local é iniciado com o Docker Compose, e as tabelas e os dados de demonstração são criados com comandos do npm. Ver [Instalação e configuração](instalacao-e-configuracao.md) |
@@ -213,13 +213,13 @@ Como gestor, quero ver os indicadores de toda a equipe e de cada representante, 
 - O painel mostra a equipe inteira ou um representante por vez, em um período à escolha.
 - O ranking compara os representantes em visitas, conversão e receita.
 - O bloco de clientes esfriando mostra quem está há mais tempo sem visita.
-- O botão Planilha exporta os dados do período em um arquivo CSV, com uma linha por cliente.
+- O botão Planilha exporta os dados do período em um arquivo CSV, com uma linha por cliente ativo.
 
 Requisitos: RF04, RF23, RF24, RF26, RF27.
 
 **H10. Trazer as vendas reais para o sistema**
 
-Como gestor, quero importar as notas fiscais emitidas pelo sistema de gestão da empresa, para que os clientes e as vendas entrem sem digitação.
+Como gestor, quero importar as notas fiscais emitidas pelo sistema de gestão da empresa (ERP), para que os clientes e as vendas entrem sem digitação.
 
 - O sistema lê um ou mais arquivos PDF e mostra as notas para conferência antes de gravar.
 - Quando o CNPJ da nota ainda não é cliente, o cadastro é criado a partir dela, com o representante escolhido.
@@ -293,7 +293,7 @@ Um fluxo completo começa em uma necessidade de quem usa e termina em um resulta
 
 ### 5.4 Do cliente esfriando ao contato
 
-1. O painel mostra à gestão quantos clientes estão em laranja e vermelho.
+1. O painel mostra ao gestor quantos clientes estão em laranja e vermelho.
 2. O gestor clica no indicador e vê a lista dos clientes, com o link para a ficha de cada um.
 3. Na carteira do representante, esses clientes estão na aba Prioridade.
 4. O representante abre a conversa no WhatsApp com a mensagem sugerida ou marca a próxima visita.

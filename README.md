@@ -39,7 +39,7 @@ O ChokoCRM reúne esse controle em um só lugar. O representante registra cada v
 
 ## O que o sistema faz
 
-Há dois perfis de uso: Representante e Gestor. O representante trabalha com a própria carteira de clientes. A gestão, que usa o perfil Gestor, enxerga todas as carteiras e cuida das configurações.
+Há dois perfis de uso: Representante e Gestor. O representante trabalha com a própria carteira de clientes. A gestão, que usa o perfil Gestor, enxerga todas as carteiras e cuida das contas, das campanhas e das metas.
 
 O representante:
 
@@ -81,7 +81,7 @@ O acesso é feito com usuário e senha. A senha de todas as contas é `chokocrm1
 
 Gestor é o nome do perfil, como aparece na tela. Gestão Chokolaten é o nome da conta compartilhada desse perfil, e `gestao` é o usuário para entrar.
 
-Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para simular diferentes períodos de uso. Todos os clientes e contatos já cadastrados usam o telefone da autora do projeto, de modo que as ligações e as mensagens de teste pelo WhatsApp chegam a um número conhecido.
+Os dados que aparecem são de demonstração: clientes, visitas e vendas fictícios, gerados para representar diferentes períodos de uso. Todos os clientes e contatos já cadastrados usam o telefone da autora do projeto, de modo que as ligações e as mensagens de teste pelo WhatsApp chegam a um número conhecido.
 
 A carteira de demonstração segue um modelo: cada representante tem a maior parte dos clientes em dia, alguns em Atenção e alguns em Prioridade, com visitas distribuídas pelos dias úteis. As quantidades variam conforme os testes feitos no ambiente, pois cada nota fiscal importada pode criar um cliente novo.
 
@@ -91,10 +91,10 @@ O ambiente publicado é único e é usado ao mesmo tempo por todas as pessoas qu
 
 - Não altere a senha das três contas da tabela, não inative essas contas e não transfira a carteira delas. Elas são a porta de entrada de todos.
 - Visitas, campanhas, metas e lembretes podem ser criados livremente, pois são dados de demonstração.
-- Use o Modo demonstração apenas para ver o sistema em outra época do ano: as sugestões de Páscoa ou de Natal, a aba Produção e sazonalidade e os gráficos de outro período. Recriar a demonstração apaga as visitas, as campanhas e as metas registradas por todos os usuários e altera a data para todos. Ao terminar, use Voltar ao real.
+- Use o Modo demonstração apenas para ver o sistema em outra época do ano: as sugestões de Páscoa ou de Natal, a aba Produção e sazonalidade e os gráficos de outro período. Recriar a demonstração apaga e recria os clientes de demonstração, com os contatos, as visitas e os lembretes deles, apaga todas as campanhas e metas e altera a data para todos. Ao terminar, use Voltar ao real.
 - No dia da apresentação do projeto, 08/12/2026, não recrie a demonstração: ela estará preparada em uma data escolhida para a mostra.
 
-Se a carteira aparecer diferente do que o roteiro abaixo descreve, ela pode ter sido alterada por outro usuário durante um teste. Recriar a demonstração devolve os clientes de demonstração, as visitas, as campanhas e as metas ao modelo. As contas e os clientes criados a partir de notas fiscais são mantidos, e as duas contas de representante da tabela voltam à senha padrão.
+Se a carteira aparecer diferente do que o roteiro abaixo descreve, ela pode ter sido alterada por outro usuário durante um teste. Recriar a demonstração devolve ao modelo os clientes de demonstração, com os contatos, as visitas e os lembretes deles, e também as campanhas e as metas. As contas de usuário, as notas fiscais importadas e os clientes criados a partir delas são mantidos, e as duas contas de representante da tabela voltam à senha padrão e ficam ativas.
 
 ### Roteiro sugerido
 
@@ -121,9 +121,9 @@ A importação de notas fiscais não faz parte do roteiro, porque usa documentos
 
 ### Simulando outra data
 
-A tela de login tem o botão Modo demonstração. Ele pede uma data e a senha da conta Gestão e faz o sistema se comportar como se aquele fosse o dia de hoje, recriando os dados de demonstração em volta da data. É a forma de ver, por exemplo, as sugestões de Páscoa fora da época. A opção Voltar ao real desfaz a simulação. Ela também pede a senha da conta Gestão e recria os dados de demonstração, na data real.
+A tela de login tem o botão Modo demonstração. Ele pede uma data e a senha da conta Gestão e faz o sistema se comportar como se aquele fosse o dia de hoje, recriando os dados de demonstração em volta da data. É a forma de ver, por exemplo, as sugestões de Páscoa fora da época. A opção Voltar ao real desliga a data simulada. Ela também pede a senha da conta Gestão e recria os dados de demonstração, na data real.
 
-A data simulada vale para todas as pessoas que estão usando o sistema, e a recriação apaga o que foi registrado antes. Leia os [cuidados ao testar](#cuidados-ao-testar) antes de usar.
+A data simulada vale para todas as pessoas que estão usando o sistema, e a recriação apaga o que foi registrado nos clientes de demonstração, além das campanhas e das metas. Leia os [cuidados ao testar](#cuidados-ao-testar) antes de usar.
 
 ### Usando como aplicativo
 
@@ -199,6 +199,8 @@ O projeto tem mais de 2.400 testes automatizados, cerca de 1.250 no servidor e 1
 
 A verificação é automática e não depende de quem avalia o projeto. A cada envio de código para o GitHub, o GitHub Actions executa todos os testes, o SonarCloud analisa o código e, se não houver falhas, a nova versão é publicada no Azure. Os dois selos no topo desta página mostram o resultado mais recente: o primeiro é o da verificação automática (CI) e o segundo, o da análise do SonarCloud (Quality Gate).
 
+A meta do regulamento do curso é de pelo menos 75 % de cobertura de testes no servidor e 25 % na interface. O projeto está acima dela nos dois lados, e os números estão em [docs/testes.md](docs/testes.md#1-visão-geral).
+
 O que é testado, como os testes estão organizados, como executá-los e como a publicação funciona estão em [docs/testes.md](docs/testes.md).
 
 ## Organização do repositório
@@ -224,7 +226,7 @@ A documentação fica na pasta [docs](docs), versionada junto com o código. Cad
 
 ### Requisitos e histórias de usuário
 
-Lista os requisitos funcionais e não funcionais, as histórias de usuário de cada perfil, com os critérios de aceite, e os quatro fluxos de negócio completos do sistema. Está em [docs/requisitos.md](docs/requisitos.md).
+Lista os requisitos funcionais e não funcionais, as histórias de usuário de cada perfil, com os critérios de aceite, e os quatro [fluxos de negócio completos](docs/requisitos.md#5-fluxos-de-negócio-completos) do sistema. Está em [docs/requisitos.md](docs/requisitos.md).
 
 ### Funcionalidades e regras de negócio
 

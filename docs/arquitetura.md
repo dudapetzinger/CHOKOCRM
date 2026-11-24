@@ -90,7 +90,7 @@ flowchart TB
 
 A interface conversa apenas com o servidor, por uma API REST que troca dados em JSON. Cada pedido leva o token de quem está logado. O servidor é o único que acessa o banco de dados e o único que conhece as regras: a interface mostra o que ele calcula.
 
-As notas fiscais não aparecem como ligação entre sistemas porque não há conexão direta com o sistema de gestão da empresa. O arquivo PDF é escolhido pela gestão na interface e enviado ao servidor como qualquer outro pedido.
+As notas fiscais não aparecem como ligação entre sistemas porque não há conexão direta com o ERP da empresa. O arquivo PDF é escolhido pela gestão na interface e enviado ao servidor como qualquer outro pedido.
 
 No computador de desenvolvimento, as três partes sobem juntas com o Docker Compose. No ambiente publicado, o servidor e a interface ficam no mesmo endereço, em um App Service do Azure, o banco fica em um PostgreSQL gerenciado e o Application Insights recebe as requisições, as consultas ao banco e os erros do servidor.
 
@@ -112,7 +112,7 @@ flowchart TB
         services["<b>Services</b><br/>[Componente: TypeScript]<br/><br/>Regras do negócio: cor do cliente, agenda, metas, campanhas e notas fiscais"]
         jobs["<b>Rotinas diárias</b><br/>[Componente: node-cron]<br/><br/>Resumo da agenda e limpeza das fotos antigas"]
         repos["<b>Repositories</b><br/>[Componente: Prisma]<br/><br/>Leitura e gravação no banco de dados"]
-        erp["<b>Provedor de ERP</b><br/>[Componente: interface ErpProvider]<br/><br/>Vendas e estoque de cada cliente, das notas importadas ou da simulação"]
+        erp["<b>Provedor de ERP</b><br/>[Componente: interface ErpProvider]<br/><br/>Vendas e estoque de cada cliente, das notas importadas ou da fonte simulada"]
         storage["<b>Armazenamento de arquivos</b><br/>[Componente: interface FileStorage]<br/><br/>Grava e lê as fotos das visitas"]
     end
 
@@ -175,13 +175,13 @@ A interface não repete os cálculos do negócio. A cor de um cliente, a ordem d
 
 O layout se adapta ao tamanho da tela. No celular, a navegação fica em uma barra inferior. A partir de 768 pixels de largura, ela passa para um menu lateral. A partir de 1024 pixels, a lista de clientes e a ficha aparecem lado a lado.
 
-Os gráficos do painel são desenhados no próprio projeto, sem biblioteca de gráficos. O gráfico de vendas por mês e o mapa da página de clientes usam SVG. Os gráficos de barras (distribuição por cor, resultado por representante e ritmo de visitas) usam HTML e CSS. Esses quatro gráficos do painel têm uma tabela equivalente para leitores de tela, e o ranking é uma lista numerada em que os números já aparecem como texto.
+Os gráficos do painel são desenhados no próprio projeto, sem biblioteca de gráficos. O gráfico de vendas por mês e o mapa da página de clientes usam SVG. Os gráficos de barras (distribuição por cor, resultado das visitas e ritmo de visitas) usam HTML e CSS. Esses quatro gráficos do painel têm uma tabela equivalente para leitores de tela, e o ranking é uma lista numerada em que os números já aparecem como texto.
 
 Três peças são compartilhadas por várias telas:
 
 | Peça | Arquivo | O que faz |
 |------|---------|-----------|
-| Painel lateral | `components/crm/PainelLateral.tsx` | Abre, ao lado, os clientes ou as visitas por trás de uma barra, fatia, linha ou indicador. É o mesmo diálogo das outras telas (`Dialogo`) na variante `lateral`: prende o foco, fecha com Esc ou com um clique fora e devolve o foco a quem o abriu. No celular ocupa a tela inteira |
+| Painel lateral | `components/crm/PainelLateral.tsx` | Abre, ao lado, os clientes ou as visitas por trás de uma barra, de um trecho de barra, de uma linha ou de um indicador. É o mesmo diálogo das outras telas (`Dialogo`) na variante `lateral`: prende o foco, fecha com Esc ou com um clique fora e devolve o foco a quem o abriu. No celular ocupa a tela inteira |
 | Bloco recolhível | `Cartao` com a opção `recolhivel`, em `components/crm/ui.tsx` | Põe no título do cartão um botão que recolhe e expande o conteúdo. O estado fica no `localStorage` do navegador, por identificador de bloco (`lib/blocoRecolhivel.ts`). Sem armazenamento disponível, o bloco fica no estado inicial dele: aberto, com exceção do mapa da página de Clientes, que começa recolhido |
 | Campo de arquivo | `components/crm/CampoDeArquivo.tsx` | Mostra um botão e um texto próprios ("Anexar arquivos", "Nenhum arquivo selecionado") no lugar do texto nativo do navegador, que sai no idioma dele. O campo nativo continua na página, invisível sobre o botão, e é ele que o teclado e o leitor de tela alcançam |
 
@@ -229,7 +229,7 @@ CHOKOCRM/
 
 ## 5. Decisões técnicas
 
-A tabela resume o que foi escolhido em cada assunto e o motivo. As cinco primeiras linhas tratam das tecnologias, que também estão entre as indicadas pelo curso.
+A tabela resume o que foi escolhido em cada assunto e o motivo. As quatro primeiras linhas tratam das tecnologias, que também estão entre as indicadas pelo curso.
 
 | Assunto | O que escolhemos | Por quê |
 |---------|------------------|---------|
@@ -240,15 +240,15 @@ A tabela resume o que foi escolhido em cada assunto e o motivo. As cinco primeir
 | Organização do servidor | Arquitetura em camadas | Cada regra fica em um único lugar, as regras são testadas sem banco de dados e a fonte dos dados de compra pode ser trocada sem alterar as telas |
 | Repositório | Um só, público, com servidor, interface e documentação | Uma mudança que envolve os dois lados entra de uma vez, e quem avalia encontra tudo em um lugar |
 | Acesso ao banco | Prisma, com o arquivo `schema.prisma` como única descrição das tabelas | As alterações do banco ficam versionadas e os tipos do código saem do mesmo arquivo |
-| Clientes | Só a gestão cria cliente, a partir de uma nota fiscal importada. Só a gestão inativa | O cadastro oficial é o do sistema de gestão da empresa. Assim não há cliente duplicado nem inventado |
+| Clientes | Só a gestão cria cliente, a partir de uma nota fiscal importada. Só a gestão inativa | O cadastro oficial é o do ERP da empresa. Assim não há cliente duplicado nem inventado |
 | Carteira | Cada cliente pertence a um representante, que só vê e altera a própria carteira | Reflete como a equipe trabalha. A regra é conferida no servidor, em um único módulo (`services/carteira.ts`) |
-| Compras dos clientes | Notas fiscais em PDF importadas pela gestão. Quem não tem nota usa dados simulados | A empresa não liberou acesso direto ao sistema de gestão durante o projeto |
+| Compras dos clientes | Notas fiscais em PDF importadas pela gestão. Quem não tem nota usa dados simulados | A empresa não liberou acesso direto ao ERP durante o projeto |
 | Valor das vendas | O representante marca só o resultado da visita. O valor chega pela nota fiscal vinculada | A nota é o registro oficial da venda. Evita digitar o pedido duas vezes |
 | Cálculos | Cor do cliente, agenda, indicadores, metas e campanhas são calculados na hora da consulta, nunca gravados | Não existe dado desatualizado: uma visita nova muda a cor do cliente no mesmo instante |
 | Pendências das notas | A visita candidata de cada nota é calculada na consulta (`services/importacao-nf/visita-candidata.ts`). Na nota ficam gravadas a situação dela, as ligações (a automática do mesmo dia e a feita pela gestão) e a recusa. Enquanto a gestão não decide, a situação gravada é provisória, e a consulta recalcula se existe visita candidata | A lista de pendências acompanha as visitas e nunca aponta para uma visita que deixou de existir |
-| Nota no modo demonstração | O dia de emissão é gravado deslocado pelo mesmo número de dias do relógio | A nota importada durante a simulação fica na mesma linha do tempo das visitas e entra no volume de compras dos últimos 90 dias |
+| Nota no modo demonstração | O dia de emissão é gravado deslocado pelo mesmo número de dias do relógio | A nota importada com o modo demonstração ativo fica na mesma linha do tempo das visitas e entra no volume de compras dos últimos 90 dias |
 | Login | Usuário e senha, com dois perfis (representante e gestor). O acesso vale por oito horas | Simples para quem usa em campo. O e-mail não teria utilidade no sistema |
-| Senha esquecida | O gestor define uma senha provisória e a pessoa troca depois, no próprio perfil | Dispensa um serviço de envio de e-mails |
+| Senha esquecida | O gestor define uma senha provisória e a pessoa troca depois, no menu da conta, em Alterar senha | Dispensa um serviço de envio de e-mails |
 | WhatsApp | O sistema monta o texto e abre a conversa com o contato escolhido. Nada é registrado | Não usa a API paga do WhatsApp. Quem envia é o representante, que pode alterar o texto antes |
 | Fotos das visitas | Gravadas no disco do servidor e apagadas depois de 90 dias | Comprovam a visita sem acumular arquivos. Só usuários com acesso ao cliente veem a foto |
 | Lembretes | Cada lembrete é uma tarefa com data, aberta até ser concluída | Um lembrete não pode desaparecer apenas porque houve uma visita nova |
@@ -256,9 +256,9 @@ A tabela resume o que foi escolhido em cada assunto e o motivo. As cinco primeir
 | Visual | Protótipo aprovado pela empresa, com Tailwind CSS e componentes shadcn | O visual já estava validado com o gestor da empresa |
 | Painel | A mesma tela para os dois perfis, com os dados limitados pelo servidor | O representante acompanha a própria carteira com os mesmos indicadores da gestão |
 | Mapa e roteiro | Coordenadas dos 295 municípios de Santa Catarina guardadas no código. O trajeto abre no Google Maps por link | Não depende de chave de API nem tem custo por uso |
-| Data do sistema | Um módulo de mesmo nome em cada lado (`lib/relogio.ts`, no servidor e na interface) responde que dia é hoje | Permite o modo demonstração, que simula outra data. Um teste impede o uso direto do relógio do computador |
+| Data do sistema | Um módulo de mesmo nome em cada lado (`lib/relogio.ts`, no servidor e na interface) responde que dia é hoje | Permite o modo demonstração, que troca a data do sistema por uma data simulada. Um teste impede o uso direto do relógio do computador |
 | Ambientes | Docker Compose no computador de desenvolvimento e Azure na publicação | Qualquer pessoa executa o sistema com poucos comandos. No Azure, servidor e interface ficam no mesmo endereço |
-| Qualidade | SonarCloud a cada envio de código e Application Insights no ambiente publicado | Defeitos e trechos sem teste aparecem antes da publicação, e falhas em uso geram aviso |
+| Qualidade | SonarCloud a cada envio de código e Application Insights no ambiente publicado | Defeitos e trechos sem teste aparecem antes da publicação, e as falhas em uso ficam registradas e, com o teste de disponibilidade ligado, geram aviso |
 
 ### De onde vêm os dados de compra
 
@@ -267,7 +267,7 @@ Hoje o sistema trabalha com dados de demonstração, e as compras de cada client
 | Fonte | Quando vale | O que traz |
 |-------|-------------|------------|
 | Notas fiscais importadas | Para o cliente que tem nota importada no CNPJ dele | As vendas reais, com produtos e valores. Não traz estoque |
-| Simulação | Para o cliente sem nota importada | Vendas e estoque gerados por um algoritmo, sempre os mesmos para o mesmo cliente, com variação conforme a época do ano |
+| Fonte simulada | Para o cliente sem nota importada | Vendas e estoque gerados por um algoritmo, sempre os mesmos para o mesmo cliente, com variação conforme a época do ano |
 
 O sistema usa uma fonte por cliente e nunca soma as duas. A escolha é automática.
 
@@ -275,13 +275,13 @@ No código, as duas fontes ficam atrás de uma mesma interface, `ErpProvider`. A
 
 ### Melhoria futura: integração com o sistema de gestão
 
-A evolução planejada para depois deste projeto é ligar o ChokoCRM diretamente ao sistema de gestão da empresa. Com a integração:
+A evolução planejada para depois deste projeto é ligar o ChokoCRM diretamente ao sistema de gestão da empresa (ERP). Com a integração:
 
-- os clientes cadastrados pela gestão no sistema de gestão chegam ao ChokoCRM automaticamente, sem importação de notas;
+- os clientes cadastrados pela empresa no ERP chegam ao ChokoCRM automaticamente, sem importação de notas;
 - as vendas e o estoque passam a ser sempre os reais;
 - o modo demonstração e os dados fictícios deixam de existir. O sistema começa zerado, e cada representante inicia o próprio controle com clientes reais.
 
-No código, as vendas e o estoque do sistema de gestão entram como mais uma fonte atrás da interface `ErpProvider`: uma classe nova em `providers/erp`, mais uma opção na variável `ERP_PROVIDER` e a escolha do identificador do cliente em `services/erp.service.ts`. As telas e as regras de cálculo não mudam. A chegada automática dos clientes é uma parte nova, porque a interface de hoje entrega apenas vendas e estoque.
+No código, as vendas e o estoque do ERP entram como mais uma fonte atrás da interface `ErpProvider`: uma classe nova em `providers/erp`, mais uma opção na variável `ERP_PROVIDER` e a escolha do identificador do cliente em `services/erp.service.ts`. As telas e as regras de cálculo não mudam. A chegada automática dos clientes é uma parte nova, porque a interface de hoje entrega apenas vendas e estoque.
 
 ## 6. API
 
@@ -357,7 +357,7 @@ Em `/clients/:id/insights`, a lista `campanhas` vem em cada sugestão e em cada 
 | GET | `/dashboard/kpis/visitas` | R e G | Visitas do período, uma a uma, e clientes ativos sem visita. Alimenta o painel lateral |
 | GET | `/dashboard/vendas-mensais` | R e G | Vendas mês a mês, com as datas comemorativas. Pode estender a série até o mês da próxima data comemorativa |
 | GET | `/insights/sazonalidade` | R e G | Datas comemorativas do horizonte, com as vendas da carteira no período de cada uma, as campanhas e o estoque baixo por produto |
-| GET | `/dashboard/relatorio` | R e G | Dados da planilha, uma linha por cliente |
+| GET | `/dashboard/relatorio` | R e G | Dados da planilha, uma linha por cliente ativo |
 
 Todos esses endereços exigem login e valem para os dois perfis. O representante recebe sempre a própria carteira, e o `representanteId` que ele envia é ignorado. O gestor recebe a empresa inteira ou, com `representanteId`, a carteira daquele representante. Parâmetro inválido responde 400 com o código `VALIDATION_ERROR`.
 
@@ -378,7 +378,7 @@ A resposta tem:
 | `granularidade` | `SEMANA` em períodos de até 91 dias, `MES` nos maiores. É a mesma do ritmo de visitas |
 | `visitas` | Todas as visitas do período, da mais recente para a mais antiga. Cada uma tem `visitaId`, `clienteId`, `nomeFantasia`, `cidade`, `clienteAtivo`, `representanteId` e `representanteNome` (o dono da carteira do cliente), `dataHora`, `faixaInicio` (a segunda-feira da semana ou o dia 1 do mês, igual ao início de uma faixa do ritmo), `resultado` e `valor` (total dos produtos nas visitas com venda, zero nas outras) |
 | `naoVisitados` | Clientes ativos da carteira sem visita no período, do que está há mais tempo sem visita ao que está há menos. Cada um tem `id`, `nomeFantasia`, `cidade`, `representanteId`, `representanteNome`, `ultimaVisita` e `diasSemVisita`, os dois últimos nulos para quem nunca foi visitado |
-| `simulado` | Verdadeiro somente quando o servidor está configurado para usar apenas a simulação (`ERP_PROVIDER=mock`). Na configuração padrão, que escolhe a fonte por cliente, vem falso |
+| `simulado` | Verdadeiro somente quando o servidor está configurado para usar apenas a fonte simulada (`ERP_PROVIDER=mock`). Na configuração padrão, que escolhe a fonte por cliente, vem falso |
 
 Os números coincidem com os dos indicadores para os mesmos parâmetros: a quantidade de `visitas` é o número de visitas, as que têm resultado `VENDA` são as da conversão, e os clientes ativos distintos são os clientes visitados.
 
@@ -408,7 +408,7 @@ A resposta tem, para a carteira toda:
 |-------|----------|
 | `hoje` | O dia de hoje do sistema, que segue a data simulada |
 | `horizonteDias` | O horizonte aplicado |
-| `simulado` | Verdadeiro somente quando o servidor está configurado para usar apenas a simulação (`ERP_PROVIDER=mock`). Na configuração padrão, que escolhe a fonte por cliente, vem falso |
+| `simulado` | Verdadeiro somente quando o servidor está configurado para usar apenas a fonte simulada (`ERP_PROVIDER=mock`). Na configuração padrão, que escolhe a fonte por cliente, vem falso |
 | `limiteEstoqueBaixo` | Quantidade abaixo da qual o estoque de um produto é baixo. Vale 10 |
 | `clientesDaCarteira` | Clientes ativos da carteira |
 | `clientesConsultados` | Dos ativos, os que foram consultados na fonte de vendas |

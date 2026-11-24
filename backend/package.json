@@ -1,6 +1,6 @@
 {
   "name": "chokocrm-backend",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "description": "Servidor (API) do ChokoCRM, em Express e TypeScript",
   "main": "dist/server.js",
   "engines": {

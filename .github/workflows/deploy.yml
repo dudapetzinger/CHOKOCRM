@@ -7,7 +7,7 @@ permissions:
 concurrency: producao
 jobs:
   api:
-    # workflow_run roda com secrets: só publica quando o CI do push na main passou
+    # workflow_run é executado com secrets: só publica quando o CI do push na main passou
     # (um PR de fork com branch chamada `main` não dispara deploy). O job `smoke`
     # depende deste e é pulado junto com ele.
     if: >-
@@ -50,7 +50,7 @@ jobs:
     env:
       API_URL: ${{ vars.VITE_API_URL }}
     steps:
-      # O start da API roda migrations antes de ouvir a porta: espera até 2 min (24 x 5 s).
+      # O start da API executa as migrations antes de ouvir a porta: espera até 2 min (24 x 5 s).
       - name: API responde em /health
         run: |
           : "${API_URL:?variable VITE_API_URL não definida}"
