@@ -234,4 +234,4 @@ O resultado atual pode ser visto no selo Quality Gate do [README](../README.md) 
 
 Para experimentar o sistema como usuário, siga o roteiro da seção [Como testar](../README.md#como-testar) do README, que traz o endereço publicado, as contas de acesso e um passo a passo para cada perfil.
 
-Além dos testes automatizados, o sistema foi validado em uso pela Chokolaten ao longo do desenvolvimento, e os ajustes pedidos nessas validações foram incorporados.
+Além dos testes automatizados, o sistema foi validado com o gestor da Chokolaten ao longo do desenvolvimento, e os ajustes pedidos nessas validações foram incorporados. Não houve validação em campo com os representantes.

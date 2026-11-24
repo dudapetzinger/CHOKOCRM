@@ -246,7 +246,7 @@ A tabela resume o que foi escolhido em cada assunto e o motivo. As cinco primeir
 | Fotos das visitas | Gravadas no disco do servidor e apagadas depois de 90 dias | Comprovam a visita sem acumular arquivos. Só usuários com acesso ao cliente veem a foto |
 | Lembretes | Cada lembrete é uma tarefa com data, aberta até ser concluída | Um lembrete não pode desaparecer apenas porque houve uma visita nova |
 | Aplicativo | Instalável no celular (PWA), sem gravação offline | Evita publicar em loja de aplicativos. Gravar offline exigiria resolver conflitos de sincronização |
-| Visual | Protótipo aprovado pela empresa, com Tailwind CSS e componentes shadcn | O visual já estava validado com quem vai usar |
+| Visual | Protótipo aprovado pela empresa, com Tailwind CSS e componentes shadcn | O visual já estava validado com o gestor da empresa |
 | Painel | A mesma tela para os dois perfis, com os dados limitados pelo servidor | O representante acompanha a própria carteira com os mesmos indicadores da gestão |
 | Mapa e roteiro | Coordenadas dos 295 municípios de Santa Catarina guardadas no código. O trajeto abre no Google Maps por link | Não depende de chave de API nem tem custo por uso |
 | Data do sistema | Um único módulo (`lib/relogio.ts`) responde que dia é hoje, no servidor e na interface | Permite o modo demonstração, que simula outra data. Um teste impede o uso direto do relógio do computador |
