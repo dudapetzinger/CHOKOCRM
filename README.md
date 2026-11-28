@@ -11,6 +11,7 @@ Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Univers
 
 ## Sumário
 
+- [Vídeo de demonstração](#vídeo-de-demonstração)
 - [O problema](#o-problema)
 - [O que o sistema faz](#o-que-o-sistema-faz)
 - [Como testar](#como-testar)
@@ -28,6 +29,12 @@ Projeto extensionista (PAC) do curso de Engenharia de Software do Centro Univers
   - [Monitoramento](#monitoramento)
   - [Privacidade, segurança e acessibilidade](#privacidade-segurança-e-acessibilidade)
 - [Autoria e licença](#autoria-e-licença)
+
+## Vídeo de demonstração
+
+Em menos de três minutos, o vídeo mostra o sistema em uso. O representante vê quais clientes precisa visitar primeiro, registra a visita pelo celular e recebe sugestões do que oferecer para o Natal. Em seguida, a gestão acompanha os resultados no painel. O vídeo não tem som: as explicações aparecem escritas na tela. Ele foi gravado com os dados de demonstração.
+
+https://github.com/user-attachments/assets/0c8df881-6b80-4f37-9b5e-5a5cf9fe4626
 
 ## O problema
 
